@@ -2,7 +2,7 @@
 
 > Une application magique de création d'histoires pour enfants, avec une IA-Amie nommée Luna.
 
-![Version](https://img.shields.io/badge/version-1.5.1-purple)
+![Version](https://img.shields.io/badge/version-1.6.0-purple)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)
 ![Supabase](https://img.shields.io/badge/Supabase-Database-green)
@@ -39,47 +39,69 @@ Le tout accompagné par **Luna**, une IA-Amie de 8 ans qui guide, encourage et e
 
 ---
 
-## ✍️ Mode Écriture Avancé (Nouveau !)
+## ✍️ Mode Écriture Avancé
 
-### Interface complète
+### Interface Livre Ouvert
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│  [Onglets pages]  📄 1 | 📄 2 | 📄 3 | +                           │
-├────────────────────────────────────────────┬───────────────────────┤
-│                                            │  💜 Luna      🔊      │
-│  [Barre de formatage complète]             │                       │
-│  Police | Taille | B I | ◀▣▶ | ←→↑↓ | 🎨   │  Chat en temps réel  │
-│                                            │                       │
-│  ┌──────────────────────────────────────┐  │  [📖 Luna, lis ma    │
-│  │                                      │  │   page !]            │
-│  │  Zone d'écriture avec style          │  │                       │
-│  │                                      │  │  Luna analyse et      │
-│  │                                      │  │  guide l'enfant       │
-│  ├──────────────────────────────────────┤  │                       │
-│  │ 42 mots     [🎙️ Dicter] [🖼️ Image] │  │  [Écrire...] 🎙️ 💬   │
-│  └──────────────────────────────────────┘  └───────────────────────┘
-└────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [< Retour]  Titre histoire...        [FormatBar complète]         [≡] [⊞]   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│      ┌─────────────────┬────┬─────────────────┐                             │
+│   <  │ PAGE GAUCHE     │ || │ PAGE DROITE     │  >                          │
+│      │ (éditable)      │ || │ (éditable)      │                             │
+│      │ ─────────────── │ || │ ─────────────── │                             │
+│      │ Il était une    │ || │ La suite de     │                             │
+│      │ fois...         │ || │ l'histoire...   │                             │
+│      │ ─────────────── │ || │ ─────────────── │                             │
+│      │     [👁] — 1 —  │ || │ [👁] — 2 —      │                             │
+│      └─────────────────┴────┴─────────────────┘                             │
+│                                                                              │
+│              [•1] [•2] [•3] [•4] [+]                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Vue Livre Ouvert (Nouveau !)
+### Vue Livre Ouvert
 
-- **2 pages côte à côte** comme un vrai livre
+- **2 pages éditables côte à côte** comme un vrai livre
 - **Reliure centrale** avec effet visuel réaliste
-- **Mode zoom** : Cliquer sur l'œil pour agrandir une page
+- **Mode zoom** : Cliquer sur l'œil pour agrandir une page (gauche OU droite)
 - **Texte SUR les lignes** : Écriture alignée sur les lignes du cahier
 - **Ratio 2:3** respecté (format livre standard)
+- **Points colorés** sur les onglets pour indiquer les chapitres
 
-### Barre de formatage
+### Barre de Formatage (Nouveau ✨)
 
-| Outil | Options |
-|-------|---------|
-| **6 Polices** | Écriture, Conte, Enfant, Livre, BD, Magie |
-| **Tailles numériques** | 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72 |
-| **Styles** | Gras, Italique |
-| **Alignement** | Gauche, Centré, Droite |
-| **Espacement lignes** | Serré, Normal, Aéré |
+| Outil | Comportement |
+|-------|--------------|
+| **6 Polices** | S'applique au texte **sélectionné uniquement** |
+| **Tailles numériques** | S'applique au texte **sélectionné uniquement** |
+| **Gras / Italique** | Fonctionne sans déplacer le curseur |
 | **Couleurs** | Palette complète avec nuancier |
+| **Détection auto** | L'indicateur affiche la taille/police du texte sous le curseur |
+
+**Tailles disponibles** : 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72
+
+**Polices** : Écriture, Conte, Enfant, Livre, BD, Magie
+
+### Mode Zoom
+
+```
+┌────────────────────────────────────────────────────┐
+│                                         [👁̸]       │
+│              Introduction                          │
+│  ───────────────────────────────────────────────   │
+│  Il était une fois une histoire fabuleuse qui      │
+│  ───────────────────────────────────────────────   │
+│  commençait par une belle journée ensoleillée.     │
+│  ───────────────────────────────────────────────   │
+│                                                    │
+│                  — Page 1 —                        │
+├────────────────────────────────────────────────────┤
+│              [•1] [•2] [•3] [•4] [+]               │
+└────────────────────────────────────────────────────┘
+```
 
 ### Structures Narratives
 
@@ -219,7 +241,7 @@ Le tout accompagné par **Luna**, une IA-Amie de 8 ans qui guide, encourage et e
 ### 1. Cloner le projet
 
 ```bash
-git clone https://github.com/votre-repo/lavoixdusoir.git
+git clone https://github.com/gregjazzy/The-Evening-Voice.git
 cd lavoixdusoir
 ```
 
@@ -244,6 +266,8 @@ GOOGLE_GEMINI_API_KEY=votre-clé-gemini
 # CONFIG
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+> ⚠️ **Ne jamais commiter le fichier `.env.local`** - Il contient vos clés API privées.
 
 ### 4. Lancer l'application
 
@@ -292,10 +316,12 @@ npm run lint          # Vérifier le code
 - [x] Panneau Luna latéral avec chat
 - [x] Dictée vocale (Speech-to-Text)
 - [x] Parler à Luna (micro)
-- [x] **Vue livre ouvert** (2 pages côte à côte)
-- [x] **Mode zoom** pour travailler sur une page
+- [x] **Vue livre ouvert** (2 pages éditables côte à côte)
+- [x] **Mode zoom bidirectionnel** (page gauche ou droite)
 - [x] **Texte aligné sur les lignes** du cahier
-- [x] **Gestion des chapitres** par page
+- [x] **Gestion des chapitres** par page (points colorés)
+- [x] **Formatage sur sélection** (taille, police, couleur appliqués au texte sélectionné)
+- [x] **Détection auto des styles** (indicateur mis à jour selon le curseur)
 
 ### À venir 📋
 
@@ -303,6 +329,22 @@ npm run lint          # Vérifier le code
 - [ ] Intégration images Studio → Livre
 - [ ] Mode hors-ligne avec sync
 - [ ] App Electron pour Windows
+
+---
+
+## 📦 Git Repository
+
+**URL** : `https://github.com/gregjazzy/The-Evening-Voice.git`
+
+```bash
+# Cloner
+git clone https://github.com/gregjazzy/The-Evening-Voice.git
+
+# Après modifications
+git add .
+git commit -m "description"
+git push origin main
+```
 
 ---
 
