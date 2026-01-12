@@ -1,0 +1,366 @@
+{
+  "common": {
+    "appName": "Вечерний Голос",
+    "loading": "Загрузка...",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "create": "Создать",
+    "back": "Назад",
+    "next": "Далее",
+    "previous": "Назад",
+    "close": "Закрыть",
+    "confirm": "Подтвердить",
+    "yes": "Да",
+    "no": "Нет",
+    "or": "или",
+    "and": "и",
+    "welcome": "Добро пожаловать"
+  },
+  "nav": {
+    "diary": "Дневник",
+    "book": "Письмо",
+    "studio": "Студия",
+    "layout": "Макет",
+    "theater": "Театр",
+    "collab": "Совместно",
+    "settings": "Настройки",
+    "logout": "Выход"
+  },
+  "auth": {
+    "login": "Вход",
+    "register": "Регистрация",
+    "logout": "Выход",
+    "email": "Почта",
+    "password": "Пароль",
+    "confirmPassword": "Подтвердите пароль",
+    "forgotPassword": "Забыли пароль?",
+    "resetPassword": "Сбросить пароль",
+    "noAccount": "Нет аккаунта?",
+    "hasAccount": "Уже есть аккаунт?",
+    "createAccount": "Создать аккаунт",
+    "loginButton": "Войти",
+    "registerButton": "Зарегистрироваться",
+    "welcomeBack": "С возвращением!",
+    "enterMagicWorld": "Войди в свой волшебный мир ✨",
+    "chooseAvatar": "Выбери аватар",
+    "yourName": "Твоё имя",
+    "parentEmail": "Почта родителей",
+    "createPassword": "Придумай секретный пароль",
+    "iAmChild": "Я ребёнок",
+    "iAmMentor": "Я наставник",
+    "iAmParent": "Я родитель",
+    "selectRole": "Кто ты?",
+    "magicCode": "Волшебный код",
+    "enterMagicCode": "Введи волшебный код",
+    "willBeCreatedWith": "будет создан с ролью",
+    "errors": {
+      "invalidEmail": "Неверная почта",
+      "passwordTooShort": "Пароль должен быть не менее 6 символов",
+      "passwordMismatch": "Пароли не совпадают",
+      "invalidCredentials": "Неверная почта или пароль",
+      "emailInUse": "Эта почта уже используется",
+      "fillAllFields": "Заполни все поля!",
+      "selectRole": "Выбери кто ты!",
+      "generic": "Произошла ошибка"
+    }
+  },
+  "diary": {
+    "title": "Мой Секретный Дневник",
+    "placeholder": "Пиши здесь свои мысли, мечты, секреты... ✨",
+    "wordCount": "{count} слов",
+    "moods": {
+      "happy": "Счастливый",
+      "sad": "Грустный",
+      "excited": "Взволнованный",
+      "calm": "Спокойный",
+      "dreamy": "Мечтательный"
+    },
+    "dictate": "Диктовать",
+    "saveMemory": "Сохранить воспоминание",
+    "memoryImage": "Картинка воспоминания",
+    "generateMemory": "Создать картинку воспоминания",
+    "aiChat": {
+      "lunaName": "Луна",
+      "lunaSubtitle": "Твоя волшебная подруга ✨",
+      "placeholder": "Поговори со мной...",
+      "send": "Отправить"
+    }
+  },
+  "book": {
+    "title": "Моя История",
+    "newStory": "Новая история",
+    "storyTitle": "Название истории",
+    "chapter": "Глава {number}",
+    "addChapter": "Добавить главу",
+    "characters": "Персонажи",
+    "addCharacter": "Добавить персонажа",
+    "writePlaceholder": "Жили-были...",
+    "wordCount": "{count} слов",
+    "saveStory": "Сохранить историю"
+  },
+  "studio": {
+    "title": "Студия Творчества",
+    "subtitle": "Создавай волшебные картинки, звуки и видео ✨",
+    "tabs": {
+      "image": "Картинки",
+      "voice": "Голос",
+      "video": "Видео"
+    },
+    "promptBuilder": {
+      "subject": "Что ты хочешь создать?",
+      "subjectPlaceholder": "Опиши, что представляешь...",
+      "details": "Добавь детали",
+      "detailsPlaceholder": "Цвета, формы, персонажи...",
+      "style": "Какой стиль?",
+      "ambiance": "Какая атмосфера?",
+      "light": "Какой свет?",
+      "notes": "Что-нибудь ещё?",
+      "notesPlaceholder": "Всё, что приходит в голову...",
+      "optional": "(необязательно)"
+    },
+    "styles": {
+      "drawing": "Рисунок",
+      "photo": "Фото",
+      "magic": "Волшебный",
+      "anime": "Аниме",
+      "watercolor": "Акварель",
+      "pixelart": "Пиксель-арт"
+    },
+    "ambiances": {
+      "day": "День",
+      "night": "Ночь",
+      "storm": "Гроза",
+      "mist": "Туман",
+      "fairy": "Сказочный",
+      "mystery": "Тайна"
+    },
+    "lights": {
+      "sun": "Солнце",
+      "moon": "Луна",
+      "candle": "Свеча",
+      "neon": "Неон",
+      "aurora": "Северное сияние"
+    },
+    "kit": {
+      "ready": "Набор готов!",
+      "incomplete": "Набор неполный!",
+      "missing": "Не хватает: {fields}",
+      "viewPrompt": "Показать промпт"
+    },
+    "safari": {
+      "gemini": "Запустить Gemini",
+      "midjourney": "Запустить Midjourney",
+      "elevenlabs": "Запустить ElevenLabs",
+      "runway": "Запустить Runway",
+      "promptCopied": "Промпт скопирован!"
+    },
+    "generate": "Создать",
+    "generating": "Создаётся...",
+    "dropzone": "Перетащи файлы сюда"
+  },
+  "layout": {
+    "title": "Редактор Макета",
+    "subtitle": "Собери свою волшебную книгу",
+    "createBook": "Создать новую книгу",
+    "bookTitle": "Название моей книги...",
+    "startAdventure": "Начать приключение!",
+    "page": "Страница {current} / {total}",
+    "addPage": "Новая страница",
+    "sealPage": "Запечатать страницу",
+    "sealConfirm": {
+      "title": "Запечатать эту страницу?",
+      "message": "После запечатывания её нельзя будет редактировать. Она будет готова для шоу! ✨",
+      "confirm": "Запечатать!",
+      "cancel": "Отмена"
+    },
+    "pageSealed": "Страница запечатана",
+    "finishBook": "Закончить книгу ✨",
+    "tabs": {
+      "text": "Текст",
+      "media": "Медиа",
+      "audio": "Аудио"
+    },
+    "typography": {
+      "addText": "Добавить текст",
+      "font": "Шрифт",
+      "size": "Размер",
+      "alignment": "Выравнивание",
+      "color": "Цвет",
+      "rotation": "Поворот",
+      "opacity": "Прозрачность",
+      "shadow": "Тень",
+      "deleteText": "Удалить текст"
+    },
+    "audio": {
+      "narration": "Озвучка",
+      "music": "Музыка",
+      "ambient": "Фон",
+      "noFile": "Нет файла",
+      "volume": "Громкость",
+      "loop": "Повтор"
+    },
+    "background": "Фон",
+    "addImage": "Добавить картинку",
+    "addVideo": "Добавить видео",
+    "lightAmbiance": "Световая атмосфера"
+  },
+  "theater": {
+    "title": "Театр Чудес",
+    "subtitle": "Твои истории готовы к представлению ✨",
+    "library": {
+      "empty": "Библиотека пуста",
+      "emptyMessage": "Закончи книгу в режиме Макета, чтобы найти её здесь. Каждая законченная книга становится волшебным шоу! ✨",
+      "pages": "{count} страниц"
+    },
+    "homekit": {
+      "connect": "Подключить HomeKit",
+      "connected": "Свет подключён",
+      "synced": "Свет синхронизирован",
+      "lightIntensity": "Яркость света"
+    },
+    "controls": {
+      "play": "Играть",
+      "pause": "Пауза",
+      "exit": "Выход",
+      "volume": "Громкость",
+      "fullscreen": "Полный экран",
+      "settings": "Настройки"
+    },
+    "settings": {
+      "title": "Настройки шоу",
+      "autoAdvance": "Автопереход",
+      "duration": "Длительность страницы: {seconds}с"
+    },
+    "mentorControl": "Наставник управляет"
+  },
+  "mentor": {
+    "dashboard": "Панель Наставника",
+    "sessionId": "ID сессии",
+    "studentScreen": "Экран Ученика",
+    "waitingScreen": "Ожидание демонстрации экрана...",
+    "controlActive": "Контроль Активен",
+    "takeControl": "Взять контроль",
+    "releaseControl": "Отпустить",
+    "noStudents": "Нет подключённых учеников.",
+    "studioState": "Состояние Студии ученика",
+    "refreshState": "Обновить",
+    "myVideo": "Моё видео",
+    "cameraOff": "Камера выключена",
+    "flashMissions": {
+      "title": "Быстрые Миссии",
+      "subtitle": "Отправь быструю миссию ученику.",
+      "promptIdeas": "Идеи промптов",
+      "useGemini": "Использовать Gemini",
+      "createImage": "Создать картинку",
+      "structureStory": "Структурировать историю"
+    },
+    "connection": {
+      "title": "Совместное Подключение",
+      "chooseRole": "Выбери свою роль для этой сессии",
+      "iAmMentor": "Я Наставник",
+      "createSession": "Создать сессию и пригласить учеников",
+      "iAmStudent": "Я ученик",
+      "joinSession": "Присоединиться к сессии наставника",
+      "sessionCreated": "Сессия Наставника Создана!",
+      "shareCode": "Поделись этим кодом с учениками",
+      "yourName": "Твоё имя",
+      "sessionCode": "Код сессии",
+      "startSession": "Начать сессию",
+      "joinTitle": "Присоединиться к Сессии",
+      "enterCode": "Введи код сессии наставника",
+      "join": "Присоединиться"
+    },
+    "controlRequest": {
+      "title": "Помощь Наставника!",
+      "message": "Наставник хочет помочь тебе удалённо, откроем волшебную дверь?",
+      "accept": "Да, принимаю!",
+      "deny": "Нет, спасибо"
+    },
+    "statusBar": "Твой наставник управляет!",
+    "retakeControl": "Вернуть контроль"
+  },
+  "missions": {
+    "flashMission": "Быстрая Миссия",
+    "types": {
+      "prompt": "Идеи для промпта!",
+      "gemini": "Использовать Gemini!",
+      "midjourney": "Создать картинку!",
+      "story": "Структурировать историю!",
+      "style": "Выбери стиль!",
+      "ambiance": "Какая атмосфера?"
+    },
+    "understood": "Понятно!"
+  },
+  "progress": {
+    "title": "Мой прогресс",
+    "level": "Уровень",
+    "currentMission": "Текущая миссия",
+    "keys": "5 Волшебных Ключей",
+    "images": "изображений",
+    "youUsed": "Ты использовал",
+    "keysNames": {
+      "style": "Стиль",
+      "hero": "Герой",
+      "mood": "Настроение",
+      "world": "Мир",
+      "magic": "Магия"
+    }
+  },
+  "story": {
+    "chooseLength": "Какой длины будет история?",
+    "chooseStructure": "Какой тип истории?",
+    "lengths": {
+      "mini": "Мини (3-5 страниц)",
+      "short": "Короткая (6-8 страниц)",
+      "classic": "Классическая (10-12 страниц)",
+      "long": "Длинная (15+ страниц)"
+    },
+    "structures": {
+      "tale": "Классическая сказка",
+      "adventure": "Приключение",
+      "problem": "Проблема-Решение",
+      "journal": "Иллюстрированный дневник",
+      "loop": "Петля",
+      "free": "Свободно"
+    },
+    "structureDescriptions": {
+      "tale": "Как традиционные сказки",
+      "adventure": "Путешествие, поиск и исследование",
+      "problem": "У кого-то есть проблема",
+      "journal": "Рассказать воспоминание",
+      "loop": "Как три поросёнка",
+      "free": "Делай как хочешь!"
+    },
+    "plan": "План истории",
+    "currentStep": "Текущий этап",
+    "nextStep": "Следующий этап",
+    "prevStep": "Предыдущий этап",
+    "finishStory": "Закончить историю"
+  },
+  "settings": {
+    "title": "Настройки",
+    "language": "Язык",
+    "theme": "Тема",
+    "notifications": "Уведомления",
+    "sound": "Звуки",
+    "account": "Аккаунт",
+    "about": "О приложении"
+  },
+  "errors": {
+    "generic": "Произошла ошибка",
+    "network": "Ошибка подключения",
+    "notFound": "Страница не найдена",
+    "unauthorized": "Доступ запрещён",
+    "tryAgain": "Попробовать снова"
+  },
+  "time": {
+    "today": "Сегодня",
+    "yesterday": "Вчера",
+    "morning": "Доброе утро",
+    "afternoon": "Добрый день",
+    "evening": "Добрый вечер"
+  }
+}
+

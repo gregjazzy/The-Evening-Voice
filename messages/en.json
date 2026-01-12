@@ -1,0 +1,366 @@
+{
+  "common": {
+    "appName": "The Evening Voice",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "or": "or",
+    "and": "and",
+    "welcome": "Welcome"
+  },
+  "nav": {
+    "diary": "Diary",
+    "book": "Writing",
+    "studio": "Studio",
+    "layout": "Layout",
+    "theater": "Theater",
+    "collab": "Collab",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Sign Up",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset Password",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "createAccount": "Create Account",
+    "loginButton": "Sign In",
+    "registerButton": "Sign Up",
+    "welcomeBack": "Welcome back!",
+    "enterMagicWorld": "Enter your magical world ✨",
+    "chooseAvatar": "Choose your avatar",
+    "yourName": "Your first name",
+    "parentEmail": "Parent's email",
+    "createPassword": "Create a secret password",
+    "iAmChild": "I'm a child",
+    "iAmMentor": "I'm the mentor",
+    "iAmParent": "I'm a parent",
+    "selectRole": "Who are you?",
+    "magicCode": "Magic code",
+    "enterMagicCode": "Enter your magic code",
+    "willBeCreatedWith": "will be created with role",
+    "errors": {
+      "invalidEmail": "Invalid email",
+      "passwordTooShort": "Password must be at least 6 characters",
+      "passwordMismatch": "Passwords don't match",
+      "invalidCredentials": "Incorrect email or password",
+      "emailInUse": "This email is already in use",
+      "fillAllFields": "Fill in all fields!",
+      "selectRole": "Choose who you are!",
+      "generic": "An error occurred"
+    }
+  },
+  "diary": {
+    "title": "My Secret Diary",
+    "placeholder": "Write your thoughts, dreams, secrets here... ✨",
+    "wordCount": "{count} words",
+    "moods": {
+      "happy": "Happy",
+      "sad": "Sad",
+      "excited": "Excited",
+      "calm": "Calm",
+      "dreamy": "Dreamy"
+    },
+    "dictate": "Dictate",
+    "saveMemory": "Keep this memory",
+    "memoryImage": "Memory image",
+    "generateMemory": "Create a memory image",
+    "aiChat": {
+      "lunaName": "Luna",
+      "lunaSubtitle": "Your magical friend ✨",
+      "placeholder": "Talk to me...",
+      "send": "Send"
+    }
+  },
+  "book": {
+    "title": "My Story",
+    "newStory": "New story",
+    "storyTitle": "Story title",
+    "chapter": "Chapter {number}",
+    "addChapter": "Add chapter",
+    "characters": "Characters",
+    "addCharacter": "Add character",
+    "writePlaceholder": "Once upon a time...",
+    "wordCount": "{count} words",
+    "saveStory": "Save story"
+  },
+  "studio": {
+    "title": "Creation Studio",
+    "subtitle": "Create magical images, sounds and videos ✨",
+    "tabs": {
+      "image": "Images",
+      "voice": "Voice",
+      "video": "Videos"
+    },
+    "promptBuilder": {
+      "subject": "What do you want to create?",
+      "subjectPlaceholder": "Describe what you imagine...",
+      "details": "Add details",
+      "detailsPlaceholder": "Colors, shapes, characters...",
+      "style": "What style?",
+      "ambiance": "What ambiance?",
+      "light": "What light?",
+      "notes": "Anything else to add?",
+      "notesPlaceholder": "Anything on your mind...",
+      "optional": "(optional)"
+    },
+    "styles": {
+      "drawing": "Drawing",
+      "photo": "Photo",
+      "magic": "Magical",
+      "anime": "Anime",
+      "watercolor": "Watercolor",
+      "pixelart": "Pixel Art"
+    },
+    "ambiances": {
+      "day": "Day",
+      "night": "Night",
+      "storm": "Storm",
+      "mist": "Mist",
+      "fairy": "Fairy",
+      "mystery": "Mystery"
+    },
+    "lights": {
+      "sun": "Sun",
+      "moon": "Moon",
+      "candle": "Candle",
+      "neon": "Neon",
+      "aurora": "Aurora"
+    },
+    "kit": {
+      "ready": "Kit ready!",
+      "incomplete": "Kit incomplete!",
+      "missing": "Missing: {fields}",
+      "viewPrompt": "View prompt"
+    },
+    "safari": {
+      "gemini": "Launch Gemini",
+      "midjourney": "Launch Midjourney",
+      "elevenlabs": "Launch ElevenLabs",
+      "runway": "Launch Runway",
+      "promptCopied": "Prompt copied!"
+    },
+    "generate": "Generate",
+    "generating": "Generating...",
+    "dropzone": "Drop your files here"
+  },
+  "layout": {
+    "title": "Layout Editor",
+    "subtitle": "Assemble your magical book",
+    "createBook": "Create a new book",
+    "bookTitle": "My book title...",
+    "startAdventure": "Start the adventure!",
+    "page": "Page {current} / {total}",
+    "addPage": "New page",
+    "sealPage": "Seal the page",
+    "sealConfirm": {
+      "title": "Seal this page?",
+      "message": "Once sealed, you won't be able to edit it. It will be ready for the show! ✨",
+      "confirm": "Seal!",
+      "cancel": "Cancel"
+    },
+    "pageSealed": "Page sealed",
+    "finishBook": "Finish the book ✨",
+    "tabs": {
+      "text": "Text",
+      "media": "Media",
+      "audio": "Audio"
+    },
+    "typography": {
+      "addText": "Add text",
+      "font": "Font",
+      "size": "Size",
+      "alignment": "Alignment",
+      "color": "Color",
+      "rotation": "Rotation",
+      "opacity": "Opacity",
+      "shadow": "Drop shadow",
+      "deleteText": "Delete text"
+    },
+    "audio": {
+      "narration": "Narration",
+      "music": "Music",
+      "ambient": "Ambient",
+      "noFile": "No file",
+      "volume": "Volume",
+      "loop": "Loop"
+    },
+    "background": "Background",
+    "addImage": "Add image",
+    "addVideo": "Add video",
+    "lightAmbiance": "Light ambiance"
+  },
+  "theater": {
+    "title": "The Theater of Wonders",
+    "subtitle": "Your stories ready for the show ✨",
+    "library": {
+      "empty": "The library is empty",
+      "emptyMessage": "Finish a book in Layout mode to find it here. Every finished book becomes a magical show! ✨",
+      "pages": "{count} pages"
+    },
+    "homekit": {
+      "connect": "Connect HomeKit",
+      "connected": "Lights connected",
+      "synced": "Lights synced",
+      "lightIntensity": "Light intensity"
+    },
+    "controls": {
+      "play": "Play",
+      "pause": "Pause",
+      "exit": "Exit",
+      "volume": "Volume",
+      "fullscreen": "Fullscreen",
+      "settings": "Settings"
+    },
+    "settings": {
+      "title": "Show settings",
+      "autoAdvance": "Auto advance",
+      "duration": "Duration per page: {seconds}s"
+    },
+    "mentorControl": "Mentor in control"
+  },
+  "mentor": {
+    "dashboard": "Mentor Dashboard",
+    "sessionId": "Session ID",
+    "studentScreen": "Students' Screen",
+    "waitingScreen": "Waiting for screen share...",
+    "controlActive": "Control Active",
+    "takeControl": "Take Control",
+    "releaseControl": "Release",
+    "noStudents": "No students connected.",
+    "studioState": "Student's Studio State",
+    "refreshState": "Refresh",
+    "myVideo": "My Video",
+    "cameraOff": "Camera off",
+    "flashMissions": {
+      "title": "Flash Missions",
+      "subtitle": "Send a quick mission to the student.",
+      "promptIdeas": "Prompt Ideas",
+      "useGemini": "Use Gemini",
+      "createImage": "Create Image",
+      "structureStory": "Structure Story"
+    },
+    "connection": {
+      "title": "Collaborative Connection",
+      "chooseRole": "Choose your role for this session",
+      "iAmMentor": "I'm the Mentor",
+      "createSession": "Create a session and invite students",
+      "iAmStudent": "I'm the student",
+      "joinSession": "Join my mentor's session",
+      "sessionCreated": "Mentor Session Created!",
+      "shareCode": "Share this code with your students",
+      "yourName": "Your first name",
+      "sessionCode": "Session code",
+      "startSession": "Start session",
+      "joinTitle": "Join Session",
+      "enterCode": "Enter your mentor's session code",
+      "join": "Join session"
+    },
+    "controlRequest": {
+      "title": "Mentor Help!",
+      "message": "Your mentor wants to help you remotely, shall we open the magic door?",
+      "accept": "Yes, I accept!",
+      "deny": "No, thanks"
+    },
+    "statusBar": "Your mentor is in control!",
+    "retakeControl": "Take back control"
+  },
+  "missions": {
+    "flashMission": "Flash Mission",
+    "types": {
+      "prompt": "Prompt Ideas!",
+      "gemini": "Use Gemini!",
+      "midjourney": "Create an Image!",
+      "story": "Structure your Story!",
+      "style": "Choose a style!",
+      "ambiance": "What ambiance?"
+    },
+    "understood": "Got it!"
+  },
+  "progress": {
+    "title": "My progress",
+    "level": "Level",
+    "currentMission": "Current mission",
+    "keys": "The 5 Magic Keys",
+    "images": "images",
+    "youUsed": "You used",
+    "keysNames": {
+      "style": "Style",
+      "hero": "Hero",
+      "mood": "Mood",
+      "world": "World",
+      "magic": "Magic"
+    }
+  },
+  "story": {
+    "chooseLength": "How long should your story be?",
+    "chooseStructure": "What type of story?",
+    "lengths": {
+      "mini": "Mini (3-5 pages)",
+      "short": "Short (6-8 pages)",
+      "classic": "Classic (10-12 pages)",
+      "long": "Long (15+ pages)"
+    },
+    "structures": {
+      "tale": "Classic tale",
+      "adventure": "Adventure",
+      "problem": "Problem-Solution",
+      "journal": "Illustrated journal",
+      "loop": "The loop",
+      "free": "Free"
+    },
+    "structureDescriptions": {
+      "tale": "Like traditional fairy tales",
+      "adventure": "Journey, quest and exploration",
+      "problem": "Someone has a problem to solve",
+      "journal": "Tell a memory",
+      "loop": "Like the 3 little pigs",
+      "free": "Do it your way!"
+    },
+    "plan": "Story plan",
+    "currentStep": "Current step",
+    "nextStep": "Next step",
+    "prevStep": "Previous step",
+    "finishStory": "Finish the story"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "sound": "Sounds",
+    "account": "Account",
+    "about": "About"
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "network": "Connection error",
+    "notFound": "Page not found",
+    "unauthorized": "Unauthorized access",
+    "tryAgain": "Try again"
+  },
+  "time": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening"
+  }
+}
+

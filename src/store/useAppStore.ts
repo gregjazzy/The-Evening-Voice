@@ -1,0 +1,560 @@
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { 
+  PromptingLevel, 
+  PromptingProgress,
+  PromptAnalysis,
+  ProgressionEvent,
+  MagicKey,
+  StoryStructure
+} from '@/lib/ai/prompting-pedagogy'
+import { 
+  getInitialProgress, 
+  updateProgression,
+  analyzePrompt as analyzePromptFn,
+  STORY_TEMPLATES
+} from '@/lib/ai/prompting-pedagogy'
+
+// Types pour les différents modes
+export type AppMode = 'diary' | 'book' | 'studio' | 'layout' | 'theater' | 'mentor'
+
+export interface DiaryEntry {
+  id: string
+  date: Date
+  content: string
+  mood?: 'happy' | 'sad' | 'excited' | 'calm' | 'dreamy'
+  memoryImage?: string
+  audioUrl?: string
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  relatedDiaryId?: string
+}
+
+export interface StoryChapter {
+  id: string
+  title: string
+  content: string
+  images: string[]
+  audioUrl?: string
+  order: number
+}
+
+// Chapitres personnalisés pour structurer l'histoire
+export interface StoryCustomChapter {
+  id: string
+  title: string
+  type: 'intro' | 'development' | 'climax' | 'conclusion' | 'custom'
+  color: string
+}
+
+// Nouveau type pour les histoires structurées
+export interface Story {
+  id: string
+  title: string
+  structure: StoryStructure
+  currentStep: number
+  pages: StoryPage[]
+  chapters?: StoryCustomChapter[] // Chapitres personnalisés
+  createdAt: Date
+  updatedAt: Date
+  isComplete: boolean
+}
+
+export interface StoryPage {
+  id: string
+  stepIndex: number
+  content: string
+  image?: string
+  order: number
+  chapterId?: string // Référence au chapitre personnalisé
+  title?: string // Titre optionnel de la page
+}
+
+export interface Project {
+  id: string
+  title: string
+  createdAt: Date
+  updatedAt: Date
+  chapters: StoryChapter[]
+  assets: {
+    images: string[]
+    audios: string[]
+    videos: string[]
+  }
+}
+
+interface AppState {
+  // Mode actuel
+  currentMode: AppMode
+  setCurrentMode: (mode: AppMode) => void
+
+  // Diary (Journal)
+  diaryEntries: DiaryEntry[]
+  currentDiaryEntry: DiaryEntry | null
+  addDiaryEntry: (entry: Omit<DiaryEntry, 'id' | 'date'>) => void
+  updateDiaryEntry: (id: string, updates: Partial<DiaryEntry>) => void
+  setCurrentDiaryEntry: (entry: DiaryEntry | null) => void
+
+  // Chat avec l'IA
+  chatHistory: ChatMessage[]
+  addChatMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void
+  clearChatHistory: () => void
+
+  // Histoires structurées (nouveau)
+  stories: Story[]
+  currentStory: Story | null
+  createStory: (title: string, structure: StoryStructure) => Story
+  updateStoryPage: (storyId: string, pageIndex: number, content: string, image?: string) => void
+  updateStoryPages: (storyId: string, pages: StoryPage[]) => void
+  setCurrentStory: (story: Story | null) => void
+  deleteStory: (storyId: string) => void
+  goToNextStep: (storyId: string) => void
+  goToPrevStep: (storyId: string) => void
+  completeStory: (storyId: string) => void
+  // Gestion des chapitres
+  addStoryChapter: (storyId: string, chapter: StoryCustomChapter) => void
+  deleteStoryChapter: (storyId: string, chapterId: string) => void
+  updateStoryChapters: (storyId: string, chapters: StoryCustomChapter[]) => void
+
+  // Projet en cours (Book) - legacy
+  currentProject: Project | null
+  projects: Project[]
+  createProject: (title: string) => void
+  updateProject: (updates: Partial<Project>) => void
+  addChapter: (chapter: Omit<StoryChapter, 'id' | 'order'>) => void
+
+  // Assets générés (Studio)
+  generatedAssets: {
+    images: Array<{ url: string; prompt: string; createdAt: Date; analysis?: PromptAnalysis }>
+    audios: Array<{ url: string; text: string; voice: string; createdAt: Date }>
+    videos: Array<{ url: string; prompt: string; createdAt: Date }>
+  }
+  addGeneratedImage: (url: string, prompt: string) => { analysis: PromptAnalysis; events: ProgressionEvent[] }
+  addGeneratedAudio: (url: string, text: string, voice: string) => void
+  addGeneratedVideo: (url: string, prompt: string) => void
+
+  // Préférences utilisateur
+  userName: string
+  setUserName: (name: string) => void
+  
+  // Contexte émotionnel (pour que l'IA se souvienne)
+  emotionalContext: string[]
+  addEmotionalContext: (context: string) => void
+
+  // Progression du prompting (5 Clés Magiques)
+  promptingProgress: PromptingProgress
+  updatePromptingProgress: (analysis: PromptAnalysis) => ProgressionEvent[]
+  resetPromptingProgress: () => void
+  
+  // Étoiles gagnées (feedback visuel)
+  pendingStarAnimation: boolean
+  setPendingStarAnimation: (pending: boolean) => void
+  
+  // Derniers événements de progression (pour les notifications)
+  lastProgressionEvents: ProgressionEvent[]
+  clearProgressionEvents: () => void
+}
+
+const generateId = () => Math.random().toString(36).substring(2, 15)
+
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      // Mode initial
+      currentMode: 'diary',
+      setCurrentMode: (mode) => set({ currentMode: mode }),
+
+      // Diary
+      diaryEntries: [],
+      currentDiaryEntry: null,
+      addDiaryEntry: (entry) => {
+        const newEntry: DiaryEntry = {
+          ...entry,
+          id: generateId(),
+          date: new Date(),
+        }
+        set((state) => ({
+          diaryEntries: [...state.diaryEntries, newEntry],
+          currentDiaryEntry: newEntry,
+        }))
+      },
+      updateDiaryEntry: (id, updates) => {
+        set((state) => ({
+          diaryEntries: state.diaryEntries.map((entry) =>
+            entry.id === id ? { ...entry, ...updates } : entry
+          ),
+          currentDiaryEntry:
+            state.currentDiaryEntry?.id === id
+              ? { ...state.currentDiaryEntry, ...updates }
+              : state.currentDiaryEntry,
+        }))
+      },
+      setCurrentDiaryEntry: (entry) => set({ currentDiaryEntry: entry }),
+
+      // Chat
+      chatHistory: [],
+      addChatMessage: (message) => {
+        const newMessage: ChatMessage = {
+          ...message,
+          id: generateId(),
+          timestamp: new Date(),
+        }
+        set((state) => ({
+          chatHistory: [...state.chatHistory, newMessage],
+        }))
+      },
+      clearChatHistory: () => set({ chatHistory: [] }),
+
+      // Histoires structurées
+      stories: [],
+      currentStory: null,
+      createStory: (title, structure) => {
+        const template = STORY_TEMPLATES[structure]
+        const pages: StoryPage[] = template.steps.map((step, index) => ({
+          id: generateId(),
+          stepIndex: index,
+          content: '',
+          order: index,
+        }))
+        
+        // Pour le mode libre, créer une page vide
+        if (structure === 'free') {
+          pages.push({
+            id: generateId(),
+            stepIndex: 0,
+            content: '',
+            order: 0,
+          })
+        }
+        
+        const newStory: Story = {
+          id: generateId(),
+          title,
+          structure,
+          currentStep: 0,
+          pages,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isComplete: false,
+        }
+        
+        set((state) => ({
+          stories: [...state.stories, newStory],
+          currentStory: newStory,
+        }))
+        
+        return newStory
+      },
+      updateStoryPage: (storyId, pageIndex, content, image) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const updatedPages = [...story.pages]
+          if (updatedPages[pageIndex]) {
+            updatedPages[pageIndex] = {
+              ...updatedPages[pageIndex],
+              content,
+              image: image || updatedPages[pageIndex].image,
+            }
+          }
+          
+          const updatedStory = {
+            ...story,
+            pages: updatedPages,
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
+      setCurrentStory: (story) => set({ currentStory: story }),
+      deleteStory: (storyId) => {
+        set((state) => ({
+          stories: state.stories.filter(s => s.id !== storyId),
+          currentStory: state.currentStory?.id === storyId ? null : state.currentStory,
+        }))
+      },
+      goToNextStep: (storyId) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const template = STORY_TEMPLATES[story.structure]
+          const maxStep = template.steps.length - 1
+          const newStep = Math.min(story.currentStep + 1, maxStep)
+          
+          const updatedStory = {
+            ...story,
+            currentStep: newStep,
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
+      goToPrevStep: (storyId) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const newStep = Math.max(story.currentStep - 1, 0)
+          
+          const updatedStory = {
+            ...story,
+            currentStep: newStep,
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
+      completeStory: (storyId) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const updatedStory = {
+            ...story,
+            isComplete: true,
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
+      
+      // Gestion des chapitres
+      addStoryChapter: (storyId, chapter) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const updatedStory = {
+            ...story,
+            chapters: [...(story.chapters || []), chapter],
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
+      deleteStoryChapter: (storyId, chapterId) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          // Supprimer le chapitre et désassigner les pages
+          const updatedStory = {
+            ...story,
+            chapters: (story.chapters || []).filter(c => c.id !== chapterId),
+            pages: story.pages.map(p => p.chapterId === chapterId ? { ...p, chapterId: undefined } : p),
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
+      updateStoryChapters: (storyId, chapters) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const updatedStory = {
+            ...story,
+            chapters,
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
+      updateStoryPages: (storyId, pages) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const updatedStory = {
+            ...story,
+            pages,
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
+
+      // Projets (legacy)
+      currentProject: null,
+      projects: [],
+      createProject: (title) => {
+        const newProject: Project = {
+          id: generateId(),
+          title,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          chapters: [],
+          assets: { images: [], audios: [], videos: [] },
+        }
+        set((state) => ({
+          projects: [...state.projects, newProject],
+          currentProject: newProject,
+        }))
+      },
+      updateProject: (updates) => {
+        set((state) => ({
+          currentProject: state.currentProject
+            ? { ...state.currentProject, ...updates, updatedAt: new Date() }
+            : null,
+        }))
+      },
+      addChapter: (chapter) => {
+        set((state) => {
+          if (!state.currentProject) return state
+          const newChapter: StoryChapter = {
+            ...chapter,
+            id: generateId(),
+            order: state.currentProject.chapters.length,
+          }
+          return {
+            currentProject: {
+              ...state.currentProject,
+              chapters: [...state.currentProject.chapters, newChapter],
+              updatedAt: new Date(),
+            },
+          }
+        })
+      },
+
+      // Assets avec analyse de prompt
+      generatedAssets: { images: [], audios: [], videos: [] },
+      addGeneratedImage: (url, prompt) => {
+        // Analyser le prompt
+        const analysis = analyzePromptFn(prompt)
+        
+        // Mettre à jour la progression
+        const events = get().updatePromptingProgress(analysis)
+        
+        // Vérifier si on a gagné une étoile
+        const hasStarEvent = events.some(e => e.type === 'star_earned')
+        if (hasStarEvent) {
+          set({ pendingStarAnimation: true })
+        }
+        
+        // Ajouter l'image avec son analyse
+        set((state) => ({
+          generatedAssets: {
+            ...state.generatedAssets,
+            images: [
+              ...state.generatedAssets.images,
+              { url, prompt, createdAt: new Date(), analysis },
+            ],
+          },
+          lastProgressionEvents: events,
+        }))
+        
+        return { analysis, events }
+      },
+      addGeneratedAudio: (url, text, voice) => {
+        set((state) => ({
+          generatedAssets: {
+            ...state.generatedAssets,
+            audios: [
+              ...state.generatedAssets.audios,
+              { url, text, voice, createdAt: new Date() },
+            ],
+          },
+        }))
+      },
+      addGeneratedVideo: (url, prompt) => {
+        set((state) => ({
+          generatedAssets: {
+            ...state.generatedAssets,
+            videos: [
+              ...state.generatedAssets.videos,
+              { url, prompt, createdAt: new Date() },
+            ],
+          },
+        }))
+      },
+
+      // Préférences
+      userName: '',
+      setUserName: (name) => set({ userName: name }),
+
+      // Contexte émotionnel
+      emotionalContext: [],
+      addEmotionalContext: (context) => {
+        set((state) => ({
+          emotionalContext: [...state.emotionalContext.slice(-9), context],
+        }))
+      },
+
+      // Progression du prompting (5 Clés Magiques)
+      promptingProgress: getInitialProgress(),
+      updatePromptingProgress: (analysis) => {
+        const currentProgress = get().promptingProgress
+        const { newProgress, events } = updateProgression(currentProgress, analysis)
+        
+        set({ promptingProgress: newProgress })
+        
+        return events
+      },
+      resetPromptingProgress: () => {
+        set({ promptingProgress: getInitialProgress() })
+      },
+      
+      // Animation étoile
+      pendingStarAnimation: false,
+      setPendingStarAnimation: (pending) => set({ pendingStarAnimation: pending }),
+      
+      // Événements de progression
+      lastProgressionEvents: [],
+      clearProgressionEvents: () => set({ lastProgressionEvents: [] }),
+    }),
+    {
+      name: 'lavoixdusoir-storage',
+      partialize: (state) => ({
+        diaryEntries: state.diaryEntries,
+        chatHistory: state.chatHistory,
+        stories: state.stories,
+        currentStory: state.currentStory,
+        projects: state.projects,
+        currentProject: state.currentProject,
+        generatedAssets: state.generatedAssets,
+        userName: state.userName,
+        emotionalContext: state.emotionalContext,
+        promptingProgress: state.promptingProgress,
+      }),
+    }
+  )
+)

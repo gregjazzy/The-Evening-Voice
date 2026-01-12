@@ -1,0 +1,366 @@
+{
+  "common": {
+    "appName": "La Voix du Soir",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "yes": "Oui",
+    "no": "Non",
+    "or": "ou",
+    "and": "et",
+    "welcome": "Bienvenue"
+  },
+  "nav": {
+    "diary": "Journal",
+    "book": "Écriture",
+    "studio": "Studio",
+    "layout": "Montage",
+    "theater": "Théâtre",
+    "collab": "Collab",
+    "settings": "Paramètres",
+    "logout": "Déconnexion"
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "Inscription",
+    "logout": "Déconnexion",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "resetPassword": "Réinitialiser le mot de passe",
+    "noAccount": "Pas encore de compte ?",
+    "hasAccount": "Déjà un compte ?",
+    "createAccount": "Créer un compte",
+    "loginButton": "Se connecter",
+    "registerButton": "S'inscrire",
+    "welcomeBack": "Bon retour parmi nous !",
+    "enterMagicWorld": "Entre dans ton monde magique ✨",
+    "chooseAvatar": "Choisis ton avatar",
+    "yourName": "Ton prénom",
+    "parentEmail": "Email des parents",
+    "createPassword": "Crée un mot de passe secret",
+    "iAmChild": "Je suis un enfant",
+    "iAmMentor": "Je suis le mentor",
+    "iAmParent": "Je suis un parent",
+    "selectRole": "Qui es-tu ?",
+    "magicCode": "Code magique",
+    "enterMagicCode": "Entre ton code magique",
+    "willBeCreatedWith": "sera créé avec le rôle",
+    "errors": {
+      "invalidEmail": "Email invalide",
+      "passwordTooShort": "Le mot de passe doit faire au moins 6 caractères",
+      "passwordMismatch": "Les mots de passe ne correspondent pas",
+      "invalidCredentials": "Email ou mot de passe incorrect",
+      "emailInUse": "Cet email est déjà utilisé",
+      "fillAllFields": "Remplis tous les champs !",
+      "selectRole": "Choisis qui tu es !",
+      "generic": "Une erreur est survenue"
+    }
+  },
+  "diary": {
+    "title": "Mon Journal Secret",
+    "placeholder": "Écris ici tes pensées, tes rêves, tes secrets... ✨",
+    "wordCount": "{count} mots",
+    "moods": {
+      "happy": "Joyeuse",
+      "sad": "Triste",
+      "excited": "Excitée",
+      "calm": "Calme",
+      "dreamy": "Rêveuse"
+    },
+    "dictate": "Dicter",
+    "saveMemory": "Garder ce souvenir",
+    "memoryImage": "Image souvenir",
+    "generateMemory": "Créer une image souvenir",
+    "aiChat": {
+      "lunaName": "Luna",
+      "lunaSubtitle": "Ta copine magique ✨",
+      "placeholder": "Parle-moi...",
+      "send": "Envoyer"
+    }
+  },
+  "book": {
+    "title": "Mon Histoire",
+    "newStory": "Nouvelle histoire",
+    "storyTitle": "Titre de l'histoire",
+    "chapter": "Chapitre {number}",
+    "addChapter": "Ajouter un chapitre",
+    "characters": "Personnages",
+    "addCharacter": "Ajouter un personnage",
+    "writePlaceholder": "Il était une fois...",
+    "wordCount": "{count} mots",
+    "saveStory": "Enregistrer l'histoire"
+  },
+  "studio": {
+    "title": "Studio de Création",
+    "subtitle": "Crée des images, des sons et des vidéos magiques ✨",
+    "tabs": {
+      "image": "Images",
+      "voice": "Voix",
+      "video": "Vidéos"
+    },
+    "promptBuilder": {
+      "subject": "Qu'est-ce que tu veux créer ?",
+      "subjectPlaceholder": "Décris ce que tu imagines...",
+      "details": "Ajoute des détails",
+      "detailsPlaceholder": "Couleurs, formes, personnages...",
+      "style": "Quel style ?",
+      "ambiance": "Quelle ambiance ?",
+      "light": "Quelle lumière ?",
+      "notes": "Autre chose à ajouter ?",
+      "notesPlaceholder": "Tout ce qui te passe par la tête...",
+      "optional": "(optionnel)"
+    },
+    "styles": {
+      "drawing": "Dessin",
+      "photo": "Photo",
+      "magic": "Magique",
+      "anime": "Anime",
+      "watercolor": "Aquarelle",
+      "pixelart": "Pixel Art"
+    },
+    "ambiances": {
+      "day": "Jour",
+      "night": "Nuit",
+      "storm": "Orage",
+      "mist": "Brume",
+      "fairy": "Féérique",
+      "mystery": "Mystère"
+    },
+    "lights": {
+      "sun": "Soleil",
+      "moon": "Lune",
+      "candle": "Bougie",
+      "neon": "Néon",
+      "aurora": "Aurore"
+    },
+    "kit": {
+      "ready": "Kit prêt !",
+      "incomplete": "Kit incomplet !",
+      "missing": "Il manque : {fields}",
+      "viewPrompt": "Voir le prompt"
+    },
+    "safari": {
+      "gemini": "Lancer Gemini",
+      "midjourney": "Lancer Midjourney",
+      "elevenlabs": "Lancer ElevenLabs",
+      "runway": "Lancer Runway",
+      "promptCopied": "Prompt copié !"
+    },
+    "generate": "Générer",
+    "generating": "Génération en cours...",
+    "dropzone": "Dépose tes fichiers ici"
+  },
+  "layout": {
+    "title": "Table de Montage",
+    "subtitle": "Assemble ton livre magique",
+    "createBook": "Créer un nouveau livre",
+    "bookTitle": "Le titre de mon livre...",
+    "startAdventure": "Commencer l'aventure !",
+    "page": "Page {current} / {total}",
+    "addPage": "Nouvelle page",
+    "sealPage": "Sceller la page",
+    "sealConfirm": {
+      "title": "Sceller cette page ?",
+      "message": "Une fois scellée, tu ne pourras plus la modifier. Elle sera prête pour le spectacle ! ✨",
+      "confirm": "Sceller !",
+      "cancel": "Annuler"
+    },
+    "pageSealed": "Page scellée",
+    "finishBook": "Terminer le livre ✨",
+    "tabs": {
+      "text": "Texte",
+      "media": "Médias",
+      "audio": "Audio"
+    },
+    "typography": {
+      "addText": "Ajouter du texte",
+      "font": "Police",
+      "size": "Taille",
+      "alignment": "Alignement",
+      "color": "Couleur",
+      "rotation": "Rotation",
+      "opacity": "Opacité",
+      "shadow": "Ombre portée",
+      "deleteText": "Supprimer le texte"
+    },
+    "audio": {
+      "narration": "Narration",
+      "music": "Musique",
+      "ambient": "Ambiance",
+      "noFile": "Aucun fichier",
+      "volume": "Volume",
+      "loop": "Boucle"
+    },
+    "background": "Arrière-plan",
+    "addImage": "Ajouter une image",
+    "addVideo": "Ajouter une vidéo",
+    "lightAmbiance": "Ambiance lumineuse"
+  },
+  "theater": {
+    "title": "Le Théâtre des Merveilles",
+    "subtitle": "Tes histoires prêtes pour le spectacle ✨",
+    "library": {
+      "empty": "La bibliothèque est vide",
+      "emptyMessage": "Termine un livre dans le mode Montage pour le retrouver ici. Chaque livre terminé devient un spectacle magique ! ✨",
+      "pages": "{count} pages"
+    },
+    "homekit": {
+      "connect": "Connecter HomeKit",
+      "connected": "Lumières connectées",
+      "synced": "Lumières sync",
+      "lightIntensity": "Intensité lumineuse"
+    },
+    "controls": {
+      "play": "Lecture",
+      "pause": "Pause",
+      "exit": "Quitter",
+      "volume": "Volume",
+      "fullscreen": "Plein écran",
+      "settings": "Paramètres"
+    },
+    "settings": {
+      "title": "Paramètres du spectacle",
+      "autoAdvance": "Avance automatique",
+      "duration": "Durée par page : {seconds}s"
+    },
+    "mentorControl": "Mentor aux commandes"
+  },
+  "mentor": {
+    "dashboard": "Tableau de Bord Mentor",
+    "sessionId": "Session ID",
+    "studentScreen": "Écran des Élèves",
+    "waitingScreen": "En attente de partage d'écran...",
+    "controlActive": "Contrôle Actif",
+    "takeControl": "Contrôler",
+    "releaseControl": "Relâcher",
+    "noStudents": "Aucun élève connecté.",
+    "studioState": "État du Studio de l'élève",
+    "refreshState": "Rafraîchir",
+    "myVideo": "Ma Visioconférence",
+    "cameraOff": "Caméra éteinte",
+    "flashMissions": {
+      "title": "Missions Flash",
+      "subtitle": "Envoie une mission rapide à l'élève.",
+      "promptIdeas": "Idées Prompt",
+      "useGemini": "Utiliser Gemini",
+      "createImage": "Créer Image",
+      "structureStory": "Structurer Récit"
+    },
+    "connection": {
+      "title": "Connexion Collaborative",
+      "chooseRole": "Choisis ton rôle pour cette session",
+      "iAmMentor": "Je suis le Mentor",
+      "createSession": "Créer une session et inviter les élèves",
+      "iAmStudent": "Je suis l'élève",
+      "joinSession": "Rejoindre la session de mon mentor",
+      "sessionCreated": "Session Mentor Créée !",
+      "shareCode": "Partage ce code avec tes élèves",
+      "yourName": "Ton prénom",
+      "sessionCode": "Code de session",
+      "startSession": "Commencer la session",
+      "joinTitle": "Rejoindre la Session",
+      "enterCode": "Entre le code de session de ton mentor",
+      "join": "Rejoindre la session"
+    },
+    "controlRequest": {
+      "title": "Aide du Mentor !",
+      "message": "Ton mentor veut t'aider à distance, on lui ouvre la porte magique ?",
+      "accept": "Oui, j'accepte !",
+      "deny": "Non, merci"
+    },
+    "statusBar": "Ton mentor est aux commandes !",
+    "retakeControl": "Reprendre le contrôle"
+  },
+  "missions": {
+    "flashMission": "Mission Flash",
+    "types": {
+      "prompt": "Idées de Prompt !",
+      "gemini": "Utiliser Gemini !",
+      "midjourney": "Créer une Image !",
+      "story": "Structurer ton Récit !",
+      "style": "Choisis un style !",
+      "ambiance": "Quelle ambiance ?"
+    },
+    "understood": "Compris !"
+  },
+  "progress": {
+    "title": "Ma progression",
+    "level": "Niveau",
+    "currentMission": "Mission en cours",
+    "keys": "Les 5 Clés Magiques",
+    "images": "images",
+    "youUsed": "Tu as utilisé",
+    "keysNames": {
+      "style": "Le Style",
+      "hero": "Le Héros",
+      "mood": "L'Ambiance",
+      "world": "Le Monde",
+      "magic": "La Magie"
+    }
+  },
+  "story": {
+    "chooseLength": "Quelle longueur d'histoire ?",
+    "chooseStructure": "Quel type d'histoire ?",
+    "lengths": {
+      "mini": "Mini (3-5 pages)",
+      "short": "Courte (6-8 pages)",
+      "classic": "Classique (10-12 pages)",
+      "long": "Longue (15+ pages)"
+    },
+    "structures": {
+      "tale": "Conte classique",
+      "adventure": "Aventure",
+      "problem": "Problème-Solution",
+      "journal": "Journal illustré",
+      "loop": "La boucle",
+      "free": "Libre"
+    },
+    "structureDescriptions": {
+      "tale": "Comme les contes de fées traditionnels",
+      "adventure": "Voyage, quête et exploration",
+      "problem": "Quelqu'un a un souci à régler",
+      "journal": "Raconter un souvenir",
+      "loop": "Comme les 3 petits cochons",
+      "free": "Tu fais comme tu veux !"
+    },
+    "plan": "Plan de l'histoire",
+    "currentStep": "Étape actuelle",
+    "nextStep": "Étape suivante",
+    "prevStep": "Étape précédente",
+    "finishStory": "Terminer l'histoire"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "language": "Langue",
+    "theme": "Thème",
+    "notifications": "Notifications",
+    "sound": "Sons",
+    "account": "Compte",
+    "about": "À propos"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue",
+    "network": "Erreur de connexion",
+    "notFound": "Page non trouvée",
+    "unauthorized": "Accès non autorisé",
+    "tryAgain": "Réessayer"
+  },
+  "time": {
+    "today": "Aujourd'hui",
+    "yesterday": "Hier",
+    "morning": "Bonjour",
+    "afternoon": "Bon après-midi",
+    "evening": "Bonsoir"
+  }
+}
+

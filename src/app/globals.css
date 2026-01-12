@@ -1,0 +1,354 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Patrick+Hand&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Comic+Neue:ital,wght@0,400;0,700;1,400&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-midnight: #1a1832;
+  --color-midnight-deep: #0d0c1a;
+  --color-stardust: #fde047;
+  --color-aurora: #e879f9;
+  --color-dream: #5eead4;
+  --color-rose: #fda4af;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: 'Nunito', system-ui, sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #0d0c1a 0%, #1a1832 50%, #2a1f4e 100%);
+  color: #f0f1f8;
+  min-height: 100vh;
+}
+
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(26, 24, 50, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #a21caf, #6366aa);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #c026d3, #8085bf);
+}
+
+/* Animations des étoiles */
+@keyframes twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(233, 121, 249, 0.3),
+                0 0 40px rgba(233, 121, 249, 0.1);
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(233, 121, 249, 0.5),
+                0 0 60px rgba(233, 121, 249, 0.2);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Classes utilitaires magiques */
+.magic-glow {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.floating {
+  animation: float 6s ease-in-out infinite;
+}
+
+.twinkling {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #f0f1f8 0%,
+    #e879f9 25%,
+    #fde047 50%,
+    #e879f9 75%,
+    #f0f1f8 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Fond étoilé animé */
+.stars-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+/* Glass morphism */
+.glass {
+  background: rgba(26, 24, 50, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Focus states accessibles */
+*:focus-visible {
+  outline: 2px solid #e879f9;
+  outline-offset: 2px;
+}
+
+/* Textarea et input stylisés */
+textarea, input[type="text"] {
+  background: rgba(26, 24, 50, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  color: #f0f1f8;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  transition: all 0.3s ease;
+}
+
+textarea:focus, input[type="text"]:focus {
+  border-color: rgba(233, 121, 249, 0.5);
+  box-shadow: 0 0 20px rgba(233, 121, 249, 0.2);
+  outline: none;
+}
+
+textarea::placeholder, input[type="text"]::placeholder {
+  color: rgba(240, 241, 248, 0.4);
+}
+
+/* Classe input-field pour tous les champs de formulaire */
+.input-field {
+  display: block;
+  background: rgba(26, 24, 50, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-right: 16px;
+  /* padding-left géré par Tailwind (pl-11) pour laisser place à l'icône */
+  color: #f0f1f8 !important;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  transition: all 0.3s ease;
+  width: 100%;
+  height: auto;
+  min-height: 50px;
+  box-sizing: border-box;
+}
+
+.input-field:focus {
+  border-color: rgba(233, 121, 249, 0.5);
+  box-shadow: 0 0 20px rgba(233, 121, 249, 0.2);
+  outline: none;
+  background: rgba(26, 24, 50, 0.8);
+}
+
+.input-field::placeholder {
+  color: rgba(240, 241, 248, 0.4);
+}
+
+/* Fix pour les champs auto-remplis par le navigateur */
+.input-field:-webkit-autofill,
+.input-field:-webkit-autofill:hover,
+.input-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f0f1f8 !important;
+  -webkit-box-shadow: 0 0 0px 1000px rgba(26, 24, 50, 0.8) inset !important;
+  box-shadow: 0 0 0px 1000px rgba(26, 24, 50, 0.8) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Boutons magiques */
+.btn-magic {
+  background: linear-gradient(135deg, #a21caf 0%, #6366aa 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-magic::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.btn-magic:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(162, 28, 175, 0.4);
+}
+
+.btn-magic:hover::before {
+  left: 100%;
+}
+
+.btn-magic:active {
+  transform: translateY(0);
+}
+
+/* Zone de texte du carnet */
+.diary-textarea {
+  font-family: 'Caveat', cursive;
+  font-size: 1.5rem;
+  line-height: 2;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    transparent calc(2em - 1px),
+    rgba(233, 121, 249, 0.1) calc(2em - 1px),
+    rgba(233, 121, 249, 0.1) 2em
+  );
+  background-size: 100% 2em;
+  background-attachment: local;
+}
+
+/* Messages du chat */
+.chat-message {
+  border-radius: 20px;
+  padding: 16px 20px;
+  max-width: 85%;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.chat-message.user {
+  background: linear-gradient(135deg, #6366aa 0%, #545194 100%);
+  margin-left: auto;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message.assistant {
+  background: rgba(233, 121, 249, 0.15);
+  border: 1px solid rgba(233, 121, 249, 0.3);
+  margin-right: auto;
+  border-bottom-left-radius: 4px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Navigation latérale */
+.nav-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: rgba(240, 241, 248, 0.6);
+}
+
+.nav-item:hover {
+  color: #f0f1f8;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-item.active {
+  color: #e879f9;
+  background: rgba(233, 121, 249, 0.1);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 60%;
+  background: linear-gradient(180deg, #e879f9 0%, #a21caf 100%);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Mode labels */
+.mode-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
