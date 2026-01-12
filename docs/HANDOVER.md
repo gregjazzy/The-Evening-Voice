@@ -3,8 +3,8 @@
 > Document de passation complet pour la prochaine session de développement
 
 **Date** : 12 janvier 2026  
-**Version** : 1.5.1  
-**État** : Mode Écriture avec vue livre ouvert, zoom, alignement texte sur lignes CORRIGÉ
+**Version** : 1.6.0  
+**État** : Mode Écriture complet avec formatage texte sélectionné, zoom bidirectionnel, layout optimisé
 
 ---
 
@@ -29,15 +29,115 @@ Application Electron/Web/iPad pour enfants permettant de :
 
 ---
 
-## ✅ Ce qui a été fait (Session du 12 janvier 2026)
+## ✅ Ce qui a été fait (Session du 12 janvier 2026 - Après-midi)
 
-### Alignement Texte sur Lignes - CORRIGÉ ✨
+### 🎨 Barre de Formatage - Refonte Complète ✨
 
-**Problème résolu** : Le texte était au-dessus des lignes au lieu d'être SUR les lignes
+**Fonctionnalités corrigées/ajoutées** :
+
+| Fonctionnalité | Comportement |
+|----------------|--------------|
+| **Taille de police** | S'applique UNIQUEMENT à la sélection |
+| **Choix de police** | S'applique UNIQUEMENT à la sélection |
+| **Bold / Italic** | Fonctionnent sans déplacer le curseur |
+| **Couleur** | S'applique à la sélection |
+| **Détection auto** | La taille/police s'affiche selon le texte sous le curseur |
+| **Multi-styles** | Fonctionne même si la sélection contient plusieurs styles |
+
+**Boutons +/- supprimés** : L'utilisateur utilise directement le sélecteur de taille.
 
 **Solution technique** :
 ```typescript
-// Nouveau pattern des lignes (aligné avec la baseline du texte)
+// Sauvegarde de la sélection
+const savedRangeRef = useRef<{ text: string; range: Range } | null>(null)
+
+// Application sur sélection uniquement (exemple taille)
+const applyFontSize = (size: number) => {
+  const selection = window.getSelection()
+  if (selection && !selection.isCollapsed) {
+    const range = selection.getRangeAt(0)
+    const span = document.createElement('span')
+    span.style.fontSize = `${size}px`
+    const fragment = range.extractContents()
+    span.appendChild(fragment)
+    range.insertNode(span)
+    // Re-sélectionner le nouveau contenu
+    const newRange = document.createRange()
+    newRange.selectNodeContents(span)
+    selection.removeAllRanges()
+    selection.addRange(newRange)
+  }
+}
+
+// Détection automatique de la taille/police au curseur
+useEffect(() => {
+  const detectFontStyles = () => {
+    const selection = window.getSelection()
+    if (selection?.rangeCount > 0) {
+      let node = selection.getRangeAt(0).startContainer
+      while (node && node.nodeType !== Node.ELEMENT_NODE) {
+        node = node.parentNode
+      }
+      if (node instanceof HTMLElement) {
+        const style = window.getComputedStyle(node)
+        setLastUsedSize(parseInt(style.fontSize))
+        setDetectedFontFamily(style.fontFamily)
+      }
+    }
+  }
+  document.addEventListener('selectionchange', detectFontStyles)
+  return () => document.removeEventListener('selectionchange', detectFontStyles)
+}, [])
+```
+
+### 📖 Vue Livre Ouvert - 2 Pages Éditables
+
+- **Page gauche ET droite** maintenant éditables (comme un vrai livre)
+- **Zoom bidirectionnel** : Bouton œil sur les 2 pages
+- **Synchronisation** : Le contenu se conserve entre zoom et vue double
+
+### 🎯 Layout Optimisé
+
+**Barre du haut unifiée** :
+```
+┌─────────────────────────────────────────────────────────────┐
+│ [< Retour]  Titre de l'histoire...    [FormatBar]  [≡] [⊞] │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- Bouton "Retour" + Titre intégrés dans la barre d'outils
+- Information "X pages • X chap." supprimée (redondante avec onglets)
+- FormatBar centrée
+- Boutons Structure/Overview à droite
+
+### 📑 Indicateurs de Chapitres
+
+- **Points colorés** sur les onglets de pages au lieu du texte
+- Chaque chapitre a sa couleur distinctive
+- Plus discret et intuitif
+
+### 🔒 Sécurité - Clé API
+
+- **Clé Gemini supprimée** de `docs/HANDOVER.md`
+- **Nouvelle clé** stockée dans `.env.local` uniquement
+- Le fichier `.env.local` est ignoré par Git
+
+### 📦 Git Repository
+
+- **Initialisé** : `git init`
+- **Remote** : `https://github.com/gregjazzy/The-Evening-Voice.git`
+- **Commits** :
+  1. `feat: complete writing mode with formatting, zoom, optimized layout`
+  2. `fix: remove exposed API key from docs`
+
+---
+
+## ✅ Ce qui a été fait (Sessions précédentes)
+
+### Alignement Texte sur Lignes - CORRIGÉ ✨
+
+**Solution technique** :
+```typescript
 backgroundImage: 'repeating-linear-gradient(
   transparent, 
   transparent 24px, 
@@ -45,26 +145,9 @@ backgroundImage: 'repeating-linear-gradient(
   rgba(139, 115, 85, 0.15) 25px
 )'
 backgroundSize: '100% 32px'  // Même hauteur que lineHeight
-
-// Zone texte
 lineHeight: '32px'
-paddingTop: '0'  // Texte et lignes démarrent au même point
+paddingTop: '0'
 ```
-
-**Résultat** : Le texte repose maintenant directement SUR les lignes du cahier, comme dans un vrai cahier d'écriture !
-
-### Modifications appliquées
-
-| Zone | Avant | Après |
-|------|-------|-------|
-| Pattern lignes | `transparent 31px, ligne 31-32px` | `transparent 24px, ligne 24-25px` |
-| Padding texte | `pt-[22px]` puis `pt-[8px]` | `pt-0` |
-| Position lignes | `top-[22px]` | `top-0` |
-| backgroundSize | - | `100% 32px` |
-
----
-
-## ✅ Ce qui a été fait (Sessions précédentes - 11 janvier 2026)
 
 ### Vue Livre Ouvert
 - [x] **2 pages côte à côte** comme un vrai livre ouvert
@@ -72,32 +155,24 @@ paddingTop: '0'  // Texte et lignes démarrent au même point
 - [x] **Numéros de pages** en bas (impair à gauche, pair à droite)
 - [x] **Flèches de navigation** sur les côtés pour tourner les pages
 - [x] **Ratio 2:3** respecté pour chaque page (format livre standard)
-- [x] **Taille ajustable** : 780px de hauteur max avec marges
 
 ### Mode Zoom
-- [x] **Bouton œil** en haut à droite de la page pour agrandir
+- [x] **Bouton œil** sur les 2 pages pour agrandir
 - [x] **Page unique agrandie** pour écrire confortablement
 - [x] **Titre du chapitre** affiché en haut
-- [x] **Navigation** entre pages en mode zoom
-- [x] **Bouton X** pour fermer et revenir au livre ouvert
+- [x] **Bouton œil barré** pour fermer et revenir au livre ouvert
 
 ### Sélecteur de Taille (Style Word)
 - [x] **Tailles numériques** : 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72
-- [x] **Boutons +/-** pour ajuster rapidement
 - [x] **Menu déroulant** avec toutes les tailles disponibles
+- [x] **Détection automatique** de la taille sous le curseur
 - [x] **Palette de couleurs** pour colorer le texte sélectionné
 
 ### Gestion des Chapitres
 - [x] **Sélecteur de chapitre** sur chaque page
 - [x] **Créer un nouveau chapitre** depuis le sélecteur
-- [x] **Affichage du chapitre** sur la page (Introduction, Développement, etc.)
+- [x] **Points colorés** sur les onglets de pages
 - [x] **Persistance** des chapitres dans le store
-
-### Sidebar Pages
-- [x] **Liste des pages** dans une sidebar à gauche
-- [x] **Titre de l'histoire** éditable dans la sidebar
-- [x] **Indicateur de chapitre** sur chaque page (P.1 Introduction, etc.)
-- [x] **Bouton + Nouvelle** pour ajouter des pages
 
 ---
 
@@ -106,68 +181,73 @@ paddingTop: '0'  // Texte et lignes démarrent au même point
 ### BookMode.tsx - Structure complète
 
 ```
-src/components/modes/BookMode.tsx (~1600 lignes)
+src/components/modes/BookMode.tsx (~1800 lignes)
 ├── États principaux
-│   ├── currentPageIndex        # Page actuelle
-│   ├── isZoomed                # Mode zoom actif
-│   ├── showToolbar             # Barre d'outils flottante
-│   └── chapters                # Liste des chapitres
+│   ├── currentSpread             # Spread actuel (2 pages)
+│   ├── zoomedPage                # 'left' | 'right' | null
+│   └── chapters                  # Liste des chapitres
 │
-├── Vue Livre Ouvert
-│   ├── PAGE GAUCHE             # Infos chapitre + sélecteur
-│   ├── RELIURE CENTRALE        # Effet visuel
-│   └── PAGE DROITE             # Zone d'écriture avec lignes
-│       ├── Lignes de cahier    # Background repeating-linear-gradient
-│       ├── Marge rouge         # Position left-10
-│       └── Zone éditable       # contentEditable
+├── Vue Livre Ouvert (2 pages éditables)
+│   ├── PAGE GAUCHE               # Éditable avec zoom
+│   ├── RELIURE CENTRALE          # Effet visuel
+│   └── PAGE DROITE               # Éditable avec zoom
 │
 ├── Mode Zoom
 │   ├── Page unique agrandie
-│   ├── Titre chapitre en haut
-│   ├── Lignes de cahier alignées
-│   └── Navigation en bas
+│   ├── Synchronisation contenu   # Via exitZoom()
+│   └── Bouton œil barré
 │
-├── FormatBar
-│   ├── Sélecteur police (6 fonts)
-│   ├── Sélecteur taille (numérique)
-│   ├── Gras / Italique
-│   ├── Alignement (3 options)
-│   ├── Espacement lignes
-│   ├── Décalage (espaces/retours)
-│   └── Couleurs (palette)
+├── FormatBar (refaite)
+│   ├── Sélecteur police          # Détection auto
+│   ├── Sélecteur taille          # Détection auto
+│   ├── Gras / Italique           # Sans déplacement curseur
+│   ├── Couleurs (palette)
+│   └── savedRangeRef             # Conservation sélection
 │
-└── LunaSidePanel
-    ├── Chat avec historique
-    ├── Toggle voix
-    ├── Bouton "Luna, lis ma page"
-    └── Micro pour parler
+└── Layout optimisé
+    ├── Barre unifiée (Retour + Titre + FormatBar + Boutons)
+    └── Onglets pages centrés
 ```
 
-### Styles CSS des lignes (NOUVEAU - Corrigé)
+### Mécanisme de formatage
 
-```css
-/* Lignes de cahier - ALIGNÉES avec le texte */
-backgroundImage: 'repeating-linear-gradient(
-  transparent, 
-  transparent 24px, 
-  rgba(139, 115, 85, 0.15) 24px, 
-  rgba(139, 115, 85, 0.15) 25px
-)'
-backgroundSize: '100% 32px'  /* Cycle de 32px = lineHeight du texte */
+```typescript
+// 1. Sauvegarde de la sélection (onMouseUp/onKeyUp)
+const saveSelection = useCallback(() => {
+  const selection = window.getSelection()
+  if (selection && !selection.isCollapsed) {
+    savedRangeRef.current = {
+      text: selection.toString(),
+      range: selection.getRangeAt(0).cloneRange()
+    }
+  }
+}, [])
 
-/* Conteneur des lignes */
-className: 'absolute inset-x-10 top-0 bottom-12'
+// 2. Restauration avant formatage
+const restoreSelection = () => {
+  if (savedRangeRef.current) {
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(savedRangeRef.current.range)
+  }
+}
 
-/* Zone texte */
-className: 'flex-1 px-10 pt-0 pb-12 overflow-y-auto'
-style: { lineHeight: '32px', fontSize: '1.25rem' }
+// 3. Application du style (exemple: taille)
+const applyFontSize = (size: number) => {
+  restoreSelection()
+  const selection = window.getSelection()
+  if (selection && !selection.isCollapsed) {
+    const range = selection.getRangeAt(0)
+    const span = document.createElement('span')
+    span.style.fontSize = `${size}px`
+    const fragment = range.extractContents()
+    span.appendChild(fragment)
+    range.insertNode(span)
+    // Re-save la nouvelle sélection
+    // ...
+  }
+}
 ```
-
-**Explication** : 
-- Le pattern fait 32px de haut (comme la lineHeight)
-- La ligne apparaît à 24px dans chaque cycle de 32px
-- Cela correspond à ~75% de la lineHeight, soit la position de la baseline
-- Texte et lignes démarrent tous les deux à `top: 0` et `padding-top: 0`
 
 ---
 
@@ -175,85 +255,39 @@ style: { lineHeight: '32px', fontSize: '1.25rem' }
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ [< Retour]  Titre histoire                      2 pages • 4 chap.            │
-├─────────────┬────────────────────────────────────────────────────────────────┤
-│ PAGES       │                                                                │
-│ ┌─────────┐ │      ┌─────────────────┬────┬─────────────────┐               │
-│ │ P.1     │ │   <  │ PAGE GAUCHE     │ || │ PAGE DROITE     │  >            │
-│ │ Intro   │ │      │                 │ || │                 │               │
-│ ├─────────┤ │      │  📖 Intro       │ || │ ─────────────── │               │
-│ │ P.2     │ │      │  Page 1         │ || │ Il était une    │               │
-│ │ Dév.    │ │      │                 │ || │ fois...         │               │
-│ └─────────┘ │      │  [Chapitre ▼]   │ || │ ─────────────── │               │
-│             │      │                 │ || │ ─────────────── │               │
-│ + Nouvelle  │      │     — 1 —       │ || │ 20 mots [🎙️][📷]│               │
-│             │      └─────────────────┴────┴─────────────────┘               │
-│ [≡][⊞]      │                       [Outils]    1/2                          │
-└─────────────┴────────────────────────────────────────────────────────────────┘
+│ [< Retour]  Titre histoire...        [FormatBar complète]         [≡] [⊞]   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│      ┌─────────────────┬────┬─────────────────┐                             │
+│   <  │ PAGE GAUCHE     │ || │ PAGE DROITE     │  >                          │
+│      │ (éditable)      │ || │ (éditable)      │                             │
+│      │ ─────────────── │ || │ ─────────────── │                             │
+│      │ Il était une    │ || │ La suite de     │                             │
+│      │ fois...         │ || │ l'histoire...   │                             │
+│      │ ─────────────── │ || │ ─────────────── │                             │
+│      │     [👁] — 1 —  │ || │ [👁] — 2 —      │                             │
+│      └─────────────────┴────┴─────────────────┘                             │
+│                                                                              │
+│              [•1] [•2] [•3] [•4] [+]                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Mode Zoom (clic sur l'œil)
 
 ```
 ┌────────────────────────────────────────────────────┐
-│                                   [X]              │
+│                                         [👁̸]       │
 │              Introduction                          │
 │  ───────────────────────────────────────────────   │
-│  Il était une fois une histoire fabuleuse qui      │  ← Texte SUR la ligne
+│  Il était une fois une histoire fabuleuse qui      │
 │  ───────────────────────────────────────────────   │
-│  commençait par une belle journée ensoleillée.     │  ← Texte SUR la ligne
-│  ───────────────────────────────────────────────   │
-│  Les oiseaux chantaient dans les arbres.           │  ← Texte SUR la ligne
+│  commençait par une belle journée ensoleillée.     │
 │  ───────────────────────────────────────────────   │
 │                                                    │
-│  20 mots                          [🎙️] [📷]       │
 │                  — Page 1 —                        │
 ├────────────────────────────────────────────────────┤
-│           [<]      1 / 2      [>]                  │
+│              [•1] [•2] [•3] [•4] [+]               │
 └────────────────────────────────────────────────────┘
-```
-
----
-
-## 🔧 Détails techniques - Alignement Lignes
-
-### Calcul de l'alignement
-
-```
-lineHeight: 32px
-fontSize: ~20px (1.25rem)
-
-Baseline position = ~75% of lineHeight = 24px
-
-Pattern des lignes:
-  - 0 à 24px : transparent
-  - 24 à 25px : ligne visible (1px)
-  - 25 à 32px : transparent
-  → Cycle de 32px qui se répète
-
-Résultat: La ligne est à 24px, la baseline du texte est à ~24px
-→ Le texte repose exactement SUR la ligne ✓
-```
-
-### TextStyle (format de chaque page)
-
-```typescript
-interface TextStyle {
-  fontFamily: string           // Ex: "'Merriweather', serif"
-  fontSize: number             // Ex: 18 (pixels)
-  color: string                // Ex: '#ffffff'
-  isBold: boolean
-  isItalic: boolean
-  textAlign: 'left' | 'center' | 'right'
-  lineSpacing: 'tight' | 'normal' | 'relaxed'
-}
-```
-
-### Tailles de police disponibles
-
-```typescript
-const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72]
-const DEFAULT_SIZE = 18  // pixels
 ```
 
 ---
@@ -285,10 +319,10 @@ const DEFAULT_SIZE = 18  // pixels
 
 ## 🐛 Bugs connus / Points d'attention
 
-1. **Alignement lignes** : Maintenant correctement calibré pour fontSize 1.25rem (20px) et lineHeight 32px. Si on change ces valeurs, il faut ajuster le pattern (la ligne doit être à 75% de la lineHeight)
+1. **Formatage texte** : Utilise `document.execCommand` (deprecated mais fonctionnel) et manipulation DOM directe
 2. **Speech Recognition** : Ne fonctionne pas sur Firefox
 3. **TTS sur iOS** : Peut nécessiter une interaction utilisateur avant de fonctionner
-4. **Mode zoom** : Le contenu est synchronisé via useEffect sur `[isZoomed, page.id]`
+4. **Synchronisation zoom** : Le contenu est synchronisé via `exitZoom()` et `useEffect` avec dépendance sur `zoomedPage`
 
 ---
 
@@ -297,6 +331,11 @@ const DEFAULT_SIZE = 18  // pixels
 > ⚠️ **Les identifiants sont dans le fichier `.env.local` (non commité)**
 > Voir `env.example` pour les variables nécessaires.
 
+Variables requises :
+- `GOOGLE_GEMINI_API_KEY` - Clé API Google Gemini
+- `NEXT_PUBLIC_SUPABASE_URL` - URL Supabase
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Clé anonyme Supabase
+
 ---
 
 ## 🚀 Pour démarrer
@@ -304,6 +343,10 @@ const DEFAULT_SIZE = 18  // pixels
 ```bash
 # Installer
 npm install
+
+# Configurer les variables d'environnement
+cp env.example .env.local
+# Éditer .env.local avec vos clés
 
 # Dev (web)
 npm run dev
@@ -315,10 +358,26 @@ npm run dev:electron
 # 1. Aller sur localhost:3000
 # 2. Cliquer sur "Écriture"
 # 3. Sélectionner/créer une histoire
-# 4. Voir le livre ouvert avec 2 pages
-# 5. Cliquer sur l'œil pour zoomer
-# 6. Écrire sur les lignes du cahier
-# 7. Le texte doit reposer SUR les lignes (pas au-dessus)
+# 4. Voir le livre ouvert avec 2 pages éditables
+# 5. Cliquer sur l'œil pour zoomer sur une page
+# 6. Sélectionner du texte et changer la taille/police/couleur
+# 7. Vérifier que le formatage s'applique à la sélection uniquement
+```
+
+---
+
+## 📦 Git
+
+**Repository** : `https://github.com/gregjazzy/The-Evening-Voice.git`
+
+```bash
+# Cloner
+git clone https://github.com/gregjazzy/The-Evening-Voice.git
+
+# Après modifications
+git add .
+git commit -m "description"
+git push origin main
 ```
 
 ---
@@ -333,17 +392,27 @@ npm run dev:electron
 
 ---
 
-## 📝 Résumé des changements de cette session (12 janvier 2026)
+## 📝 Résumé des changements de cette session
 
-**Problème corrigé** : L'utilisateur a signalé que le texte était au-dessus des lignes du cahier au lieu d'être dessus.
+### Barre de formatage refaite
+- Taille et police s'appliquent à la sélection uniquement
+- Détection automatique des styles sous le curseur
+- Bold/Italic/Couleur fonctionnent sans déplacer le curseur
+- Boutons +/- supprimés
 
-**Solution appliquée** :
-1. Modification du pattern des lignes : `transparent 24px, ligne 24-25px` au lieu de `transparent 31px, ligne 31-32px`
-2. Ajout de `backgroundSize: '100% 32px'` pour synchroniser avec la lineHeight
-3. Padding-top du texte mis à 0 pour aligner texte et lignes au même point de départ
-4. Les conteneurs de lignes commencent aussi à `top-0`
+### Layout optimisé
+- Barre du haut unifiée (Retour + Titre + FormatBar + Boutons)
+- Onglets de pages centrés avec points colorés pour chapitres
+- Info "X pages • X chap." supprimée (redondante)
 
-**Résultat** : Le texte repose maintenant parfaitement SUR les lignes, tant en vue livre ouvert qu'en mode zoom.
+### 2 pages éditables
+- Page gauche et droite sont maintenant toutes les deux éditables
+- Zoom disponible sur les 2 pages
+- Synchronisation correcte entre modes
+
+### Sécurité
+- Clé API supprimée de la documentation
+- Stockage sécurisé dans `.env.local`
 
 ---
 
