@@ -1,11 +1,11 @@
 /**
  * API Route - Chat avec Luna (IA-Amie)
- * Utilise le nouveau système des 5 Clés Magiques
+ * Utilise le système des 5 Clés Magiques (images) + 5 Questions Magiques (écriture)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { generateLunaResponse, type ChatMessage, type LunaContext } from '@/lib/ai/gemini'
-import type { PromptingProgress, StoryStructure } from '@/lib/ai/prompting-pedagogy'
+import type { PromptingProgress, StoryStructure, WritingPromptingProgress } from '@/lib/ai/prompting-pedagogy'
 
 interface ChatRequestBody {
   message: string
@@ -14,6 +14,7 @@ interface ChatRequestBody {
   chatHistory?: ChatMessage[]
   emotionalContext?: string[]
   promptingProgress?: PromptingProgress
+  writingProgress?: WritingPromptingProgress
   storyStructure?: StoryStructure
   storyStep?: number
 }
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
       chatHistory = [], 
       emotionalContext = [],
       promptingProgress,
+      writingProgress,
       storyStructure,
       storyStep
     } = body
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
       mode: context,
       locale,
       promptingProgress,
+      writingProgress,
       storyStructure,
       storyStep,
       emotionalContext,

@@ -11,7 +11,7 @@ export {
 
 export type { LunaContext, GeminiResponse, ChatMessage } from './gemini'
 
-// Prompting pedagogy (5 Clés Magiques)
+// Prompting pedagogy (5 Clés Magiques - IMAGES)
 export {
   analyzePrompt,
   updateProgression,
@@ -23,6 +23,15 @@ export {
   MAGIC_KEYS_CONFIG,
   LEVELS_CONFIG,
   STORY_TEMPLATES,
+  // 5 Questions Magiques - ÉCRITURE
+  analyzeWritingMessage,
+  updateWritingProgression,
+  calculateWritingXP,
+  getInitialWritingProgress,
+  completeStory,
+  generateWritingLevelContext,
+  WRITING_LEVELS_CONFIG,
+  WRITING_QUESTIONS_CONFIG,
 } from './prompting-pedagogy'
 
 export type {
@@ -33,6 +42,12 @@ export type {
   PromptingLevel,
   StoryStructure,
   StoryTemplate,
+  // Types pour l'écriture
+  WritingLevel,
+  WritingPromptingProgress,
+  WritingMessageAnalysis,
+  WritingProgressionEvent,
+  WritingQuestion,
 } from './prompting-pedagogy'
 
 // ElevenLabs (Voix/Narration)

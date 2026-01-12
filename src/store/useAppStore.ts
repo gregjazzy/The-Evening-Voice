@@ -6,13 +6,24 @@ import type {
   PromptAnalysis,
   ProgressionEvent,
   MagicKey,
-  StoryStructure
+  StoryStructure,
+  // Types pour l'écriture (5 Questions Magiques)
+  WritingLevel,
+  WritingPromptingProgress,
+  WritingMessageAnalysis,
+  WritingProgressionEvent,
+  WritingQuestion,
 } from '@/lib/ai/prompting-pedagogy'
 import { 
   getInitialProgress, 
   updateProgression,
   analyzePrompt as analyzePromptFn,
-  STORY_TEMPLATES
+  STORY_TEMPLATES,
+  // Fonctions pour l'écriture
+  getInitialWritingProgress,
+  updateWritingProgression,
+  analyzeWritingMessage as analyzeWritingMessageFn,
+  completeStory as completeStoryFn,
 } from '@/lib/ai/prompting-pedagogy'
 
 // Types pour les différents modes
@@ -70,6 +81,15 @@ export interface StoryPage {
   stepIndex: number
   content: string
   image?: string
+  imagePosition?: {
+    x: number
+    y: number
+    width: number
+    height: number
+    rotation: number
+  }
+  imageStyle?: string
+  frameStyle?: string
   order: number
   chapterId?: string // Référence au chapitre personnalisé
   title?: string // Titre optionnel de la page
@@ -146,10 +166,16 @@ interface AppState {
   emotionalContext: string[]
   addEmotionalContext: (context: string) => void
 
-  // Progression du prompting (5 Clés Magiques)
+  // Progression du prompting (5 Clés Magiques - IMAGES)
   promptingProgress: PromptingProgress
   updatePromptingProgress: (analysis: PromptAnalysis) => ProgressionEvent[]
   resetPromptingProgress: () => void
+  
+  // Progression du prompting (5 Questions Magiques - ÉCRITURE)
+  writingProgress: WritingPromptingProgress
+  updateWritingProgress: (message: string) => { analysis: WritingMessageAnalysis; events: WritingProgressionEvent[] }
+  completeCurrentStory: () => WritingProgressionEvent[]
+  resetWritingProgress: () => void
   
   // Étoiles gagnées (feedback visuel)
   pendingStarAnimation: boolean
@@ -157,6 +183,7 @@ interface AppState {
   
   // Derniers événements de progression (pour les notifications)
   lastProgressionEvents: ProgressionEvent[]
+  lastWritingProgressionEvents: WritingProgressionEvent[]
   clearProgressionEvents: () => void
 }
 
@@ -519,7 +546,7 @@ export const useAppStore = create<AppState>()(
         }))
       },
 
-      // Progression du prompting (5 Clés Magiques)
+      // Progression du prompting (5 Clés Magiques - IMAGES)
       promptingProgress: getInitialProgress(),
       updatePromptingProgress: (analysis) => {
         const currentProgress = get().promptingProgress
@@ -533,13 +560,49 @@ export const useAppStore = create<AppState>()(
         set({ promptingProgress: getInitialProgress() })
       },
       
+      // Progression du prompting (5 Questions Magiques - ÉCRITURE)
+      writingProgress: getInitialWritingProgress(),
+      updateWritingProgress: (message: string) => {
+        const analysis = analyzeWritingMessageFn(message)
+        const currentProgress = get().writingProgress
+        const { newProgress, events } = updateWritingProgression(currentProgress, analysis)
+        
+        set({ 
+          writingProgress: newProgress,
+          lastWritingProgressionEvents: events,
+        })
+        
+        // Vérifier si on a un level up pour l'animation
+        const hasLevelUp = events.some(e => e.type === 'level_up')
+        if (hasLevelUp) {
+          set({ pendingStarAnimation: true })
+        }
+        
+        return { analysis, events }
+      },
+      completeCurrentStory: () => {
+        const currentProgress = get().writingProgress
+        const { newProgress, events } = completeStoryFn(currentProgress)
+        
+        set({ 
+          writingProgress: newProgress,
+          lastWritingProgressionEvents: events,
+        })
+        
+        return events
+      },
+      resetWritingProgress: () => {
+        set({ writingProgress: getInitialWritingProgress() })
+      },
+      
       // Animation étoile
       pendingStarAnimation: false,
       setPendingStarAnimation: (pending) => set({ pendingStarAnimation: pending }),
       
       // Événements de progression
       lastProgressionEvents: [],
-      clearProgressionEvents: () => set({ lastProgressionEvents: [] }),
+      lastWritingProgressionEvents: [],
+      clearProgressionEvents: () => set({ lastProgressionEvents: [], lastWritingProgressionEvents: [] }),
     }),
     {
       name: 'lavoixdusoir-storage',
@@ -554,6 +617,7 @@ export const useAppStore = create<AppState>()(
         userName: state.userName,
         emotionalContext: state.emotionalContext,
         promptingProgress: state.promptingProgress,
+        writingProgress: state.writingProgress,
       }),
     }
   )

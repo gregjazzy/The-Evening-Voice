@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react'
 import { useAppStore } from '@/store/useAppStore'
-import type { PromptingProgress } from '@/lib/ai/prompting-pedagogy'
+import type { PromptingProgress, WritingPromptingProgress } from '@/lib/ai/prompting-pedagogy'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -40,6 +40,7 @@ interface UseAIReturn {
 
   // Progression prompting (nouveau système 5 Clés)
   promptingProgress: PromptingProgress
+  writingProgress: WritingPromptingProgress
 }
 
 export function useAI(): UseAIReturn {
@@ -48,6 +49,8 @@ export function useAI(): UseAIReturn {
     addChatMessage, 
     emotionalContext,
     promptingProgress,
+    writingProgress,
+    updateWritingProgress,
     currentStory,
   } = useAppStore()
   
@@ -78,6 +81,11 @@ export function useAI(): UseAIReturn {
         content: msg.content,
       }))
       
+      // Analyser le message de l'enfant pour la progression (en mode book)
+      if (context === 'book') {
+        updateWritingProgress(message)
+      }
+      
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -88,6 +96,7 @@ export function useAI(): UseAIReturn {
           chatHistory: history,
           emotionalContext,
           promptingProgress,
+          writingProgress,
           storyStructure: currentStory?.structure,
           storyStep: currentStory?.currentStep,
         }),
@@ -277,6 +286,7 @@ export function useAI(): UseAIReturn {
     launchGemini,
     launchMidjourney,
     promptingProgress,
+    writingProgress,
   }
 }
 

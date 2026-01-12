@@ -32,11 +32,17 @@ import {
   MicOff,
   Send,
   Type,
+  Pencil,
+  Move,
+  Maximize2,
+  RotateCw,
+  Frame,
 } from 'lucide-react'
 import { useAppStore, type Story } from '@/store/useAppStore'
 import { useTTS } from '@/hooks/useTTS'
 import { STORY_TEMPLATES, type StoryStructure } from '@/lib/ai/prompting-pedagogy'
 import { cn } from '@/lib/utils'
+import { MediaPicker } from '@/components/editor/MediaPicker'
 
 // ============================================================================
 // TYPES
@@ -52,11 +58,61 @@ interface TextStyle {
   lineSpacing: 'tight' | 'normal' | 'relaxed'
 }
 
+interface ImagePosition {
+  x: number      // Position X en pourcentage (0-100)
+  y: number      // Position Y en pourcentage (0-100)
+  width: number  // Largeur en pourcentage (10-100)
+  height: number // Hauteur en pourcentage (10-100)
+  rotation: number // Rotation en degrés (0-360)
+}
+
+// Styles d'image (filtres visuels)
+type ImageStyle = 'normal' | 'sepia' | 'circle' | 'heart' | 'cloud' | 'sketch' | 'glow' | 'rounded' | 'neon' | 'vintage' | 'frost' | 'negative'
+
+// Cadres décoratifs
+type FrameStyle = 'none' | 'simple' | 'double' | 'ornate' | 'baroque' | 'wood' | 'polaroid' | 'tape' | 'golden' | 'shadow3d' | 'dotted' | 'romantic'
+
+// Configuration des styles d'image
+// Configuration des filtres d'image
+const IMAGE_STYLES: { id: ImageStyle; name: string; emoji: string }[] = [
+  { id: 'normal', name: 'Normal', emoji: '🖼️' },
+  { id: 'sepia', name: 'Ancien', emoji: '🎞️' },
+  { id: 'vintage', name: 'Rétro', emoji: '📻' },
+  { id: 'circle', name: 'Bulle', emoji: '🔵' },
+  { id: 'heart', name: 'Cœur', emoji: '❤️' },
+  { id: 'cloud', name: 'Nuage', emoji: '☁️' },
+  { id: 'rounded', name: 'Arrondi', emoji: '⬜' },
+  { id: 'sketch', name: 'Croquis', emoji: '✏️' },
+  { id: 'glow', name: 'Brillant', emoji: '✨' },
+  { id: 'neon', name: 'Néon', emoji: '💜' },
+  { id: 'frost', name: 'Glacé', emoji: '❄️' },
+  { id: 'negative', name: 'Négatif', emoji: '🔳' },
+]
+
+// Configuration des cadres décoratifs
+const FRAME_STYLES: { id: FrameStyle; name: string; emoji: string }[] = [
+  { id: 'none', name: 'Aucun', emoji: '⬜' },
+  { id: 'simple', name: 'Simple', emoji: '🔲' },
+  { id: 'double', name: 'Double', emoji: '⏹️' },
+  { id: 'dotted', name: 'Pointillé', emoji: '⚪' },
+  { id: 'polaroid', name: 'Polaroid', emoji: '📷' },
+  { id: 'tape', name: 'Scotché', emoji: '📌' },
+  { id: 'wood', name: 'Bois', emoji: '🪵' },
+  { id: 'golden', name: 'Doré', emoji: '👑' },
+  { id: 'baroque', name: 'Baroque', emoji: '🏛️' },
+  { id: 'ornate', name: 'Orné', emoji: '💎' },
+  { id: 'romantic', name: 'Romantique', emoji: '🌹' },
+  { id: 'shadow3d', name: '3D', emoji: '🎲' },
+]
+
 interface StoryPageLocal {
   id: string
   title: string
   content: string
   image?: string
+  imagePosition?: ImagePosition  // Position de l'image (calque flottant)
+  imageStyle?: ImageStyle        // Style visuel de l'image
+  frameStyle?: FrameStyle        // Cadre décoratif de l'image
   chapterId?: string
   style?: TextStyle
 }
@@ -66,6 +122,7 @@ interface Chapter {
   title: string
   type: 'intro' | 'development' | 'climax' | 'conclusion' | 'custom'
   color: string
+  titleAlignment?: 'left' | 'center' | 'right' | 'hidden'
 }
 
 // ============================================================================
@@ -242,6 +299,652 @@ const LINE_SPACINGS = {
   tight: { label: 'Serré', value: '1.4' },
   normal: { label: 'Normal', value: '1.7' },
   relaxed: { label: 'Aéré', value: '2.2' },
+}
+
+// ============================================================================
+// COMPOSANT : Image déplaçable (calque flottant)
+// ============================================================================
+
+interface DraggableImageProps {
+  src: string
+  position: ImagePosition
+  imageStyle: ImageStyle
+  frameStyle: FrameStyle
+  onPositionChange: (position: ImagePosition) => void
+  onStyleChange: (style: ImageStyle) => void
+  onFrameChange: (frame: FrameStyle) => void
+  onDelete: () => void
+  containerRef: React.RefObject<HTMLDivElement>
+}
+
+const DEFAULT_IMAGE_POSITION: ImagePosition = {
+  x: 50,    // Centré horizontalement
+  y: 20,    // En haut
+  width: 40,  // 40% de largeur
+  height: 30, // 30% de hauteur
+  rotation: 0, // Pas de rotation par défaut
+}
+
+function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChange, onStyleChange, onFrameChange, onDelete, containerRef }: DraggableImageProps) {
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const [isRotating, setIsRotating] = useState(false)
+  const [resizeCorner, setResizeCorner] = useState<string | null>(null)
+  const [showControls, setShowControls] = useState(false)
+  const [showFrameMenu, setShowFrameMenu] = useState(false)
+  const [showStyleMenu, setShowStyleMenu] = useState(false)
+  const imageRef = useRef<HTMLDivElement>(null)
+  const startPosRef = useRef({ x: 0, y: 0, posX: 0, posY: 0, width: 0, height: 0 })
+  const rotationRef = useRef({ centerX: 0, centerY: 0, startAngle: 0, startRotation: 0 })
+
+  // Gérer le début du drag
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isResizing || showStyleMenu) return
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+    
+    const container = containerRef.current
+    if (!container) return
+    
+    startPosRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: position.x,
+      posY: position.y,
+      width: position.width,
+      height: position.height,
+    }
+  }
+
+  // Gérer le début du redimensionnement
+  const handleResizeStart = (e: React.MouseEvent, corner: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+    setResizeCorner(corner)
+    
+    startPosRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: position.x,
+      posY: position.y,
+      width: position.width,
+      height: position.height,
+    }
+  }
+
+  // Gérer le début de la rotation
+  const handleRotateStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsRotating(true)
+    
+    // Calculer le centre de l'image
+    if (imageRef.current) {
+      const rect = imageRef.current.getBoundingClientRect()
+      const centerX = rect.left + rect.width / 2
+      const centerY = rect.top + rect.height / 2
+      
+      // Calculer l'angle initial entre le centre et la position de la souris
+      const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI)
+      
+      rotationRef.current = {
+        centerX,
+        centerY,
+        startAngle,
+        startRotation: position.rotation || 0,
+      }
+    }
+  }
+
+  // Gérer le mouvement de la souris
+  useEffect(() => {
+    if (!isDragging && !isResizing && !isRotating) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isRotating) {
+        // Rotation - calculer le nouvel angle
+        const { centerX, centerY, startAngle, startRotation } = rotationRef.current
+        const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI)
+        let newRotation = startRotation + (currentAngle - startAngle)
+        
+        // Normaliser entre 0 et 360
+        newRotation = ((newRotation % 360) + 360) % 360
+        
+        onPositionChange({ ...position, rotation: newRotation })
+        return
+      }
+
+      const container = containerRef.current
+      if (!container) return
+
+      const rect = container.getBoundingClientRect()
+      const deltaX = ((e.clientX - startPosRef.current.x) / rect.width) * 100
+      const deltaY = ((e.clientY - startPosRef.current.y) / rect.height) * 100
+
+      if (isDragging) {
+        // Déplacement
+        const newX = Math.max(0, Math.min(100 - position.width, startPosRef.current.posX + deltaX))
+        const newY = Math.max(0, Math.min(100 - position.height, startPosRef.current.posY + deltaY))
+        onPositionChange({ ...position, x: newX, y: newY })
+      } else if (isResizing && resizeCorner) {
+        // Redimensionnement
+        let newWidth = startPosRef.current.width
+        let newHeight = startPosRef.current.height
+        let newX = startPosRef.current.posX
+        let newY = startPosRef.current.posY
+
+        if (resizeCorner.includes('e')) {
+          newWidth = Math.max(15, Math.min(100 - newX, startPosRef.current.width + deltaX))
+        }
+        if (resizeCorner.includes('w')) {
+          const widthDelta = -deltaX
+          newWidth = Math.max(15, startPosRef.current.width + widthDelta)
+          newX = startPosRef.current.posX - widthDelta
+          if (newX < 0) {
+            newWidth += newX
+            newX = 0
+          }
+        }
+        if (resizeCorner.includes('s')) {
+          newHeight = Math.max(10, Math.min(100 - newY, startPosRef.current.height + deltaY))
+        }
+        if (resizeCorner.includes('n')) {
+          const heightDelta = -deltaY
+          newHeight = Math.max(10, startPosRef.current.height + heightDelta)
+          newY = startPosRef.current.posY - heightDelta
+          if (newY < 0) {
+            newHeight += newY
+            newY = 0
+          }
+        }
+
+        onPositionChange({ x: newX, y: newY, width: newWidth, height: newHeight, rotation: position.rotation || 0 })
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      setIsResizing(false)
+      setIsRotating(false)
+      setResizeCorner(null)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, isResizing, isRotating, resizeCorner, position, onPositionChange, containerRef])
+
+  // Classes et styles selon le style d'image choisi
+  const getImageStyleClasses = () => {
+    switch (imageStyle) {
+      case 'sepia':
+        return 'sepia brightness-95'
+      case 'vintage':
+        return 'sepia-[0.3] contrast-110 brightness-95 saturate-90'
+      case 'circle':
+        return 'rounded-full'
+      case 'rounded':
+        return 'rounded-3xl'
+      case 'sketch':
+        return 'grayscale contrast-125'
+      case 'glow':
+        return 'brightness-110 saturate-110'
+      case 'frost':
+        return 'brightness-105 saturate-75 hue-rotate-[200deg]'
+      case 'negative':
+        return 'invert hue-rotate-180'
+      default:
+        return ''
+    }
+  }
+
+  // Styles CSS personnalisés selon le style
+  const getContainerStyles = (): React.CSSProperties => {
+    const rotation = position.rotation || 0
+    
+    const baseStyles: React.CSSProperties = {
+      left: `${position.x}%`,
+      top: `${position.y}%`,
+      width: `${position.width}%`,
+      height: `${position.height}%`,
+      cursor: isDragging ? 'grabbing' : 'grab',
+      zIndex: isDragging || isResizing || showControls || showStyleMenu ? 50 : 20,
+      transform: rotation !== 0 ? `rotate(${rotation}deg)` : undefined,
+    }
+
+    // Le cadre "scotché" ajoute une légère inclinaison aléatoire
+    if (frameStyle === 'tape') {
+      return {
+        ...baseStyles,
+        transform: `rotate(${rotation + (Math.random() - 0.5) * 3}deg)`,
+      }
+    }
+    
+    return baseStyles
+  }
+
+  // Clip-path pour les formes spéciales
+  const getClipPath = () => {
+    switch (imageStyle) {
+      case 'heart':
+        // Forme de cœur en pourcentages
+        return 'polygon(50% 15%, 60% 5%, 75% 0%, 90% 5%, 100% 20%, 100% 35%, 95% 50%, 50% 100%, 5% 50%, 0% 35%, 0% 20%, 10% 5%, 25% 0%, 40% 5%, 50% 15%)'
+      default:
+        return undefined
+    }
+  }
+
+  return (
+    <div
+      ref={imageRef}
+      className="absolute"
+      style={getContainerStyles()}
+      onMouseDown={handleMouseDown}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => {
+        if (!isDragging && !isResizing && !isRotating && !showStyleMenu && !showFrameMenu) {
+          setShowControls(false)
+        }
+      }}
+    >
+      {/* Conteneur de l'image avec les styles visuels */}
+      <div 
+        className={cn(
+          "w-full h-full transition-shadow",
+          "rounded-lg overflow-hidden",
+          imageStyle === 'circle' && "rounded-full overflow-hidden",
+          // Pas d'ombre ni de cadre pour certains styles
+          !['circle', 'heart', 'cloud', 'glow', 'polaroid', 'neon', 'golden', 'shadow3d', 'frost'].includes(imageStyle) && (
+            (isDragging || isResizing) ? "shadow-xl ring-2 ring-aurora-500" : "shadow-lg hover:shadow-xl"
+          ),
+          !['circle', 'heart', 'cloud', 'glow', 'polaroid', 'neon', 'golden', 'shadow3d', 'frost'].includes(imageStyle) && showControls && !showStyleMenu && "ring-2 ring-aurora-400/50"
+        )}
+      >
+        {/* Image */}
+        <img 
+          src={src} 
+          alt="Illustration" 
+          className={cn(
+            "w-full h-full object-cover pointer-events-none",
+            getImageStyleClasses(),
+          )}
+          style={{
+            clipPath: getClipPath(),
+            // Effet estompé sur les bords (style Nuage)
+            maskImage: imageStyle === 'cloud' 
+              ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
+              : undefined,
+            WebkitMaskImage: imageStyle === 'cloud' 
+              ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
+              : undefined,
+          }}
+          draggable={false}
+        />
+
+        {/* Overlay avec contrôles */}
+        {showControls && !showStyleMenu && (
+          <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+        )}
+
+        {/* Bouton déplacer (centre) */}
+        {showControls && !showStyleMenu && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white pointer-events-none">
+            <Move className="w-5 h-5" />
+          </div>
+        )}
+      </div>
+
+      {/* Style Brillant - halo lumineux (filtre) */}
+      {imageStyle === 'glow' && (
+        <div 
+          className="absolute inset-0 pointer-events-none z-10 rounded-lg"
+          style={{
+            boxShadow: '0 0 20px 5px rgba(255, 215, 0, 0.4), 0 0 40px 10px rgba(255, 165, 0, 0.2)',
+          }}
+        />
+      )}
+
+      {/* Style Néon - bordure lumineuse (filtre) */}
+      {imageStyle === 'neon' && (
+        <div 
+          className="absolute inset-0 pointer-events-none z-10 rounded-lg"
+          style={{
+            boxShadow: '0 0 10px 2px #ff00ff, 0 0 20px 4px #00ffff, 0 0 30px 6px #ff00ff, inset 0 0 15px 3px rgba(255, 0, 255, 0.3)',
+          }}
+        />
+      )}
+
+      {/* Style Glacé - reflet froid (filtre) */}
+      {imageStyle === 'frost' && (
+        <div 
+          className="absolute inset-0 pointer-events-none z-10 rounded-lg"
+          style={{
+            background: 'linear-gradient(135deg, rgba(200, 230, 255, 0.3) 0%, transparent 50%, rgba(200, 230, 255, 0.2) 100%)',
+            boxShadow: '0 0 20px 5px rgba(150, 200, 255, 0.3)',
+          }}
+        />
+      )}
+
+      {/* ========== CADRES DÉCORATIFS ========== */}
+      
+      {/* Cadre Simple */}
+      {frameStyle === 'simple' && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="absolute inset-0 border-4 border-gray-700 rounded-lg" />
+        </div>
+      )}
+
+      {/* Cadre Double */}
+      {frameStyle === 'double' && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="absolute inset-0 border-2 border-gray-700 rounded-lg" />
+          <div className="absolute inset-2 border-2 border-gray-500 rounded-md" />
+        </div>
+      )}
+
+      {/* Cadre Pointillé */}
+      {frameStyle === 'dotted' && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="absolute inset-0 border-4 border-dashed border-gray-600 rounded-lg" />
+        </div>
+      )}
+
+      {/* Cadre Polaroid */}
+      {frameStyle === 'polaroid' && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="absolute inset-0 border-[12px] border-white border-b-[40px] rounded-sm shadow-xl" />
+        </div>
+      )}
+
+      {/* Cadre Scotché */}
+      {frameStyle === 'tape' && (
+        <>
+          <div className="absolute -top-2 -left-2 w-10 h-5 bg-amber-200/90 rotate-[-20deg] rounded-sm shadow-sm z-10" />
+          <div className="absolute -top-2 -right-2 w-10 h-5 bg-pink-200/90 rotate-[20deg] rounded-sm shadow-sm z-10" />
+          <div className="absolute -bottom-2 -left-2 w-10 h-5 bg-blue-200/90 rotate-[15deg] rounded-sm shadow-sm z-10" />
+          <div className="absolute -bottom-2 -right-2 w-10 h-5 bg-green-200/90 rotate-[-15deg] rounded-sm shadow-sm z-10" />
+        </>
+      )}
+
+      {/* Cadre Bois */}
+      {frameStyle === 'wood' && (
+        <div className="absolute inset-0 pointer-events-none z-10 rounded-lg"
+          style={{
+            border: '8px solid',
+            borderImage: 'linear-gradient(135deg, #8B4513 0%, #A0522D 20%, #8B4513 40%, #D2691E 60%, #8B4513 80%, #A0522D 100%) 1',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.4), inset 0 0 0 2px rgba(0,0,0,0.3)',
+          }}
+        />
+      )}
+
+      {/* Cadre Doré */}
+      {frameStyle === 'golden' && (
+        <div className="absolute inset-0 pointer-events-none z-10 rounded-lg"
+          style={{
+            border: '6px solid',
+            borderImage: 'linear-gradient(135deg, #d4af37 0%, #f9e077 15%, #d4af37 30%, #f9e077 50%, #d4af37 70%, #f9e077 85%, #d4af37 100%) 1',
+            boxShadow: '0 0 20px rgba(212, 175, 55, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.3)',
+          }}
+        />
+      )}
+
+      {/* Cadre Baroque */}
+      {frameStyle === 'baroque' && (
+        <>
+          <div className="absolute inset-0 pointer-events-none z-10 rounded-lg"
+            style={{
+              border: '10px solid',
+              borderImage: 'linear-gradient(135deg, #2c1810 0%, #4a2c20 25%, #2c1810 50%, #4a2c20 75%, #2c1810 100%) 1',
+              boxShadow: '0 0 0 3px #d4af37, 0 0 20px rgba(0,0,0,0.5)',
+            }}
+          />
+          {/* Ornements dorés aux coins */}
+          <div className="absolute -top-1 -left-1 w-5 h-5 border-t-3 border-l-3 border-amber-400 rounded-tl-md z-20" style={{ borderWidth: '3px' }} />
+          <div className="absolute -top-1 -right-1 w-5 h-5 border-t-3 border-r-3 border-amber-400 rounded-tr-md z-20" style={{ borderWidth: '3px' }} />
+          <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-3 border-l-3 border-amber-400 rounded-bl-md z-20" style={{ borderWidth: '3px' }} />
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-3 border-r-3 border-amber-400 rounded-br-md z-20" style={{ borderWidth: '3px' }} />
+        </>
+      )}
+
+      {/* Cadre Orné */}
+      {frameStyle === 'ornate' && (
+        <div className="absolute inset-0 pointer-events-none z-10 rounded-lg"
+          style={{
+            border: '6px solid',
+            borderImage: 'repeating-linear-gradient(45deg, #c0c0c0 0px, #c0c0c0 2px, #e8e8e8 2px, #e8e8e8 4px, #a0a0a0 4px, #a0a0a0 6px) 6',
+            boxShadow: '0 0 15px rgba(0,0,0,0.3)',
+          }}
+        />
+      )}
+
+      {/* Cadre Romantique */}
+      {frameStyle === 'romantic' && (
+        <>
+          <div className="absolute inset-0 pointer-events-none z-10 rounded-lg"
+            style={{
+              border: '6px solid',
+              borderImage: 'linear-gradient(135deg, #ffb6c1 0%, #ffc0cb 25%, #ff69b4 50%, #ffc0cb 75%, #ffb6c1 100%) 1',
+              boxShadow: '0 0 15px rgba(255, 105, 180, 0.4)',
+            }}
+          />
+          {/* Petits cœurs aux coins */}
+          <div className="absolute -top-2 -left-2 text-pink-500 text-sm z-20">♥</div>
+          <div className="absolute -top-2 -right-2 text-pink-500 text-sm z-20">♥</div>
+          <div className="absolute -bottom-2 -left-2 text-pink-500 text-sm z-20">♥</div>
+          <div className="absolute -bottom-2 -right-2 text-pink-500 text-sm z-20">♥</div>
+        </>
+      )}
+
+      {/* Cadre 3D - ombre portée décalée */}
+      {frameStyle === 'shadow3d' && (
+        <div 
+          className="absolute inset-0 pointer-events-none rounded-lg"
+          style={{
+            boxShadow: '8px 8px 0 rgba(0, 0, 0, 0.4), 16px 16px 0 rgba(0, 0, 0, 0.2)',
+          }}
+        />
+      )}
+
+      {/* CONTRÔLES - Positionnés HORS du conteneur avec overflow hidden */}
+      {/* Bouton supprimer */}
+      {showControls && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors z-30 shadow-lg"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Bouton palette (filtres) */}
+      {showControls && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowFrameMenu(false)
+            setShowStyleMenu(!showStyleMenu)
+          }}
+          className={cn(
+            "absolute -top-2 -left-2 p-1.5 rounded-full transition-colors z-30 shadow-lg",
+            showStyleMenu 
+              ? "bg-aurora-500 text-white" 
+              : "bg-midnight-800 text-white hover:bg-aurora-500"
+          )}
+          onMouseDown={(e) => e.stopPropagation()}
+          title="Filtres"
+        >
+          <Sparkles className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Bouton cadres */}
+      {showControls && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowStyleMenu(false)
+            setShowFrameMenu(!showFrameMenu)
+          }}
+          className={cn(
+            "absolute -bottom-2 -right-2 p-1.5 rounded-full transition-colors z-30 shadow-lg",
+            showFrameMenu 
+              ? "bg-amber-500 text-white" 
+              : "bg-midnight-800 text-white hover:bg-amber-500"
+          )}
+          onMouseDown={(e) => e.stopPropagation()}
+          title="Cadres"
+        >
+          <Frame className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Poignée de rotation */}
+      {showControls && !showStyleMenu && (
+        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center z-30" style={{ top: '-32px' }}>
+          {/* Icône flèche enroulée */}
+          <div
+            className={cn(
+              "p-1 rounded-full bg-emerald-500 text-white cursor-grab shadow-md hover:bg-emerald-600 hover:scale-110 transition-all",
+              isRotating && "cursor-grabbing scale-125 bg-emerald-400"
+            )}
+            onMouseDown={handleRotateStart}
+            title="Faire glisser pour pivoter"
+          >
+            <RotateCw className="w-3.5 h-3.5" />
+          </div>
+          {/* Ligne verticale */}
+          <div className="w-0.5 h-3 bg-emerald-500" />
+        </div>
+      )}
+
+      {/* Menu de sélection de style (filtres) - taille fixe */}
+      {showStyleMenu && (
+        <div 
+          className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[240px]"
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-2">
+            🎨 Filtres
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {IMAGE_STYLES.map((style) => (
+              <button
+                key={style.id}
+                onClick={() => {
+                  onStyleChange(style.id)
+                  setShowStyleMenu(false)
+                }}
+                className={cn(
+                  "flex flex-col items-center p-2 rounded-lg transition-all",
+                  imageStyle === style.id
+                    ? "bg-aurora-100 text-aurora-700 ring-2 ring-aurora-400"
+                    : "hover:bg-gray-100 text-gray-600"
+                )}
+                title={style.name}
+              >
+                <span className="text-xl">{style.emoji}</span>
+                <span className="text-xs mt-1 whitespace-nowrap">{style.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Menu de sélection de cadre - taille fixe */}
+      {showFrameMenu && (
+        <div 
+          className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[280px]"
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-2">
+            🖼️ Cadres
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {FRAME_STYLES.map((frame) => (
+              <button
+                key={frame.id}
+                onClick={() => {
+                  onFrameChange(frame.id)
+                  setShowFrameMenu(false)
+                }}
+                className={cn(
+                  "flex flex-col items-center p-2 rounded-lg transition-all",
+                  frameStyle === frame.id
+                    ? "bg-amber-100 text-amber-700 ring-2 ring-amber-400"
+                    : "hover:bg-gray-100 text-gray-600"
+                )}
+                title={frame.name}
+              >
+                <span className="text-xl">{frame.emoji}</span>
+                <span className="text-xs mt-1 whitespace-nowrap">{frame.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Poignées de redimensionnement */}
+      {showControls && !showStyleMenu && !showFrameMenu && (
+        <>
+          {/* Coins */}
+          <div
+            className="absolute -top-1 -left-1 w-3 h-3 bg-white border-2 border-aurora-500 rounded-full cursor-nw-resize z-20"
+            onMouseDown={(e) => handleResizeStart(e, 'nw')}
+          />
+          <div
+            className="absolute -top-1 -right-1 w-3 h-3 bg-white border-2 border-aurora-500 rounded-full cursor-ne-resize z-20"
+            onMouseDown={(e) => handleResizeStart(e, 'ne')}
+          />
+          <div
+            className="absolute -bottom-1 -left-1 w-3 h-3 bg-white border-2 border-aurora-500 rounded-full cursor-sw-resize z-20"
+            onMouseDown={(e) => handleResizeStart(e, 'sw')}
+          />
+          <div
+            className="absolute -bottom-1 -right-1 w-3 h-3 bg-white border-2 border-aurora-500 rounded-full cursor-se-resize z-20"
+            onMouseDown={(e) => handleResizeStart(e, 'se')}
+          />
+          {/* Bords */}
+          <div
+            className="absolute top-1/2 -left-1 w-2 h-6 -translate-y-1/2 bg-white border-2 border-aurora-500 rounded-full cursor-w-resize z-20"
+            onMouseDown={(e) => handleResizeStart(e, 'w')}
+          />
+          <div
+            className="absolute top-1/2 -right-1 w-2 h-6 -translate-y-1/2 bg-white border-2 border-aurora-500 rounded-full cursor-e-resize z-20"
+            onMouseDown={(e) => handleResizeStart(e, 'e')}
+          />
+          <div
+            className="absolute -top-1 left-1/2 w-6 h-2 -translate-x-1/2 bg-white border-2 border-aurora-500 rounded-full cursor-n-resize z-20"
+            onMouseDown={(e) => handleResizeStart(e, 'n')}
+          />
+          <div
+            className="absolute -bottom-1 left-1/2 w-6 h-2 -translate-x-1/2 bg-white border-2 border-aurora-500 rounded-full cursor-s-resize z-20"
+            onMouseDown={(e) => handleResizeStart(e, 's')}
+          />
+        </>
+      )}
+    </div>
+  )
 }
 
 // ============================================================================
@@ -753,9 +1456,11 @@ function StructureView({
 interface FormatBarProps {
   style: TextStyle
   onStyleChange: (style: TextStyle) => void
+  showLines?: boolean
+  onToggleLines?: () => void
 }
 
-function FormatBar({ style, onStyleChange }: FormatBarProps) {
+function FormatBar({ style, onStyleChange, showLines = true, onToggleLines }: FormatBarProps) {
   const [showFonts, setShowFonts] = useState(false)
   const [showFontSizes, setShowFontSizes] = useState(false)
   const [showColors, setShowColors] = useState(false)
@@ -918,7 +1623,7 @@ function FormatBar({ style, onStyleChange }: FormatBarProps) {
         // Retirer aussi les spans vides de style
         tempDiv.querySelectorAll('span').forEach(el => {
           if (!el.getAttribute('style') || el.getAttribute('style')?.trim() === '') {
-            el.replaceWith(...el.childNodes)
+            el.replaceWith(...Array.from(el.childNodes))
           }
         })
         
@@ -970,7 +1675,7 @@ function FormatBar({ style, onStyleChange }: FormatBarProps) {
       // Retirer les spans vides de style
       tempDiv.querySelectorAll('span').forEach(el => {
         if (!el.getAttribute('style') || el.getAttribute('style')?.trim() === '') {
-          el.replaceWith(...el.childNodes)
+          el.replaceWith(...Array.from(el.childNodes))
         }
       })
       
@@ -1286,6 +1991,31 @@ function FormatBar({ style, onStyleChange }: FormatBarProps) {
           )}
         </AnimatePresence>
       </div>
+      
+      {/* Séparateur */}
+      <div className="w-px h-6 bg-midnight-700/50" />
+      
+      {/* Bouton lignes de cahier */}
+      {onToggleLines && (
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onToggleLines}
+          className={cn(
+            "flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors",
+            showLines 
+              ? "bg-aurora-500/20 text-aurora-300" 
+              : "text-midnight-400 hover:bg-midnight-800"
+          )}
+          title={showLines ? "Masquer les lignes" : "Afficher les lignes"}
+        >
+          {/* Icône lignes de cahier */}
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="4" y1="8" x2="20" y2="8" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="16" x2="20" y2="16" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
@@ -1304,7 +2034,12 @@ interface WritingAreaProps {
   onStyleChange: (style: TextStyle) => void
   onChapterChange: (chapterId: string | undefined) => void
   onCreateChapter: (title: string) => void
+  onUpdateChapter?: (chapterId: string, updates: Partial<Chapter>) => void
   onImageAdd: () => void
+  onImagePositionChange?: (pageIndex: number, position: ImagePosition) => void
+  onImageStyleChange?: (pageIndex: number, style: ImageStyle) => void
+  onImageFrameChange?: (pageIndex: number, frame: FrameStyle) => void
+  onImageDelete?: (pageIndex: number) => void
   locale?: 'fr' | 'en' | 'ru'
   onPrevPage?: () => void
   onNextPage?: () => void
@@ -1323,9 +2058,14 @@ interface WritingAreaProps {
   onShowOverview?: () => void
   // Callback pour notifier le parent du changement de zoom
   onZoomChange?: (zoomedPage: 'left' | 'right' | null) => void
+  // Permet au parent de contrôler la page zoomée
+  externalZoomedPage?: 'left' | 'right' | null
+  // Afficher/masquer les lignes de cahier
+  showLines?: boolean
+  onToggleLines?: () => void
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onImageAdd, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageDelete, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines }: WritingAreaProps) {
   const style = page?.style || leftPage?.style || DEFAULT_STYLE
   const editorRef = useRef<HTMLDivElement>(null)
   const leftEditorRef = useRef<HTMLDivElement>(null)
@@ -1333,17 +2073,32 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const lastContentRef = useRef<string>(page?.content || '')
   const lastLeftContentRef = useRef<string>(leftPage?.content || '')
   
+  // Refs pour les conteneurs de page (pour le drag & drop des images)
+  const leftPageContainerRef = useRef<HTMLDivElement>(null)
+  const rightPageContainerRef = useRef<HTMLDivElement>(null)
+  const zoomedPageContainerRef = useRef<HTMLDivElement>(null)
+  
   // État pour le mode zoom (null = pas de zoom, 'left' = page gauche, 'right' = page droite)
   const [zoomedPage, setZoomedPage] = useState<'left' | 'right' | null>(null)
+  
+  // État pour le menu d'alignement du titre de chapitre
+  const [alignmentMenuOpen, setAlignmentMenuOpen] = useState<'left' | 'right' | 'zoom' | null>(null)
   
   // Notifier le parent quand le zoom change
   useEffect(() => {
     onZoomChange?.(zoomedPage)
   }, [zoomedPage, onZoomChange])
   
+  // Synchroniser avec le zoom externe (quand le parent change la page)
+  useEffect(() => {
+    if (externalZoomedPage !== undefined) {
+      setZoomedPage(externalZoomedPage)
+    }
+  }, [externalZoomedPage])
+  
   // Speech recognition for dictation
   const { isListening, isSupported, transcript, startListening, stopListening, resetTranscript } = useSpeechRecognition(locale)
-  
+
   // Initialiser le contenu au premier rendu
   useEffect(() => {
     if (editorRef.current && page?.content) {
@@ -1489,6 +2244,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <FormatBar 
                 style={style} 
                 onStyleChange={onStyleChange}
+                showLines={showLines}
+                onToggleLines={onToggleLines}
               />
             </div>
         
@@ -1555,6 +2312,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         >
           {/* Page zoomée */}
           <motion.div
+            ref={zoomedPageContainerRef}
             onClick={(e) => e.stopPropagation()}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -1566,7 +2324,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               aspectRatio: '2 / 3',
               background: 'linear-gradient(225deg, #fef9f0 0%, #fdf6e8 50%, #fbf2df 100%)',
               borderRadius: '12px',
-              overflow: 'hidden',
+              overflow: 'visible',
             }}
           >
             {/* Bouton réduire en haut à droite */}
@@ -1583,31 +2341,130 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
             }} />
             
-            {/* En-tête avec chapitre */}
-            {zPage.chapterId && (
-              <div className="px-8 pt-4 pb-2 text-center border-b border-amber-300/30 relative z-10">
+            {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
+            {(() => {
+              const zChapter = chapters.find(c => c.id === zPage.chapterId)
+              const alignment = zChapter?.titleAlignment || 'center'
+              if (alignment === 'hidden') {
+                return (
+                  <div 
+                    className="min-h-[48px] border-b border-amber-300/30 cursor-pointer hover:bg-amber-100/30 transition-colors relative"
+                    onClick={() => zChapter && setAlignmentMenuOpen(alignmentMenuOpen === 'zoom' ? null : 'zoom')}
+                  >
+                    {/* Menu d'alignement */}
+                    {alignmentMenuOpen === 'zoom' && zChapter && (
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
+                        {[
+                          { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-4 h-4" /> },
+                          { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-4 h-4" /> },
+                          { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-4 h-4" /> },
+                          { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-4 h-4" /> },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onUpdateChapter?.(zChapter.id, { titleAlignment: opt.value as Chapter['titleAlignment'] })
+                              setAlignmentMenuOpen(null)
+                            }}
+                            className={cn(
+                              "w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-amber-50 transition-colors",
+                              alignment === opt.value && "bg-amber-100 text-amber-700"
+                            )}
+                          >
+                            {opt.icon}
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              return (
+                <div 
+                  className={cn(
+                    "px-8 pt-4 pb-2 border-b border-amber-300/30 relative z-10 min-h-[48px] flex items-center cursor-pointer hover:bg-amber-100/30 transition-colors",
+                    alignment === 'left' && 'justify-start',
+                    alignment === 'center' && 'justify-center',
+                    alignment === 'right' && 'justify-end'
+                  )}
+                  onClick={() => zChapter && setAlignmentMenuOpen(alignmentMenuOpen === 'zoom' ? null : 'zoom')}
+                >
+                  {zChapter ? (
                 <span
                   className="text-lg font-serif font-medium"
-                  style={{ color: chapters.find(c => c.id === zPage.chapterId)?.color || '#8b7355' }}
+                      style={{ color: zChapter.color || '#8b7355' }}
                 >
-                  {chapters.find(c => c.id === zPage.chapterId)?.title}
+                      {zChapter.title}
                 </span>
+                  ) : (
+                    <span className="text-amber-400/30 text-sm font-serif italic">—</span>
+                  )}
+                  
+                  {/* Menu d'alignement */}
+                  {alignmentMenuOpen === 'zoom' && zChapter && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
+                      {[
+                        { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-4 h-4" /> },
+                        { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-4 h-4" /> },
+                        { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-4 h-4" /> },
+                        { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-4 h-4" /> },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onUpdateChapter?.(zChapter.id, { titleAlignment: opt.value as Chapter['titleAlignment'] })
+                            setAlignmentMenuOpen(null)
+                          }}
+                          className={cn(
+                            "w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-amber-50 transition-colors text-amber-800",
+                            alignment === opt.value && "bg-amber-100 text-amber-700 font-medium"
+                          )}
+                        >
+                          {opt.icon}
+                          {opt.label}
+                        </button>
+                      ))}
         </div>
       )}
+                </div>
+              )
+            })()}
+
+            {/* Image flottante de la page (si présente) */}
+            {zPage?.image && (
+              <DraggableImage
+                src={zPage.image}
+                position={zPage.imagePosition || DEFAULT_IMAGE_POSITION}
+                imageStyle={zPage.imageStyle || 'normal'}
+                frameStyle={zPage.frameStyle || 'none'}
+                onPositionChange={(pos) => onImagePositionChange?.(zPageIndex, pos)}
+                onStyleChange={(style) => onImageStyleChange?.(zPageIndex, style)}
+                onFrameChange={(frame) => onImageFrameChange?.(zPageIndex, frame)}
+                onDelete={() => onImageDelete?.(zPageIndex)}
+                containerRef={zoomedPageContainerRef}
+              />
+            )}
       
             {/* Zone d'écriture avec lignes intégrées */}
             <div className="flex-1 relative overflow-hidden">
-              {/* Lignes de cahier */}
+              {/* Lignes de cahier (conditionnelles) */}
+              {showLines && (
               <div 
                 className="absolute inset-0 pointer-events-none"
                 style={{
                   backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
-                  backgroundSize: '100% 32px',
+                    backgroundSize: '100% 32px',
                 }}
               />
+              )}
               
-              {/* Marge rouge */}
+              {/* Marge rouge (conditionnelle) */}
+              {showLines && (
               <div className="absolute left-12 top-0 bottom-0 w-px bg-red-300/40 pointer-events-none" />
+              )}
       
               {/* Zone de texte contentEditable */}
               <div
@@ -1695,6 +2552,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           
           {/* PAGE GAUCHE (page d'écriture) */}
           <div 
+            ref={leftPageContainerRef}
             className="relative flex flex-col group"
             style={{
               height: '100%',
@@ -1702,22 +2560,134 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               background: 'linear-gradient(135deg, #fef7ed 0%, #fdf4e3 50%, #f9edd8 100%)',
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
-              overflow: 'hidden',
+              overflow: 'visible',
             }}
           >
+            {/* Clip pour le contenu interne */}
+            <div className="absolute inset-0 overflow-hidden rounded-l-lg pointer-events-none" style={{ zIndex: 0 }} />
+            
             {/* Texture papier subtile */}
-            <div className="absolute inset-0 opacity-30" style={{
+            <div className="absolute inset-0 opacity-30 rounded-l-lg overflow-hidden" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
             }} />
             
-            {/* Lignes de cahier */}
-            <div className="absolute inset-x-10 top-0 bottom-12" style={{
-              backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
-              backgroundSize: '100% 32px',
-            }} />
+            {/* Image flottante de la page gauche (si présente) */}
+            {leftPage?.image && leftPageIndex !== undefined && (
+              <DraggableImage
+                src={leftPage.image}
+                position={leftPage.imagePosition || DEFAULT_IMAGE_POSITION}
+                imageStyle={leftPage.imageStyle || 'normal'}
+                frameStyle={leftPage.frameStyle || 'none'}
+                onPositionChange={(pos) => onImagePositionChange?.(leftPageIndex, pos)}
+                onStyleChange={(style) => onImageStyleChange?.(leftPageIndex, style)}
+                onFrameChange={(frame) => onImageFrameChange?.(leftPageIndex, frame)}
+                onDelete={() => onImageDelete?.(leftPageIndex)}
+                containerRef={leftPageContainerRef}
+              />
+            )}
             
-            {/* Marge rouge (à droite pour page gauche) */}
-            <div className="absolute right-10 top-0 bottom-12 w-px bg-red-300/40" />
+            {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
+            {(() => {
+              const leftChapter = chapters.find(c => c.id === leftPage?.chapterId)
+              const alignment = leftChapter?.titleAlignment || 'center'
+              if (alignment === 'hidden') {
+                return (
+                  <div 
+                    className="min-h-[32px] border-b border-amber-300/20 flex-shrink-0 cursor-pointer hover:bg-amber-100/30 transition-colors relative"
+                    onClick={() => leftChapter && setAlignmentMenuOpen(alignmentMenuOpen === 'left' ? null : 'left')}
+                  >
+                    {alignmentMenuOpen === 'left' && leftChapter && (
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
+                        {[
+                          { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-3 h-3" /> },
+                          { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-3 h-3" /> },
+                          { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-3 h-3" /> },
+                          { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-3 h-3" /> },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onUpdateChapter?.(leftChapter.id, { titleAlignment: opt.value as Chapter['titleAlignment'] })
+                              setAlignmentMenuOpen(null)
+                            }}
+                            className={cn(
+                              "w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 hover:bg-amber-50 transition-colors text-amber-800",
+                              alignment === opt.value && "bg-amber-100 text-amber-700 font-medium"
+                            )}
+                          >
+                            {opt.icon}
+                            {opt.label}
+                          </button>
+                        ))}
+                    </div>
+                    )}
+                    </div>
+                )
+              }
+              return (
+                <div 
+                  className={cn(
+                    "px-4 pt-2 pb-1 border-b border-amber-300/20 relative z-10 min-h-[32px] flex items-center flex-shrink-0 cursor-pointer hover:bg-amber-100/30 transition-colors",
+                    alignment === 'left' && 'justify-start',
+                    alignment === 'center' && 'justify-center',
+                    alignment === 'right' && 'justify-end'
+                  )}
+                  onClick={() => leftChapter && setAlignmentMenuOpen(alignmentMenuOpen === 'left' ? null : 'left')}
+                >
+                  {leftChapter ? (
+                    <span
+                      className="text-xs font-serif font-medium truncate"
+                      style={{ color: leftChapter.color || '#8b7355' }}
+                    >
+                      {leftChapter.title}
+                    </span>
+                  ) : (
+                    <span className="text-amber-400/20 text-xs">—</span>
+                  )}
+                  
+                  {alignmentMenuOpen === 'left' && leftChapter && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
+                      {[
+                        { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-3 h-3" /> },
+                        { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-3 h-3" /> },
+                        { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-3 h-3" /> },
+                        { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-3 h-3" /> },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onUpdateChapter?.(leftChapter.id, { titleAlignment: opt.value as Chapter['titleAlignment'] })
+                            setAlignmentMenuOpen(null)
+                          }}
+                          className={cn(
+                            "w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 hover:bg-amber-50 transition-colors",
+                            alignment === opt.value && "bg-amber-100 text-amber-700"
+                          )}
+                        >
+                          {opt.icon}
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+              )}
+              </div>
+              )
+            })()}
+            
+            {/* Lignes de cahier (conditionnelles) */}
+            {showLines && (
+              <div className="absolute inset-x-10 top-[32px] bottom-12" style={{
+                backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
+                backgroundSize: '100% 32px',
+              }} />
+            )}
+            
+            {/* Marge rouge (à droite pour page gauche, conditionnelle) */}
+            {showLines && (
+              <div className="absolute right-10 top-[32px] bottom-12 w-px bg-red-300/40" />
+            )}
             
             {/* Zone d'écriture - page gauche TipTap */}
             {leftPage ? (
@@ -1817,6 +2787,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           
           {/* PAGE DROITE (page d'écriture) */}
           <div 
+            ref={rightPageContainerRef}
             className="relative flex flex-col group"
             style={{
               height: '100%',
@@ -1824,22 +2795,134 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               background: 'linear-gradient(225deg, #fef9f0 0%, #fdf6e8 50%, #fbf2df 100%)',
               borderRadius: '0 8px 8px 0',
               boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
+              overflow: 'visible',
             }}
           >
+            {/* Clip pour le contenu interne */}
+            <div className="absolute inset-0 overflow-hidden rounded-r-lg pointer-events-none" style={{ zIndex: 0 }} />
+            
             {/* Texture papier */}
-            <div className="absolute inset-0 opacity-20" style={{
+            <div className="absolute inset-0 opacity-20 rounded-r-lg overflow-hidden" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
             }} />
             
-            {/* Lignes de cahier - alignées avec la baseline du texte */}
-            <div className="absolute inset-x-10 top-0 bottom-12" style={{
+            {/* Image flottante de la page droite (si présente) */}
+            {page?.image && (
+              <DraggableImage
+                src={page.image}
+                position={page.imagePosition || DEFAULT_IMAGE_POSITION}
+                imageStyle={page.imageStyle || 'normal'}
+                frameStyle={page.frameStyle || 'none'}
+                onPositionChange={(pos) => onImagePositionChange?.(pageIndex, pos)}
+                onStyleChange={(style) => onImageStyleChange?.(pageIndex, style)}
+                onFrameChange={(frame) => onImageFrameChange?.(pageIndex, frame)}
+                onDelete={() => onImageDelete?.(pageIndex)}
+                containerRef={rightPageContainerRef}
+              />
+            )}
+            
+            {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
+            {(() => {
+              const rightChapter = chapters.find(c => c.id === page?.chapterId)
+              const alignment = rightChapter?.titleAlignment || 'center'
+              if (alignment === 'hidden') {
+                return (
+                  <div 
+                    className="min-h-[32px] border-b border-amber-300/20 flex-shrink-0 cursor-pointer hover:bg-amber-100/30 transition-colors relative"
+                    onClick={() => rightChapter && setAlignmentMenuOpen(alignmentMenuOpen === 'right' ? null : 'right')}
+                  >
+                    {alignmentMenuOpen === 'right' && rightChapter && (
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
+                        {[
+                          { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-3 h-3" /> },
+                          { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-3 h-3" /> },
+                          { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-3 h-3" /> },
+                          { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-3 h-3" /> },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onUpdateChapter?.(rightChapter.id, { titleAlignment: opt.value as Chapter['titleAlignment'] })
+                              setAlignmentMenuOpen(null)
+                            }}
+                            className={cn(
+                              "w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 hover:bg-amber-50 transition-colors text-amber-800",
+                              alignment === opt.value && "bg-amber-100 text-amber-700 font-medium"
+                            )}
+                          >
+                            {opt.icon}
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              return (
+                <div 
+                  className={cn(
+                    "px-4 pt-2 pb-1 border-b border-amber-300/20 relative z-10 min-h-[32px] flex items-center flex-shrink-0 cursor-pointer hover:bg-amber-100/30 transition-colors",
+                    alignment === 'left' && 'justify-start',
+                    alignment === 'center' && 'justify-center',
+                    alignment === 'right' && 'justify-end'
+                  )}
+                  onClick={() => rightChapter && setAlignmentMenuOpen(alignmentMenuOpen === 'right' ? null : 'right')}
+                >
+                  {rightChapter ? (
+                    <span
+                      className="text-xs font-serif font-medium truncate"
+                      style={{ color: rightChapter.color || '#8b7355' }}
+                    >
+                      {rightChapter.title}
+                    </span>
+                  ) : (
+                    <span className="text-amber-400/20 text-xs">—</span>
+                  )}
+                  
+                  {alignmentMenuOpen === 'right' && rightChapter && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
+                      {[
+                        { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-3 h-3" /> },
+                        { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-3 h-3" /> },
+                        { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-3 h-3" /> },
+                        { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-3 h-3" /> },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onUpdateChapter?.(rightChapter.id, { titleAlignment: opt.value as Chapter['titleAlignment'] })
+                            setAlignmentMenuOpen(null)
+                          }}
+                          className={cn(
+                            "w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 hover:bg-amber-50 transition-colors",
+                            alignment === opt.value && "bg-amber-100 text-amber-700"
+                          )}
+                        >
+                          {opt.icon}
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+            
+            {/* Lignes de cahier - conditionnelles */}
+            {showLines && (
+              <div className="absolute inset-x-10 top-[32px] bottom-12" style={{
               backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
               backgroundSize: '100% 32px', // Même hauteur que lineHeight
             }} />
+            )}
             
-            {/* Marge rouge */}
-            <div className="absolute left-10 top-0 bottom-12 w-px bg-red-300/40" />
+            {/* Marge rouge (conditionnelle) */}
+            {showLines && (
+              <div className="absolute left-10 top-[32px] bottom-12 w-px bg-red-300/40" />
+            )}
             
             {/* Zone d'écriture - page droite TipTap */}
             {page ? (
@@ -1949,6 +3032,11 @@ interface LunaSidePanelProps {
   pageNumber: number
   totalPages: number
   locale?: 'fr' | 'en' | 'ru'
+  // Pour lecture chapitre/livre
+  allPages: Array<{ id: string; title: string; content: string; chapterId?: string }>
+  chapters: Array<{ id: string; title: string }>
+  currentChapterId?: string
+  storyTitle: string
 }
 
 function LunaSidePanel({ 
@@ -1958,12 +3046,17 @@ function LunaSidePanel({
   pageTitle, 
   pageNumber, 
   totalPages,
-  locale = 'fr' 
+  locale = 'fr',
+  allPages,
+  chapters,
+  currentChapterId,
+  storyTitle
 }: LunaSidePanelProps) {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [autoSpeak, setAutoSpeak] = useState(false)
+  const [isAnalysisMenuOpen, setIsAnalysisMenuOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   // TTS
@@ -1993,39 +3086,54 @@ function LunaSidePanel({
       subtitle: 'Ton aide pour écrire',
       placeholder: 'Écris à Luna...',
       intro: 'Je suis là pour t\'aider à écrire ton histoire ! 📖✨ Qu\'est-ce que tu veux raconter ?',
-      readPage: '📖 Luna, lis ma page !',
+      readPage: '📄 Lis ma page',
+      readChapter: '📑 Lis mon chapitre',
+      readBook: '📚 Lis mon livre',
       reading: 'Je lis...',
       send: 'Envoyer',
       collapse: 'Réduire',
       expand: 'Luna',
       voiceOn: 'Mode oral activé',
       voiceOff: 'Mode écrit',
+      emptyPage: 'Je n\'ai pas encore commencé à écrire. Tu peux m\'aider ?',
+      emptyChapter: 'Ce chapitre est vide pour l\'instant. Tu veux qu\'on le commence ensemble ?',
+      emptyBook: 'Ton livre est encore vide ! Par quoi tu veux commencer ?',
     },
     en: {
       title: 'Luna',
       subtitle: 'Your writing helper',
       placeholder: 'Write to Luna...',
       intro: 'I\'m here to help you write your story! 📖✨ What do you want to tell?',
-      readPage: '📖 Luna, read my page!',
+      readPage: '📄 Read my page',
+      readChapter: '📑 Read my chapter',
+      readBook: '📚 Read my book',
       reading: 'Reading...',
       send: 'Send',
       collapse: 'Collapse',
       expand: 'Luna',
       voiceOn: 'Voice mode on',
       voiceOff: 'Text mode',
+      emptyPage: 'I haven\'t started writing yet. Can you help me?',
+      emptyChapter: 'This chapter is empty for now. Want to start it together?',
+      emptyBook: 'Your book is still empty! What do you want to start with?',
     },
     ru: {
       title: 'Луна',
       subtitle: 'Твой помощник в письме',
       placeholder: 'Напиши Луне...',
       intro: 'Я здесь, чтобы помочь тебе написать историю! 📖✨ Что ты хочешь рассказать?',
-      readPage: '📖 Луна, прочитай!',
+      readPage: '📄 Прочитай страницу',
+      readChapter: '📑 Прочитай главу',
+      readBook: '📚 Прочитай книгу',
       reading: 'Читаю...',
       send: 'Отправить',
       collapse: 'Свернуть',
       expand: 'Луна',
       voiceOn: 'Голосовой режим',
       voiceOff: 'Текстовый режим',
+      emptyPage: 'Я ещё не начала писать. Можешь помочь?',
+      emptyChapter: 'Эта глава пока пуста. Начнём вместе?',
+      emptyBook: 'Твоя книга ещё пуста! С чего хочешь начать?',
     },
   }
   
@@ -2043,7 +3151,8 @@ function LunaSidePanel({
     }
   }, [])
 
-  const sendToLuna = async (userMessage: string) => {
+  // sendToLuna avec message visible (court) et message complet (pour l'API)
+  const sendToLuna = async (userMessage: string, hiddenContext?: string) => {
     if (!userMessage.trim() || isLoading) return
     
     // Stop any current speech
@@ -2051,17 +3160,20 @@ function LunaSidePanel({
       stop()
     }
     
-    // Add user message
+    // Add user message (version courte visible)
     setMessages(prev => [...prev, { role: 'user', content: userMessage }])
     setMessage('')
     setIsLoading(true)
+    
+    // Le message envoyé à l'API inclut le contexte caché si présent
+    const fullMessage = hiddenContext ? `${userMessage}\n\n${hiddenContext}` : userMessage
     
     try {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: userMessage,
+          message: fullMessage,
           context: 'book',
           chatHistory: messages.slice(-10),
         }),
@@ -2090,24 +3202,114 @@ function LunaSidePanel({
     }
   }
 
+  // === UTILITAIRE : Nettoyer le HTML pour extraire le texte ===
+  const stripHtml = (html: string): string => {
+    if (!html) return ''
+    // Créer un élément temporaire pour parser le HTML
+    const tmp = document.createElement('div')
+    tmp.innerHTML = html
+    // Récupérer le texte et nettoyer les espaces multiples
+    return tmp.textContent || tmp.innerText || ''
+  }
+
+  // === LECTURE PAGE ===
   const handleReadPage = () => {
-    if (!pageContent.trim()) {
-      sendToLuna(locale === 'fr' 
-        ? 'Je n\'ai pas encore commencé à écrire. Tu peux m\'aider ?'
-        : locale === 'en'
-        ? 'I haven\'t started writing yet. Can you help me?'
-        : 'Я ещё не начал писать. Можешь помочь?'
-      )
+    const cleanContent = stripHtml(pageContent).trim()
+    
+    if (!cleanContent) {
+      sendToLuna(t.emptyPage)
       return
     }
     
-    const contextMessage = locale === 'fr'
-      ? `Voici ce que j'ai écrit sur la page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''} :\n\n"${pageContent}"\n\nAide-moi à continuer !`
+    // Message visible (court)
+    const visibleMessage = locale === 'fr'
+      ? `Luna, lis ma page ${pageNumber} ! 📄`
       : locale === 'en'
-      ? `Here's what I wrote on page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${pageContent}"\n\nHelp me continue!`
-      : `Вот что я написал на странице ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${pageContent}"\n\nПомоги продолжить!`
+      ? `Luna, read my page ${pageNumber}! 📄`
+      : `Луна, прочитай страницу ${pageNumber}! 📄`
     
-    sendToLuna(contextMessage)
+    // Contexte caché (envoyé à l'API)
+    const hiddenContext = locale === 'fr'
+      ? `Contenu de la page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''} :\n\n"${cleanContent}"\n\n→ Analyse la structure (QUI, QUOI, OÙ...), dis-moi si c'est cohérent, et aide-moi à améliorer ! Si tu vois des petites fautes, dis-le moi gentiment.`
+      : locale === 'en'
+      ? `Content of page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${cleanContent}"\n\n→ Analyze the structure (WHO, WHAT, WHERE...), tell me if it's coherent, and help me improve! If you see small mistakes, tell me gently.`
+      : `Содержание страницы ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${cleanContent}"\n\n→ Проанализируй структуру (КТО, ЧТО, ГДЕ...), скажи, всё ли логично, и помоги улучшить! Если увидишь ошибки, скажи мягко.`
+    
+    sendToLuna(visibleMessage, hiddenContext)
+  }
+
+  // === LECTURE CHAPITRE ===
+  const handleReadChapter = () => {
+    const chapterPages = currentChapterId 
+      ? allPages.filter(p => p.chapterId === currentChapterId)
+      : allPages
+    
+    const chapterContent = chapterPages
+      .map((p, i) => {
+        const cleanText = stripHtml(p.content).trim()
+        return `Page ${i + 1}${p.title ? ` - ${p.title}` : ''}: "${cleanText || '(vide)'}"`
+      })
+      .join('\n\n')
+    
+    if (!chapterContent.trim() || chapterPages.every(p => !stripHtml(p.content).trim())) {
+      sendToLuna(t.emptyChapter)
+      return
+    }
+    
+    const chapterTitle = currentChapterId 
+      ? chapters.find(c => c.id === currentChapterId)?.title || (locale === 'fr' ? 'ce chapitre' : locale === 'en' ? 'this chapter' : 'эту главу')
+      : (locale === 'fr' ? 'mon histoire' : locale === 'en' ? 'my story' : 'мою историю')
+    
+    // Message visible (court)
+    const visibleMessage = locale === 'fr'
+      ? `Luna, lis ${chapterTitle} ! 📑`
+      : locale === 'en'
+      ? `Luna, read ${chapterTitle}! 📑`
+      : `Луна, прочитай ${chapterTitle}! 📑`
+    
+    // Contexte caché
+    const hiddenContext = locale === 'fr'
+      ? `Contenu du chapitre :\n\n${chapterContent}\n\n→ Est-ce que l'histoire est cohérente ? Les personnages sont bien décrits ? Il manque quelque chose ? Des conseils pour la suite ?`
+      : locale === 'en'
+      ? `Chapter content:\n\n${chapterContent}\n\n→ Is the story coherent? Are the characters well described? Is something missing? Any advice for what's next?`
+      : `Содержание главы:\n\n${chapterContent}\n\n→ История логична? Персонажи хорошо описаны? Чего-то не хватает? Советы для продолжения?`
+    
+    sendToLuna(visibleMessage, hiddenContext)
+  }
+
+  // === LECTURE LIVRE ENTIER ===
+  const handleReadBook = () => {
+    const bookContent = allPages
+      .map((p, i) => {
+        const chapter = chapters.find(c => c.id === p.chapterId)
+        const chapterLabel = chapter ? `[${chapter.title}] ` : ''
+        const cleanText = stripHtml(p.content).trim()
+        return `${chapterLabel}Page ${i + 1}${p.title ? ` - ${p.title}` : ''}: "${cleanText || '(vide)'}"`
+      })
+      .join('\n\n')
+    
+    if (!bookContent.trim() || allPages.every(p => !stripHtml(p.content).trim())) {
+      sendToLuna(t.emptyBook)
+      return
+    }
+    
+    const title = storyTitle || (locale === 'fr' ? 'mon livre' : locale === 'en' ? 'my book' : 'моя книга')
+    
+    // Message visible (court)
+    const visibleMessage = locale === 'fr'
+      ? `Luna, lis tout mon livre "${title}" ! 📚`
+      : locale === 'en'
+      ? `Luna, read my whole book "${title}"! 📚`
+      : `Луна, прочитай всю книгу "${title}"! 📚`
+    
+    // Contexte caché
+    const hiddenContext = locale === 'fr'
+      ? `Contenu complet du livre :\n\n${bookContent}\n\n→ Analyse globale : l'histoire a un bon début, milieu et fin ? Les personnages sont cohérents ? L'histoire est intéressante ? Qu'est-ce que je pourrais améliorer ? Y a-t-il des fautes que tu remarques souvent ?`
+      : locale === 'en'
+      ? `Full book content:\n\n${bookContent}\n\n→ Global analysis: does the story have a good beginning, middle and end? Are the characters consistent? Is the story interesting? What could I improve? Are there mistakes you notice often?`
+      : `Полное содержание книги:\n\n${bookContent}\n\n→ Общий анализ: есть хорошее начало, середина и конец? Персонажи последовательны? История интересная? Что можно улучшить? Есть ли частые ошибки?`
+    
+    sendToLuna(visibleMessage, hiddenContext)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -2240,28 +3442,102 @@ function LunaSidePanel({
         <div ref={messagesEndRef} />
       </div>
       
-      {/* Bouton "Luna, lis ma page" */}
-      <div className="px-4 pb-2">
-        <motion.button
-          onClick={handleReadPage}
-          disabled={isLoading}
-          className={cn(
-            'w-full py-2.5 rounded-xl font-medium text-sm transition-all',
-            'bg-gradient-to-r from-aurora-500/20 to-stardust-500/20',
-            'border border-aurora-500/30',
-            'hover:from-aurora-500/30 hover:to-stardust-500/30',
-            'text-aurora-200 hover:text-white',
-            isLoading && 'opacity-50 cursor-not-allowed'
-          )}
-          whileHover={!isLoading ? { scale: 1.02 } : {}}
-          whileTap={!isLoading ? { scale: 0.98 } : {}}
-        >
-          {t.readPage}
-        </motion.button>
-      </div>
-      
-      {/* Input */}
+      {/* Input avec analyse premium */}
       <form onSubmit={handleSubmit} className="p-3 border-t border-midnight-700/30">
+        {/* Pastille Luna Analyse - Design Premium */}
+        <div className="flex justify-end mb-3 relative">
+          <motion.button
+            type="button"
+            onClick={() => setIsAnalysisMenuOpen((v) => !v)}
+            disabled={isLoading}
+            className={cn(
+              'group relative px-3 py-1.5 rounded-full text-[11px] font-medium tracking-wide',
+              'bg-gradient-to-r from-aurora-600/10 via-dream-500/10 to-aurora-600/10',
+              'border border-aurora-500/20 text-aurora-200/80',
+              'hover:border-aurora-400/40 hover:text-white',
+              'shadow-[0_0_20px_rgba(139,92,246,0.1)]',
+              'hover:shadow-[0_0_25px_rgba(139,92,246,0.2)]',
+              'transition-all duration-300',
+              isAnalysisMenuOpen && 'border-aurora-400/50 text-white shadow-[0_0_30px_rgba(139,92,246,0.25)]',
+              isLoading && 'opacity-50 cursor-not-allowed'
+            )}
+            whileHover={!isLoading ? { scale: 1.03 } : {}}
+            whileTap={!isLoading ? { scale: 0.97 } : {}}
+          >
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 rounded-full overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+            </div>
+            
+            {/* Glow ring on active */}
+            {isAnalysisMenuOpen && (
+              <motion.div
+                className="absolute -inset-[1px] rounded-full bg-gradient-to-r from-aurora-500/30 via-dream-500/30 to-aurora-500/30 blur-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              />
+            )}
+            
+            <span className="relative flex items-center gap-2">
+              <motion.span
+                animate={isAnalysisMenuOpen ? { rotate: 180 } : { rotate: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+              </motion.span>
+              <span className="uppercase">{locale === 'fr' ? 'Luna lit' : locale === 'en' ? 'Luna reads' : 'Луна читает'}</span>
+            </span>
+          </motion.button>
+          
+          {/* Menu radial premium */}
+          <AnimatePresence>
+            {isAnalysisMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 8 }}
+                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                className="absolute right-0 bottom-full mb-2 p-1 rounded-2xl bg-midnight-950/95 backdrop-blur-xl border border-aurora-500/20 shadow-2xl shadow-aurora-500/10"
+              >
+                {/* Gradient border effect */}
+                <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-aurora-500/30 via-transparent to-dream-500/30 -z-10 blur-[1px]" />
+                
+                <div className="flex gap-0.5">
+                  {[
+                    { action: handleReadPage, icon: FileText, label: locale === 'fr' ? 'Page' : locale === 'en' ? 'Page' : 'Страница', title: t.readPage },
+                    { action: handleReadChapter, icon: Folder, label: locale === 'fr' ? 'Chapitre' : locale === 'en' ? 'Chapter' : 'Глава', title: t.readChapter },
+                    { action: handleReadBook, icon: Book, label: locale === 'fr' ? 'Livre' : locale === 'en' ? 'Book' : 'Книга', title: t.readBook },
+                  ].map((item, idx) => (
+                    <motion.button
+                      key={item.label}
+                      type="button"
+                      onClick={() => { setIsAnalysisMenuOpen(false); item.action(); }}
+                      className="group/item relative px-4 py-2 rounded-xl text-[11px] font-medium text-midnight-300 hover:text-white transition-all duration-200 flex flex-col items-center gap-1.5"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05, duration: 0.2 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      title={item.title}
+                    >
+                      {/* Hover glow */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-aurora-500/0 via-aurora-500/0 to-dream-500/0 group-hover/item:from-aurora-500/20 group-hover/item:via-aurora-500/10 group-hover/item:to-dream-500/20 transition-all duration-300" />
+                      
+                      {/* Icon with glow */}
+                      <div className="relative">
+                        <item.icon className="w-4 h-4 relative z-10 transition-transform duration-200 group-hover/item:scale-110" />
+                        <div className="absolute inset-0 blur-md bg-aurora-500/0 group-hover/item:bg-aurora-500/50 transition-all duration-300" />
+                      </div>
+                      
+                      <span className="relative z-10 tracking-wide">{item.label}</span>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <div className="flex gap-2">
           <input
             type="text"
@@ -2404,6 +3680,18 @@ export function BookMode() {
   const [currentSpread, setCurrentSpread] = useState(0)
   // État pour savoir quelle page est zoomée (null = vue double page)
   const [currentZoomedPage, setCurrentZoomedPage] = useState<'left' | 'right' | null>(null)
+  // État pour l'édition du nom de chapitre
+  const [isEditingChapterName, setIsEditingChapterName] = useState(false)
+  const [editingChapterName, setEditingChapterName] = useState('')
+  // État pour afficher/masquer les lignes de cahier (global)
+  const [showLines, setShowLines] = useState(true)
+  
+  // État pour le MediaPicker
+  const [showMediaPicker, setShowMediaPicker] = useState(false)
+  const [mediaPickerTargetPage, setMediaPickerTargetPage] = useState<'left' | 'right'>('right')
+  
+  // État pour la confirmation de suppression de page
+  const [pageToDelete, setPageToDelete] = useState<number | null>(null)
   
   // Calcul des indices de pages pour le spread courant
   const leftPageIndex = currentSpread * 2
@@ -2466,13 +3754,15 @@ export function BookMode() {
           title: p.title || '',
           content: p.content || '',
           image: p.image,
-          chapter: 1,
+          imagePosition: p.imagePosition,
+          imageStyle: p.imageStyle as ImageStyle | undefined,
+          frameStyle: p.frameStyle as FrameStyle | undefined,
           chapterId: p.chapterId,
           style: DEFAULT_STYLE,
         })))
       } else {
         // Si pas de pages, créer une page vide
-        setPages([{ id: '1', title: '', content: '', chapter: 1, style: DEFAULT_STYLE }])
+        setPages([{ id: '1', title: '', content: '', chapterId: undefined, style: DEFAULT_STYLE }])
       }
       
       // Charger les chapitres depuis le store
@@ -2499,7 +3789,7 @@ export function BookMode() {
       id: Math.random().toString(36).substring(2, 9),
       title: '',
       content: '',
-      chapter: 1,
+      chapterId: undefined,
     }
     const newPages = [...pages, newPage]
     setPages(newPages)
@@ -2513,6 +3803,9 @@ export function BookMode() {
         stepIndex: 0,
         content: p.content,
         image: p.image,
+        imagePosition: p.imagePosition,
+        imageStyle: p.imageStyle,
+        frameStyle: p.frameStyle,
         order: 0,
         chapterId: p.chapterId,
         title: p.title,
@@ -2537,6 +3830,9 @@ export function BookMode() {
         stepIndex: 0,
         content: p.content,
         image: p.image,
+        imagePosition: p.imagePosition,
+        imageStyle: p.imageStyle,
+        frameStyle: p.frameStyle,
         order: 0,
         chapterId: p.chapterId,
         title: p.title,
@@ -2544,37 +3840,165 @@ export function BookMode() {
     }
   }
 
-  // Modifie le contenu de la page principale (droite si existe, sinon gauche)
+  // Modifie le contenu de la page droite uniquement
   const handleContentChange = (content: string) => {
-    const idx = pages[rightPageIndex] ? rightPageIndex : leftPageIndex
+    if (!pages[rightPageIndex]) return
     const newPages = [...pages]
-    if (pages[idx]) {
-      newPages[idx] = { ...newPages[idx], content }
+    newPages[rightPageIndex] = { ...newPages[rightPageIndex], content }
     setPages(newPages)
     
     // Sauvegarder dans le store
     if (currentStory) {
-        updateStoryPage(currentStory.id, idx, content, newPages[idx].image)
-      }
+      updateStoryPage(currentStory.id, rightPageIndex, content, newPages[rightPageIndex].image)
     }
   }
 
   const handleTitleChange = (title: string) => {
-    const idx = pages[rightPageIndex] ? rightPageIndex : leftPageIndex
+    if (!pages[rightPageIndex]) return
     const newPages = [...pages]
-    if (pages[idx]) {
-      newPages[idx] = { ...newPages[idx], title }
+    newPages[rightPageIndex] = { ...newPages[rightPageIndex], title }
     setPages(newPages)
-    }
   }
 
   const handleStyleChange = (style: TextStyle) => {
-    const idx = pages[rightPageIndex] ? rightPageIndex : leftPageIndex
+    if (!pages[rightPageIndex]) return
     const newPages = [...pages]
-    if (pages[idx]) {
-      newPages[idx] = { ...newPages[idx], style }
+    newPages[rightPageIndex] = { ...newPages[rightPageIndex], style }
     setPages(newPages)
+  }
+
+  // Gestion de la position de l'image (drag & drop)
+  const handleImagePositionChange = (pageIdx: number, position: ImagePosition) => {
+    if (!pages[pageIdx]) return
+    const newPages = [...pages]
+    newPages[pageIdx] = { ...newPages[pageIdx], imagePosition: position }
+    setPages(newPages)
+    
+    // Sauvegarder dans le store
+    if (currentStory) {
+      updateStoryPages(currentStory.id, newPages.map(p => ({
+        id: p.id,
+        stepIndex: 0,
+        content: p.content,
+        image: p.image,
+        imagePosition: p.imagePosition,
+        imageStyle: p.imageStyle,
+        frameStyle: p.frameStyle,
+        order: 0,
+        chapterId: p.chapterId,
+        title: p.title,
+      })))
     }
+  }
+
+  // Gestion du style de l'image
+  const handleImageStyleChange = (pageIdx: number, style: ImageStyle) => {
+    if (!pages[pageIdx]) return
+    const newPages = [...pages]
+    newPages[pageIdx] = { ...newPages[pageIdx], imageStyle: style }
+    setPages(newPages)
+    
+    // Sauvegarder dans le store
+    if (currentStory) {
+      updateStoryPages(currentStory.id, newPages.map(p => ({
+        id: p.id,
+        stepIndex: 0,
+        content: p.content,
+        image: p.image,
+        imagePosition: p.imagePosition,
+        imageStyle: p.imageStyle,
+        frameStyle: p.frameStyle,
+        order: 0,
+        chapterId: p.chapterId,
+        title: p.title,
+      })))
+    }
+  }
+
+  // Gestion du cadre de l'image
+  const handleImageFrameChange = (pageIdx: number, frame: FrameStyle) => {
+    if (!pages[pageIdx]) return
+    const newPages = [...pages]
+    newPages[pageIdx] = { ...newPages[pageIdx], frameStyle: frame }
+    setPages(newPages)
+    
+    // Sauvegarder dans le store
+    if (currentStory) {
+      updateStoryPages(currentStory.id, newPages.map(p => ({
+        id: p.id,
+        stepIndex: 0,
+        content: p.content,
+        image: p.image,
+        imagePosition: p.imagePosition,
+        imageStyle: p.imageStyle,
+        frameStyle: p.frameStyle,
+        order: 0,
+        chapterId: p.chapterId,
+        title: p.title,
+      })))
+    }
+  }
+
+  // Suppression de l'image d'une page
+  const handleImageDelete = (pageIdx: number) => {
+    if (!pages[pageIdx]) return
+    const newPages = [...pages]
+    newPages[pageIdx] = { ...newPages[pageIdx], image: undefined, imagePosition: undefined }
+    setPages(newPages)
+    
+    // Sauvegarder dans le store
+    if (currentStory) {
+      updateStoryPages(currentStory.id, newPages.map(p => ({
+        id: p.id,
+        stepIndex: 0,
+        content: p.content,
+        image: p.image,
+        imagePosition: p.imagePosition,
+        imageStyle: p.imageStyle,
+        frameStyle: p.frameStyle,
+        order: 0,
+        chapterId: p.chapterId,
+        title: p.title,
+      })))
+    }
+  }
+
+  // Gestion de l'ajout d'image/vidéo via MediaPicker
+  const handleOpenMediaPicker = (targetPage: 'left' | 'right' = 'right') => {
+    setMediaPickerTargetPage(targetPage)
+    setShowMediaPicker(true)
+  }
+
+  const handleMediaSelect = (url: string, type: 'image' | 'video' | 'audio') => {
+    const targetIndex = mediaPickerTargetPage === 'left' ? leftPageIndex : rightPageIndex
+    if (!pages[targetIndex]) return
+    
+    const newPages = [...pages]
+    // Ajouter l'image avec une position par défaut
+    newPages[targetIndex] = { 
+      ...newPages[targetIndex], 
+      image: url,
+      imagePosition: DEFAULT_IMAGE_POSITION,
+    }
+    setPages(newPages)
+    
+    // Sauvegarder dans le store
+    if (currentStory) {
+      updateStoryPages(currentStory.id, newPages.map(p => ({
+        id: p.id,
+        stepIndex: 0,
+        content: p.content,
+        image: p.image,
+        imagePosition: p.imagePosition,
+        imageStyle: p.imageStyle,
+        frameStyle: p.frameStyle,
+        order: 0,
+        chapterId: p.chapterId,
+        title: p.title,
+      })))
+    }
+    
+    setShowMediaPicker(false)
   }
 
   const handleSelectStructure = (structure: StoryStructure) => {
@@ -2585,13 +4009,13 @@ export function BookMode() {
     // Créer les pages locales selon le template
     const template = STORY_TEMPLATES[structure]
     if (structure === 'free') {
-      setPages([{ id: '1', title: '', content: '', chapter: 1, style: DEFAULT_STYLE }])
+      setPages([{ id: '1', title: '', content: '', chapterId: undefined, style: DEFAULT_STYLE }])
     } else {
       const newPages: StoryPageLocal[] = template.steps.map((step, index) => ({
         id: Math.random().toString(36).substring(2, 9),
         title: step.title[locale],
         content: '',
-        chapter: 1,
+        chapterId: undefined,
         style: DEFAULT_STYLE,
       }))
       setPages(newPages)
@@ -2744,16 +4168,16 @@ export function BookMode() {
           <div className="flex-1 min-w-0 overflow-hidden">
           {leftPage && (
             <WritingArea
-              page={rightPage || leftPage}
-              pageIndex={rightPage ? rightPageIndex : leftPageIndex}
+              page={rightPage}
+              pageIndex={rightPageIndex}
             chapters={chapters}
               onContentChange={handleContentChange}
               onTitleChange={handleTitleChange}
               onStyleChange={handleStyleChange}
             onChapterChange={(chapterId) => {
-                const idx = rightPage ? rightPageIndex : leftPageIndex
+              if (!rightPage) return
               const newPages = pages.map((p, i) => 
-                  i === idx ? { ...p, chapterId } : p
+                  i === rightPageIndex ? { ...p, chapterId } : p
               )
               setPages(newPages)
               if (currentStory) {
@@ -2785,9 +4209,9 @@ export function BookMode() {
                   color: newChapter.color,
                 })
               }
-                const idx = rightPage ? rightPageIndex : leftPageIndex
+              if (!rightPage) return
               const newPages = pages.map((p, i) => 
-                  i === idx ? { ...p, chapterId: newChapter.id } : p
+                  i === rightPageIndex ? { ...p, chapterId: newChapter.id } : p
               )
               setPages(newPages)
               if (currentStory) {
@@ -2802,7 +4226,12 @@ export function BookMode() {
                 })))
               }
             }}
-            onImageAdd={() => {/* TODO */}}
+            onUpdateChapter={(chapterId, updates) => {
+              setChapters(prev => prev.map(c => 
+                c.id === chapterId ? { ...c, ...updates } : c
+              ))
+            }}
+            onImageAdd={() => handleOpenMediaPicker('right')}
               locale={locale}
               // Navigation par spread (2 pages à la fois)
               onPrevPage={() => setCurrentSpread(Math.max(0, currentSpread - 1))}
@@ -2845,13 +4274,20 @@ export function BookMode() {
               onStoryTitleChange={setStoryTitle}
               onBack={() => {
                 setStoryTitle('')
-                setPages([{ id: '1', title: '', content: '', chapter: 1 }])
+                setPages([{ id: '1', title: '', content: '', chapterId: undefined }])
                 setCurrentSpread(0)
                 setCurrentStory(null)
               }}
               onShowStructure={() => setShowStructureView(true)}
               onShowOverview={() => setShowOverview(true)}
               onZoomChange={setCurrentZoomedPage}
+              externalZoomedPage={currentZoomedPage}
+              showLines={showLines}
+              onToggleLines={() => setShowLines(!showLines)}
+              onImagePositionChange={handleImagePositionChange}
+              onImageStyleChange={handleImageStyleChange}
+              onImageFrameChange={handleImageFrameChange}
+              onImageDelete={handleImageDelete}
             />
         )}
         </div>
@@ -2866,7 +4302,80 @@ export function BookMode() {
               pageNumber={rightPageIndex + 1}
               totalPages={pages.length}
               locale={locale}
+              allPages={pages}
+              chapters={chapters}
+              currentChapterId={rightPage?.chapterId}
+              storyTitle={storyTitle}
             />
+          </AnimatePresence>
+          
+          {/* MediaPicker pour ajouter des images/vidéos */}
+          <MediaPicker
+            isOpen={showMediaPicker}
+            onClose={() => setShowMediaPicker(false)}
+            onSelect={handleMediaSelect}
+            allowedTypes="image"
+            title="Illustrer cette page"
+          />
+          
+          {/* Modal de confirmation pour supprimer une page */}
+          <AnimatePresence>
+            {pageToDelete !== null && (
+              <motion.div
+                className="fixed inset-0 z-[100] flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {/* Backdrop */}
+                <motion.div
+                  className="absolute inset-0 bg-midnight-950/80 backdrop-blur-sm"
+                  onClick={() => setPageToDelete(null)}
+                />
+                
+                {/* Modal */}
+                <motion.div
+                  className="relative bg-gradient-to-b from-midnight-900 to-midnight-950 rounded-2xl border border-red-500/20 shadow-2xl p-6 max-w-sm mx-4"
+                  initial={{ scale: 0.9, y: 20 }}
+                  animate={{ scale: 1, y: 0 }}
+                  exit={{ scale: 0.9, y: 20 }}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                      <Trash2 className="w-5 h-5 text-red-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">Supprimer la page ?</h3>
+                  </div>
+                  
+                  <p className="text-midnight-300 mb-6">
+                    Tu veux vraiment supprimer la <span className="text-white font-medium">page {pageToDelete + 1}</span> ?
+                    {pages[pageToDelete]?.content && (
+                      <span className="block mt-1 text-amber-400 text-sm">
+                        ⚠️ Cette page contient du texte qui sera perdu !
+                      </span>
+                    )}
+                  </p>
+                  
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPageToDelete(null)}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-midnight-800 text-midnight-300 hover:text-white hover:bg-midnight-700 transition-colors font-medium"
+                    >
+                      Non, garder
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleDeletePage(pageToDelete)
+                        setPageToDelete(null)
+                      }}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors font-medium border border-red-500/30"
+                    >
+                      Oui, supprimer
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
         
@@ -2875,6 +4384,75 @@ export function BookMode() {
           "flex items-center justify-center gap-4 py-3 flex-shrink-0 transition-all",
           showLunaPanel ? "pr-[320px]" : "pr-12" // Compenser la largeur du panneau Luna
         )}>
+          {/* Nom du chapitre actif (à gauche des onglets) */}
+          {(() => {
+            // Déterminer la page active
+            const activePageIndex = currentZoomedPage === 'left' ? leftPageIndex 
+              : currentZoomedPage === 'right' ? rightPageIndex 
+              : rightPageIndex // En double page, on prend la droite par défaut
+            const activePage = pages[activePageIndex]
+            const activeChapter = activePage ? chapters.find(c => c.id === activePage.chapterId) : null
+            
+            return (
+              <div className="flex items-center gap-2 min-w-[120px]">
+                {isEditingChapterName ? (
+                  <input
+                    type="text"
+                    value={editingChapterName}
+                    onChange={(e) => setEditingChapterName(e.target.value)}
+                    onBlur={() => {
+                      // Sauvegarder le nom du chapitre
+                      if (activeChapter && editingChapterName.trim()) {
+                        setChapters(prev => prev.map(c => 
+                          c.id === activeChapter.id ? { ...c, title: editingChapterName.trim() } : c
+                        ))
+                      } else if (!activeChapter && editingChapterName.trim() && activePage) {
+                        // Créer un nouveau chapitre si la page n'en a pas
+                        const colors = ['#22c55e', '#3b82f6', '#f97316', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b']
+                        const newChapter: Chapter = {
+                          id: Date.now().toString(),
+                          title: editingChapterName.trim(),
+                          type: 'custom',
+                          color: colors[chapters.length % colors.length],
+                        }
+                        setChapters(prev => [...prev, newChapter])
+                        // Assigner le chapitre à la page active
+                        setPages(prev => prev.map((p, i) => 
+                          i === activePageIndex ? { ...p, chapterId: newChapter.id } : p
+                        ))
+                      }
+                      setIsEditingChapterName(false)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur()
+                      } else if (e.key === 'Escape') {
+                        setIsEditingChapterName(false)
+                      }
+                    }}
+                    autoFocus
+                    className="bg-midnight-800/50 text-white text-sm px-2 py-1 rounded-lg border border-aurora-500/30 outline-none w-32"
+                    placeholder="Nom du chapitre..."
+                  />
+                ) : (
+          <button
+                    onClick={() => {
+                      setEditingChapterName(activeChapter?.title || '')
+                      setIsEditingChapterName(true)
+                    }}
+                    className="flex items-center gap-2 text-sm text-midnight-300 hover:text-white transition-colors group"
+                  >
+                    <BookOpen className="w-4 h-4 text-aurora-400" />
+                    <span className={activeChapter ? 'text-white' : 'text-midnight-500 italic'}>
+                      {activeChapter?.title || 'Sans titre'}
+                    </span>
+                    <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-midnight-400" />
+          </button>
+                )}
+              </div>
+            )
+          })()}
+          
           {/* Onglets de pages (groupés par spread) */}
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
             {pages.map((page, index) => {
@@ -2889,35 +4467,57 @@ export function BookMode() {
                 : (index === leftPageIndex || index === rightPageIndex)
               
               return (
-                <button
-                  key={page.id}
-                  onClick={() => setCurrentSpread(spreadOfPage)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-2 text-sm transition-all',
-                    // Arrondi selon position dans le spread (complet si zoom)
-                    currentZoomedPage !== null 
-                      ? 'rounded-xl'
-                      : (isLeftOfSpread ? 'rounded-l-xl' : 'rounded-r-xl'),
-                    // Highlight si page active
-                    isActive
-                      ? 'bg-aurora-500/20 text-white border border-aurora-500/30'
-                      : 'text-midnight-400 hover:bg-midnight-800/50 hover:text-white'
-                  )}
-                >
+                <div key={page.id} className="relative group">
+                  <button
+                    onClick={() => {
+                      setCurrentSpread(spreadOfPage)
+                      // En mode zoom, mettre à jour la page zoomée selon l'onglet cliqué
+                      if (currentZoomedPage !== null) {
+                        setCurrentZoomedPage(isLeftOfSpread ? 'left' : 'right')
+                      }
+                    }}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-2 text-sm transition-all',
+                      // Arrondi selon position dans le spread (complet si zoom)
+                      currentZoomedPage !== null 
+                        ? 'rounded-xl'
+                        : (isLeftOfSpread ? 'rounded-l-xl' : 'rounded-r-xl'),
+                      // Highlight si page active
+                      isActive
+                        ? 'bg-aurora-500/20 text-white border border-aurora-500/30'
+                        : 'text-midnight-400 hover:bg-midnight-800/50 hover:text-white',
+                      // Padding supplémentaire si bouton X visible
+                      isActive && pages.length > 1 && 'pr-7'
+                    )}
+                  >
                     <span className="font-semibold">{index + 1}</span>
-                  {/* Point de couleur du chapitre */}
-                  {chapter && (
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full" 
-                      style={{ backgroundColor: chapter.color }}
-                      title={chapter.title}
-                    />
+                    {/* Point de couleur du chapitre */}
+                    {chapter && (
+                      <div 
+                        className="w-2.5 h-2.5 rounded-full" 
+                        style={{ backgroundColor: chapter.color }}
+                        title={chapter.title}
+                      />
+                    )}
+                    {/* Point rose si contenu (et pas de chapitre) */}
+                    {!chapter && page.content && (
+                      <div className="w-2 h-2 rounded-full bg-aurora-400" />
+                    )}
+                  </button>
+                  {/* Bouton supprimer (visible seulement sur page active et si plus d'une page) */}
+                  {isActive && pages.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setPageToDelete(index)
+                      }}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-full text-midnight-400 hover:text-red-400 hover:bg-red-500/20 transition-all opacity-0 group-hover:opacity-100"
+                      title="Supprimer cette page"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                  {/* Point rose si contenu (et pas de chapitre) */}
-                  {!chapter && page.content && (
-                    <div className="w-2 h-2 rounded-full bg-aurora-400" />
-                  )}
-                </button>
+                </div>
               )
             })}
             <button

@@ -205,26 +205,20 @@ useTTS(locale) Hook
 │  [Messages de l'enfant]             │
 │                                     │
 ├─────────────────────────────────────┤
-│  [📖 Luna, lis ma page !]          │  ← Analyse le texte de la page
+│  🔍 Analyse ▼                      │  ← Menu : Page / Chapitre / Livre
 ├─────────────────────────────────────┤
 │  [Écrire à Luna...]  [🎙️]  [💬]    │  ← Input + Micro + Envoyer
 └─────────────────────────────────────┘
 ```
 
-### Bouton "Luna, lis ma page"
-
-Quand cliqué, envoie à Luna :
-```typescript
-const contextMessage = `Voici ce que j'ai écrit sur la page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''} :
-
-"${pageContent}"
-
-Aide-moi à continuer !`
-
-sendToLuna(contextMessage)
-```
-
-Luna répond en analysant le texte avec les 5 Questions Magiques.
+### Menu "Analyse" (Page / Chapitre / Livre)
+- Message visible court pour l'enfant (ex: "Luna, lis ma page !")
+- Contexte complet envoyé à Luna en coulisses (structure, cohérence, fautes légères)
+- Le contenu est nettoyé du HTML avant envoi (strip)
+- Options :
+  - Page : structure + cohérence + petites fautes
+  - Chapitre : cohérence narrative, personnages, pistes
+  - Livre : arc global début/milieu/fin, cohérence des persos, améliorations
 
 ---
 

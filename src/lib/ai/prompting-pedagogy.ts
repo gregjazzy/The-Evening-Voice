@@ -59,6 +59,70 @@ export interface ProgressionEvent {
 }
 
 // ============================================================================
+// TYPES - PROGRESSION ÉCRITURE (5 Questions Magiques pour Gemini)
+// ============================================================================
+
+/**
+ * Système pédagogique d'apprentissage du prompting TEXTUEL
+ * Méthode des "5 Questions Magiques" pour parler aux IA
+ * 
+ * Les 5 Questions :
+ * 1. 👤 QUI ? - Les personnages
+ * 2. ❓ QUOI ? - L'action, le problème
+ * 3. 📍 OÙ ? - Le lieu
+ * 4. ⏰ QUAND ? - Le moment
+ * 5. 💥 ET ALORS ? - Le rebondissement
+ */
+
+export type WritingLevel = 'curieux' | 'bavard' | 'precis' | 'expert' | 'maitre_ia'
+
+export type WritingQuestion = 'who' | 'what' | 'where' | 'when' | 'then'
+
+export interface WritingQuestionProgress {
+  who: number    // 0-10, maîtrisé à 10
+  what: number
+  where: number
+  when: number
+  then: number
+}
+
+export interface WritingPromptingProgress {
+  level: WritingLevel
+  xp: number
+  questionProgress: WritingQuestionProgress
+  unlockedQuestions: WritingQuestion[]
+  totalMessages: number
+  totalStories: number
+  currentQuestionLearning: WritingQuestion
+  consecutiveBlockedMessages: number  // Pour détecter les blocages
+}
+
+export interface WritingMessageAnalysis {
+  hasWho: boolean       // Mentionne un personnage
+  whoDetails: string[]  // Détails trouvés
+  hasWhat: boolean      // Mentionne une action/problème
+  whatDetails: string[]
+  hasWhere: boolean     // Mentionne un lieu
+  whereDetails: string[]
+  hasWhen: boolean      // Mentionne un moment
+  whenDetails: string[]
+  hasThen: boolean      // Mentionne un rebondissement/surprise
+  thenDetails: string[]
+  questionsUsed: WritingQuestion[]
+  questionsCount: number
+  quality: 'vague' | 'basique' | 'correct' | 'bon' | 'excellent'
+  isBlocked: boolean    // Message type "je sais pas", "aide-moi"
+  asksForHelp: boolean  // Demande explicite d'aide
+}
+
+export interface WritingProgressionEvent {
+  type: 'xp_gained' | 'question_progress' | 'question_unlocked' | 'level_up' | 'story_completed' | 'blocked_detected'
+  value?: number
+  question?: WritingQuestion
+  newLevel?: WritingLevel
+}
+
+// ============================================================================
 // CONFIGURATION DES 5 CLÉS MAGIQUES
 // ============================================================================
 
@@ -248,7 +312,161 @@ export const LEVELS_CONFIG = {
 }
 
 // ============================================================================
-// MOTS-CLÉS POUR LA DÉTECTION
+// CONFIGURATION DES NIVEAUX - ÉCRITURE (~10h de progression)
+// ============================================================================
+
+export const WRITING_LEVELS_CONFIG = {
+  curieux: {
+    name: { fr: 'Curieux', en: 'Curious', ru: 'Любопытный' },
+    emoji: '🌱',
+    xpRequired: 0,
+    description: {
+      fr: 'Tu découvres comment parler aux IA !',
+      en: 'You\'re discovering how to talk to AIs!',
+      ru: 'Ты узнаёшь, как разговаривать с ИИ!',
+    },
+    questionsToLearn: ['who', 'what'] as WritingQuestion[],
+    mentionFrequency: 0.5, // 1 fois sur 2
+  },
+  bavard: {
+    name: { fr: 'Bavard', en: 'Chatty', ru: 'Болтун' },
+    emoji: '💬',
+    xpRequired: 200,
+    description: {
+      fr: 'Tu sais donner du contexte, c\'est super !',
+      en: 'You know how to give context, that\'s great!',
+      ru: 'Ты умеешь давать контекст, это здорово!',
+    },
+    questionsToLearn: ['where'] as WritingQuestion[],
+    mentionFrequency: 0.4, // 1 fois sur 2.5
+  },
+  precis: {
+    name: { fr: 'Précis', en: 'Precise', ru: 'Точный' },
+    emoji: '🎯',
+    xpRequired: 500,
+    description: {
+      fr: 'Tes explications sont de plus en plus claires !',
+      en: 'Your explanations are getting clearer!',
+      ru: 'Твои объяснения становятся всё яснее!',
+    },
+    questionsToLearn: ['when'] as WritingQuestion[],
+    mentionFrequency: 0.25, // 1 fois sur 4
+  },
+  expert: {
+    name: { fr: 'Expert', en: 'Expert', ru: 'Эксперт' },
+    emoji: '🔍',
+    xpRequired: 900,
+    description: {
+      fr: 'Tu maîtrises l\'art de bien communiquer !',
+      en: 'You master the art of good communication!',
+      ru: 'Ты владеешь искусством общения!',
+    },
+    questionsToLearn: ['then'] as WritingQuestion[],
+    mentionFrequency: 0.15, // 1 fois sur 6-7
+  },
+  maitre_ia: {
+    name: { fr: 'Maître des IA', en: 'AI Master', ru: 'Мастер ИИ' },
+    emoji: '🧙',
+    xpRequired: 1500,
+    description: {
+      fr: 'Tu sais parler à toutes les IA ! Tu peux aider tes amis !',
+      en: 'You can talk to any AI! You can help your friends!',
+      ru: 'Ты умеешь разговаривать с любым ИИ! Можешь помочь друзьям!',
+    },
+    questionsToLearn: [] as WritingQuestion[],
+    mentionFrequency: 0.1, // Presque jamais, elle sait
+  },
+}
+
+// ============================================================================
+// CONFIGURATION DES 5 QUESTIONS MAGIQUES (ÉCRITURE)
+// ============================================================================
+
+export const WRITING_QUESTIONS_CONFIG = {
+  who: {
+    id: 'who' as WritingQuestion,
+    name: { fr: 'QUI', en: 'WHO', ru: 'КТО' },
+    emoji: '👤',
+    description: {
+      fr: 'Les personnages de l\'histoire',
+      en: 'The characters in the story',
+      ru: 'Персонажи истории',
+    },
+    question: {
+      fr: 'C\'est qui ton personnage ?',
+      en: 'Who is your character?',
+      ru: 'Кто твой персонаж?',
+    },
+    order: 1,
+  },
+  what: {
+    id: 'what' as WritingQuestion,
+    name: { fr: 'QUOI', en: 'WHAT', ru: 'ЧТО' },
+    emoji: '❓',
+    description: {
+      fr: 'L\'action, le problème',
+      en: 'The action, the problem',
+      ru: 'Действие, проблема',
+    },
+    question: {
+      fr: 'Il se passe quoi ? C\'est quoi le problème ?',
+      en: 'What\'s happening? What\'s the problem?',
+      ru: 'Что происходит? В чём проблема?',
+    },
+    order: 2,
+  },
+  where: {
+    id: 'where' as WritingQuestion,
+    name: { fr: 'OÙ', en: 'WHERE', ru: 'ГДЕ' },
+    emoji: '📍',
+    description: {
+      fr: 'Le lieu de l\'histoire',
+      en: 'The place of the story',
+      ru: 'Место истории',
+    },
+    question: {
+      fr: 'Ça se passe où ?',
+      en: 'Where does it happen?',
+      ru: 'Где это происходит?',
+    },
+    order: 3,
+  },
+  when: {
+    id: 'when' as WritingQuestion,
+    name: { fr: 'QUAND', en: 'WHEN', ru: 'КОГДА' },
+    emoji: '⏰',
+    description: {
+      fr: 'Le moment (jour, nuit, saison...)',
+      en: 'The time (day, night, season...)',
+      ru: 'Время (день, ночь, сезон...)',
+    },
+    question: {
+      fr: 'C\'est quand ? Le jour ? La nuit ?',
+      en: 'When is it? Day? Night?',
+      ru: 'Когда это? Днём? Ночью?',
+    },
+    order: 4,
+  },
+  then: {
+    id: 'then' as WritingQuestion,
+    name: { fr: 'ET ALORS', en: 'AND THEN', ru: 'И ТОГДА' },
+    emoji: '💥',
+    description: {
+      fr: 'Le rebondissement, la surprise',
+      en: 'The twist, the surprise',
+      ru: 'Поворот, сюрприз',
+    },
+    question: {
+      fr: 'Qu\'est-ce qui arrive de surprenant ?',
+      en: 'What surprising thing happens?',
+      ru: 'Что удивительного происходит?',
+    },
+    order: 5,
+  },
+}
+
+// ============================================================================
+// MOTS-CLÉS POUR LA DÉTECTION (IMAGES)
 // ============================================================================
 
 const STYLE_KEYWORDS = [
@@ -314,7 +532,157 @@ const MAGIC_KEYWORDS = [
 ]
 
 // ============================================================================
-// FONCTIONS D'ANALYSE
+// MOTS-CLÉS POUR LA DÉTECTION (ÉCRITURE - 5 Questions Magiques)
+// ============================================================================
+
+// QUI - Personnages (détection de noms de personnages ou descriptions)
+const WHO_KEYWORDS = [
+  // Personnages courants dans les histoires d'enfants
+  'dragon', 'princesse', 'prince', 'roi', 'reine', 'chevalier', 'fée', 'sorcier', 'sorcière',
+  'licorne', 'chat', 'chien', 'lapin', 'ours', 'loup', 'renard', 'oiseau', 'poisson',
+  'garçon', 'fille', 'enfant', 'ami', 'amie', 'copain', 'copine', 'frère', 'soeur', 'maman', 'papa',
+  'héros', 'monstre', 'géant', 'nain', 'elfe', 'lutin', 'pirate', 'robot', 'alien',
+  // Anglais
+  'dragon', 'princess', 'prince', 'king', 'queen', 'knight', 'fairy', 'wizard', 'witch',
+  'unicorn', 'cat', 'dog', 'rabbit', 'bear', 'wolf', 'fox', 'bird', 'fish',
+  'boy', 'girl', 'child', 'friend', 'brother', 'sister', 'mom', 'dad',
+  'hero', 'monster', 'giant', 'dwarf', 'elf', 'pirate', 'robot', 'alien',
+  // Russe
+  'дракон', 'принцесса', 'принц', 'король', 'королева', 'рыцарь', 'фея', 'волшебник',
+  'единорог', 'кот', 'собака', 'кролик', 'медведь', 'волк', 'лиса', 'птица', 'рыба',
+  'мальчик', 'девочка', 'ребёнок', 'друг', 'брат', 'сестра', 'мама', 'папа',
+  // Pronoms qui indiquent un personnage
+  'il', 'elle', 'lui', 'he', 'she', 'him', 'her', 'он', 'она',
+  'mon', 'ma', 'mes', 'son', 'sa', 'my', 'his', 'мой', 'моя', 'его', 'её',
+]
+
+// QUOI - Actions et problèmes
+const WHAT_KEYWORDS = [
+  // Verbes d'action
+  'cherche', 'trouve', 'perd', 'perdu', 'veut', 'doit', 'essaie', 'aide',
+  'combat', 'sauve', 'protège', 'découvre', 'explore', 'voyage', 'part', 'arrive',
+  'mange', 'dort', 'joue', 'court', 'vole', 'nage', 'saute', 'grimpe',
+  'pleure', 'rit', 'crie', 'parle', 'chante', 'danse',
+  // Problèmes
+  'problème', 'danger', 'peur', 'perdu', 'seul', 'triste', 'fâché', 'en colère',
+  'malade', 'blessé', 'coincé', 'piégé', 'poursuivi', 'attaqué',
+  // Anglais
+  'search', 'find', 'lose', 'lost', 'want', 'must', 'try', 'help',
+  'fight', 'save', 'protect', 'discover', 'explore', 'travel', 'leave', 'arrive',
+  'eat', 'sleep', 'play', 'run', 'fly', 'swim', 'jump', 'climb',
+  'cry', 'laugh', 'scream', 'talk', 'sing', 'dance',
+  'problem', 'danger', 'fear', 'scared', 'alone', 'sad', 'angry',
+  'sick', 'hurt', 'stuck', 'trapped', 'chased', 'attacked',
+  // Russe
+  'ищет', 'находит', 'теряет', 'потерял', 'хочет', 'должен', 'пытается', 'помогает',
+  'сражается', 'спасает', 'защищает', 'открывает', 'исследует', 'путешествует',
+  'проблема', 'опасность', 'страх', 'один', 'грустный', 'злой',
+]
+
+// OÙ - Lieux
+const WHERE_KEYWORDS = [
+  // Lieux naturels
+  'forêt', 'montagne', 'mer', 'océan', 'plage', 'rivière', 'lac', 'île',
+  'désert', 'jungle', 'prairie', 'champ', 'jardin', 'parc',
+  // Constructions
+  'château', 'maison', 'cabane', 'grotte', 'cave', 'tour', 'palais',
+  'village', 'ville', 'école', 'magasin', 'hôpital',
+  // Lieux magiques
+  'royaume', 'pays', 'monde', 'planète', 'espace', 'ciel', 'nuage',
+  'sous l\'eau', 'sous terre', 'en haut', 'en bas', 'loin', 'près',
+  // Prépositions de lieu
+  'dans', 'sur', 'sous', 'devant', 'derrière', 'à côté', 'près de', 'au milieu',
+  // Anglais
+  'forest', 'mountain', 'sea', 'ocean', 'beach', 'river', 'lake', 'island',
+  'desert', 'jungle', 'meadow', 'field', 'garden', 'park',
+  'castle', 'house', 'cabin', 'cave', 'tower', 'palace',
+  'village', 'city', 'town', 'school', 'shop', 'hospital',
+  'kingdom', 'country', 'world', 'planet', 'space', 'sky', 'cloud',
+  'underwater', 'underground', 'up', 'down', 'far', 'near',
+  'in', 'on', 'under', 'behind', 'next to', 'near',
+  // Russe
+  'лес', 'гора', 'море', 'океан', 'пляж', 'река', 'озеро', 'остров',
+  'замок', 'дом', 'пещера', 'башня', 'дворец',
+  'деревня', 'город', 'школа', 'магазин',
+  'королевство', 'страна', 'мир', 'планета', 'космос', 'небо',
+]
+
+// QUAND - Moments
+const WHEN_KEYWORDS = [
+  // Moments de la journée
+  'matin', 'midi', 'après-midi', 'soir', 'nuit', 'aube', 'crépuscule',
+  'jour', 'minuit', 'lever du soleil', 'coucher du soleil',
+  // Saisons
+  'printemps', 'été', 'automne', 'hiver',
+  // Temps relatif
+  'avant', 'après', 'pendant', 'soudain', 'tout à coup', 'un jour',
+  'il était une fois', 'longtemps', 'maintenant', 'demain', 'hier',
+  // Anglais
+  'morning', 'noon', 'afternoon', 'evening', 'night', 'dawn', 'dusk',
+  'day', 'midnight', 'sunrise', 'sunset',
+  'spring', 'summer', 'autumn', 'fall', 'winter',
+  'before', 'after', 'during', 'suddenly', 'one day',
+  'once upon a time', 'long ago', 'now', 'tomorrow', 'yesterday',
+  // Russe
+  'утро', 'день', 'вечер', 'ночь', 'рассвет', 'закат',
+  'весна', 'лето', 'осень', 'зима',
+  'до', 'после', 'вдруг', 'однажды', 'давным-давно', 'сейчас',
+]
+
+// ET ALORS - Rebondissements et surprises
+const THEN_KEYWORDS = [
+  // Connecteurs de surprise
+  'mais', 'soudain', 'tout à coup', 'alors', 'puis', 'ensuite',
+  'malheureusement', 'heureusement', 'finalement', 'enfin',
+  'par surprise', 'sans prévenir', 'incroyable', 'magique',
+  // Événements
+  'apparaît', 'disparaît', 'se transforme', 'change', 'explose',
+  'tombe', 's\'ouvre', 'se ferme', 'brille', 's\'allume',
+  'rencontre', 'découvre', 'réalise', 'comprend',
+  // Anglais
+  'but', 'suddenly', 'then', 'next', 'after that',
+  'unfortunately', 'fortunately', 'finally', 'at last',
+  'surprisingly', 'incredible', 'magical',
+  'appears', 'disappears', 'transforms', 'changes', 'explodes',
+  'falls', 'opens', 'closes', 'shines', 'lights up',
+  'meets', 'discovers', 'realizes', 'understands',
+  // Russe
+  'но', 'вдруг', 'тогда', 'потом', 'затем',
+  'к сожалению', 'к счастью', 'наконец',
+  'появляется', 'исчезает', 'превращается', 'меняется',
+  'падает', 'открывается', 'закрывается', 'светится',
+  'встречает', 'обнаруживает', 'понимает',
+]
+
+// Messages de blocage
+const BLOCKED_KEYWORDS = [
+  // Français
+  'je sais pas', 'je ne sais pas', 'sais pas', 'aucune idée', 'pas d\'idée',
+  'j\'arrive pas', 'je n\'arrive pas', 'c\'est dur', 'c\'est difficile',
+  'aide-moi', 'aide moi', 'help', 'bloqué', 'bloquée', 'coincé', 'coincée',
+  'je peux pas', 'je ne peux pas',
+  // Anglais
+  'i don\'t know', 'don\'t know', 'no idea', 'i can\'t', 'can\'t',
+  'it\'s hard', 'it\'s difficult', 'help me', 'stuck',
+  // Russe
+  'не знаю', 'нет идей', 'не могу', 'трудно', 'сложно', 'помоги',
+]
+
+// Demandes d'écrire à la place
+const WRITE_FOR_ME_KEYWORDS = [
+  // Français
+  'écris pour moi', 'écris la suite', 'écris l\'histoire', 'fais-le pour moi',
+  'tu peux écrire', 'peux-tu écrire', 'écris à ma place',
+  'continue pour moi', 'finis pour moi', 'termine pour moi',
+  // Anglais
+  'write for me', 'write the story', 'do it for me', 'can you write',
+  'continue for me', 'finish for me',
+  // Russe
+  'напиши за меня', 'напиши историю', 'продолжи за меня',
+]
+
+// ============================================================================
+// FONCTIONS D'ANALYSE (IMAGES)
 // ============================================================================
 
 /**
@@ -405,7 +773,305 @@ export function analyzePrompt(prompt: string): PromptAnalysis {
 }
 
 // ============================================================================
-// FONCTIONS DE PROGRESSION
+// FONCTIONS D'ANALYSE (ÉCRITURE - 5 Questions Magiques)
+// ============================================================================
+
+/**
+ * Analyse un message de l'enfant et détecte les 5 Questions utilisées
+ */
+export function analyzeWritingMessage(message: string): WritingMessageAnalysis {
+  const lowerMessage = message.toLowerCase()
+  const words = message.split(/\s+/)
+  const wordCount = words.length
+  
+  // Détection QUI (personnages)
+  const whoMatches = WHO_KEYWORDS.filter(kw => lowerMessage.includes(kw.toLowerCase()))
+  const hasWho = whoMatches.length >= 1 || wordCount >= 8 // Message long = probablement un personnage mentionné
+  
+  // Détection QUOI (actions, problèmes)
+  const whatMatches = WHAT_KEYWORDS.filter(kw => lowerMessage.includes(kw.toLowerCase()))
+  const hasWhat = whatMatches.length >= 1
+  
+  // Détection OÙ (lieux)
+  const whereMatches = WHERE_KEYWORDS.filter(kw => lowerMessage.includes(kw.toLowerCase()))
+  const hasWhere = whereMatches.length >= 1
+  
+  // Détection QUAND (moments)
+  const whenMatches = WHEN_KEYWORDS.filter(kw => lowerMessage.includes(kw.toLowerCase()))
+  const hasWhen = whenMatches.length >= 1
+  
+  // Détection ET ALORS (rebondissements)
+  const thenMatches = THEN_KEYWORDS.filter(kw => lowerMessage.includes(kw.toLowerCase()))
+  const hasThen = thenMatches.length >= 1
+  
+  // Détection blocage
+  const isBlocked = BLOCKED_KEYWORDS.some(kw => lowerMessage.includes(kw.toLowerCase())) || wordCount <= 3
+  
+  // Détection demande d'écrire à la place
+  const asksForHelp = WRITE_FOR_ME_KEYWORDS.some(kw => lowerMessage.includes(kw.toLowerCase()))
+  
+  // Liste des questions utilisées
+  const questionsUsed: WritingQuestion[] = []
+  if (hasWho) questionsUsed.push('who')
+  if (hasWhat) questionsUsed.push('what')
+  if (hasWhere) questionsUsed.push('where')
+  if (hasWhen) questionsUsed.push('when')
+  if (hasThen) questionsUsed.push('then')
+  
+  const questionsCount = questionsUsed.length
+  
+  // Qualité globale
+  let quality: WritingMessageAnalysis['quality']
+  if (isBlocked || wordCount <= 3) {
+    quality = 'vague'
+  } else if (questionsCount >= 4) {
+    quality = 'excellent'
+  } else if (questionsCount >= 3) {
+    quality = 'bon'
+  } else if (questionsCount >= 2) {
+    quality = 'correct'
+  } else if (questionsCount >= 1) {
+    quality = 'basique'
+  } else {
+    quality = 'vague'
+  }
+  
+  return {
+    hasWho,
+    whoDetails: whoMatches,
+    hasWhat,
+    whatDetails: whatMatches,
+    hasWhere,
+    whereDetails: whereMatches,
+    hasWhen,
+    whenDetails: whenMatches,
+    hasThen,
+    thenDetails: thenMatches,
+    questionsUsed,
+    questionsCount,
+    quality,
+    isBlocked,
+    asksForHelp,
+  }
+}
+
+// ============================================================================
+// FONCTIONS DE PROGRESSION (ÉCRITURE)
+// ============================================================================
+
+/**
+ * Calcule les XP gagnés selon les questions utilisées (écriture)
+ * Calibré pour ~10h de progression totale
+ */
+export function calculateWritingXP(analysis: WritingMessageAnalysis): number {
+  if (analysis.isBlocked || analysis.quality === 'vague') return 0
+  
+  switch (analysis.quality) {
+    case 'excellent': return 30  // 4+ questions
+    case 'bon': return 18        // 3 questions
+    case 'correct': return 10    // 2 questions
+    case 'basique': return 5     // 1 question
+    default: return 0
+  }
+}
+
+/**
+ * Détermine le niveau d'écriture en fonction des XP
+ */
+export function getWritingLevelFromXP(xp: number): WritingLevel {
+  if (xp >= WRITING_LEVELS_CONFIG.maitre_ia.xpRequired) return 'maitre_ia'
+  if (xp >= WRITING_LEVELS_CONFIG.expert.xpRequired) return 'expert'
+  if (xp >= WRITING_LEVELS_CONFIG.precis.xpRequired) return 'precis'
+  if (xp >= WRITING_LEVELS_CONFIG.bavard.xpRequired) return 'bavard'
+  return 'curieux'
+}
+
+/**
+ * Détermine la prochaine question à apprendre
+ */
+export function getNextQuestionToLearn(progress: WritingPromptingProgress): WritingQuestion {
+  const questionOrder: WritingQuestion[] = ['who', 'what', 'where', 'when', 'then']
+  
+  for (const question of questionOrder) {
+    if (!progress.unlockedQuestions.includes(question)) {
+      return question
+    }
+  }
+  
+  return 'then' // Toutes débloquées
+}
+
+/**
+ * Met à jour la progression après un message à Luna
+ */
+export function updateWritingProgression(
+  currentProgress: WritingPromptingProgress,
+  analysis: WritingMessageAnalysis
+): {
+  newProgress: WritingPromptingProgress
+  events: WritingProgressionEvent[]
+} {
+  const events: WritingProgressionEvent[] = []
+  
+  // Copie de la progression
+  const newProgress: WritingPromptingProgress = {
+    ...currentProgress,
+    questionProgress: { ...currentProgress.questionProgress },
+    unlockedQuestions: [...currentProgress.unlockedQuestions],
+    totalMessages: currentProgress.totalMessages + 1,
+  }
+  
+  // Gestion du blocage
+  if (analysis.isBlocked) {
+    newProgress.consecutiveBlockedMessages++
+    if (newProgress.consecutiveBlockedMessages >= 2) {
+      events.push({ type: 'blocked_detected' })
+    }
+    return { newProgress, events }
+  } else {
+    newProgress.consecutiveBlockedMessages = 0
+  }
+  
+  // XP gagné (seulement si pas bloqué)
+  const xpGained = calculateWritingXP(analysis)
+  if (xpGained > 0) {
+    newProgress.xp += xpGained
+    events.push({ type: 'xp_gained', value: xpGained })
+  }
+  
+  // Progression des questions utilisées
+  for (const question of analysis.questionsUsed) {
+    if (newProgress.questionProgress[question] < 10) {
+      newProgress.questionProgress[question]++
+      events.push({ type: 'question_progress', question, value: newProgress.questionProgress[question] })
+      
+      // Question débloquée ? (à 10 utilisations)
+      if (newProgress.questionProgress[question] === 10 && !newProgress.unlockedQuestions.includes(question)) {
+        newProgress.unlockedQuestions.push(question)
+        events.push({ type: 'question_unlocked', question })
+      }
+    }
+  }
+  
+  // Level up ?
+  const newLevel = getWritingLevelFromXP(newProgress.xp)
+  if (newLevel !== currentProgress.level) {
+    newProgress.level = newLevel
+    events.push({ type: 'level_up', newLevel })
+  }
+  
+  // Mettre à jour la question en cours d'apprentissage
+  newProgress.currentQuestionLearning = getNextQuestionToLearn(newProgress)
+  
+  return { newProgress, events }
+}
+
+/**
+ * Marque une histoire comme terminée et ajoute les XP bonus
+ */
+export function completeStory(
+  currentProgress: WritingPromptingProgress
+): {
+  newProgress: WritingPromptingProgress
+  events: WritingProgressionEvent[]
+} {
+  const events: WritingProgressionEvent[] = []
+  
+  const newProgress: WritingPromptingProgress = {
+    ...currentProgress,
+    questionProgress: { ...currentProgress.questionProgress },
+    unlockedQuestions: [...currentProgress.unlockedQuestions],
+    totalStories: currentProgress.totalStories + 1,
+  }
+  
+  // Bonus XP pour histoire terminée
+  const bonusXP = 80
+  newProgress.xp += bonusXP
+  events.push({ type: 'xp_gained', value: bonusXP })
+  events.push({ type: 'story_completed' })
+  
+  // Vérifier level up
+  const newLevel = getWritingLevelFromXP(newProgress.xp)
+  if (newLevel !== currentProgress.level) {
+    newProgress.level = newLevel
+    events.push({ type: 'level_up', newLevel })
+  }
+  
+  return { newProgress, events }
+}
+
+/**
+ * Retourne la progression initiale pour l'écriture
+ */
+export function getInitialWritingProgress(): WritingPromptingProgress {
+  return {
+    level: 'curieux',
+    xp: 0,
+    questionProgress: {
+      who: 0,
+      what: 0,
+      where: 0,
+      when: 0,
+      then: 0,
+    },
+    unlockedQuestions: [],
+    totalMessages: 0,
+    totalStories: 0,
+    currentQuestionLearning: 'who',
+    consecutiveBlockedMessages: 0,
+  }
+}
+
+/**
+ * Génère le contexte pédagogique pour Luna (écriture)
+ */
+export function generateWritingLevelContext(
+  progress: WritingPromptingProgress,
+  locale: 'fr' | 'en' | 'ru' = 'fr'
+): string {
+  const levelConfig = WRITING_LEVELS_CONFIG[progress.level]
+  const currentQuestion = WRITING_QUESTIONS_CONFIG[progress.currentQuestionLearning]
+  const questionProgress = progress.questionProgress[progress.currentQuestionLearning]
+  
+  const mentionFrequencyText = {
+    fr: levelConfig.mentionFrequency >= 0.4 
+      ? 'SOUVENT (environ 1 message sur 2)' 
+      : levelConfig.mentionFrequency >= 0.2 
+        ? 'PARFOIS (environ 1 message sur 4)'
+        : 'RAREMENT (elle sait déjà)',
+    en: levelConfig.mentionFrequency >= 0.4 
+      ? 'OFTEN (about 1 in 2 messages)' 
+      : levelConfig.mentionFrequency >= 0.2 
+        ? 'SOMETIMES (about 1 in 4 messages)'
+        : 'RARELY (she already knows)',
+    ru: levelConfig.mentionFrequency >= 0.4 
+      ? 'ЧАСТО (примерно каждое 2-е сообщение)' 
+      : levelConfig.mentionFrequency >= 0.2 
+        ? 'ИНОГДА (примерно каждое 4-е сообщение)'
+        : 'РЕДКО (она уже знает)',
+  }
+
+  return `
+================================================================================
+📊 NIVEAU DE L'ENFANT : ${levelConfig.emoji} ${levelConfig.name[locale]} (${progress.xp} XP)
+================================================================================
+
+QUESTIONS MAÎTRISÉES: ${progress.unlockedQuestions.map(q => WRITING_QUESTIONS_CONFIG[q].emoji + ' ' + WRITING_QUESTIONS_CONFIG[q].name[locale]).join(', ') || 'Aucune encore'}
+
+QUESTION EN COURS: ${currentQuestion.emoji} ${currentQuestion.name[locale]} (${questionProgress}/10)
+
+FRÉQUENCE DES MENTIONS PÉDAGOGIQUES: ${mentionFrequencyText[locale]}
+→ Adapte ta façon de nommer les questions selon cette fréquence !
+
+BLOCAGES CONSÉCUTIFS: ${progress.consecutiveBlockedMessages}
+${progress.consecutiveBlockedMessages >= 2 ? '⚠️ L\'ENFANT EST BLOQUÉE - Propose ton aide avec des OPTIONS concrètes !' : ''}
+
+HISTOIRES TERMINÉES: ${progress.totalStories}
+`
+}
+
+// ============================================================================
+// FONCTIONS DE PROGRESSION (IMAGES)
 // ============================================================================
 
 /**
@@ -851,11 +1517,13 @@ export const STORY_TEMPLATES: Record<StoryStructure, StoryTemplate> = {
 }
 
 // ============================================================================
-// CONTEXTE PÉDAGOGIQUE POUR L'ÉCRITURE
+// CONTEXTE PÉDAGOGIQUE POUR L'ÉCRITURE (Structure d'histoire uniquement)
 // ============================================================================
 
 /**
- * Génère le contexte pour Luna quand elle aide à écrire
+ * Génère le contexte SPÉCIFIQUE pour l'écriture (structure, étape actuelle)
+ * Note: Les instructions générales sont dans LUNA_WRITING_PROMPT (gemini.ts)
+ * Cette fonction n'ajoute que le contexte dynamique pour éviter la duplication
  */
 export function generateWritingPedagogyContext(
   context: 'journal' | 'story',
@@ -863,40 +1531,13 @@ export function generateWritingPedagogyContext(
   currentStep?: number,
   locale: 'fr' | 'en' | 'ru' = 'fr'
 ): string {
-  const baseContext = `
-RÔLE: Tu aides l'enfant à écrire, mais tu ne fais JAMAIS le travail à sa place.
-
-CE QUE TU FAIS:
-- Poser des questions pour stimuler l'imagination
-- Relancer quand l'enfant est bloqué
-- Suggérer des pistes sans imposer
-- Encourager et valoriser ses idées
-
-CE QUE TU NE FAIS JAMAIS:
-- Écrire des phrases à sa place
-- Donner la suite de l'histoire
-- Imposer tes idées
-- Corriger ou juger
-
-LES 5 QUESTIONS MAGIQUES (pour relancer):
-- Qui ? (personnages)
-- Quoi ? (action, événement)
-- Où ? (lieu)
-- Quand ? (moment)
-- Et alors ? (rebondissement)
-
-SI L'ENFANT DEMANDE D'ÉCRIRE À SA PLACE:
-${locale === 'fr' ? 'Refuse gentiment : "C\'est ton histoire, c\'est toi l\'auteur ! Mais je peux t\'aider à trouver des idées."' : ''}
-${locale === 'en' ? 'Gently refuse: "It\'s your story, you\'re the author! But I can help you find ideas."' : ''}
-${locale === 'ru' ? 'Мягко откажи: "Это твоя история, ты автор! Но я могу помочь найти идеи."' : ''}
-`
-
   if (context === 'journal') {
-    return baseContext + `
-CONTEXTE: L'enfant écrit dans son JOURNAL (souvenirs réels)
-- Aide-le à raconter sa journée
-- Pose des questions sur ce qui s'est passé
-- Aide à développer les détails
+    return `
+================================================================================
+📓 CONTEXTE : MODE JOURNAL
+================================================================================
+L'enfant raconte sa VRAIE journée (souvenirs réels, pas fiction).
+Aide-la à développer ses souvenirs en posant des questions.
 `
   }
 
@@ -904,21 +1545,26 @@ CONTEXTE: L'enfant écrit dans son JOURNAL (souvenirs réels)
     const template = STORY_TEMPLATES[storyStructure]
     const step = currentStep !== undefined ? template.steps[currentStep] : null
     
-    return baseContext + `
-CONTEXTE: L'enfant écrit une HISTOIRE
-Structure choisie: ${template.name[locale]}
-
+    return `
+================================================================================
+📖 CONTEXTE : HISTOIRE STRUCTURÉE - ${template.name[locale]}
+================================================================================
 ${step ? `
-ÉTAPE ACTUELLE: ${step.title[locale]}
-Ce qu'il doit écrire: ${step.prompt[locale]}
+📍 ÉTAPE ACTUELLE (${currentStep! + 1}/${template.steps.length}) : ${step.title[locale]}
+📝 Objectif : ${step.prompt[locale]}
 
-Guide-le pour cette étape spécifique.
-` : ''}
+→ Guide l'enfant pour cette étape spécifique.
+` : `
+L'enfant suit la structure "${template.name[locale]}".
+`}
 `
   }
 
-  return baseContext + `
-CONTEXTE: L'enfant écrit librement
-Aide-le à développer son idée sans lui imposer de structure.
+  // Mode libre
+  return `
+================================================================================
+📝 CONTEXTE : ÉCRITURE LIBRE
+================================================================================
+Pas de structure imposée. L'enfant est libre de créer son histoire comme elle veut.
 `
 }
