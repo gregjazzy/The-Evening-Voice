@@ -1321,9 +1321,11 @@ interface WritingAreaProps {
   onBack?: () => void
   onShowStructure?: () => void
   onShowOverview?: () => void
+  // Callback pour notifier le parent du changement de zoom
+  onZoomChange?: (zoomedPage: 'left' | 'right' | null) => void
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onImageAdd, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onImageAdd, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange }: WritingAreaProps) {
   const style = page?.style || leftPage?.style || DEFAULT_STYLE
   const editorRef = useRef<HTMLDivElement>(null)
   const leftEditorRef = useRef<HTMLDivElement>(null)
@@ -1333,6 +1335,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   
   // État pour le mode zoom (null = pas de zoom, 'left' = page gauche, 'right' = page droite)
   const [zoomedPage, setZoomedPage] = useState<'left' | 'right' | null>(null)
+  
+  // Notifier le parent quand le zoom change
+  useEffect(() => {
+    onZoomChange?.(zoomedPage)
+  }, [zoomedPage, onZoomChange])
   
   // Speech recognition for dictation
   const { isListening, isSupported, transcript, startListening, stopListening, resetTranscript } = useSpeechRecognition(locale)
@@ -2395,6 +2402,8 @@ export function BookMode() {
   const [chapters, setChapters] = useState<Chapter[]>([])
   // Navigation par spread (paire de pages) comme un vrai livre
   const [currentSpread, setCurrentSpread] = useState(0)
+  // État pour savoir quelle page est zoomée (null = vue double page)
+  const [currentZoomedPage, setCurrentZoomedPage] = useState<'left' | 'right' | null>(null)
   
   // Calcul des indices de pages pour le spread courant
   const leftPageIndex = currentSpread * 2
@@ -2842,6 +2851,7 @@ export function BookMode() {
               }}
               onShowStructure={() => setShowStructureView(true)}
               onShowOverview={() => setShowOverview(true)}
+              onZoomChange={setCurrentZoomedPage}
             />
         )}
         </div>
@@ -2870,8 +2880,13 @@ export function BookMode() {
             {pages.map((page, index) => {
               const chapter = chapters.find(c => c.id === page.chapterId)
               const spreadOfPage = Math.floor(index / 2)
-              const isInCurrentSpread = index === leftPageIndex || index === rightPageIndex
               const isLeftOfSpread = index % 2 === 0
+              
+              // En mode zoom, seule la page zoomée est active
+              // En mode double page, les deux pages du spread sont actives
+              const isActive = currentZoomedPage !== null
+                ? (currentZoomedPage === 'left' && index === leftPageIndex) || (currentZoomedPage === 'right' && index === rightPageIndex)
+                : (index === leftPageIndex || index === rightPageIndex)
               
               return (
                 <button
@@ -2879,10 +2894,12 @@ export function BookMode() {
                   onClick={() => setCurrentSpread(spreadOfPage)}
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-2 text-sm transition-all',
-                    // Arrondi selon position dans le spread
-                    isLeftOfSpread ? 'rounded-l-xl' : 'rounded-r-xl',
-                    // Highlight si dans le spread courant
-                    isInCurrentSpread
+                    // Arrondi selon position dans le spread (complet si zoom)
+                    currentZoomedPage !== null 
+                      ? 'rounded-xl'
+                      : (isLeftOfSpread ? 'rounded-l-xl' : 'rounded-r-xl'),
+                    // Highlight si page active
+                    isActive
                       ? 'bg-aurora-500/20 text-white border border-aurora-500/30'
                       : 'text-midnight-400 hover:bg-midnight-800/50 hover:text-white'
                   )}
