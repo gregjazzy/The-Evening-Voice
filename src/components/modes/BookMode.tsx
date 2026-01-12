@@ -1654,32 +1654,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               — Page {zPageIndex + 1} —
             </div>
           </motion.div>
-          
-          {/* Navigation pages en mode zoom */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 z-50">
-            <button
-              onClick={(e) => { e.stopPropagation(); onPrevPage?.(); }}
-              disabled={!hasPrevPage}
-              className={cn(
-                'p-3 rounded-full transition-all shadow-lg',
-                hasPrevPage 
-                  ? 'bg-midnight-800/80 text-white hover:bg-midnight-700' 
-                  : 'bg-midnight-900/50 text-midnight-600 cursor-not-allowed'
-              )}
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <span className="text-white/80 font-medium">
-              {zPageIndex + 1} / {totalPages}
-            </span>
-            <button
-              onClick={(e) => { e.stopPropagation(); onNextPage?.(); }}
-              className="p-3 rounded-full bg-midnight-800/80 text-white hover:bg-midnight-700 transition-all shadow-lg"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
           </div>
-        </div>
         )
       })() : (
       /* LIVRE OUVERT - 2 pages côte à côte */
