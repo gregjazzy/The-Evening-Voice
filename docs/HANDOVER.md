@@ -294,11 +294,8 @@ const DEFAULT_SIZE = 18  // pixels
 
 ## 🔑 Identifiants
 
-| | |
-|---|---|
-| **Admin** | admin@admin.com / admin123 |
-| **Supabase Project ID** | frufyxrhpqxhnawmrhru |
-| **Gemini API Key** | AIzaSyBEnnVE4Hvl2dLbmpITvg7WDEVH64K5SYs |
+> ⚠️ **Les identifiants sont dans le fichier `.env.local` (non commité)**
+> Voir `env.example` pour les variables nécessaires.
 
 ---
 
