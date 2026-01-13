@@ -440,14 +440,298 @@
       font-family: 'Playfair Display', serif;
       font-size: 3rem;
       color: var(--gold);
-      margin-bottom: 50px;
+      margin-bottom: 10px;
       text-align: center;
+    }
+
+    .modes-tagline {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.3rem;
+      color: var(--cream);
+      text-align: center;
+      margin-bottom: 40px;
+      opacity: 0.9;
     }
 
     .modes-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 25px;
+    }
+
+    .modes-grid-enhanced {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 20px;
+    }
+
+    .mode-card-enhanced {
+      background: rgba(201, 169, 98, 0.08);
+      border: 1px solid rgba(201, 169, 98, 0.25);
+      border-radius: 16px;
+      padding: 25px 18px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .mode-card-enhanced:hover {
+      background: rgba(201, 169, 98, 0.15);
+      transform: translateY(-5px);
+      border-color: var(--gold);
+    }
+
+    .mode-icon-large {
+      font-size: 2.8rem;
+      display: block;
+      margin-bottom: 15px;
+    }
+
+    .mode-card-enhanced h3 {
+      font-family: 'Playfair Display', serif;
+      color: var(--gold);
+      font-size: 1.15rem;
+      margin-bottom: 12px;
+    }
+
+    .mode-description {
+      color: var(--cream);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .mode-luna {
+      color: var(--gold);
+      font-size: 0.85rem;
+      opacity: 0.85;
+    }
+
+    /* ============================================
+       THEATRE EXPERIENCE SLIDE
+       ============================================ */
+    .slide-theatre {
+      background: 
+        radial-gradient(ellipse at 50% 30%, rgba(147, 112, 219, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 20% 80%, rgba(201, 169, 98, 0.1) 0%, transparent 40%),
+        linear-gradient(135deg, #1a0a2e 0%, var(--deep-purple) 100%);
+    }
+
+    .theatre-section {
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .theatre-section h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 3rem;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .theatre-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      margin-top: 40px;
+    }
+
+    .theatre-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 20px;
+      padding: 40px 30px;
+      border: 1px solid rgba(201, 169, 98, 0.2);
+    }
+
+    .theatre-device, .theatre-outputs .output-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .device-icon, .output-icon {
+      font-size: 2.5rem;
+    }
+
+    .device-label, .output-label {
+      color: var(--cream);
+      font-size: 0.85rem;
+    }
+
+    .theatre-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .airplay-icon {
+      font-size: 1.8rem;
+    }
+
+    .arrow-label {
+      color: var(--gold);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .theatre-outputs {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .theatre-features {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .theatre-feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      background: rgba(201, 169, 98, 0.08);
+      border-radius: 12px;
+      padding: 18px;
+      border-left: 3px solid var(--gold);
+    }
+
+    .theatre-feature .feature-icon {
+      font-size: 1.8rem;
+    }
+
+    .theatre-feature h4 {
+      color: var(--gold);
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      margin-bottom: 5px;
+    }
+
+    .theatre-feature p {
+      color: var(--cream);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    /* ============================================
+       HORIZON / AMAZON KDP SLIDE
+       ============================================ */
+    .slide-horizon {
+      background: 
+        radial-gradient(ellipse at 70% 20%, rgba(255, 153, 0, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 30% 70%, rgba(201, 169, 98, 0.1) 0%, transparent 40%),
+        linear-gradient(135deg, var(--deep-purple) 0%, #1a0a2e 100%);
+    }
+
+    .horizon-section {
+      width: 100%;
+      max-width: 1100px;
+      text-align: center;
+    }
+
+    .horizon-section h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 3rem;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+
+    .horizon-journey {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin: 50px 0;
+      flex-wrap: wrap;
+    }
+
+    .journey-step-horizon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      background: rgba(201, 169, 98, 0.1);
+      border: 1px solid rgba(201, 169, 98, 0.3);
+      border-radius: 12px;
+      padding: 20px 25px;
+      min-width: 100px;
+    }
+
+    .journey-step-horizon .step-icon {
+      font-size: 2rem;
+    }
+
+    .journey-step-horizon .step-label {
+      color: var(--cream);
+      font-size: 0.9rem;
+    }
+
+    .journey-step-horizon.highlight-amazon {
+      background: rgba(255, 153, 0, 0.2);
+      border-color: #ff9900;
+    }
+
+    .journey-step-horizon.highlight-amazon .step-label {
+      color: #ff9900;
+      font-weight: 600;
+    }
+
+    .journey-arrow-horizon {
+      color: var(--gold);
+      font-size: 1.5rem;
+      opacity: 0.7;
+    }
+
+    .horizon-status {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin: 40px 0;
+      text-align: left;
+    }
+
+    .status-ready, .status-future {
+      background: rgba(201, 169, 98, 0.08);
+      border-radius: 16px;
+      padding: 25px 30px;
+      border: 1px solid rgba(201, 169, 98, 0.2);
+    }
+
+    .status-ready h4, .status-future h4 {
+      color: var(--gold);
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+    }
+
+    .status-ready ul, .status-future ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .status-ready li, .status-future li {
+      color: var(--cream);
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(201, 169, 98, 0.1);
+      font-size: 0.95rem;
+    }
+
+    .status-ready li:last-child, .status-future li:last-child {
+      border-bottom: none;
+    }
+
+    .horizon-quote {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      color: var(--gold);
+      margin-top: 30px;
+    }
     }
 
     .mode-card {
@@ -1255,7 +1539,68 @@
       color: rgba(255,255,255,0.3);
     }
 
-    /* Code-like display for AI */
+    /* Gemini Showcase */
+    .gemini-showcase {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+    }
+
+    .gemini-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, rgba(66, 133, 244, 0.2) 0%, rgba(52, 168, 83, 0.2) 50%, rgba(251, 188, 4, 0.2) 100%);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+      padding: 30px 50px;
+    }
+
+    .gemini-icon {
+      font-size: 3rem;
+    }
+
+    .gemini-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.8rem;
+      color: var(--white);
+      font-weight: 600;
+    }
+
+    .gemini-by {
+      font-size: 0.9rem;
+      color: var(--cream);
+      opacity: 0.8;
+    }
+
+    .gemini-stats {
+      display: flex;
+      gap: 40px;
+    }
+
+    .gemini-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .gemini-stat .stat-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    .gemini-stat .stat-label {
+      font-size: 0.85rem;
+      color: var(--cream);
+      opacity: 0.9;
+    }
+
+    /* Code-like display for AI - DEPRECATED */
     .code-block {
       background: rgba(0,0,0,0.3);
       border: 1px solid rgba(201, 169, 98, 0.2);
@@ -1927,6 +2272,106 @@
     .ecosystem-note p {
       font-size: 1.1rem;
       color: var(--text-light);
+    }
+
+    /* ============================================
+       OBJECTIVES SLIDE STYLES
+       ============================================ */
+    .slide-objectives {
+      background: 
+        radial-gradient(ellipse at 30% 20%, rgba(201, 169, 98, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(147, 112, 219, 0.08) 0%, transparent 40%),
+        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
+    }
+
+    .objectives-section {
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .objectives-section h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 3rem;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .objectives-section .tagline {
+      text-align: center;
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      margin-bottom: 50px;
+      font-style: italic;
+    }
+
+    .objectives-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 25px;
+    }
+
+    .objective-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(201, 169, 98, 0.2);
+      border-radius: 16px;
+      padding: 28px 30px;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      transition: all 0.3s ease;
+    }
+
+    .objective-card:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(201, 169, 98, 0.4);
+      transform: translateY(-3px);
+    }
+
+    .objective-icon {
+      width: 55px;
+      height: 55px;
+      background: linear-gradient(135deg, rgba(201, 169, 98, 0.2), rgba(201, 169, 98, 0.1));
+      border: 1px solid rgba(201, 169, 98, 0.3);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      flex-shrink: 0;
+    }
+
+    .objective-content h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .objective-content p {
+      font-size: 1rem;
+      color: var(--text-light);
+      line-height: 1.5;
+      opacity: 0.85;
+    }
+
+    .objectives-footer {
+      margin-top: 45px;
+      text-align: center;
+      padding: 25px 40px;
+      background: rgba(201, 169, 98, 0.06);
+      border-radius: 14px;
+      border: 1px solid rgba(201, 169, 98, 0.15);
+    }
+
+    .objectives-footer p {
+      font-size: 1.15rem;
+      color: var(--text-light);
+      font-style: italic;
+    }
+
+    .objectives-footer strong {
+      color: var(--gold);
     }
 
     /* ============================================
@@ -2651,8 +3096,70 @@
       </div>
     </section>
 
-    <!-- Slide 3: Luna -->
-    <section class="slide slide-luna" data-slide="2">
+    <!-- Slide 3: Objectifs -->
+    <section class="slide slide-objectives stars" data-slide="2">
+      <div class="objectives-section">
+        <h2 class="animate-in animate-in-1">Les Objectifs</h2>
+        <p class="tagline animate-in animate-in-2">Ce que vos filles vont apprendre et développer</p>
+        
+        <div class="objectives-grid animate-in animate-in-3">
+          <div class="objective-card">
+            <div class="objective-icon">💬</div>
+            <div class="objective-content">
+              <h3>Maîtriser le Prompting IA</h3>
+              <p><strong>Comment :</strong> Luna enseigne les "5 Clés Magiques" pour les images et les "5 Questions Magiques" pour le texte. Chaque interaction avec Midjourney, Runway ou ElevenLabs est guidée.</p>
+            </div>
+          </div>
+
+          <div class="objective-card">
+            <div class="objective-icon">📝</div>
+            <div class="objective-content">
+              <h3>Maîtriser le Traitement de Texte</h3>
+              <p><strong>Comment :</strong> Un éditeur professionnel intégré avec mise en forme, styles, images — aussi puissant que Google Docs ou Word, dans un environnement adapté aux enfants.</p>
+            </div>
+          </div>
+
+          <div class="objective-card">
+            <div class="objective-icon">🖥️</div>
+            <div class="objective-content">
+              <h3>Devenir Autonome sur Ordinateur</h3>
+              <p><strong>Comment :</strong> Application native macOS. Elles apprennent à naviguer, gérer leurs fichiers, utiliser Safari pour les ressources — en contexte réel, pas simulé.</p>
+            </div>
+          </div>
+
+          <div class="objective-card">
+            <div class="objective-icon">🎨</div>
+            <div class="objective-content">
+              <h3>Développer la Créativité</h3>
+              <p><strong>Comment :</strong> 5 modes créatifs (Journal, Écriture, Studio, Montage, Théâtre). Liberté totale d'imaginer, sans jugement, avec les meilleurs outils IA.</p>
+            </div>
+          </div>
+
+          <div class="objective-card">
+            <div class="objective-icon">🧠</div>
+            <div class="objective-content">
+              <h3>Structurer sa Pensée</h3>
+              <p><strong>Comment :</strong> Structures narratives guidées (conte, aventure, problème-solution). Luna pose des questions qui apprennent à décomposer et organiser les idées.</p>
+            </div>
+          </div>
+
+          <div class="objective-card">
+            <div class="objective-icon">🌟</div>
+            <div class="objective-content">
+              <h3>Cultiver la Confiance en Soi</h3>
+              <p><strong>Comment :</strong> Progression invisible qui célèbre chaque réussite. Luna encourage sans juger. Chaque histoire terminée est une fierté concrète.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="objectives-footer animate-in animate-in-4">
+          <p>Des compétences <strong>fondamentales</strong> pour le monde de demain — acquises dans le plaisir et la créativité.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 4: Luna -->
+    <section class="slide slide-luna" data-slide="3">
       <div class="luna-section">
         <div class="luna-avatar animate-in animate-in-1">🌙</div>
         <div class="luna-content">
@@ -2674,8 +3181,8 @@
       </div>
     </section>
 
-    <!-- Slide 4: Luna's Philosophy - La méthode pédagogique -->
-    <section class="slide slide-philosophy stars" data-slide="3">
+    <!-- Slide 5: Luna's Philosophy - La méthode pédagogique -->
+    <section class="slide slide-philosophy stars" data-slide="4">
       <div class="philosophy-section">
         <h2 class="animate-in animate-in-1">La Philosophie de Luna</h2>
         <p class="tagline animate-in animate-in-2">Trois règles d'or qui guident chaque interaction</p>
@@ -2751,8 +3258,8 @@
       </div>
     </section>
 
-    <!-- Slide 5: Luna en Action - Images (Dialogue) -->
-    <section class="slide slide-dialogue" data-slide="4">
+    <!-- Slide 6: Luna en Action - Images (Dialogue) -->
+    <section class="slide slide-dialogue" data-slide="5">
       <div class="dialogue-section">
         <h2 class="animate-in animate-in-1">🎨 Luna en Action — Création d'Images</h2>
         <p class="tagline animate-in animate-in-2">Comment Luna enseigne les "5 Clés Magiques" sans que l'enfant s'en aperçoive</p>
@@ -2808,8 +3315,8 @@
       </div>
     </section>
 
-    <!-- Slide 6: Luna en Action - Écriture (Dialogue) -->
-    <section class="slide slide-dialogue stars" data-slide="5">
+    <!-- Slide 7: Luna en Action - Écriture (Dialogue) -->
+    <section class="slide slide-dialogue stars" data-slide="6">
       <div class="dialogue-section">
         <h2 class="animate-in animate-in-1">✍️ Luna en Action — Écriture d'Histoires</h2>
         <p class="tagline animate-in animate-in-2">Comment Luna utilise les "5 Questions Magiques" pour enrichir les récits</p>
@@ -2866,8 +3373,8 @@
       </div>
     </section>
 
-    <!-- Slide 7: Quand l'Enfant est Bloqué -->
-    <section class="slide slide-blocked" data-slide="6">
+    <!-- Slide 8: Quand l'Enfant est Bloqué -->
+    <section class="slide slide-blocked" data-slide="7">
       <div class="blocked-section">
         <h2 class="animate-in animate-in-1">Quand l'Enfant est Bloqué</h2>
         <p class="tagline animate-in animate-in-2">Une aide progressive qui respecte l'autonomie</p>
@@ -2934,8 +3441,8 @@
       </div>
     </section>
 
-    <!-- Slide 8: AI Architecture -->
-    <section class="slide slide-ai" data-slide="7">
+    <!-- Slide 9: AI Architecture -->
+    <section class="slide slide-ai" data-slide="8">
       <div class="ai-architecture">
         <h2 class="animate-in animate-in-1">L'Intelligence de Luna</h2>
         <p class="animate-in animate-in-2">Un système conversationnel de nouvelle génération basé sur Gemini 2.0 Flash</p>
@@ -2992,51 +3499,52 @@
       </div>
     </section>
 
-    <!-- Slide 9: How Gemini Works -->
-    <section class="slide slide-ai" data-slide="8">
+    <!-- Slide 10: Pourquoi Gemini -->
+    <section class="slide slide-ai" data-slide="9">
       <div class="two-columns">
         <div class="column-content">
-          <h2 class="animate-in animate-in-1">Comment fonctionne Gemini ?</h2>
+          <h2 class="animate-in animate-in-1">Pourquoi Gemini 2.0 Flash ?</h2>
           <p class="animate-in animate-in-2">
-            <span class="highlight">Gemini 2.0 Flash</span> est le modèle multimodal le plus avancé de Google. Il combine compréhension du langage, raisonnement et créativité.
+            Le modèle le plus avancé de Google, choisi pour sa capacité unique à <span class="highlight">comprendre</span>, <span class="highlight">raisonner</span> et <span class="highlight">créer</span>.
           </p>
           <ul class="benefit-list animate-in animate-in-3">
-            <li><span class="highlight">Transformers</span> — Architecture attention pour comprendre le contexte global</li>
-            <li><span class="highlight">Few-shot learning</span> — Apprend le style Luna en quelques exemples</li>
-            <li><span class="highlight">Chain-of-thought</span> — Raisonne étape par étape pour guider</li>
-            <li><span class="highlight">Temperature contrôlée</span> — Créatif mais cohérent</li>
+            <li><span class="highlight">Multimodal</span> — Comprend texte, images, et contexte simultanément</li>
+            <li><span class="highlight">Temps réel</span> — Réponses instantanées, conversations fluides</li>
+            <li><span class="highlight">Créatif</span> — Capable d'imaginer, suggérer, inspirer</li>
+            <li><span class="highlight">Sécurisé</span> — Filtres intégrés pour contenu 100% adapté</li>
           </ul>
           <p class="animate-in animate-in-4" style="margin-top: 20px;">
-            Luna utilise un <span class="highlight">System Prompt</span> de 2000 tokens définissant sa personnalité, ses règles pédagogiques et son vocabulaire adapté aux 8 ans.
+            Luna a été <span class="highlight">personnalisée</span> pour devenir l'amie créative parfaite : bienveillante, jamais condescendante, toujours encourageante.
           </p>
         </div>
         <div class="column-visual animate-in animate-in-3">
-          <div class="code-block">
-            <span class="comment">// System Prompt Luna</span><br>
-            <span class="keyword">const</span> <span class="gold">lunaPersona</span> = {<br>
-            &nbsp;&nbsp;<span class="string">"age"</span>: <span class="function">8</span>,<br>
-            &nbsp;&nbsp;<span class="string">"role"</span>: <span class="function">"amie créative"</span>,<br>
-            &nbsp;&nbsp;<span class="string">"règles"</span>: [<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;<span class="function">"Ne jamais faire à la place"</span>,<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;<span class="function">"Poser des questions"</span>,<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;<span class="function">"Célébrer les progrès"</span>,<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;<span class="function">"Vocabulaire enfant"</span><br>
-            &nbsp;&nbsp;],<br>
-            &nbsp;&nbsp;<span class="string">"température"</span>: <span class="function">0.7</span><br>
-            };<br><br>
-            <span class="comment">// Chaque réponse passe par</span><br>
-            <span class="keyword">await</span> <span class="gold">gemini</span>.<span class="function">generate</span>({<br>
-            &nbsp;&nbsp;context: <span class="gold">storyContext</span>,<br>
-            &nbsp;&nbsp;persona: <span class="gold">lunaPersona</span>,<br>
-            &nbsp;&nbsp;safetyFilters: <span class="keyword">true</span><br>
-            });
+          <div class="gemini-showcase">
+            <div class="gemini-badge">
+              <span class="gemini-icon">✨</span>
+              <span class="gemini-name">Gemini 2.0 Flash</span>
+              <span class="gemini-by">by Google</span>
+            </div>
+            <div class="gemini-stats">
+              <div class="gemini-stat">
+                <span class="stat-value">< 1s</span>
+                <span class="stat-label">Temps de réponse</span>
+              </div>
+              <div class="gemini-stat">
+                <span class="stat-value">200+</span>
+                <span class="stat-label">Langues supportées</span>
+              </div>
+              <div class="gemini-stat">
+                <span class="stat-value">∞</span>
+                <span class="stat-label">Créativité</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 10: Ecosystem of Tools -->
-    <section class="slide slide-ecosystem stars" data-slide="9">
+    <!-- Slide 11: Ecosystem of Tools -->
+    <section class="slide slide-ecosystem stars" data-slide="10">
       <div class="ecosystem-section">
         <h2 class="animate-in animate-in-1">Un Écosystème Complet d'Outils IA</h2>
         <p class="tagline animate-in animate-in-2">Bien plus que du prompting — une formation aux outils de demain</p>
@@ -3098,42 +3606,174 @@
       </div>
     </section>
 
-    <!-- Slide 11: 5 Modes -->
-    <section class="slide stars" data-slide="10">
+    <!-- Slide 12: 5 Modes -->
+    <section class="slide stars" data-slide="11">
       <div class="modes-showcase">
         <h2 class="animate-in animate-in-1">Cinq Univers Créatifs</h2>
-        <div class="modes-grid">
-          <div class="mode-card animate-in animate-in-2">
-            <span class="mode-icon">📔</span>
-            <h3>Journal</h3>
-            <p>Un espace intime pour les confidences, photos, et enregistrements vocaux</p>
+        <p class="modes-tagline animate-in animate-in-1">Chaque mode, une expérience unique avec Luna</p>
+        <div class="modes-grid-enhanced">
+          <div class="mode-card-enhanced animate-in animate-in-2">
+            <span class="mode-icon-large">📔</span>
+            <h3>Journal Intime</h3>
+            <p class="mode-description">Espace personnel et confidentiel pour les émotions, photos, enregistrements vocaux.</p>
+            <p class="mode-luna"><em>Luna y est plus douce, plus confidente.</em></p>
           </div>
-          <div class="mode-card animate-in animate-in-2">
-            <span class="mode-icon">✍️</span>
-            <h3>Écriture</h3>
-            <p>Création de récits avec structures narratives professionnelles</p>
+          <div class="mode-card-enhanced animate-in animate-in-2">
+            <span class="mode-icon-large">✍️</span>
+            <h3>Éditeur d'Histoires</h3>
+            <p class="mode-description">Création de récits avec structures narratives guidées (conte, aventure, mystère).</p>
+            <p class="mode-luna"><em>Luna guide avec les 5 Questions Magiques.</em></p>
           </div>
-          <div class="mode-card animate-in animate-in-3">
-            <span class="mode-icon">🎨</span>
-            <h3>Studio</h3>
-            <p>Génération d'images IA avec Midjourney et création vocale</p>
+          <div class="mode-card-enhanced animate-in animate-in-3">
+            <span class="mode-icon-large">🎨</span>
+            <h3>Studio de Création</h3>
+            <p class="mode-description">Génération d'images (Midjourney), vidéos (Runway), voix (ElevenLabs).</p>
+            <p class="mode-luna"><em>Luna enseigne les 5 Clés Magiques.</em></p>
           </div>
-          <div class="mode-card animate-in animate-in-3">
-            <span class="mode-icon">📐</span>
-            <h3>Montage</h3>
-            <p>Assemblage texte et images, typographies, synchronisation audio</p>
+          <div class="mode-card-enhanced animate-in animate-in-3">
+            <span class="mode-icon-large">📐</span>
+            <h3>Studio d'Édition</h3>
+            <p class="mode-description">Mise en page professionnelle, assemblage texte/images, typographies, chapitres.</p>
+            <p class="mode-luna"><em>Préparation à l'export et à la publication.</em></p>
           </div>
-          <div class="mode-card animate-in animate-in-4">
-            <span class="mode-icon">🎭</span>
+          <div class="mode-card-enhanced animate-in animate-in-4">
+            <span class="mode-icon-large">🎭</span>
             <h3>Théâtre</h3>
-            <p>Présentation immersive avec contrôle domotique HomeKit</p>
+            <p class="mode-description">Projection AirPlay, lumières Hue synchronisées, Luna lit l'histoire.</p>
+            <p class="mode-luna"><em>Le salon devient une salle de cinéma.</em></p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 12: Autonomy & Skills -->
-    <section class="slide slide-autonomy" data-slide="11">
+    <!-- Slide 13: Theatre Experience - NEW -->
+    <section class="slide slide-theatre" data-slide="12">
+      <div class="theatre-section">
+        <h2 class="animate-in animate-in-1">L'Expérience Théâtre</h2>
+        <p class="tagline animate-in animate-in-2">Le salon devient une salle de projection privée</p>
+        
+        <div class="theatre-content">
+          <div class="theatre-diagram animate-in animate-in-3">
+            <div class="theatre-device">
+              <span class="device-icon">💻</span>
+              <span class="device-label">Mac</span>
+            </div>
+            <div class="theatre-arrow">
+              <span class="airplay-icon">📡</span>
+              <span class="arrow-label">AirPlay</span>
+            </div>
+            <div class="theatre-outputs">
+              <div class="output-item">
+                <span class="output-icon">📺</span>
+                <span class="output-label">TV / Projecteur</span>
+              </div>
+              <div class="output-item">
+                <span class="output-icon">💡</span>
+                <span class="output-label">Lumières Hue</span>
+              </div>
+              <div class="output-item">
+                <span class="output-icon">🔊</span>
+                <span class="output-label">Audio</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="theatre-features animate-in animate-in-4">
+            <div class="theatre-feature">
+              <span class="feature-icon">📺</span>
+              <div class="feature-text">
+                <h4>Projection sans fil</h4>
+                <p>AirPlay natif macOS — TV, Apple TV, vidéoprojecteur. Un clic suffit.</p>
+              </div>
+            </div>
+            <div class="theatre-feature">
+              <span class="feature-icon">💡</span>
+              <div class="feature-text">
+                <h4>Ambiance immersive</h4>
+                <p>Les lumières Hue/HomeKit s'adaptent à l'histoire — forêt sombre, château doré, mer bleue.</p>
+              </div>
+            </div>
+            <div class="theatre-feature">
+              <span class="feature-icon">🎙️</span>
+              <div class="feature-text">
+                <h4>Luna narratrice</h4>
+                <p>Lecture expressive synchronisée aux images. L'histoire prend vie.</p>
+              </div>
+            </div>
+            <div class="theatre-feature">
+              <span class="feature-icon">👨‍👩‍👧‍👦</span>
+              <div class="feature-text">
+                <h4>Moment famille</h4>
+                <p>Les filles présentent leur création. Fierté partagée, souvenirs inoubliables.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 14: L'Horizon - Amazon KDP -->
+    <section class="slide slide-horizon stars" data-slide="13">
+      <div class="horizon-section">
+        <h2 class="animate-in animate-in-1">L'Horizon</h2>
+        <p class="tagline animate-in animate-in-2">Et si demain, elles publiaient leur premier livre ?</p>
+        
+        <div class="horizon-journey animate-in animate-in-3">
+          <div class="journey-step-horizon">
+            <span class="step-icon">✍️</span>
+            <span class="step-label">Écriture</span>
+          </div>
+          <span class="journey-arrow-horizon">→</span>
+          <div class="journey-step-horizon">
+            <span class="step-icon">🎨</span>
+            <span class="step-label">Illustration</span>
+          </div>
+          <span class="journey-arrow-horizon">→</span>
+          <div class="journey-step-horizon">
+            <span class="step-icon">📐</span>
+            <span class="step-label">Édition</span>
+          </div>
+          <span class="journey-arrow-horizon">→</span>
+          <div class="journey-step-horizon">
+            <span class="step-icon">📤</span>
+            <span class="step-label">Export</span>
+          </div>
+          <span class="journey-arrow-horizon">→</span>
+          <div class="journey-step-horizon highlight-amazon">
+            <span class="step-icon">📚</span>
+            <span class="step-label">Amazon KDP</span>
+          </div>
+        </div>
+        
+        <div class="horizon-status animate-in animate-in-4">
+          <div class="status-ready">
+            <h4>✅ Déjà en place</h4>
+            <ul>
+              <li>Éditeur de texte professionnel</li>
+              <li>Illustrations IA haute qualité</li>
+              <li>Mise en page et chapitres</li>
+              <li>Export des créations</li>
+            </ul>
+          </div>
+          <div class="status-future">
+            <h4>🔜 Possibilités futures</h4>
+            <ul>
+              <li>Export format Kindle</li>
+              <li>Génération de couverture</li>
+              <li>Accompagnement publication</li>
+              <li>ISBN et distribution</li>
+            </ul>
+          </div>
+        </div>
+        
+        <p class="horizon-quote animate-in animate-in-5">
+          <em>"La Voix du Soir ne forme pas juste à utiliser l'IA — elle crée de futures auteures."</em>
+        </p>
+      </div>
+    </section>
+
+    <!-- Slide 15: Autonomy & Skills -->
+    <section class="slide slide-autonomy" data-slide="14">
       <div class="autonomy-section">
         <h2 class="animate-in animate-in-1">Développer l'Autonomie</h2>
         <p class="tagline animate-in animate-in-2">Des compétences qui serviront toute la vie</p>
@@ -3217,8 +3857,8 @@
       </div>
     </section>
 
-    <!-- Slide 13: Mentorship -->
-    <section class="slide slide-mentorship stars" data-slide="12">
+    <!-- Slide 16: Mentorship -->
+    <section class="slide slide-mentorship stars" data-slide="15">
       <div class="mentorship-section">
         <h2 class="animate-in animate-in-1">Mentorship à Distance</h2>
         <p class="tagline animate-in animate-in-2">Un accompagnement humain en plus de l'IA</p>
@@ -3231,7 +3871,7 @@
               <div class="mentor-icon">👨‍🏫</div>
             </div>
             <h3>Partage d'Écran en Direct</h3>
-            <p>Le mentor voit exactement ce que fait l'enfant et peut guider en temps réel via WebRTC</p>
+            <p>Le mentor voit exactement ce que fait l'enfant et peut guider en temps réel — comme s'il était à côté d'elle</p>
           </div>
 
           <div class="mentor-card animate-in animate-in-3">
@@ -3265,8 +3905,8 @@
       </div>
     </section>
 
-    <!-- Slide 14: Gamification Invisible -->
-    <section class="slide slide-gamification" data-slide="13">
+    <!-- Slide 17: Gamification Invisible -->
+    <section class="slide slide-gamification" data-slide="16">
       <div class="gamification-section">
         <h2 class="animate-in animate-in-1">Gamification Invisible</h2>
         <p class="tagline animate-in animate-in-2">"La meilleure gamification est celle qu'on ne voit pas"</p>
@@ -3339,8 +3979,8 @@
       </div>
     </section>
 
-    <!-- Slide 15: Design Philosophy -->
-    <section class="slide slide-design" data-slide="14">
+    <!-- Slide 18: Design Philosophy -->
+    <section class="slide slide-design" data-slide="17">
       <!-- Slide 11 -->
       <div class="design-section">
         <h2 class="animate-in animate-in-1">Design Ludique & Immersif</h2>
@@ -3397,8 +4037,8 @@
       </div>
     </section>
 
-    <!-- Slide 16: Prompting Pedagogy - SYNOPTIQUE -->
-    <section class="slide" data-slide="15">
+    <!-- Slide 19: Prompting Pedagogy - SYNOPTIQUE -->
+    <section class="slide" data-slide="18">
       <div class="synoptic-section">
         <h2 class="animate-in animate-in-1">Les 5 Clés Magiques — Synoptique</h2>
         <p class="animate-in animate-in-2" style="text-align: center; color: var(--text-muted); margin-bottom: 30px;">Comment Luna analyse et guide chaque prompt d'image</p>
@@ -3473,8 +4113,8 @@
       </div>
     </section>
 
-    <!-- Slide 17: Writing Questions - SYNOPTIQUE -->
-    <section class="slide" data-slide="16">
+    <!-- Slide 20: Writing Questions - SYNOPTIQUE -->
+    <section class="slide" data-slide="19">
       <div class="synoptic-section">
         <h2 class="animate-in animate-in-1">Les 5 Questions Magiques — Synoptique</h2>
         <p class="animate-in animate-in-2" style="text-align: center; color: var(--text-muted); margin-bottom: 30px;">Comment Luna détecte la richesse des descriptions et adapte sa pédagogie</p>
@@ -3530,8 +4170,8 @@
       </div>
     </section>
 
-    <!-- Slide 18: Progression System - SYNOPTIQUE DETAILLÉ -->
-    <section class="slide" data-slide="17">
+    <!-- Slide 21: Progression System - SYNOPTIQUE DETAILLÉ -->
+    <section class="slide" data-slide="20">
       <div class="progression-synoptic">
         <h2 class="animate-in animate-in-1">Système de Progression — Vue Technique</h2>
         <p class="animate-in animate-in-2" style="text-align: center; color: var(--text-muted); margin-bottom: 40px;">Deux parcours parallèles, XP invisible, adaptation automatique</p>
@@ -3632,8 +4272,8 @@
       </div>
     </section>
 
-    <!-- Slide 19: Book Interface -->
-    <section class="slide" data-slide="18">
+    <!-- Slide 22: Book Interface -->
+    <section class="slide" data-slide="21">
       <div class="two-columns">
         <div class="column-content">
           <h2 class="animate-in animate-in-1">Interface Livre Ouvert</h2>
@@ -3676,13 +4316,13 @@
       </div>
     </section>
 
-    <!-- Slide 20: Multi-platform -->
-    <section class="slide stars" data-slide="19">
+    <!-- Slide 23: Multi-platform -->
+    <section class="slide stars" data-slide="22">
       <div class="feature-grid" style="max-width: 1000px;">
         <div class="feature-card animate-in animate-in-1" style="grid-column: span 2;">
           <span class="feature-icon">🖥️</span>
           <h3>Application Desktop Mac</h3>
-          <p>Version Electron avec fonctionnalités exclusives : voix macOS natives haute qualité, contrôle à distance pour les mentors, partage d'écran complet.</p>
+          <p>Application native macOS avec fonctionnalités exclusives : voix haute qualité, contrôle à distance pour les mentors, partage d'écran complet.</p>
         </div>
         <div class="feature-card animate-in animate-in-2">
           <span class="feature-icon">📱</span>
@@ -3707,49 +4347,49 @@
       </div>
     </section>
 
-    <!-- Slide 21: Tech Stack -->
-    <section class="slide" data-slide="20">
+    <!-- Slide 24: Notre Engagement -->
+    <section class="slide" data-slide="23">
       <div class="tech-section">
-        <h2 class="animate-in animate-in-1">Excellence Technologique</h2>
+        <h2 class="animate-in animate-in-1">Notre Engagement</h2>
         <div class="tech-grid">
           <div class="tech-item animate-in animate-in-2">
-            <h4>Next.js 14</h4>
-            <p>Framework React moderne</p>
+            <h4>🎯 Sur-Mesure</h4>
+            <p>Application conçue exclusivement pour vos filles</p>
           </div>
           <div class="tech-item animate-in animate-in-2">
-            <h4>TypeScript</h4>
-            <p>Code robuste et maintenable</p>
+            <h4>🔒 Confidentialité</h4>
+            <p>Données privées, aucun partage externe</p>
           </div>
           <div class="tech-item animate-in animate-in-2">
-            <h4>Electron</h4>
-            <p>Application desktop native</p>
+            <h4>🚀 Évolutivité</h4>
+            <p>Intégration des nouveaux outils IA dès leur sortie</p>
           </div>
           <div class="tech-item animate-in animate-in-2">
-            <h4>Supabase</h4>
-            <p>Base de données temps réel</p>
+            <h4>🛎️ Support Dédié</h4>
+            <p>Équipe disponible pour toute assistance</p>
           </div>
           <div class="tech-item animate-in animate-in-3">
-            <h4>Gemini 2.0 Flash</h4>
-            <p>IA conversationnelle avancée</p>
+            <h4>🧠 Gemini 2.0 Flash</h4>
+            <p>Le meilleur modèle conversationnel de Google</p>
           </div>
           <div class="tech-item animate-in animate-in-3">
-            <h4>WebRTC</h4>
-            <p>Communication peer-to-peer</p>
+            <h4>🎨 Midjourney V6</h4>
+            <p>Génération d'images état de l'art</p>
           </div>
           <div class="tech-item animate-in animate-in-3">
-            <h4>TipTap</h4>
-            <p>Éditeur de texte riche</p>
+            <h4>🎬 Runway Gen-3</h4>
+            <p>Création vidéo de qualité professionnelle</p>
           </div>
           <div class="tech-item animate-in animate-in-3">
-            <h4>Framer Motion</h4>
-            <p>Animations fluides</p>
+            <h4>🔄 Mises à jour</h4>
+            <p>Évolutions continues sans intervention</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 22: Quote -->
-    <section class="slide stars" data-slide="21">
+    <!-- Slide 25: Quote -->
+    <section class="slide stars" data-slide="24">
       <div class="quote-section">
         <div class="quote-mark animate-in animate-in-1">"</div>
         <p class="quote-text animate-in animate-in-2">
@@ -3759,8 +4399,8 @@
       </div>
     </section>
 
-    <!-- Slide 23: Final -->
-    <section class="slide cta-slide stars" data-slide="22">
+    <!-- Slide 26: Final -->
+    <section class="slide cta-slide stars" data-slide="25">
       <h2 class="animate-in animate-in-1">Prêtes à Créer ?</h2>
       <p class="animate-in animate-in-2">
         La Voix du Soir offre à vos filles les clés pour maîtriser l'intelligence artificielle, tout en développant leur créativité et leur imagination. Un investissement dans leur avenir.
