@@ -37,6 +37,12 @@ import {
   Maximize2,
   RotateCw,
   Frame,
+  Play,
+  Pause,
+  Video,
+  Palette,
+  ImagePlus,
+  Layers,
 } from 'lucide-react'
 import { useAppStore, type Story } from '@/store/useAppStore'
 import { useTTS } from '@/hooks/useTTS'
@@ -105,14 +111,55 @@ const FRAME_STYLES: { id: FrameStyle; name: string; emoji: string }[] = [
   { id: 'shadow3d', name: '3D', emoji: '🎲' },
 ]
 
+// Interface pour une image individuelle sur la page
+type MediaType = 'image' | 'video'
+
+interface PageMedia {
+  id: string
+  url: string
+  type: MediaType  // Type de média (image ou vidéo)
+  position: ImagePosition
+  style: ImageStyle
+  frame: FrameStyle
+  zIndex: number  // Ordre de superposition (plus haut = devant)
+}
+
+// Couleurs de page disponibles
+type PageColor = 'cream' | 'white' | 'aged' | 'parchment' | 'blue' | 'pink' | 'mint' | 'lavender' | 'peach' | 'sky'
+
+const PAGE_COLORS: { id: PageColor; name: string; bg: string; lines: string }[] = [
+  { id: 'cream', name: 'Crème', bg: 'bg-amber-50', lines: 'rgba(139, 115, 85, 0.15)' },
+  { id: 'white', name: 'Blanc', bg: 'bg-white', lines: 'rgba(100, 100, 100, 0.12)' },
+  { id: 'aged', name: 'Vieilli', bg: 'bg-amber-100', lines: 'rgba(139, 90, 43, 0.2)' },
+  { id: 'parchment', name: 'Parchemin', bg: 'bg-orange-50', lines: 'rgba(180, 120, 60, 0.15)' },
+  { id: 'blue', name: 'Bleu ciel', bg: 'bg-blue-50', lines: 'rgba(59, 130, 246, 0.15)' },
+  { id: 'pink', name: 'Rose', bg: 'bg-pink-50', lines: 'rgba(236, 72, 153, 0.12)' },
+  { id: 'mint', name: 'Menthe', bg: 'bg-emerald-50', lines: 'rgba(16, 185, 129, 0.12)' },
+  { id: 'lavender', name: 'Lavande', bg: 'bg-purple-50', lines: 'rgba(139, 92, 246, 0.12)' },
+  { id: 'peach', name: 'Pêche', bg: 'bg-orange-100', lines: 'rgba(251, 146, 60, 0.15)' },
+  { id: 'sky', name: 'Ciel', bg: 'bg-sky-50', lines: 'rgba(14, 165, 233, 0.12)' },
+]
+
+// Interface pour le fond de page (image ou vidéo)
+interface BackgroundMedia {
+  url: string
+  type: MediaType  // 'image' ou 'video'
+  opacity: number  // 0.1 à 1
+}
+
 interface StoryPageLocal {
   id: string
   title: string
   content: string
+  // Support multi-médias (images et vidéos)
+  images?: PageMedia[]
+  // Fond de page (image ou vidéo avec opacité)
+  backgroundMedia?: BackgroundMedia
+  // Legacy: anciens champs pour rétrocompatibilité
   image?: string
-  imagePosition?: ImagePosition  // Position de l'image (calque flottant)
-  imageStyle?: ImageStyle        // Style visuel de l'image
-  frameStyle?: FrameStyle        // Cadre décoratif de l'image
+  imagePosition?: ImagePosition
+  imageStyle?: ImageStyle
+  frameStyle?: FrameStyle
   chapterId?: string
   style?: TextStyle
 }
@@ -305,16 +352,22 @@ const LINE_SPACINGS = {
 // COMPOSANT : Image déplaçable (calque flottant)
 // ============================================================================
 
-interface DraggableImageProps {
+interface DraggableMediaProps {
+  mediaId: string
   src: string
+  mediaType: MediaType  // 'image' ou 'video'
   position: ImagePosition
   imageStyle: ImageStyle
   frameStyle: FrameStyle
+  zIndex: number
   onPositionChange: (position: ImagePosition) => void
   onStyleChange: (style: ImageStyle) => void
   onFrameChange: (frame: FrameStyle) => void
   onDelete: () => void
+  onBringForward?: () => void
+  onSendBackward?: () => void
   containerRef: React.RefObject<HTMLDivElement>
+  totalMedia?: number
 }
 
 const DEFAULT_IMAGE_POSITION: ImagePosition = {
@@ -325,7 +378,7 @@ const DEFAULT_IMAGE_POSITION: ImagePosition = {
   rotation: 0, // Pas de rotation par défaut
 }
 
-function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChange, onStyleChange, onFrameChange, onDelete, containerRef }: DraggableImageProps) {
+function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, onPositionChange, onStyleChange, onFrameChange, onDelete, onBringForward, onSendBackward, containerRef, totalMedia = 1 }: DraggableMediaProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [isRotating, setIsRotating] = useState(false)
@@ -333,9 +386,24 @@ function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChang
   const [showControls, setShowControls] = useState(false)
   const [showFrameMenu, setShowFrameMenu] = useState(false)
   const [showStyleMenu, setShowStyleMenu] = useState(false)
-  const imageRef = useRef<HTMLDivElement>(null)
+  const [isPlaying, setIsPlaying] = useState(false)  // Pour les vidéos
+  const mediaRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const startPosRef = useRef({ x: 0, y: 0, posX: 0, posY: 0, width: 0, height: 0 })
   const rotationRef = useRef({ centerX: 0, centerY: 0, startAngle: 0, startRotation: 0 })
+  
+  // Fonction pour toggle play/pause vidéo
+  const toggleVideo = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause()
+      } else {
+        videoRef.current.play()
+      }
+      setIsPlaying(!isPlaying)
+    }
+  }
 
   // Gérer le début du drag
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -381,8 +449,8 @@ function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChang
     setIsRotating(true)
     
     // Calculer le centre de l'image
-    if (imageRef.current) {
-      const rect = imageRef.current.getBoundingClientRect()
+    if (mediaRef.current) {
+      const rect = mediaRef.current.getBoundingClientRect()
       const centerX = rect.left + rect.width / 2
       const centerY = rect.top + rect.height / 2
       
@@ -506,6 +574,9 @@ function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChang
   // Styles CSS personnalisés selon le style
   const getContainerStyles = (): React.CSSProperties => {
     const rotation = position.rotation || 0
+    // Utiliser le zIndex prop + boost si interaction en cours
+    const baseZIndex = zIndex + 10 // Base: zIndex de l'image + 10 pour être au-dessus du texte
+    const activeZIndex = isDragging || isResizing || showControls || showStyleMenu || showFrameMenu ? baseZIndex + 100 : baseZIndex
     
     const baseStyles: React.CSSProperties = {
       left: `${position.x}%`,
@@ -513,7 +584,7 @@ function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChang
       width: `${position.width}%`,
       height: `${position.height}%`,
       cursor: isDragging ? 'grabbing' : 'grab',
-      zIndex: isDragging || isResizing || showControls || showStyleMenu ? 50 : 20,
+      zIndex: activeZIndex,
       transform: rotation !== 0 ? `rotate(${rotation}deg)` : undefined,
     }
 
@@ -541,7 +612,7 @@ function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChang
 
   return (
     <div
-      ref={imageRef}
+      ref={mediaRef}
       className="absolute"
       style={getContainerStyles()}
       onMouseDown={handleMouseDown}
@@ -565,34 +636,67 @@ function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChang
           !['circle', 'heart', 'cloud', 'glow', 'polaroid', 'neon', 'golden', 'shadow3d', 'frost'].includes(imageStyle) && showControls && !showStyleMenu && "ring-2 ring-aurora-400/50"
         )}
       >
-        {/* Image */}
-        <img 
-          src={src} 
-          alt="Illustration" 
-          className={cn(
-            "w-full h-full object-cover pointer-events-none",
-            getImageStyleClasses(),
-          )}
-          style={{
-            clipPath: getClipPath(),
-            // Effet estompé sur les bords (style Nuage)
-            maskImage: imageStyle === 'cloud' 
-              ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
-              : undefined,
-            WebkitMaskImage: imageStyle === 'cloud' 
-              ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
-              : undefined,
-          }}
-          draggable={false}
-        />
+        {/* Image ou Vidéo */}
+        {mediaType === 'video' ? (
+          <video
+            ref={videoRef}
+            src={src}
+            className={cn(
+              "w-full h-full object-cover pointer-events-none",
+              getImageStyleClasses(),
+            )}
+            style={{
+              clipPath: getClipPath(),
+              maskImage: imageStyle === 'cloud' 
+                ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
+                : undefined,
+              WebkitMaskImage: imageStyle === 'cloud' 
+                ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
+                : undefined,
+            }}
+            loop
+            muted={false}
+            playsInline
+            onEnded={() => setIsPlaying(false)}
+          />
+        ) : (
+          <img 
+            src={src} 
+            alt="Illustration" 
+            className={cn(
+              "w-full h-full object-cover pointer-events-none",
+              getImageStyleClasses(),
+            )}
+            style={{
+              clipPath: getClipPath(),
+              maskImage: imageStyle === 'cloud' 
+                ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
+                : undefined,
+              WebkitMaskImage: imageStyle === 'cloud' 
+                ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
+                : undefined,
+            }}
+            draggable={false}
+          />
+        )}
 
         {/* Overlay avec contrôles */}
         {showControls && !showStyleMenu && (
           <div className="absolute inset-0 bg-black/20 pointer-events-none" />
         )}
 
-        {/* Bouton déplacer (centre) */}
-        {showControls && !showStyleMenu && (
+        {/* Bouton Play/Pause pour vidéos */}
+        {mediaType === 'video' && showControls && !showStyleMenu && (
+          <button
+            onClick={toggleVideo}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors z-20"
+          >
+            {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+          </button>
+        )}
+
+        {/* Bouton déplacer (centre) - seulement pour images */}
+        {mediaType === 'image' && showControls && !showStyleMenu && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white pointer-events-none">
             <Move className="w-5 h-5" />
           </div>
@@ -763,6 +867,38 @@ function DraggableImage({ src, position, imageStyle, frameStyle, onPositionChang
         >
           <X className="w-4 h-4" />
         </button>
+      )}
+
+      {/* Boutons de superposition (devant/derrière) - seulement si plusieurs médias */}
+      {showControls && totalMedia > 1 && (
+        <div className="absolute -bottom-2 -left-2 flex gap-1 z-30">
+          {onSendBackward && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onSendBackward()
+              }}
+              className="p-1 rounded-full bg-midnight-700 text-white hover:bg-midnight-600 transition-colors shadow-lg"
+              onMouseDown={(e) => e.stopPropagation()}
+              title="Envoyer derrière"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onBringForward && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onBringForward()
+              }}
+              className="p-1 rounded-full bg-midnight-700 text-white hover:bg-midnight-600 transition-colors shadow-lg"
+              onMouseDown={(e) => e.stopPropagation()}
+              title="Mettre devant"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       )}
 
       {/* Bouton palette (filtres) */}
@@ -963,7 +1099,7 @@ interface PageTabProps {
 
 function PageTab({ page, index, isActive, chapter, onClick, onDelete, canDelete }: PageTabProps) {
   const hasContent = page.content.length > 0
-  const hasImage = !!page.image
+  const hasImage = !!page.image || (page.images && page.images.length > 0)
   
   return (
     <motion.button
@@ -1458,12 +1594,21 @@ interface FormatBarProps {
   onStyleChange: (style: TextStyle) => void
   showLines?: boolean
   onToggleLines?: () => void
+  bookColor?: PageColor
+  onBookColorChange?: (color: PageColor) => void
+  // Fond de page
+  backgroundMedia?: BackgroundMedia
+  onBackgroundAdd?: () => void
+  onBackgroundOpacityChange?: (opacity: number) => void
+  onBackgroundRemove?: () => void
 }
 
-function FormatBar({ style, onStyleChange, showLines = true, onToggleLines }: FormatBarProps) {
+function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, backgroundMedia, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundRemove }: FormatBarProps) {
   const [showFonts, setShowFonts] = useState(false)
   const [showFontSizes, setShowFontSizes] = useState(false)
   const [showColors, setShowColors] = useState(false)
+  const [showPageColors, setShowPageColors] = useState(false)
+  const [showBackgroundMenu, setShowBackgroundMenu] = useState(false)
   const [lastUsedColor, setLastUsedColor] = useState('#ef4444')
   const [lastUsedSize, setLastUsedSize] = useState(style.fontSize)
   const [detectedFontFamily, setDetectedFontFamily] = useState(style.fontFamily)
@@ -2016,6 +2161,178 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines }: Fo
           </svg>
         </button>
       )}
+      
+      {/* Sélecteur de couleur du livre */}
+      {onBookColorChange && (
+        <div className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowPageColors(!showPageColors)}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors",
+              showPageColors 
+                ? "bg-dream-500/20 text-dream-300" 
+                : "text-midnight-400 hover:bg-midnight-800"
+            )}
+            title="Couleur des pages"
+          >
+            <Palette className="w-4 h-4" />
+          </button>
+          
+          {/* Menu de couleurs */}
+          <AnimatePresence>
+            {showPageColors && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute top-full left-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[200px]"
+              >
+                <div className="text-xs text-midnight-400 mb-2 font-medium">Couleur du livre</div>
+                <div className="grid grid-cols-5 gap-2">
+                  {PAGE_COLORS.map((color) => (
+                    <button
+                      key={color.id}
+                      onClick={() => {
+                        onBookColorChange(color.id)
+                        setShowPageColors(false)
+                      }}
+                      className={cn(
+                        "w-8 h-8 rounded-lg border-2 transition-all hover:scale-110",
+                        color.bg,
+                        bookColor === color.id
+                          ? "border-aurora-500 ring-2 ring-aurora-500/30"
+                          : "border-midnight-600 hover:border-midnight-500"
+                      )}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+      
+      {/* Bouton fond de page */}
+      {onBackgroundAdd && (
+        <div className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowBackgroundMenu(!showBackgroundMenu)}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors",
+              backgroundMedia 
+                ? "bg-aurora-500/20 text-aurora-300" 
+                : showBackgroundMenu
+                  ? "bg-dream-500/20 text-dream-300"
+                  : "text-midnight-400 hover:bg-midnight-800"
+            )}
+            title="Fond de page"
+          >
+            <Layers className="w-4 h-4" />
+          </button>
+          
+          {/* Menu fond de page */}
+          <AnimatePresence>
+            {showBackgroundMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute top-full right-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[220px]"
+              >
+                <div className="text-xs text-midnight-400 mb-3 font-medium">Fond de page</div>
+                
+                {backgroundMedia ? (
+                  <>
+                    {/* Aperçu du fond actuel */}
+                    <div className="relative w-full h-20 rounded-lg overflow-hidden mb-3 bg-midnight-800">
+                      {backgroundMedia.type === 'video' ? (
+                        <video
+                          src={backgroundMedia.url}
+                          className="w-full h-full object-cover"
+                          style={{ opacity: backgroundMedia.opacity }}
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          src={backgroundMedia.url}
+                          alt="Fond"
+                          className="w-full h-full object-cover"
+                          style={{ opacity: backgroundMedia.opacity }}
+                        />
+                      )}
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white">
+                        {backgroundMedia.type === 'video' ? '🎬' : '🖼️'} {Math.round(backgroundMedia.opacity * 100)}%
+                      </div>
+                    </div>
+                    
+                    {/* Slider d'opacité */}
+                    <div className="mb-3">
+                      <label className="text-xs text-midnight-400 block mb-1">Opacité</label>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        value={backgroundMedia.opacity * 100}
+                        onChange={(e) => onBackgroundOpacityChange?.(parseInt(e.target.value) / 100)}
+                        className="w-full h-2 bg-midnight-700 rounded-lg appearance-none cursor-pointer accent-aurora-500"
+                      />
+                      <div className="flex justify-between text-[10px] text-midnight-500 mt-1">
+                        <span>10%</span>
+                        <span>{Math.round(backgroundMedia.opacity * 100)}%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                    
+                    {/* Boutons */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          onBackgroundAdd()
+                          setShowBackgroundMenu(false)
+                        }}
+                        className="flex-1 px-3 py-1.5 bg-midnight-800 hover:bg-midnight-700 text-white text-xs rounded-lg transition-colors"
+                      >
+                        Changer
+                      </button>
+                      <button
+                        onClick={() => {
+                          onBackgroundRemove?.()
+                          setShowBackgroundMenu(false)
+                        }}
+                        className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-midnight-500 mb-3">
+                      Ajoute une image ou vidéo en fond de cette page
+                    </p>
+                    <button
+                      onClick={() => {
+                        onBackgroundAdd()
+                        setShowBackgroundMenu(false)
+                      }}
+                      className="w-full px-3 py-2 bg-gradient-to-r from-aurora-600 to-dream-600 text-white text-sm font-medium rounded-lg hover:from-aurora-500 hover:to-dream-500 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                      Ajouter un fond
+                    </button>
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   )
 }
@@ -2036,10 +2353,13 @@ interface WritingAreaProps {
   onCreateChapter: (title: string) => void
   onUpdateChapter?: (chapterId: string, updates: Partial<Chapter>) => void
   onImageAdd: () => void
-  onImagePositionChange?: (pageIndex: number, position: ImagePosition) => void
-  onImageStyleChange?: (pageIndex: number, style: ImageStyle) => void
-  onImageFrameChange?: (pageIndex: number, frame: FrameStyle) => void
-  onImageDelete?: (pageIndex: number) => void
+  // Callbacks multi-images (nouveau)
+  onImagePositionChange?: (pageIndex: number, imageId: string, position: ImagePosition) => void
+  onImageStyleChange?: (pageIndex: number, imageId: string, style: ImageStyle) => void
+  onImageFrameChange?: (pageIndex: number, imageId: string, frame: FrameStyle) => void
+  onImageDelete?: (pageIndex: number, imageId: string) => void
+  onImageBringForward?: (pageIndex: number, imageId: string) => void
+  onImageSendBackward?: (pageIndex: number, imageId: string) => void
   locale?: 'fr' | 'en' | 'ru'
   onPrevPage?: () => void
   onNextPage?: () => void
@@ -2063,9 +2383,16 @@ interface WritingAreaProps {
   // Afficher/masquer les lignes de cahier
   showLines?: boolean
   onToggleLines?: () => void
+  // Couleur du livre (globale)
+  bookColor?: PageColor
+  onBookColorChange?: (color: PageColor) => void
+  // Fond de page
+  onBackgroundAdd?: (pageIndex: number) => void
+  onBackgroundOpacityChange?: (pageIndex: number, opacity: number) => void
+  onBackgroundRemove?: (pageIndex: number) => void
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageDelete, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageDelete, onImageBringForward, onImageSendBackward, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundRemove }: WritingAreaProps) {
   const style = page?.style || leftPage?.style || DEFAULT_STYLE
   const editorRef = useRef<HTMLDivElement>(null)
   const leftEditorRef = useRef<HTMLDivElement>(null)
@@ -2083,6 +2410,30 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   
   // État pour le menu d'alignement du titre de chapitre
   const [alignmentMenuOpen, setAlignmentMenuOpen] = useState<'left' | 'right' | 'zoom' | null>(null)
+  
+  // État pour le menu de couleur de page
+  const [colorMenuOpen, setColorMenuOpen] = useState(false)
+  
+  // Helper pour obtenir les styles de couleur de page
+  const getPageColorStyles = (color?: PageColor) => {
+    const pageColorConfig = PAGE_COLORS.find(c => c.id === (color || 'cream')) || PAGE_COLORS[0]
+    const gradients: Record<PageColor, string> = {
+      'cream': 'linear-gradient(225deg, #fef9f0 0%, #fdf6e8 50%, #fbf2df 100%)',
+      'white': 'linear-gradient(225deg, #ffffff 0%, #fafafa 50%, #f5f5f5 100%)',
+      'aged': 'linear-gradient(225deg, #fde68a 0%, #fcd34d 50%, #fbbf24 100%)',
+      'parchment': 'linear-gradient(225deg, #ffedd5 0%, #fed7aa 50%, #fdba74 100%)',
+      'blue': 'linear-gradient(225deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%)',
+      'pink': 'linear-gradient(225deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%)',
+      'mint': 'linear-gradient(225deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%)',
+      'lavender': 'linear-gradient(225deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)',
+      'peach': 'linear-gradient(225deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)',
+      'sky': 'linear-gradient(225deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%)',
+    }
+    return {
+      background: gradients[color || 'cream'],
+      linesColor: pageColorConfig.lines,
+    }
+  }
   
   // Notifier le parent quand le zoom change
   useEffect(() => {
@@ -2212,6 +2563,35 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
     const text = content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
     return text.split(/\s+/).filter(Boolean).length
   }
+
+  // Helper pour obtenir tous les médias d'une page (format nouveau + legacy)
+  const getPageImages = (p: StoryPageLocal | undefined): PageMedia[] => {
+    if (!p) return []
+    
+    // Si le nouveau format est utilisé
+    if (p.images && p.images.length > 0) {
+      return p.images
+    }
+    
+    // Fallback vers le format legacy (une seule image)
+    if (p.image) {
+      return [{
+        id: 'legacy-image',
+        url: p.image,
+        type: 'image' as MediaType,
+        position: p.imagePosition || DEFAULT_IMAGE_POSITION,
+        style: p.imageStyle || 'normal',
+        frame: p.frameStyle || 'none',
+        zIndex: 1,
+      }]
+    }
+    
+    return []
+  }
+
+  // Images de la page droite et gauche
+  const rightPageImages = getPageImages(page)
+  const leftPageImages = getPageImages(leftPage)
   
   return (
     <div className="flex-1 flex flex-col">
@@ -2246,6 +2626,12 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onStyleChange={onStyleChange}
                 showLines={showLines}
                 onToggleLines={onToggleLines}
+                bookColor={bookColor}
+                onBookColorChange={onBookColorChange}
+                backgroundMedia={page?.backgroundMedia}
+                onBackgroundAdd={() => onBackgroundAdd?.(pageIndex)}
+                onBackgroundOpacityChange={(opacity) => onBackgroundOpacityChange?.(pageIndex, opacity)}
+                onBackgroundRemove={() => onBackgroundRemove?.(pageIndex)}
               />
             </div>
         
@@ -2277,6 +2663,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         // Déterminer quelle page afficher selon le zoom
         const zPage = zoomedPage === 'left' ? leftPage : page
         const zPageIndex = zoomedPage === 'left' ? (leftPageIndex ?? 0) : pageIndex
+        const zPageImages = getPageImages(zPage)
         const zHandleInput = () => {
           // Mettre à jour en temps réel pendant l'édition
           if (zoomedEditorRef.current) {
@@ -2322,7 +2709,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               height: 'calc(100vh - 220px)',
               maxHeight: 'calc(100vh - 220px)',
               aspectRatio: '2 / 3',
-              background: 'linear-gradient(225deg, #fef9f0 0%, #fdf6e8 50%, #fbf2df 100%)',
+              background: getPageColorStyles(bookColor).background,
               borderRadius: '12px',
               overflow: 'visible',
             }}
@@ -2336,9 +2723,34 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <EyeOff className="w-4 h-4" />
             </button>
             
+            {/* Fond de page (image ou vidéo) */}
+            {zPage?.backgroundMedia && (
+              <div className="absolute inset-0 overflow-hidden rounded-xl z-0">
+                {zPage.backgroundMedia.type === 'video' ? (
+                  <video
+                    src={zPage.backgroundMedia.url}
+                    className="w-full h-full object-cover"
+                    style={{ opacity: zPage.backgroundMedia.opacity }}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={zPage.backgroundMedia.url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    style={{ opacity: zPage.backgroundMedia.opacity }}
+                  />
+                )}
+              </div>
+            )}
+            
             {/* Texture papier */}
-            <div className="absolute inset-0 opacity-20" style={{
+            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
+              zIndex: 1,
             }} />
             
             {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
@@ -2433,20 +2845,27 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               )
             })()}
 
-            {/* Image flottante de la page (si présente) */}
-            {zPage?.image && (
-              <DraggableImage
-                src={zPage.image}
-                position={zPage.imagePosition || DEFAULT_IMAGE_POSITION}
-                imageStyle={zPage.imageStyle || 'normal'}
-                frameStyle={zPage.frameStyle || 'none'}
-                onPositionChange={(pos) => onImagePositionChange?.(zPageIndex, pos)}
-                onStyleChange={(style) => onImageStyleChange?.(zPageIndex, style)}
-                onFrameChange={(frame) => onImageFrameChange?.(zPageIndex, frame)}
-                onDelete={() => onImageDelete?.(zPageIndex)}
+            {/* Médias flottants de la page zoomée (multi-médias) */}
+            {zPageImages.map((media) => (
+              <DraggableMedia
+                key={media.id}
+                mediaId={media.id}
+                src={media.url}
+                mediaType={media.type}
+                position={media.position}
+                imageStyle={media.style}
+                frameStyle={media.frame}
+                zIndex={media.zIndex}
+                onPositionChange={(pos) => onImagePositionChange?.(zPageIndex, media.id, pos)}
+                onStyleChange={(style) => onImageStyleChange?.(zPageIndex, media.id, style)}
+                onFrameChange={(frame) => onImageFrameChange?.(zPageIndex, media.id, frame)}
+                onDelete={() => onImageDelete?.(zPageIndex, media.id)}
+                onBringForward={() => onImageBringForward?.(zPageIndex, media.id)}
+                onSendBackward={() => onImageSendBackward?.(zPageIndex, media.id)}
                 containerRef={zoomedPageContainerRef}
+                totalMedia={zPageImages.length}
               />
-            )}
+            ))}
       
             {/* Zone d'écriture avec lignes intégrées */}
             <div className="flex-1 relative overflow-hidden">
@@ -2557,7 +2976,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             style={{
               height: '100%',
               aspectRatio: '2 / 3',
-              background: 'linear-gradient(135deg, #fef7ed 0%, #fdf4e3 50%, #f9edd8 100%)',
+              background: getPageColorStyles(bookColor).background,
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
               overflow: 'visible',
@@ -2566,25 +2985,57 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {/* Clip pour le contenu interne */}
             <div className="absolute inset-0 overflow-hidden rounded-l-lg pointer-events-none" style={{ zIndex: 0 }} />
             
+            {/* Fond de page gauche (image ou vidéo) */}
+            {leftPage?.backgroundMedia && (
+              <div className="absolute inset-0 overflow-hidden rounded-l-lg z-0">
+                {leftPage.backgroundMedia.type === 'video' ? (
+                  <video
+                    src={leftPage.backgroundMedia.url}
+                    className="w-full h-full object-cover"
+                    style={{ opacity: leftPage.backgroundMedia.opacity }}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={leftPage.backgroundMedia.url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    style={{ opacity: leftPage.backgroundMedia.opacity }}
+                  />
+                )}
+              </div>
+            )}
+            
             {/* Texture papier subtile */}
-            <div className="absolute inset-0 opacity-30 rounded-l-lg overflow-hidden" style={{
+            <div className="absolute inset-0 opacity-30 rounded-l-lg overflow-hidden pointer-events-none" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
+              zIndex: 1,
             }} />
             
-            {/* Image flottante de la page gauche (si présente) */}
-            {leftPage?.image && leftPageIndex !== undefined && (
-              <DraggableImage
-                src={leftPage.image}
-                position={leftPage.imagePosition || DEFAULT_IMAGE_POSITION}
-                imageStyle={leftPage.imageStyle || 'normal'}
-                frameStyle={leftPage.frameStyle || 'none'}
-                onPositionChange={(pos) => onImagePositionChange?.(leftPageIndex, pos)}
-                onStyleChange={(style) => onImageStyleChange?.(leftPageIndex, style)}
-                onFrameChange={(frame) => onImageFrameChange?.(leftPageIndex, frame)}
-                onDelete={() => onImageDelete?.(leftPageIndex)}
+            {/* Médias flottants de la page gauche (multi-médias) */}
+            {leftPageIndex !== undefined && leftPageImages.map((media) => (
+              <DraggableMedia
+                key={media.id}
+                mediaId={media.id}
+                src={media.url}
+                mediaType={media.type}
+                position={media.position}
+                imageStyle={media.style}
+                frameStyle={media.frame}
+                zIndex={media.zIndex}
+                onPositionChange={(pos) => onImagePositionChange?.(leftPageIndex, media.id, pos)}
+                onStyleChange={(style) => onImageStyleChange?.(leftPageIndex, media.id, style)}
+                onFrameChange={(frame) => onImageFrameChange?.(leftPageIndex, media.id, frame)}
+                onDelete={() => onImageDelete?.(leftPageIndex, media.id)}
+                onBringForward={() => onImageBringForward?.(leftPageIndex, media.id)}
+                onSendBackward={() => onImageSendBackward?.(leftPageIndex, media.id)}
                 containerRef={leftPageContainerRef}
+                totalMedia={leftPageImages.length}
               />
-            )}
+            ))}
             
             {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
             {(() => {
@@ -2792,7 +3243,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             style={{
               height: '100%',
               aspectRatio: '2 / 3', // Ratio livre standard
-              background: 'linear-gradient(225deg, #fef9f0 0%, #fdf6e8 50%, #fbf2df 100%)',
+              background: getPageColorStyles(bookColor).background,
               borderRadius: '0 8px 8px 0',
               boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
               overflow: 'visible',
@@ -2801,25 +3252,57 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {/* Clip pour le contenu interne */}
             <div className="absolute inset-0 overflow-hidden rounded-r-lg pointer-events-none" style={{ zIndex: 0 }} />
             
+            {/* Fond de page droite (image ou vidéo) */}
+            {page?.backgroundMedia && (
+              <div className="absolute inset-0 overflow-hidden rounded-r-lg z-0">
+                {page.backgroundMedia.type === 'video' ? (
+                  <video
+                    src={page.backgroundMedia.url}
+                    className="w-full h-full object-cover"
+                    style={{ opacity: page.backgroundMedia.opacity }}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={page.backgroundMedia.url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    style={{ opacity: page.backgroundMedia.opacity }}
+                  />
+                )}
+              </div>
+            )}
+            
             {/* Texture papier */}
-            <div className="absolute inset-0 opacity-20 rounded-r-lg overflow-hidden" style={{
+            <div className="absolute inset-0 opacity-20 rounded-r-lg overflow-hidden pointer-events-none" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
+              zIndex: 1,
             }} />
             
-            {/* Image flottante de la page droite (si présente) */}
-            {page?.image && (
-              <DraggableImage
-                src={page.image}
-                position={page.imagePosition || DEFAULT_IMAGE_POSITION}
-                imageStyle={page.imageStyle || 'normal'}
-                frameStyle={page.frameStyle || 'none'}
-                onPositionChange={(pos) => onImagePositionChange?.(pageIndex, pos)}
-                onStyleChange={(style) => onImageStyleChange?.(pageIndex, style)}
-                onFrameChange={(frame) => onImageFrameChange?.(pageIndex, frame)}
-                onDelete={() => onImageDelete?.(pageIndex)}
+            {/* Médias flottants de la page droite (multi-médias) */}
+            {rightPageImages.map((media) => (
+              <DraggableMedia
+                key={media.id}
+                mediaId={media.id}
+                src={media.url}
+                mediaType={media.type}
+                position={media.position}
+                imageStyle={media.style}
+                frameStyle={media.frame}
+                zIndex={media.zIndex}
+                onPositionChange={(pos) => onImagePositionChange?.(pageIndex, media.id, pos)}
+                onStyleChange={(style) => onImageStyleChange?.(pageIndex, media.id, style)}
+                onFrameChange={(frame) => onImageFrameChange?.(pageIndex, media.id, frame)}
+                onDelete={() => onImageDelete?.(pageIndex, media.id)}
+                onBringForward={() => onImageBringForward?.(pageIndex, media.id)}
+                onSendBackward={() => onImageSendBackward?.(pageIndex, media.id)}
                 containerRef={rightPageContainerRef}
+                totalMedia={rightPageImages.length}
               />
-            )}
+            ))}
             
             {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
             {(() => {
@@ -3686,9 +4169,16 @@ export function BookMode() {
   // État pour afficher/masquer les lignes de cahier (global)
   const [showLines, setShowLines] = useState(true)
   
+  // État pour la couleur du livre (global pour toutes les pages)
+  const [bookColor, setBookColor] = useState<PageColor>('cream')
+  
   // État pour le MediaPicker
   const [showMediaPicker, setShowMediaPicker] = useState(false)
   const [mediaPickerTargetPage, setMediaPickerTargetPage] = useState<'left' | 'right'>('right')
+  
+  // État pour le MediaPicker de fond de page
+  const [showBackgroundPicker, setShowBackgroundPicker] = useState(false)
+  const [backgroundPickerTargetPage, setBackgroundPickerTargetPage] = useState<number>(0)
   
   // État pour la confirmation de suppression de page
   const [pageToDelete, setPageToDelete] = useState<number | null>(null)
@@ -3867,99 +4357,156 @@ export function BookMode() {
     setPages(newPages)
   }
 
+  // Helper pour convertir les pages vers le format de sauvegarde
+  const pagesToStoreFormat = (pagesArray: StoryPageLocal[]) => {
+    return pagesArray.map(p => ({
+      id: p.id,
+      stepIndex: 0,
+      content: p.content,
+      images: p.images,
+      // Legacy fields pour rétrocompatibilité
+      image: p.image,
+      imagePosition: p.imagePosition,
+      imageStyle: p.imageStyle,
+      frameStyle: p.frameStyle,
+      order: 0,
+      chapterId: p.chapterId,
+      title: p.title,
+    }))
+  }
+
+  // Helper pour mettre à jour un média spécifique dans une page
+  const updateImageInPage = (page: StoryPageLocal, imageId: string, updates: Partial<PageMedia>): StoryPageLocal => {
+    // Si c'est une image legacy
+    if (imageId === 'legacy-image') {
+      return {
+        ...page,
+        imagePosition: updates.position || page.imagePosition,
+        imageStyle: updates.style || page.imageStyle,
+        frameStyle: updates.frame || page.frameStyle,
+      }
+    }
+    
+    // Si c'est le nouveau format multi-images
+    if (page.images) {
+      return {
+        ...page,
+        images: page.images.map(img => 
+          img.id === imageId ? { ...img, ...updates } : img
+        ),
+      }
+    }
+    
+    return page
+  }
+
   // Gestion de la position de l'image (drag & drop)
-  const handleImagePositionChange = (pageIdx: number, position: ImagePosition) => {
+  const handleImagePositionChange = (pageIdx: number, imageId: string, position: ImagePosition) => {
     if (!pages[pageIdx]) return
     const newPages = [...pages]
-    newPages[pageIdx] = { ...newPages[pageIdx], imagePosition: position }
+    newPages[pageIdx] = updateImageInPage(newPages[pageIdx], imageId, { position })
     setPages(newPages)
     
-    // Sauvegarder dans le store
     if (currentStory) {
-      updateStoryPages(currentStory.id, newPages.map(p => ({
-        id: p.id,
-        stepIndex: 0,
-        content: p.content,
-        image: p.image,
-        imagePosition: p.imagePosition,
-        imageStyle: p.imageStyle,
-        frameStyle: p.frameStyle,
-        order: 0,
-        chapterId: p.chapterId,
-        title: p.title,
-      })))
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
     }
   }
 
   // Gestion du style de l'image
-  const handleImageStyleChange = (pageIdx: number, style: ImageStyle) => {
+  const handleImageStyleChange = (pageIdx: number, imageId: string, style: ImageStyle) => {
     if (!pages[pageIdx]) return
     const newPages = [...pages]
-    newPages[pageIdx] = { ...newPages[pageIdx], imageStyle: style }
+    newPages[pageIdx] = updateImageInPage(newPages[pageIdx], imageId, { style })
     setPages(newPages)
     
-    // Sauvegarder dans le store
     if (currentStory) {
-      updateStoryPages(currentStory.id, newPages.map(p => ({
-        id: p.id,
-        stepIndex: 0,
-        content: p.content,
-        image: p.image,
-        imagePosition: p.imagePosition,
-        imageStyle: p.imageStyle,
-        frameStyle: p.frameStyle,
-        order: 0,
-        chapterId: p.chapterId,
-        title: p.title,
-      })))
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
     }
   }
 
   // Gestion du cadre de l'image
-  const handleImageFrameChange = (pageIdx: number, frame: FrameStyle) => {
+  const handleImageFrameChange = (pageIdx: number, imageId: string, frame: FrameStyle) => {
     if (!pages[pageIdx]) return
     const newPages = [...pages]
-    newPages[pageIdx] = { ...newPages[pageIdx], frameStyle: frame }
+    newPages[pageIdx] = updateImageInPage(newPages[pageIdx], imageId, { frame })
     setPages(newPages)
     
-    // Sauvegarder dans le store
     if (currentStory) {
-      updateStoryPages(currentStory.id, newPages.map(p => ({
-        id: p.id,
-        stepIndex: 0,
-        content: p.content,
-        image: p.image,
-        imagePosition: p.imagePosition,
-        imageStyle: p.imageStyle,
-        frameStyle: p.frameStyle,
-        order: 0,
-        chapterId: p.chapterId,
-        title: p.title,
-      })))
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
     }
   }
 
-  // Suppression de l'image d'une page
-  const handleImageDelete = (pageIdx: number) => {
+  // Suppression d'une image d'une page
+  const handleImageDelete = (pageIdx: number, imageId: string) => {
     if (!pages[pageIdx]) return
     const newPages = [...pages]
-    newPages[pageIdx] = { ...newPages[pageIdx], image: undefined, imagePosition: undefined }
+    const page = newPages[pageIdx]
+    
+    if (imageId === 'legacy-image') {
+      // Suppression d'une image legacy
+      newPages[pageIdx] = { 
+        ...page, 
+        image: undefined, 
+        imagePosition: undefined,
+        imageStyle: undefined,
+        frameStyle: undefined,
+      }
+    } else if (page.images) {
+      // Suppression d'une image du nouveau format
+      newPages[pageIdx] = {
+        ...page,
+        images: page.images.filter(img => img.id !== imageId),
+      }
+    }
+    
     setPages(newPages)
     
-    // Sauvegarder dans le store
     if (currentStory) {
-      updateStoryPages(currentStory.id, newPages.map(p => ({
-        id: p.id,
-        stepIndex: 0,
-        content: p.content,
-        image: p.image,
-        imagePosition: p.imagePosition,
-        imageStyle: p.imageStyle,
-        frameStyle: p.frameStyle,
-        order: 0,
-        chapterId: p.chapterId,
-        title: p.title,
-      })))
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  // Mettre une image devant
+  const handleImageBringForward = (pageIdx: number, imageId: string) => {
+    if (!pages[pageIdx]?.images) return
+    const newPages = [...pages]
+    const page = newPages[pageIdx]
+    
+    if (page.images) {
+      const maxZIndex = Math.max(...page.images.map(img => img.zIndex))
+      newPages[pageIdx] = {
+        ...page,
+        images: page.images.map(img => 
+          img.id === imageId ? { ...img, zIndex: maxZIndex + 1 } : img
+        ),
+      }
+      setPages(newPages)
+      
+      if (currentStory) {
+        updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+      }
+    }
+  }
+
+  // Envoyer une image derrière
+  const handleImageSendBackward = (pageIdx: number, imageId: string) => {
+    if (!pages[pageIdx]?.images) return
+    const newPages = [...pages]
+    const page = newPages[pageIdx]
+    
+    if (page.images) {
+      const minZIndex = Math.min(...page.images.map(img => img.zIndex))
+      newPages[pageIdx] = {
+        ...page,
+        images: page.images.map(img => 
+          img.id === imageId ? { ...img, zIndex: Math.max(1, minZIndex - 1) } : img
+        ),
+      }
+      setPages(newPages)
+      
+      if (currentStory) {
+        updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+      }
     }
   }
 
@@ -3970,35 +4517,99 @@ export function BookMode() {
   }
 
   const handleMediaSelect = (url: string, type: 'image' | 'video' | 'audio') => {
+    // On ne gère pas l'audio pour l'instant
+    if (type === 'audio') return
+    
     const targetIndex = mediaPickerTargetPage === 'left' ? leftPageIndex : rightPageIndex
     if (!pages[targetIndex]) return
     
     const newPages = [...pages]
-    // Ajouter l'image avec une position par défaut
+    const page = newPages[targetIndex]
+    
+    // Créer un nouveau média avec ID unique
+    const newMedia: PageMedia = {
+      id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      url,
+      type: type as MediaType,  // 'image' ou 'video'
+      position: DEFAULT_IMAGE_POSITION,
+      style: 'normal',
+      frame: 'none',
+      zIndex: (page.images?.length || 0) + 1,
+    }
+    
+    // Ajouter au tableau de médias
     newPages[targetIndex] = { 
-      ...newPages[targetIndex], 
-      image: url,
-      imagePosition: DEFAULT_IMAGE_POSITION,
+      ...page, 
+      images: [...(page.images || []), newMedia],
     }
     setPages(newPages)
     
-    // Sauvegarder dans le store
     if (currentStory) {
-      updateStoryPages(currentStory.id, newPages.map(p => ({
-        id: p.id,
-        stepIndex: 0,
-        content: p.content,
-        image: p.image,
-        imagePosition: p.imagePosition,
-        imageStyle: p.imageStyle,
-        frameStyle: p.frameStyle,
-        order: 0,
-        chapterId: p.chapterId,
-        title: p.title,
-      })))
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
     }
     
     setShowMediaPicker(false)
+  }
+
+  // === Gestion du fond de page ===
+  const handleOpenBackgroundPicker = (targetIndex: number) => {
+    setBackgroundPickerTargetPage(targetIndex)
+    setShowBackgroundPicker(true)
+  }
+
+  const handleBackgroundSelect = (url: string, type: 'image' | 'video' | 'audio') => {
+    // On ne gère pas l'audio pour l'instant
+    if (type === 'audio') return
+    
+    if (!pages[backgroundPickerTargetPage]) return
+    
+    const newPages = [...pages]
+    newPages[backgroundPickerTargetPage] = {
+      ...newPages[backgroundPickerTargetPage],
+      backgroundMedia: {
+        url,
+        type: type as MediaType,
+        opacity: 0.5, // Opacité par défaut à 50%
+      },
+    }
+    setPages(newPages)
+    
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+    
+    setShowBackgroundPicker(false)
+  }
+
+  const handleBackgroundOpacityChange = (pageIndex: number, opacity: number) => {
+    if (!pages[pageIndex]?.backgroundMedia) return
+    
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...newPages[pageIndex],
+      backgroundMedia: {
+        ...newPages[pageIndex].backgroundMedia!,
+        opacity,
+      },
+    }
+    setPages(newPages)
+    
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleBackgroundRemove = (pageIndex: number) => {
+    if (!pages[pageIndex]) return
+    
+    const newPages = [...pages]
+    const { backgroundMedia, ...pageWithoutBackground } = newPages[pageIndex]
+    newPages[pageIndex] = pageWithoutBackground
+    setPages(newPages)
+    
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
   }
 
   const handleSelectStructure = (structure: StoryStructure) => {
@@ -4288,6 +4899,13 @@ export function BookMode() {
               onImageStyleChange={handleImageStyleChange}
               onImageFrameChange={handleImageFrameChange}
               onImageDelete={handleImageDelete}
+              onImageBringForward={handleImageBringForward}
+              onImageSendBackward={handleImageSendBackward}
+              bookColor={bookColor}
+              onBookColorChange={setBookColor}
+              onBackgroundAdd={handleOpenBackgroundPicker}
+              onBackgroundOpacityChange={handleBackgroundOpacityChange}
+              onBackgroundRemove={handleBackgroundRemove}
             />
         )}
         </div>
@@ -4314,8 +4932,16 @@ export function BookMode() {
             isOpen={showMediaPicker}
             onClose={() => setShowMediaPicker(false)}
             onSelect={handleMediaSelect}
-            allowedTypes="image"
-            title="Illustrer cette page"
+            allowedTypes="all"
+          />
+          
+          {/* MediaPicker pour les fonds de page */}
+          <MediaPicker
+            isOpen={showBackgroundPicker}
+            onClose={() => setShowBackgroundPicker(false)}
+            onSelect={handleBackgroundSelect}
+            allowedTypes="all"
+            title="Ajouter un média"
           />
           
           {/* Modal de confirmation pour supprimer une page */}

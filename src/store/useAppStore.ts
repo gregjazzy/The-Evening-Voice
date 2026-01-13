@@ -76,10 +76,36 @@ export interface Story {
   isComplete: boolean
 }
 
+// Type de média supporté
+export type MediaType = 'image' | 'video'
+
+// Interface pour un média individuel sur la page (nouveau format multi-médias)
+export interface PageMedia {
+  id: string
+  url: string
+  type: MediaType  // 'image' ou 'video'
+  position: {
+    x: number
+    y: number
+    width: number
+    height: number
+    rotation: number
+  }
+  style: string
+  frame: string
+  zIndex: number
+}
+
+// Alias pour rétrocompatibilité
+export type PageImage = PageMedia
+
 export interface StoryPage {
   id: string
   stepIndex: number
   content: string
+  // Nouveau format multi-médias (images et vidéos)
+  images?: PageMedia[]
+  // Legacy fields (rétrocompatibilité)
   image?: string
   imagePosition?: {
     x: number
