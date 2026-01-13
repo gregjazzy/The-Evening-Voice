@@ -6,22 +6,16 @@
   <title>La Voix du Soir — Présentation Exclusive</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Montserrat:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --gold: #C9A962;
-      --gold-light: #E8D5A3;
-      --gold-dark: #8B7355;
-      --deep-purple: #1A0A2E;
-      --purple: #2D1B4E;
-      --purple-light: #4A2C7A;
-      --white: #FEFEFE;
-      --cream: #FAF8F5;
-      --text-light: rgba(255,255,255,0.9);
-      --text-muted: rgba(255,255,255,0.6);
-      --accent-blue: #4A9EFF;
-      --accent-green: #4AE88C;
-      --accent-pink: #E84A9E;
+      --deep-purple: #1a1025;
+      --soft-purple: #2d1f3d;
+      --gold: #d4a853;
+      --gold-light: #e8c878;
+      --cream: #f5f0e8;
+      --text-light: rgba(255, 255, 255, 0.9);
+      --text-muted: rgba(255, 255, 255, 0.7);
     }
 
     * {
@@ -30,4528 +24,1554 @@
       box-sizing: border-box;
     }
 
-    html, body {
-      height: 100%;
-      overflow: hidden;
-      font-family: 'Cormorant Garamond', serif;
+    body {
+      font-family: 'Montserrat', sans-serif;
       background: var(--deep-purple);
-      color: var(--white);
-    }
-
-    /* Presentation Container */
-    .presentation {
-      width: 100%;
-      height: 100vh;
-      position: relative;
+      color: var(--text-light);
       overflow: hidden;
+      height: 100vh;
     }
 
-    /* Slides */
+    /* Navigation */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 1.5rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      background: linear-gradient(to bottom, var(--deep-purple), transparent);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      color: var(--gold);
+    }
+
+    .logo-moon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(212, 168, 83, 0.4);
+    }
+
+    .slide-counter {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 300;
+    }
+
+    .nav-arrows {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-arrow {
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(212, 168, 83, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--gold);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: transparent;
+      font-size: 1rem;
+    }
+
+    .nav-arrow:hover {
+      background: rgba(212, 168, 83, 0.1);
+      border-color: var(--gold);
+    }
+
+    /* Slides Container */
+    .slides-container {
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
     .slide {
       position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
       display: flex;
-      flex-direction: column;
-      justify-content: center;
       align-items: center;
-      padding: 60px 100px;
+      justify-content: center;
+      padding: 6rem 4rem 4rem;
       opacity: 0;
-      transform: translateX(100%);
-      transition: all 0.8s cubic-bezier(0.65, 0, 0.35, 1);
-      background: linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 50%, var(--purple-light) 100%);
+      visibility: hidden;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+      background: linear-gradient(135deg, var(--deep-purple) 0%, var(--soft-purple) 100%);
     }
 
     .slide.active {
       opacity: 1;
-      transform: translateX(0);
-      z-index: 10;
+      visibility: visible;
     }
 
-    .slide.prev {
-      opacity: 0;
-      transform: translateX(-100%);
-    }
-
-    /* Background patterns */
-    .slide::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-image: 
-        radial-gradient(circle at 20% 80%, rgba(201, 169, 98, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(201, 169, 98, 0.05) 0%, transparent 40%);
-      pointer-events: none;
-    }
-
-    /* Stars background for certain slides */
-    .slide.stars::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-image: 
-        radial-gradient(2px 2px at 20px 30px, var(--gold-light), transparent),
-        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.5), transparent),
-        radial-gradient(1px 1px at 90px 40px, var(--gold), transparent),
-        radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.4), transparent),
-        radial-gradient(1px 1px at 230px 80px, var(--gold-light), transparent),
-        radial-gradient(2px 2px at 300px 150px, rgba(255,255,255,0.3), transparent),
-        radial-gradient(1px 1px at 400px 60px, var(--gold), transparent),
-        radial-gradient(2px 2px at 500px 180px, rgba(255,255,255,0.5), transparent),
-        radial-gradient(1px 1px at 600px 100px, var(--gold-light), transparent),
-        radial-gradient(2px 2px at 700px 200px, rgba(255,255,255,0.4), transparent),
-        radial-gradient(1px 1px at 800px 50px, var(--gold), transparent),
-        radial-gradient(2px 2px at 900px 160px, rgba(255,255,255,0.3), transparent),
-        radial-gradient(1px 1px at 1000px 90px, var(--gold-light), transparent),
-        radial-gradient(2px 2px at 1100px 140px, rgba(255,255,255,0.5), transparent),
-        radial-gradient(1px 1px at 1200px 70px, var(--gold), transparent);
-      background-size: 100% 100%;
-      animation: twinkle 8s ease-in-out infinite;
-      pointer-events: none;
-      opacity: 0.6;
-    }
-
-    @keyframes twinkle {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 0.3; }
-    }
-
-    /* Typography */
-    .title-slide h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: 5.5rem;
-      font-weight: 500;
-      letter-spacing: 0.02em;
-      margin-bottom: 20px;
-      background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-align: center;
-      animation: fadeInUp 1s ease-out 0.3s both;
-    }
-
-    .title-slide .subtitle {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.8rem;
-      font-weight: 300;
-      font-style: italic;
-      color: var(--text-muted);
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      animation: fadeInUp 1s ease-out 0.6s both;
-    }
-
-    .title-slide .moon {
-      width: 120px;
-      height: 120px;
-      margin-bottom: 40px;
-      background: radial-gradient(circle at 30% 30%, var(--gold-light), var(--gold), var(--gold-dark));
-      border-radius: 50%;
-      box-shadow: 
-        0 0 60px rgba(201, 169, 98, 0.4),
-        0 0 120px rgba(201, 169, 98, 0.2),
-        inset -20px -20px 40px rgba(0,0,0,0.3);
-      animation: fadeInDown 1s ease-out both, glow 4s ease-in-out infinite;
-    }
-
-    @keyframes glow {
-      0%, 100% { box-shadow: 0 0 60px rgba(201, 169, 98, 0.4), 0 0 120px rgba(201, 169, 98, 0.2), inset -20px -20px 40px rgba(0,0,0,0.3); }
-      50% { box-shadow: 0 0 80px rgba(201, 169, 98, 0.6), 0 0 160px rgba(201, 169, 98, 0.3), inset -20px -20px 40px rgba(0,0,0,0.3); }
-    }
-
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(40px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes fadeInDown {
-      from { opacity: 0; transform: translateY(-40px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Content slides */
-    .content-slide {
-      text-align: left;
-      align-items: flex-start;
-      padding: 80px 120px;
-    }
-
-    .content-slide h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3.5rem;
-      font-weight: 500;
-      color: var(--gold);
-      margin-bottom: 50px;
-      position: relative;
-    }
-
-    .content-slide h2::after {
-      content: '';
-      position: absolute;
-      bottom: -15px;
-      left: 0;
-      width: 80px;
-      height: 2px;
-      background: linear-gradient(90deg, var(--gold), transparent);
-    }
-
-    .content-slide p {
-      font-size: 1.6rem;
-      line-height: 1.9;
-      color: var(--text-light);
-      max-width: 900px;
-      font-weight: 300;
-    }
-
-    .content-slide .highlight {
-      color: var(--gold);
-      font-weight: 500;
-    }
-
-    /* Feature grid */
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 40px;
-      width: 100%;
-      max-width: 1400px;
-      margin-top: 40px;
-    }
-
-    .feature-card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(201, 169, 98, 0.2);
-      border-radius: 20px;
-      padding: 40px;
-      transition: all 0.4s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .feature-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
-      opacity: 0;
-      transition: opacity 0.4s ease;
-    }
-
-    .feature-card:hover {
-      background: rgba(255,255,255,0.06);
-      border-color: rgba(201, 169, 98, 0.4);
-      transform: translateY(-5px);
-    }
-
-    .feature-card:hover::before {
-      opacity: 1;
-    }
-
-    .feature-icon {
-      font-size: 3rem;
-      margin-bottom: 20px;
-      display: block;
-    }
-
-    .feature-card h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.6rem;
-      color: var(--gold-light);
-      margin-bottom: 15px;
-      font-weight: 500;
-    }
-
-    .feature-card p {
-      font-size: 1.1rem;
-      color: var(--text-muted);
-      line-height: 1.7;
-    }
-
-    /* Luna section */
-    .luna-section {
-      display: flex;
-      align-items: center;
-      gap: 80px;
-      width: 100%;
-      max-width: 1400px;
-    }
-
-    .luna-avatar {
-      width: 300px;
-      height: 300px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--purple-light), var(--purple));
-      border: 3px solid var(--gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 8rem;
-      box-shadow: 0 0 60px rgba(201, 169, 98, 0.3);
-      flex-shrink: 0;
-    }
-
-    .luna-content h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 30px;
-    }
-
-    .luna-content p {
-      font-size: 1.4rem;
-      color: var(--text-light);
-      line-height: 1.9;
-      margin-bottom: 20px;
-    }
-
-    .luna-traits {
-      display: flex;
-      gap: 20px;
-      margin-top: 30px;
-      flex-wrap: wrap;
-    }
-
-    .luna-trait {
-      background: rgba(201, 169, 98, 0.15);
-      border: 1px solid rgba(201, 169, 98, 0.3);
-      padding: 12px 24px;
-      border-radius: 30px;
-      font-size: 1rem;
-      color: var(--gold-light);
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 400;
-    }
-
-    /* Timeline / Journey */
-    .journey-container {
-      width: 100%;
-      max-width: 1200px;
-    }
-
-    .journey-container h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 60px;
-      text-align: center;
-    }
-
-    .journey-steps {
-      display: flex;
-      justify-content: space-between;
-      position: relative;
-    }
-
-    .journey-steps::before {
-      content: '';
-      position: absolute;
-      top: 50px;
-      left: 10%;
-      right: 10%;
-      height: 2px;
-      background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-dark));
-    }
-
-    .journey-step {
-      text-align: center;
-      flex: 1;
-      position: relative;
-    }
-
-    .journey-number {
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--purple), var(--deep-purple));
-      border: 3px solid var(--gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Playfair Display', serif;
-      font-size: 2.5rem;
-      color: var(--gold);
-      margin: 0 auto 30px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .journey-step h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.4rem;
-      color: var(--gold-light);
-      margin-bottom: 10px;
-    }
-
-    .journey-step p {
-      font-size: 1rem;
-      color: var(--text-muted);
-      padding: 0 20px;
-    }
-
-    /* Quote section */
-    .quote-section {
-      text-align: center;
-      max-width: 1000px;
-    }
-
-    .quote-mark {
-      font-family: 'Playfair Display', serif;
-      font-size: 8rem;
-      color: var(--gold);
-      opacity: 0.3;
-      line-height: 0.5;
-      margin-bottom: 20px;
-    }
-
-    .quote-text {
-      font-family: 'Playfair Display', serif;
-      font-size: 2.5rem;
-      font-style: italic;
-      color: var(--text-light);
-      line-height: 1.6;
-      margin-bottom: 40px;
-    }
-
-    .quote-author {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1rem;
-      color: var(--gold);
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-    }
-
-    /* Modes showcase */
-    .modes-showcase {
-      width: 100%;
-      max-width: 1400px;
-    }
-
-    .modes-showcase h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 10px;
-      text-align: center;
-    }
-
-    .modes-tagline {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.3rem;
-      color: var(--cream);
-      text-align: center;
-      margin-bottom: 40px;
-      opacity: 0.9;
-    }
-
-    .modes-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 25px;
-    }
-
-    .modes-grid-enhanced {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 20px;
-    }
-
-    .mode-card-enhanced {
-      background: rgba(201, 169, 98, 0.08);
-      border: 1px solid rgba(201, 169, 98, 0.25);
-      border-radius: 16px;
-      padding: 25px 18px;
-      text-align: center;
-      transition: all 0.3s ease;
-    }
-
-    .mode-card-enhanced:hover {
-      background: rgba(201, 169, 98, 0.15);
-      transform: translateY(-5px);
-      border-color: var(--gold);
-    }
-
-    .mode-icon-large {
-      font-size: 2.8rem;
-      display: block;
-      margin-bottom: 15px;
-    }
-
-    .mode-card-enhanced h3 {
-      font-family: 'Playfair Display', serif;
-      color: var(--gold);
-      font-size: 1.15rem;
-      margin-bottom: 12px;
-    }
-
-    .mode-description {
-      color: var(--cream);
-      font-size: 0.9rem;
-      line-height: 1.5;
-      margin-bottom: 10px;
-    }
-
-    .mode-luna {
-      color: var(--gold);
-      font-size: 0.85rem;
-      opacity: 0.85;
-    }
-
-    /* ============================================
-       THEATRE EXPERIENCE SLIDE
-       ============================================ */
-    .slide-theatre {
-      background: 
-        radial-gradient(ellipse at 50% 30%, rgba(147, 112, 219, 0.15) 0%, transparent 50%),
-        radial-gradient(ellipse at 20% 80%, rgba(201, 169, 98, 0.1) 0%, transparent 40%),
-        linear-gradient(135deg, #1a0a2e 0%, var(--deep-purple) 100%);
-    }
-
-    .theatre-section {
-      width: 100%;
-      max-width: 1200px;
-    }
-
-    .theatre-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .theatre-content {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 50px;
-      margin-top: 40px;
-    }
-
-    .theatre-diagram {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 20px;
-      padding: 40px 30px;
-      border: 1px solid rgba(201, 169, 98, 0.2);
-    }
-
-    .theatre-device, .theatre-outputs .output-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .device-icon, .output-icon {
-      font-size: 2.5rem;
-    }
-
-    .device-label, .output-label {
-      color: var(--cream);
-      font-size: 0.85rem;
-    }
-
-    .theatre-arrow {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .airplay-icon {
-      font-size: 1.8rem;
-    }
-
-    .arrow-label {
-      color: var(--gold);
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-
-    .theatre-outputs {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .theatre-features {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .theatre-feature {
-      display: flex;
-      align-items: flex-start;
-      gap: 15px;
-      background: rgba(201, 169, 98, 0.08);
-      border-radius: 12px;
-      padding: 18px;
-      border-left: 3px solid var(--gold);
-    }
-
-    .theatre-feature .feature-icon {
-      font-size: 1.8rem;
-    }
-
-    .theatre-feature h4 {
-      color: var(--gold);
-      font-family: 'Playfair Display', serif;
-      font-size: 1.1rem;
-      margin-bottom: 5px;
-    }
-
-    .theatre-feature p {
-      color: var(--cream);
-      font-size: 0.9rem;
-      line-height: 1.4;
-    }
-
-    /* ============================================
-       HORIZON / AMAZON KDP SLIDE
-       ============================================ */
-    .slide-horizon {
-      background: 
-        radial-gradient(ellipse at 70% 20%, rgba(255, 153, 0, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 30% 70%, rgba(201, 169, 98, 0.1) 0%, transparent 40%),
-        linear-gradient(135deg, var(--deep-purple) 0%, #1a0a2e 100%);
-    }
-
-    .horizon-section {
-      width: 100%;
-      max-width: 1100px;
-      text-align: center;
-    }
-
-    .horizon-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 10px;
-    }
-
-    .horizon-journey {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 15px;
-      margin: 50px 0;
-      flex-wrap: wrap;
-    }
-
-    .journey-step-horizon {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      background: rgba(201, 169, 98, 0.1);
-      border: 1px solid rgba(201, 169, 98, 0.3);
-      border-radius: 12px;
-      padding: 20px 25px;
-      min-width: 100px;
-    }
-
-    .journey-step-horizon .step-icon {
-      font-size: 2rem;
-    }
-
-    .journey-step-horizon .step-label {
-      color: var(--cream);
-      font-size: 0.9rem;
-    }
-
-    .journey-step-horizon.highlight-amazon {
-      background: rgba(255, 153, 0, 0.2);
-      border-color: #ff9900;
-    }
-
-    .journey-step-horizon.highlight-amazon .step-label {
-      color: #ff9900;
-      font-weight: 600;
-    }
-
-    .journey-arrow-horizon {
-      color: var(--gold);
-      font-size: 1.5rem;
-      opacity: 0.7;
-    }
-
-    .horizon-status {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 40px;
-      margin: 40px 0;
-      text-align: left;
-    }
-
-    .status-ready, .status-future {
-      background: rgba(201, 169, 98, 0.08);
-      border-radius: 16px;
-      padding: 25px 30px;
-      border: 1px solid rgba(201, 169, 98, 0.2);
-    }
-
-    .status-ready h4, .status-future h4 {
-      color: var(--gold);
-      font-family: 'Playfair Display', serif;
-      font-size: 1.2rem;
-      margin-bottom: 15px;
-    }
-
-    .status-ready ul, .status-future ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    .status-ready li, .status-future li {
-      color: var(--cream);
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(201, 169, 98, 0.1);
-      font-size: 0.95rem;
-    }
-
-    .status-ready li:last-child, .status-future li:last-child {
-      border-bottom: none;
-    }
-
-    .horizon-quote {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.4rem;
-      color: var(--gold);
-      margin-top: 30px;
-    }
-    }
-
-    .mode-card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
-      border: 1px solid rgba(201, 169, 98, 0.2);
-      border-radius: 24px;
-      padding: 35px 25px;
-      text-align: center;
-      transition: all 0.4s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .mode-card::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: var(--gold);
-      transform: scaleX(0);
-      transition: transform 0.4s ease;
-    }
-
-    .mode-card:hover {
-      transform: translateY(-10px);
-      border-color: var(--gold);
-      background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
-    }
-
-    .mode-card:hover::after {
-      transform: scaleX(1);
-    }
-
-    .mode-icon {
-      font-size: 3.5rem;
-      margin-bottom: 20px;
-      display: block;
-    }
-
-    .mode-card h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.3rem;
-      color: var(--gold-light);
-      margin-bottom: 12px;
-    }
-
-    .mode-card p {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-
-    /* Pedagogy section */
-    .pedagogy-section {
-      width: 100%;
-      max-width: 1300px;
-    }
-
-    .pedagogy-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .pedagogy-section > p {
-      text-align: center;
-      font-size: 1.3rem;
-      color: var(--text-muted);
-      margin-bottom: 50px;
-    }
-
-    .keys-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 25px;
-    }
-
-    .key-card {
-      background: rgba(201, 169, 98, 0.08);
-      border: 1px solid rgba(201, 169, 98, 0.25);
-      border-radius: 20px;
-      padding: 30px 20px;
-      text-align: center;
-      position: relative;
-    }
-
-    .key-emoji {
-      font-size: 2.8rem;
-      margin-bottom: 15px;
-      display: block;
-    }
-
-    .key-card h4 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.2rem;
-      color: var(--gold);
-      margin-bottom: 10px;
-    }
-
-    .key-card p {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-
-    .key-impact {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      background: var(--gold);
-      color: var(--deep-purple);
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 5px 10px;
-      border-radius: 20px;
-    }
-
-    /* Tech stack */
-    .tech-section {
-      width: 100%;
-      max-width: 1200px;
-    }
-
-    .tech-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 50px;
-      text-align: center;
-    }
-
-    .tech-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 30px;
-    }
-
-    .tech-item {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
-      padding: 30px;
-      text-align: center;
-      transition: all 0.3s ease;
-    }
-
-    .tech-item:hover {
-      border-color: rgba(201, 169, 98, 0.3);
-      background: rgba(255,255,255,0.05);
-    }
-
-    .tech-item h4 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1.1rem;
-      color: var(--gold-light);
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-
-    .tech-item p {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
-
-    /* Final CTA slide */
-    .cta-slide {
-      text-align: center;
-    }
-
-    .cta-slide h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 4rem;
-      color: var(--gold);
-      margin-bottom: 30px;
-    }
-
-    .cta-slide p {
-      font-size: 1.5rem;
-      color: var(--text-light);
-      max-width: 800px;
-      line-height: 1.8;
-      margin-bottom: 50px;
-    }
-
-    .cta-button {
-      display: inline-block;
-      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-      color: var(--deep-purple);
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1.1rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      padding: 20px 60px;
-      border-radius: 50px;
-      text-decoration: none;
-      transition: all 0.4s ease;
-      box-shadow: 0 10px 40px rgba(201, 169, 98, 0.3);
-    }
-
-    .cta-button:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 50px rgba(201, 169, 98, 0.5);
-    }
-
-    /* Navigation */
-    .nav-dots {
+    /* Dot Navigation */
+    .dots-nav {
       position: fixed;
-      right: 40px;
+      right: 2rem;
       top: 50%;
       transform: translateY(-50%);
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 0.6rem;
       z-index: 100;
     }
 
-    .nav-dot {
-      width: 10px;
-      height: 10px;
+    .dot {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(201, 169, 98, 0.3);
+      background: rgba(212, 168, 83, 0.3);
       cursor: pointer;
       transition: all 0.3s ease;
     }
 
-    .nav-dot:hover {
-      background: rgba(201, 169, 98, 0.5);
+    .dot:hover {
+      background: rgba(212, 168, 83, 0.6);
     }
 
-    .nav-dot.active {
+    .dot.active {
       background: var(--gold);
-      border-color: var(--gold);
-      transform: scale(1.3);
+      box-shadow: 0 0 10px rgba(212, 168, 83, 0.5);
     }
 
-    /* Progress bar */
-    .progress-bar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-light));
-      z-index: 100;
-      transition: width 0.5s ease;
-    }
-
-    /* Slide counter */
-    .slide-counter {
-      position: fixed;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      letter-spacing: 0.2em;
-      z-index: 100;
-    }
-
-    .slide-counter .current {
-      color: var(--gold);
+    /* Typography */
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 4.5rem;
       font-weight: 600;
-    }
-
-    /* Navigation arrows */
-    .nav-arrows {
-      position: fixed;
-      bottom: 40px;
-      right: 40px;
-      display: flex;
-      gap: 15px;
-      z-index: 100;
-    }
-
-    .nav-arrow {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(201, 169, 98, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
       color: var(--gold);
+      margin-bottom: 1.5rem;
+      line-height: 1.1;
+    }
+
+    h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3.2rem;
+      font-weight: 600;
+      color: var(--gold);
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    p {
       font-size: 1.2rem;
-    }
-
-    .nav-arrow:hover {
-      background: rgba(201, 169, 98, 0.2);
-      border-color: var(--gold);
-    }
-
-    .nav-arrow:active {
-      transform: scale(0.95);
-    }
-
-    /* Logo */
-    .logo {
-      position: fixed;
-      top: 30px;
-      left: 40px;
-      font-family: 'Playfair Display', serif;
-      font-size: 1.2rem;
-      color: var(--gold);
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .logo-moon {
-      width: 24px;
-      height: 24px;
-      background: radial-gradient(circle at 30% 30%, var(--gold-light), var(--gold));
-      border-radius: 50%;
-    }
-
-    /* Animations for slide content */
-    .slide.active .animate-in {
-      animation: fadeInUp 0.8s ease-out forwards;
-    }
-
-    .slide.active .animate-in-1 { animation-delay: 0.2s; opacity: 0; }
-    .slide.active .animate-in-2 { animation-delay: 0.4s; opacity: 0; }
-    .slide.active .animate-in-3 { animation-delay: 0.6s; opacity: 0; }
-    .slide.active .animate-in-4 { animation-delay: 0.8s; opacity: 0; }
-    .slide.active .animate-in-5 { animation-delay: 1s; opacity: 0; }
-
-    /* Responsive */
-    @media (max-width: 1400px) {
-      .feature-grid { grid-template-columns: repeat(2, 1fr); }
-      .modes-grid { grid-template-columns: repeat(3, 1fr); }
-      .keys-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-
-    @media (max-width: 1024px) {
-      .slide { padding: 40px 60px; }
-      .title-slide h1 { font-size: 4rem; }
-      .content-slide h2 { font-size: 2.5rem; }
-      .luna-section { flex-direction: column; text-align: center; }
-      .luna-avatar { width: 200px; height: 200px; font-size: 5rem; }
-      .journey-steps { flex-direction: column; gap: 40px; }
-      .journey-steps::before { display: none; }
-      .tech-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    /* Specific slide backgrounds */
-    .slide-vision {
-      background: 
-        radial-gradient(ellipse at 80% 20%, rgba(201, 169, 98, 0.15) 0%, transparent 50%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .slide-luna {
-      background: 
-        radial-gradient(ellipse at 20% 50%, rgba(138, 43, 226, 0.2) 0%, transparent 50%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .slide-ai {
-      background: 
-        radial-gradient(ellipse at 70% 30%, rgba(74, 158, 255, 0.15) 0%, transparent 50%),
-        radial-gradient(ellipse at 30% 70%, rgba(74, 232, 140, 0.1) 0%, transparent 50%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .slide-gamification {
-      background: 
-        radial-gradient(ellipse at 50% 30%, rgba(232, 74, 158, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 80%, rgba(201, 169, 98, 0.1) 0%, transparent 40%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .slide-design {
-      background: 
-        radial-gradient(ellipse at 20% 20%, rgba(201, 169, 98, 0.15) 0%, transparent 40%),
-        radial-gradient(ellipse at 80% 80%, rgba(74, 158, 255, 0.1) 0%, transparent 40%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    /* Two column layout */
-    .two-columns {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 80px;
-      width: 100%;
-      max-width: 1400px;
-      align-items: center;
-    }
-
-    .column-content h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 2.8rem;
-      color: var(--gold);
-      margin-bottom: 30px;
-    }
-
-    .column-content p {
-      font-size: 1.3rem;
-      color: var(--text-light);
-      line-height: 1.8;
-      margin-bottom: 20px;
-    }
-
-    .column-visual {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .book-mockup {
-      width: 400px;
-      height: 280px;
-      background: linear-gradient(135deg, #2a1a40, #1a0a2e);
-      border-radius: 10px;
-      border: 2px solid rgba(201, 169, 98, 0.3);
-      position: relative;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-      display: flex;
-      overflow: hidden;
-    }
-
-    .book-page {
-      flex: 1;
-      background: linear-gradient(180deg, #faf8f5 0%, #f0ebe0 100%);
-      margin: 15px;
-      border-radius: 5px;
-      padding: 20px;
-      position: relative;
-    }
-
-    .book-page::before {
-      content: '';
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      right: 20px;
-      bottom: 20px;
-      background: repeating-linear-gradient(
-        transparent,
-        transparent 24px,
-        rgba(201, 169, 98, 0.2) 24px,
-        rgba(201, 169, 98, 0.2) 25px
-      );
-    }
-
-    .book-spine {
-      width: 20px;
-      background: linear-gradient(90deg, rgba(0,0,0,0.3), transparent, rgba(0,0,0,0.3));
-    }
-
-    .book-page-text {
-      font-family: 'Caveat', cursive;
-      font-size: 0.9rem;
-      color: #333;
-      position: relative;
-      z-index: 1;
-      line-height: 25px;
-    }
-
-    /* List style */
-    .benefit-list {
-      list-style: none;
-      margin-top: 30px;
-    }
-
-    .benefit-list li {
-      font-size: 1.2rem;
-      color: var(--text-light);
-      margin-bottom: 15px;
-      padding-left: 35px;
-      position: relative;
-    }
-
-    .benefit-list li::before {
-      content: '✦';
-      position: absolute;
-      left: 0;
-      color: var(--gold);
-    }
-
-    /* ============================================
-       NEW STYLES FOR ENRICHED SLIDES
-       ============================================ */
-
-    /* AI Architecture Diagram */
-    .ai-architecture {
-      width: 100%;
-      max-width: 1300px;
-    }
-
-    .ai-architecture h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .ai-architecture > p {
-      text-align: center;
-      font-size: 1.2rem;
-      color: var(--text-muted);
-      margin-bottom: 50px;
-    }
-
-    .ai-flow {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      margin-bottom: 50px;
-    }
-
-    .ai-flow-step {
-      background: rgba(74, 158, 255, 0.1);
-      border: 1px solid rgba(74, 158, 255, 0.3);
-      border-radius: 16px;
-      padding: 25px 30px;
-      text-align: center;
-      min-width: 180px;
-    }
-
-    .ai-flow-step.highlight-step {
-      background: linear-gradient(135deg, rgba(201, 169, 98, 0.2), rgba(201, 169, 98, 0.1));
-      border-color: var(--gold);
-      transform: scale(1.05);
-    }
-
-    .ai-flow-step h4 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.9rem;
-      color: var(--gold-light);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    .ai-flow-step p {
-      font-size: 1rem;
-      color: var(--text-light);
-    }
-
-    .ai-flow-arrow {
-      font-size: 2rem;
-      color: var(--gold);
-      opacity: 0.6;
-    }
-
-    .ai-features-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 25px;
-    }
-
-    .ai-feature {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
-      padding: 25px;
-      text-align: center;
-    }
-
-    .ai-feature-icon {
-      font-size: 2.5rem;
-      margin-bottom: 15px;
-      display: block;
-    }
-
-    .ai-feature h4 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.1rem;
-      color: var(--gold-light);
-      margin-bottom: 10px;
-    }
-
-    .ai-feature p {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-
-    /* Gamification invisible */
-    .gamification-section {
-      width: 100%;
-      max-width: 1300px;
-    }
-
-    .gamification-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 15px;
-      text-align: center;
-    }
-
-    .gamification-section > .tagline {
-      text-align: center;
-      font-size: 1.4rem;
-      color: var(--text-muted);
-      font-style: italic;
-      margin-bottom: 50px;
-    }
-
-    .gamification-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 35px;
-    }
-
-    .gamification-card {
-      background: rgba(232, 74, 158, 0.05);
-      border: 1px solid rgba(232, 74, 158, 0.2);
-      border-radius: 24px;
-      padding: 35px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .gamification-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 4px;
-      height: 100%;
-      background: linear-gradient(180deg, var(--gold), var(--accent-pink));
-    }
-
-    .gamification-card .card-header {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .gamification-card .card-icon {
-      font-size: 2.5rem;
-    }
-
-    .gamification-card h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.4rem;
-      color: var(--gold);
-    }
-
-    .gamification-card .visible-layer {
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 15px;
-    }
-
-    .gamification-card .visible-layer h5 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.75rem;
-      color: var(--accent-green);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 8px;
-    }
-
-    .gamification-card .visible-layer p {
-      font-size: 1rem;
-      color: var(--text-light);
-    }
-
-    .gamification-card .hidden-layer h5 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.75rem;
-      color: var(--accent-blue);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 8px;
-    }
-
-    .gamification-card .hidden-layer p {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      font-style: italic;
-    }
-
-    /* Design Philosophy */
-    .design-section {
-      width: 100%;
-      max-width: 1400px;
-    }
-
-    .design-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 50px;
-      text-align: center;
-    }
-
-    .design-principles {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 40px;
-    }
-
-    .design-principle {
-      display: flex;
-      gap: 25px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(201, 169, 98, 0.15);
-      border-radius: 20px;
-      padding: 35px;
-      transition: all 0.3s ease;
-    }
-
-    .design-principle:hover {
-      border-color: rgba(201, 169, 98, 0.4);
-      background: rgba(255,255,255,0.05);
-    }
-
-    .design-principle-icon {
-      font-size: 3rem;
-      flex-shrink: 0;
-    }
-
-    .design-principle h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.5rem;
-      color: var(--gold);
-      margin-bottom: 12px;
-    }
-
-    .design-principle p {
-      font-size: 1.05rem;
-      color: var(--text-muted);
       line-height: 1.7;
-    }
-
-    /* Comparison table style */
-    .comparison-container {
-      width: 100%;
-      max-width: 1200px;
-    }
-
-    .comparison-container h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 50px;
-      text-align: center;
-    }
-
-    .comparison-table {
-      display: grid;
-      grid-template-columns: 2fr 1fr 1fr;
-      gap: 2px;
-      background: rgba(201, 169, 98, 0.2);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-
-    .comparison-header {
-      background: rgba(201, 169, 98, 0.15);
-      padding: 20px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--gold);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      text-align: center;
-    }
-
-    .comparison-header:first-child {
-      text-align: left;
-    }
-
-    .comparison-cell {
-      background: var(--deep-purple);
-      padding: 18px 20px;
-      font-size: 1rem;
       color: var(--text-light);
+      font-weight: 300;
     }
 
-    .comparison-cell.feature {
+    .tagline {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-style: italic;
       color: var(--text-muted);
-    }
-
-    .comparison-cell.check {
       text-align: center;
-      font-size: 1.3rem;
+      margin-bottom: 3rem;
     }
 
-    .comparison-cell .emoji-yes {
-      color: var(--accent-green);
-    }
-
-    .comparison-cell .emoji-no {
-      color: rgba(255,255,255,0.3);
-    }
-
-    /* Gemini Showcase */
-    .gemini-showcase {
-      display: flex;
+    /* Slide 1 - Title */
+    .slide-title {
       flex-direction: column;
-      align-items: center;
-      gap: 40px;
+      text-align: center;
     }
 
-    .gemini-badge {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      background: linear-gradient(135deg, rgba(66, 133, 244, 0.2) 0%, rgba(52, 168, 83, 0.2) 50%, rgba(251, 188, 4, 0.2) 100%);
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 20px;
-      padding: 30px 50px;
+    .title-moon {
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      border-radius: 50%;
+      margin-bottom: 3rem;
+      box-shadow: 0 0 60px rgba(212, 168, 83, 0.4);
     }
 
-    .gemini-icon {
-      font-size: 3rem;
+    .title-subtitle {
+      font-size: 1.4rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 300;
     }
 
-    .gemini-name {
-      font-family: 'Playfair Display', serif;
+    /* Slide 2 - Vision */
+    .slide-vision .content {
+      max-width: 900px;
+      text-align: center;
+    }
+
+    .slide-vision .highlight {
       font-size: 1.8rem;
-      color: var(--white);
-      font-weight: 600;
-    }
-
-    .gemini-by {
-      font-size: 0.9rem;
-      color: var(--cream);
-      opacity: 0.8;
-    }
-
-    .gemini-stats {
-      display: flex;
-      gap: 40px;
-    }
-
-    .gemini-stat {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .gemini-stat .stat-value {
-      font-family: 'Playfair Display', serif;
-      font-size: 2rem;
       color: var(--gold);
-      font-weight: 600;
-    }
-
-    .gemini-stat .stat-label {
-      font-size: 0.85rem;
-      color: var(--cream);
-      opacity: 0.9;
-    }
-
-    /* Code-like display for AI - DEPRECATED */
-    .code-block {
-      background: rgba(0,0,0,0.3);
-      border: 1px solid rgba(201, 169, 98, 0.2);
-      border-radius: 12px;
-      padding: 25px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
-      color: var(--text-light);
-      overflow-x: auto;
-    }
-
-    .code-block .comment {
-      color: var(--text-muted);
-    }
-
-    .code-block .keyword {
-      color: var(--accent-pink);
-    }
-
-    .code-block .string {
-      color: var(--accent-green);
-    }
-
-    .code-block .function {
-      color: var(--accent-blue);
-    }
-
-    .code-block .gold {
-      color: var(--gold);
-    }
-
-    /* Stats row */
-    .stats-row {
-      display: flex;
-      justify-content: center;
-      gap: 80px;
-      margin-top: 50px;
-    }
-
-    .stat-item {
-      text-align: center;
-    }
-
-    .stat-number {
-      font-family: 'Playfair Display', serif;
-      font-size: 3.5rem;
-      color: var(--gold);
-      font-weight: 600;
-      line-height: 1;
-      margin-bottom: 10px;
-    }
-
-    .stat-label {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-    }
-
-    /* ============================================
-       SYNOPTIC STYLES - Visual Flow Diagrams
-       ============================================ */
-
-    .synoptic-section {
-      width: 100%;
-      max-width: 1200px;
-    }
-
-    .synoptic-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 2.8rem;
-      color: var(--gold);
-      margin-bottom: 10px;
-      text-align: center;
-    }
-
-    .synoptic-flow {
-      background: rgba(0,0,0,0.2);
-      border: 1px solid rgba(201, 169, 98, 0.2);
-      border-radius: 24px;
-      padding: 40px;
-    }
-
-    .synoptic-input, .synoptic-output {
-      display: flex;
-      justify-content: center;
-    }
-
-    .synoptic-bubble {
-      background: rgba(255,255,255,0.05);
-      border-radius: 20px;
-      padding: 20px 30px;
-      max-width: 600px;
-      position: relative;
-    }
-
-    .synoptic-bubble.child {
-      border: 2px solid var(--accent-blue);
-      border-left: 4px solid var(--accent-blue);
-    }
-
-    .synoptic-bubble.luna {
-      border: 2px solid var(--gold);
-      border-left: 4px solid var(--gold);
-    }
-
-    .bubble-label {
-      position: absolute;
-      top: -12px;
-      left: 20px;
-      background: var(--deep-purple);
-      padding: 2px 12px;
-      font-size: 0.85rem;
-      color: var(--gold-light);
-      font-family: 'Montserrat', sans-serif;
-    }
-
-    .synoptic-bubble p {
-      font-size: 1.15rem;
-      color: var(--text-light);
-      line-height: 1.6;
-      margin: 0;
-    }
-
-    .synoptic-bubble.luna p strong {
-      color: var(--gold);
-    }
-
-    .synoptic-arrow {
-      text-align: center;
-      font-size: 2rem;
-      color: var(--gold);
-      opacity: 0.6;
-      margin: 15px 0;
-    }
-
-    .synoptic-analysis {
-      background: rgba(74, 158, 255, 0.08);
-      border: 1px solid rgba(74, 158, 255, 0.25);
-      border-radius: 16px;
-      padding: 25px;
-      margin: 20px 0;
-    }
-
-    .analysis-title {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1rem;
-      color: var(--accent-blue);
-      text-align: center;
-      margin-bottom: 20px;
-      font-weight: 500;
-    }
-
-    .analysis-grid {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-
-    .analysis-key {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
-      padding: 12px 18px;
-      text-align: center;
-      min-width: 140px;
-      opacity: 0.5;
-    }
-
-    .analysis-key.detected {
-      opacity: 1;
-      border-color: rgba(255,255,255,0.2);
-    }
-
-    .analysis-key.detected.yes {
-      background: rgba(74, 232, 140, 0.1);
-      border-color: var(--accent-green);
-    }
-
-    .analysis-key .key-check {
-      display: block;
-      font-size: 1.2rem;
-      margin-bottom: 5px;
-    }
-
-    .analysis-key.detected.yes .key-check {
-      color: var(--accent-green);
-    }
-
-    .analysis-key .key-label {
-      display: block;
-      font-size: 0.9rem;
-      color: var(--text-light);
-      margin-bottom: 3px;
-    }
-
-    .analysis-key .key-status {
-      display: block;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-style: italic;
-    }
-
-    .analysis-key.detected.yes .key-status {
-      color: var(--accent-green);
-    }
-
-    .analysis-key .key-weight {
-      display: block;
-      font-size: 0.7rem;
-      color: var(--gold);
-      margin-top: 5px;
-      font-family: 'Montserrat', sans-serif;
-    }
-
-    .analysis-result {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 20px;
-      padding-top: 15px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .result-label {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-    }
-
-    .result-value {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.95rem;
-      padding: 5px 15px;
-      border-radius: 20px;
-    }
-
-    .result-value.basic {
-      background: rgba(255, 200, 100, 0.2);
-      color: #FFD080;
-    }
-
-    .result-value.excellent {
-      background: rgba(74, 232, 140, 0.2);
-      color: var(--accent-green);
-    }
-
-    .result-xp {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.9rem;
-      color: var(--gold);
-      font-weight: 500;
-    }
-
-    .synoptic-note {
-      text-align: center;
-      margin-top: 25px;
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      background: rgba(201, 169, 98, 0.08);
-      padding: 15px 25px;
-      border-radius: 12px;
-    }
-
-    .synoptic-note strong {
-      color: var(--gold-light);
-    }
-
-    /* Writing Synoptic Comparison */
-    .writing-synoptic {
-      background: rgba(0,0,0,0.2);
-      border: 1px solid rgba(201, 169, 98, 0.2);
-      border-radius: 24px;
-      padding: 40px;
-    }
-
-    .writing-comparison {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 40px;
-    }
-
-    .writing-example {
-      background: rgba(255,255,255,0.02);
-      border-radius: 16px;
-      padding: 25px;
-      border: 2px solid transparent;
-    }
-
-    .writing-example.poor {
-      border-color: rgba(232, 74, 74, 0.3);
-    }
-
-    .writing-example.excellent {
-      border-color: rgba(74, 232, 140, 0.3);
-    }
-
-    .example-header {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 15px;
-    }
-
-    .writing-example.poor .example-header {
-      color: #E84A4A;
-    }
-
-    .writing-example.excellent .example-header {
-      color: var(--accent-green);
-    }
-
-    .example-message {
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      padding: 15px;
-      font-size: 1rem;
-      color: var(--text-light);
-      margin-bottom: 20px;
-      font-style: italic;
-      min-height: 60px;
-    }
-
-    .example-analysis {
-      margin-bottom: 15px;
-    }
-
-    .qa-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      font-size: 0.9rem;
-    }
-
-    .qa-row span:first-child {
-      color: var(--text-muted);
-    }
-
-    .qa-row .no {
-      color: rgba(255,255,255,0.3);
-    }
-
-    .qa-row .yes {
-      color: var(--accent-green);
-      font-size: 0.8rem;
-    }
-
-    .example-result {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 10px;
-      margin-bottom: 15px;
-    }
-
-    .quality {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
-
-    .quality.vague {
-      color: #E84A4A;
-    }
-
-    .quality.excellent {
-      color: var(--accent-green);
-    }
-
-    .xp-gain {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.85rem;
-      color: var(--gold);
-    }
-
-    .luna-response {
-      background: rgba(201, 169, 98, 0.08);
-      border-left: 3px solid var(--gold);
-      border-radius: 0 12px 12px 0;
-      padding: 15px;
-      font-size: 0.9rem;
-      color: var(--text-light);
+      font-weight: 400;
+      margin: 2rem 0;
       line-height: 1.6;
     }
 
-    /* Progression Synoptic */
-    .progression-synoptic {
-      width: 100%;
-      max-width: 1200px;
+    .slide-vision .points {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      margin-top: 3rem;
     }
 
-    .progression-synoptic h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 2.8rem;
-      color: var(--gold);
-      margin-bottom: 10px;
+    .slide-vision .point {
       text-align: center;
     }
 
-    .dual-progression {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 40px;
-    }
-
-    .progression-track {
-      background: rgba(0,0,0,0.2);
-      border-radius: 20px;
-      padding: 30px;
-      border: 1px solid rgba(201, 169, 98, 0.2);
-    }
-
-    .track-header {
-      text-align: center;
-      margin-bottom: 25px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .track-icon {
+    .slide-vision .point-icon {
       font-size: 2.5rem;
-      display: block;
-      margin-bottom: 10px;
+      margin-bottom: 1rem;
     }
 
-    .track-header h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.5rem;
-      color: var(--gold);
-      margin-bottom: 5px;
-    }
-
-    .track-method {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    .xp-ladder {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .xp-level {
-      display: grid;
-      grid-template-columns: 30px 120px 1fr 70px;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 15px;
-      background: rgba(255,255,255,0.02);
-      border-radius: 10px;
-      opacity: 0.6;
-    }
-
-    .xp-level.current {
-      opacity: 1;
-      background: rgba(74, 232, 140, 0.1);
-      border: 1px solid rgba(74, 232, 140, 0.3);
-    }
-
-    .level-icon {
-      font-size: 1.3rem;
-    }
-
-    .level-name {
-      font-size: 0.95rem;
-      color: var(--text-light);
-    }
-
-    .level-xp {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.8rem;
-      color: var(--gold);
-      text-align: right;
-    }
-
-    .level-bar {
-      height: 6px;
-      background: linear-gradient(90deg, var(--gold-dark), var(--gold));
-      border-radius: 3px;
-    }
-
-    .level-bar.writing-bar {
-      background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
-    }
-
-    .xp-formula {
-      margin-top: 20px;
-      padding: 15px;
-      background: rgba(201, 169, 98, 0.08);
-      border-radius: 10px;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      text-align: center;
-    }
-
-    .xp-formula strong {
-      color: var(--gold-light);
-    }
-
-    .progression-note {
-      text-align: center;
-      margin-top: 30px;
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      background: rgba(201, 169, 98, 0.08);
-      padding: 15px 25px;
-      border-radius: 12px;
-    }
-
-    .progression-note strong {
-      color: var(--gold-light);
-    }
-
-    /* Responsive for synoptics */
-    @media (max-width: 1200px) {
-      .writing-comparison, .dual-progression {
-        grid-template-columns: 1fr;
-      }
-      
-      .analysis-grid {
-        gap: 10px;
-      }
-      
-      .analysis-key {
-        min-width: 110px;
-        padding: 10px 12px;
-      }
-    }
-
-    /* ============================================
-       ECOSYSTEM SLIDE STYLES
-       ============================================ */
-    .slide-ecosystem {
-      background: 
-        radial-gradient(ellipse at 30% 20%, rgba(74, 232, 140, 0.1) 0%, transparent 50%),
-        radial-gradient(ellipse at 70% 80%, rgba(74, 158, 255, 0.1) 0%, transparent 50%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .ecosystem-section {
-      width: 100%;
-      max-width: 1400px;
-    }
-
-    .ecosystem-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 15px;
-      text-align: center;
-    }
-
-    .ecosystem-section .tagline {
-      text-align: center;
-      font-size: 1.3rem;
-      color: var(--text-muted);
-      margin-bottom: 50px;
-    }
-
-    .tools-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 30px;
-      margin-bottom: 40px;
-    }
-
-    .tool-card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 30px;
-      position: relative;
-      transition: all 0.4s ease;
-    }
-
-    .tool-card:hover {
-      transform: translateY(-8px);
-      border-color: var(--gold);
-      background: rgba(255,255,255,0.06);
-    }
-
-    .tool-card .tool-logo {
-      font-size: 3rem;
-      margin-bottom: 15px;
-    }
-
-    .tool-card h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.5rem;
-      color: var(--gold-light);
-      margin-bottom: 8px;
-    }
-
-    .tool-card .tool-desc {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      margin-bottom: 20px;
-    }
-
-    .tool-card .tool-skills {
-      list-style: none;
-      padding: 0;
-    }
-
-    .tool-card .tool-skills li {
-      font-size: 0.9rem;
-      color: var(--text-light);
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .tool-card .tool-skills li:last-child {
-      border-bottom: none;
-    }
-
-    .tool-card .tool-status {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      padding: 5px 12px;
-      border-radius: 20px;
-    }
-
-    .tool-card .tool-status.active {
-      background: var(--accent-green);
-      color: var(--deep-purple);
-    }
-
-    .tool-card .tool-status.future {
-      background: rgba(74, 158, 255, 0.2);
-      color: var(--accent-blue);
-      border: 1px solid var(--accent-blue);
-    }
-
-    .tool-card.tool-midjourney { border-top: 3px solid #ff6b6b; }
-    .tool-card.tool-runway { border-top: 3px solid var(--accent-blue); }
-    .tool-card.tool-elevenlabs { border-top: 3px solid var(--accent-green); }
-    .tool-card.tool-future { border-top: 3px solid var(--gold); }
-
-    .ecosystem-note {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 15px;
-      background: rgba(201, 169, 98, 0.1);
-      border: 1px solid rgba(201, 169, 98, 0.3);
-      border-radius: 16px;
-      padding: 20px 40px;
-    }
-
-    .ecosystem-note .note-icon {
-      font-size: 1.5rem;
-    }
-
-    .ecosystem-note p {
+    .slide-vision .point-text {
       font-size: 1.1rem;
-      color: var(--text-light);
-    }
-
-    /* ============================================
-       OBJECTIVES SLIDE STYLES
-       ============================================ */
-    .slide-objectives {
-      background: 
-        radial-gradient(ellipse at 30% 20%, rgba(201, 169, 98, 0.15) 0%, transparent 50%),
-        radial-gradient(ellipse at 70% 80%, rgba(147, 112, 219, 0.08) 0%, transparent 40%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .objectives-section {
-      width: 100%;
-      max-width: 1100px;
-    }
-
-    .objectives-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .objectives-section .tagline {
-      text-align: center;
-      font-size: 1.25rem;
       color: var(--text-muted);
-      margin-bottom: 50px;
-      font-style: italic;
+    }
+
+    /* Slide 3 - Objectives */
+    .slide-objectives .content {
+      max-width: 1100px;
+      width: 100%;
     }
 
     .objectives-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 25px;
+      gap: 2rem;
+      margin-top: 2rem;
     }
 
     .objective-card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(201, 169, 98, 0.2);
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
       border-radius: 16px;
-      padding: 28px 30px;
+      padding: 2rem;
       display: flex;
-      gap: 20px;
+      gap: 1.5rem;
       align-items: flex-start;
-      transition: all 0.3s ease;
-    }
-
-    .objective-card:hover {
-      background: rgba(255,255,255,0.05);
-      border-color: rgba(201, 169, 98, 0.4);
-      transform: translateY(-3px);
     }
 
     .objective-icon {
-      width: 55px;
-      height: 55px;
-      background: linear-gradient(135deg, rgba(201, 169, 98, 0.2), rgba(201, 169, 98, 0.1));
-      border: 1px solid rgba(201, 169, 98, 0.3);
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.6rem;
+      font-size: 2.5rem;
       flex-shrink: 0;
     }
 
-    .objective-content h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.25rem;
-      color: var(--gold);
-      margin-bottom: 8px;
+    .objective-card h3 {
+      margin-bottom: 0.75rem;
+      font-size: 1.4rem;
     }
 
-    .objective-content p {
+    .objective-card p {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+    }
+
+    .objective-card strong {
+      color: var(--gold);
+    }
+
+    /* Slide 4 - Luna */
+    .slide-luna .content {
+      max-width: 1000px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .luna-visual {
+      text-align: center;
+    }
+
+    .luna-avatar {
+      width: 200px;
+      height: 200px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      margin: 0 auto 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 5rem;
+      box-shadow: 0 0 40px rgba(102, 126, 234, 0.3);
+    }
+
+    .luna-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      color: var(--gold);
+    }
+
+    .luna-tech {
+      margin-top: 1rem;
+      padding: 0.75rem 1.5rem;
+      background: rgba(212, 168, 83, 0.1);
+      border: 1px solid rgba(212, 168, 83, 0.3);
+      border-radius: 30px;
+      display: inline-block;
+      font-size: 1rem;
+      color: var(--gold);
+    }
+
+    .luna-features {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .luna-feature {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .luna-feature-icon {
+      font-size: 1.5rem;
+      color: var(--gold);
+    }
+
+    .luna-feature p {
+      font-size: 1.15rem;
+    }
+
+    /* Slide 5 - Modes */
+    .slide-modes .content {
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .mode-card {
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .mode-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-5px);
+    }
+
+    .mode-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .mode-card h3 {
+      font-size: 1.2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .mode-card p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    /* Slide 6 - Theatre */
+    .slide-theatre .content {
+      max-width: 1000px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .theatre-visual {
+      background: rgba(45, 31, 61, 0.8);
+      border-radius: 20px;
+      padding: 3rem;
+      text-align: center;
+    }
+
+    .theatre-icons {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .theatre-icon-item {
+      text-align: center;
+    }
+
+    .theatre-icon-item span {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    .theatre-icon-item small {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .theatre-arrow {
+      font-size: 1.5rem;
+      color: var(--gold);
+    }
+
+    .theatre-tagline {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.3rem;
+      font-style: italic;
+      color: var(--gold);
+    }
+
+    .theatre-features {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .theatre-feature {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .theatre-feature-icon {
+      font-size: 1.8rem;
+    }
+
+    .theatre-feature h4 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.3rem;
+      color: var(--gold);
+      margin-bottom: 0.25rem;
+    }
+
+    .theatre-feature p {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    /* Slide 7 - Book */
+    .slide-book .content {
+      max-width: 1000px;
+      text-align: center;
+    }
+
+    .book-path {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      margin: 3rem 0;
+    }
+
+    .book-step {
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
+      border-radius: 16px;
+      padding: 1.5rem 2rem;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .book-step.highlight {
+      border-color: var(--gold);
+      background: rgba(212, 168, 83, 0.1);
+    }
+
+    .book-step-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .book-step-label {
       font-size: 1rem;
       color: var(--text-light);
-      line-height: 1.5;
-      opacity: 0.85;
     }
 
-    .objectives-footer {
-      margin-top: 45px;
-      text-align: center;
-      padding: 25px 40px;
-      background: rgba(201, 169, 98, 0.06);
-      border-radius: 14px;
-      border: 1px solid rgba(201, 169, 98, 0.15);
+    .book-arrow {
+      font-size: 1.5rem;
+      color: var(--gold);
     }
 
-    .objectives-footer p {
-      font-size: 1.15rem;
-      color: var(--text-light);
+    .book-quote {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.6rem;
       font-style: italic;
-    }
-
-    .objectives-footer strong {
       color: var(--gold);
+      margin-top: 2rem;
     }
 
-    /* ============================================
-       LUNA PEDAGOGY - PHILOSOPHY SLIDE
-       ============================================ */
-    .slide-philosophy {
-      background: 
-        radial-gradient(ellipse at 30% 70%, rgba(201, 169, 98, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 70% 30%, rgba(147, 112, 219, 0.1) 0%, transparent 40%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .philosophy-section {
-      width: 100%;
-      max-width: 1200px;
-    }
-
-    .philosophy-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .philosophy-section .tagline {
-      text-align: center;
-      font-size: 1.3rem;
-      color: var(--text-muted);
-      margin-bottom: 50px;
-    }
-
-    .philosophy-rules {
+    .book-details {
       display: flex;
-      gap: 30px;
-      margin-bottom: 40px;
+      justify-content: center;
+      gap: 4rem;
+      margin-top: 3rem;
     }
 
-    .philosophy-rule {
-      flex: 1;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(201, 169, 98, 0.25);
+    .book-detail {
+      text-align: center;
+    }
+
+    .book-detail h4 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.2rem;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .book-detail p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    /* Slide 8 - Method */
+    .slide-method .content {
+      max-width: 1100px;
+      width: 100%;
+    }
+
+    .method-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      margin-top: 2rem;
+    }
+
+    .method-box {
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
       border-radius: 20px;
-      padding: 35px 30px;
-      position: relative;
-      overflow: hidden;
+      padding: 2.5rem;
     }
 
-    .philosophy-rule::before {
+    .method-box h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .method-box h3 span {
+      font-size: 1.8rem;
+    }
+
+    .method-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .method-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .method-item-icon {
+      width: 36px;
+      height: 36px;
+      background: rgba(212, 168, 83, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    /* Slide 9 - Progression */
+    .slide-progression .content {
+      max-width: 900px;
+      text-align: center;
+    }
+
+    .progression-visual {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+
+    .progression-step {
+      text-align: center;
+    }
+
+    .progression-step-icon {
+      width: 80px;
+      height: 80px;
+      background: rgba(212, 168, 83, 0.15);
+      border: 2px solid rgba(212, 168, 83, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 1rem;
+    }
+
+    .progression-step-label {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    .progression-arrow {
+      font-size: 2rem;
+      color: var(--gold);
+    }
+
+    .progression-note {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      font-style: italic;
+      color: var(--gold);
+      margin-top: 2rem;
+    }
+
+    .progression-levels {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 3rem;
+    }
+
+    .progression-level {
+      padding: 0.75rem 1.5rem;
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
+      border-radius: 30px;
+      font-size: 1rem;
+    }
+
+    .progression-level.active {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    /* Slide 10 - Stack IA */
+    .slide-stack .content {
+      max-width: 1000px;
+      width: 100%;
+    }
+
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .stack-card {
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
+      border-radius: 20px;
+      padding: 2.5rem;
+      text-align: center;
+    }
+
+    .stack-card-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .stack-card h3 {
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stack-card .version {
+      font-size: 0.9rem;
+      color: var(--gold);
+      margin-bottom: 1rem;
+    }
+
+    .stack-card p {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    /* Slide 11 - Architecture */
+    .slide-archi .content {
+      max-width: 1100px;
+      width: 100%;
+    }
+
+    .archi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .archi-card {
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .archi-card-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .archi-card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .archi-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .archi-note {
+      text-align: center;
+      margin-top: 2.5rem;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+
+    .archi-note strong {
+      color: var(--gold);
+    }
+
+    /* Slide 12 - Mentorship */
+    .slide-mentorship .content {
+      max-width: 900px;
+      text-align: center;
+    }
+
+    .mentorship-features {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      margin-top: 3rem;
+    }
+
+    .mentorship-feature {
+      text-align: center;
+      max-width: 280px;
+    }
+
+    .mentorship-feature-icon {
+      width: 100px;
+      height: 100px;
+      background: rgba(212, 168, 83, 0.15);
+      border: 2px solid rgba(212, 168, 83, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      margin: 0 auto 1.5rem;
+    }
+
+    .mentorship-feature h3 {
+      font-size: 1.3rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .mentorship-feature p {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    /* Slide 13 - Engagement */
+    .slide-engagement .content {
+      max-width: 1000px;
+      width: 100%;
+    }
+
+    .engagement-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .engagement-card {
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .engagement-card-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .engagement-card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .engagement-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* Slide 14 - Next Steps */
+    .slide-next .content {
+      max-width: 800px;
+      text-align: center;
+    }
+
+    .next-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+
+    .next-step {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      background: rgba(45, 31, 61, 0.6);
+      border: 1px solid rgba(212, 168, 83, 0.2);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: left;
+    }
+
+    .next-step-number {
+      width: 60px;
+      height: 60px;
+      background: rgba(212, 168, 83, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.8rem;
+      color: var(--gold);
+      flex-shrink: 0;
+    }
+
+    .next-step h3 {
+      font-size: 1.3rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .next-step p {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    /* Slide 15 - End */
+    .slide-end {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .slide-end h2 {
+      font-size: 3.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .slide-end .tagline {
+      font-size: 1.6rem;
+      margin-bottom: 3rem;
+    }
+
+    .end-contact {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+    }
+
+    .end-contact a {
+      color: var(--gold);
+      text-decoration: none;
+    }
+
+    /* Animations */
+    .animate-in {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    .slide.active .animate-in {
+      animation: fadeInUp 0.6s ease forwards;
+    }
+
+    .slide.active .animate-in-1 { animation-delay: 0.1s; }
+    .slide.active .animate-in-2 { animation-delay: 0.2s; }
+    .slide.active .animate-in-3 { animation-delay: 0.3s; }
+    .slide.active .animate-in-4 { animation-delay: 0.4s; }
+    .slide.active .animate-in-5 { animation-delay: 0.5s; }
+
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Stars background */
+    .stars {
+      position: relative;
+    }
+
+    .stars::before {
       content: '';
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--gold), var(--gold-light));
-    }
-
-    .rule-number {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 50px;
-      height: 50px;
-      background: linear-gradient(135deg, var(--gold), var(--gold-light));
-      color: var(--deep-purple);
-      font-family: 'Playfair Display', serif;
-      font-size: 1.5rem;
-      font-weight: 700;
-      border-radius: 50%;
-      margin-bottom: 20px;
-    }
-
-    .philosophy-rule h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.5rem;
-      color: var(--gold);
-      margin-bottom: 15px;
-    }
-
-    .philosophy-rule p {
-      font-size: 1.1rem;
-      color: var(--text-light);
-      line-height: 1.6;
-      margin-bottom: 20px;
-    }
-
-    .rule-examples {
-      background: rgba(0,0,0,0.2);
-      border-radius: 12px;
-      padding: 18px;
-    }
-
-    .rule-example {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 12px;
-      font-size: 0.95rem;
-    }
-
-    .rule-example:last-child {
-      margin-bottom: 0;
-    }
-
-    .rule-example.bad {
-      color: rgba(255, 100, 100, 0.9);
-    }
-
-    .rule-example.good {
-      color: rgba(100, 255, 150, 0.9);
-    }
-
-    .rule-example span:first-child {
-      flex-shrink: 0;
-    }
-
-    .philosophy-bottom {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 50px;
-      padding: 25px 40px;
-      background: rgba(201, 169, 98, 0.08);
-      border-radius: 16px;
-      border: 1px solid rgba(201, 169, 98, 0.2);
-    }
-
-    .philosophy-stat {
-      text-align: center;
-    }
-
-    .philosophy-stat .stat-value {
-      display: block;
-      font-family: 'Playfair Display', serif;
-      font-size: 2rem;
-      color: var(--gold);
-    }
-
-    .philosophy-stat .stat-label {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
-
-    /* ============================================
-       LUNA PEDAGOGY - DIALOGUE SLIDES
-       ============================================ */
-    .slide-dialogue {
-      background: 
-        radial-gradient(ellipse at 50% 20%, rgba(201, 169, 98, 0.1) 0%, transparent 50%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .dialogue-section {
-      width: 100%;
-      max-width: 1100px;
-    }
-
-    .dialogue-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 2.5rem;
-      color: var(--gold);
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .dialogue-section .tagline {
-      text-align: center;
-      font-size: 1.15rem;
-      color: var(--text-muted);
-      margin-bottom: 35px;
-    }
-
-    .dialogue-container {
-      display: flex;
-      gap: 30px;
-    }
-
-    .dialogue-chat {
-      flex: 1;
-      background: rgba(0,0,0,0.3);
-      border-radius: 20px;
-      padding: 25px;
-      max-height: 500px;
-      overflow-y: auto;
-    }
-
-    .chat-message {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .chat-message:last-child {
-      margin-bottom: 0;
-    }
-
-    .chat-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.3rem;
-      flex-shrink: 0;
-    }
-
-    .chat-message.child .chat-avatar {
-      background: rgba(255, 182, 193, 0.3);
-    }
-
-    .chat-message.luna .chat-avatar {
-      background: rgba(201, 169, 98, 0.3);
-    }
-
-    .chat-bubble {
-      flex: 1;
-      padding: 15px 18px;
-      border-radius: 16px;
-      font-size: 1rem;
-      line-height: 1.5;
-    }
-
-    .chat-message.child .chat-bubble {
-      background: rgba(255, 182, 193, 0.15);
-      border: 1px solid rgba(255, 182, 193, 0.3);
-      color: var(--text-light);
-    }
-
-    .chat-message.luna .chat-bubble {
-      background: rgba(201, 169, 98, 0.1);
-      border: 1px solid rgba(201, 169, 98, 0.3);
-      color: var(--text-light);
-    }
-
-    .chat-bubble .highlight-key {
-      background: rgba(201, 169, 98, 0.3);
-      padding: 2px 8px;
-      border-radius: 6px;
-      color: var(--gold-light);
-      font-weight: 500;
-    }
-
-    .chat-bubble .highlight-question {
-      color: var(--gold);
-      font-style: italic;
-    }
-
-    .dialogue-insights {
-      width: 320px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .insight-card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(201, 169, 98, 0.2);
-      border-radius: 14px;
-      padding: 20px;
-    }
-
-    .insight-card h4 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1rem;
-      color: var(--gold);
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .insight-card p {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-
-    .insight-card ul {
-      list-style: none;
-      font-size: 0.9rem;
-      color: var(--text-light);
-    }
-
-    .insight-card ul li {
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .insight-card ul li:last-child {
-      border-bottom: none;
-    }
-
-    .insight-card .insight-highlight {
-      background: rgba(201, 169, 98, 0.15);
-      padding: 12px;
-      border-radius: 10px;
-      margin-top: 10px;
-      font-size: 0.85rem;
-      color: var(--gold-light);
-    }
-
-    /* ============================================
-       LUNA PEDAGOGY - BLOCKED CHILD SLIDE
-       ============================================ */
-    .slide-blocked {
-      background: 
-        radial-gradient(ellipse at 50% 80%, rgba(201, 169, 98, 0.1) 0%, transparent 50%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .blocked-section {
-      width: 100%;
-      max-width: 1200px;
-    }
-
-    .blocked-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 2.8rem;
-      color: var(--gold);
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    .blocked-section .tagline {
-      text-align: center;
-      font-size: 1.2rem;
-      color: var(--text-muted);
-      margin-bottom: 45px;
-    }
-
-    .blocked-steps {
-      display: flex;
-      gap: 25px;
-      position: relative;
-    }
-
-    .blocked-steps::before {
-      content: '';
-      position: absolute;
-      top: 100px;
-      left: 50px;
-      right: 50px;
-      height: 3px;
-      background: linear-gradient(90deg, 
-        var(--gold-dark) 0%, 
-        var(--gold) 50%, 
-        var(--gold-light) 100%);
-      z-index: 0;
-    }
-
-    .blocked-step {
-      flex: 1;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(201, 169, 98, 0.25);
-      border-radius: 20px;
-      padding: 30px 25px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .step-header {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .step-number {
-      width: 60px;
-      height: 60px;
-      background: linear-gradient(135deg, var(--gold), var(--gold-light));
-      color: var(--deep-purple);
-      font-family: 'Playfair Display', serif;
-      font-size: 1.5rem;
-      font-weight: 700;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .step-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.4rem;
-      color: var(--gold);
-    }
-
-    .step-subtitle {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
-
-    .step-content p {
-      font-size: 1rem;
-      color: var(--text-light);
-      margin-bottom: 15px;
-      line-height: 1.5;
-    }
-
-    .step-example {
-      background: rgba(0,0,0,0.25);
-      border-radius: 12px;
-      padding: 15px;
-      margin-top: 15px;
-    }
-
-    .step-example-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    .step-example-child {
-      font-size: 0.9rem;
-      color: rgba(255, 182, 193, 0.9);
-      margin-bottom: 10px;
-      padding-left: 25px;
-      position: relative;
-    }
-
-    .step-example-child::before {
-      content: '🧒';
-      position: absolute;
-      left: 0;
-    }
-
-    .step-example-luna {
-      font-size: 0.9rem;
-      color: rgba(201, 169, 98, 0.9);
-      padding-left: 25px;
-      position: relative;
-    }
-
-    .step-example-luna::before {
-      content: '🌙';
-      position: absolute;
-      left: 0;
-    }
-
-    .blocked-note {
-      margin-top: 35px;
-      text-align: center;
-      padding: 20px 40px;
-      background: rgba(201, 169, 98, 0.08);
-      border-radius: 12px;
-      border: 1px solid rgba(201, 169, 98, 0.15);
-    }
-
-    .blocked-note p {
-      font-size: 1.1rem;
-      color: var(--text-light);
-    }
-
-    .blocked-note strong {
-      color: var(--gold);
-    }
-
-    /* ============================================
-       AUTONOMY SLIDE STYLES
-       ============================================ */
-    .slide-autonomy {
-      background: 
-        radial-gradient(ellipse at 50% 20%, rgba(201, 169, 98, 0.15) 0%, transparent 50%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .autonomy-section {
-      width: 100%;
-      max-width: 1300px;
-    }
-
-    .autonomy-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 15px;
-      text-align: center;
-    }
-
-    .autonomy-section .tagline {
-      text-align: center;
-      font-size: 1.3rem;
-      color: var(--text-muted);
-      margin-bottom: 50px;
-    }
-
-    .skills-showcase {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 40px;
-    }
-
-    .skill-category {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(201, 169, 98, 0.2);
-      border-radius: 20px;
-      padding: 30px;
-    }
-
-    .category-header {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 25px;
-    }
-
-    .category-icon {
-      font-size: 2.5rem;
-    }
-
-    .category-header h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.3rem;
-      color: var(--gold);
-    }
-
-    .skills-list {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .skill-item {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .skill-name {
-      font-size: 0.95rem;
-      color: var(--text-light);
-    }
-
-    .skill-bar {
-      height: 6px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .skill-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-light));
-      border-radius: 3px;
-      transition: width 1s ease;
-    }
-
-    /* ============================================
-       MENTORSHIP SLIDE STYLES
-       ============================================ */
-    .slide-mentorship {
-      background: 
-        radial-gradient(ellipse at 80% 30%, rgba(74, 158, 255, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 20% 70%, rgba(201, 169, 98, 0.1) 0%, transparent 50%),
-        linear-gradient(135deg, var(--deep-purple) 0%, var(--purple) 100%);
-    }
-
-    .mentorship-section {
-      width: 100%;
-      max-width: 1300px;
-    }
-
-    .mentorship-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 3rem;
-      color: var(--gold);
-      margin-bottom: 15px;
-      text-align: center;
-    }
-
-    .mentorship-section .tagline {
-      text-align: center;
-      font-size: 1.3rem;
-      color: var(--text-muted);
-      margin-bottom: 50px;
-    }
-
-    .mentorship-features {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 30px;
-      margin-bottom: 40px;
-    }
-
-    .mentor-card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(74, 158, 255, 0.2);
-      border-radius: 20px;
-      padding: 30px;
-      text-align: center;
-      transition: all 0.4s ease;
-    }
-
-    .mentor-card:hover {
-      transform: translateY(-5px);
-      border-color: var(--accent-blue);
-      background: rgba(255,255,255,0.05);
-    }
-
-    .mentor-visual {
-      height: 80px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20px;
-      font-size: 3rem;
-    }
-
-    .mentor-visual .connection-line {
-      width: 40px;
-      height: 2px;
-      background: linear-gradient(90deg, var(--gold), var(--accent-blue));
-      margin: 0 10px;
-    }
-
-    .mentor-card h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.2rem;
-      color: var(--gold-light);
-      margin-bottom: 12px;
-    }
-
-    .mentor-card p {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-
-    .mentorship-quote {
-      text-align: center;
-      background: rgba(201, 169, 98, 0.1);
-      border: 1px solid rgba(201, 169, 98, 0.3);
-      border-radius: 16px;
-      padding: 25px 50px;
-    }
-
-    .mentorship-quote p {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.3rem;
-      font-style: italic;
-      color: var(--gold-light);
+      bottom: 0;
+      background-image: 
+        radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.3), transparent),
+        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.2), transparent),
+        radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.3), transparent),
+        radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.2), transparent),
+        radial-gradient(1px 1px at 160px 120px, rgba(255,255,255,0.4), transparent);
+      background-size: 200px 200px;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
-  <!-- Progress Bar -->
-  <div class="progress-bar" id="progressBar"></div>
+  <nav class="nav">
+    <div class="logo">
+      <div class="logo-moon"></div>
+      <span>La Voix du Soir</span>
+    </div>
+    <div class="slide-counter">
+      <span class="current-slide">01</span> / <span class="total-slides">15</span>
+    </div>
+    <div class="nav-arrows">
+      <button class="nav-arrow prev">←</button>
+      <button class="nav-arrow next">→</button>
+    </div>
+  </nav>
 
-  <!-- Logo -->
-  <div class="logo">
-    <div class="logo-moon"></div>
-    La Voix du Soir
+  <div class="dots-nav">
+    <!-- Generated by JS -->
   </div>
 
-  <!-- Navigation Dots -->
-  <div class="nav-dots" id="navDots"></div>
-
-  <!-- Slide Counter -->
-  <div class="slide-counter">
-    <span class="current" id="currentSlide">01</span>
-    <span> / </span>
-    <span id="totalSlides">19</span>
-  </div>
-
-  <!-- Navigation Arrows -->
-  <div class="nav-arrows">
-    <div class="nav-arrow" id="prevBtn">←</div>
-    <div class="nav-arrow" id="nextBtn">→</div>
-  </div>
-
-  <!-- Presentation -->
-  <div class="presentation" id="presentation">
+  <div class="slides-container">
     
     <!-- Slide 1: Title -->
-    <section class="slide title-slide stars active" data-slide="0">
-      <div class="moon"></div>
-      <h1>La Voix du Soir</h1>
-      <p class="subtitle">L'Art de Créer avec l'Intelligence Artificielle</p>
+    <section class="slide slide-title stars active" data-slide="0">
+      <div class="title-moon animate-in animate-in-1"></div>
+      <h1 class="animate-in animate-in-2">La Voix du Soir</h1>
+      <p class="title-subtitle animate-in animate-in-3">L'Art de Créer avec l'Intelligence Artificielle</p>
     </section>
 
     <!-- Slide 2: Vision -->
-    <section class="slide content-slide slide-vision" data-slide="1">
-      <div class="two-columns">
-        <div class="column-content">
-          <h2 class="animate-in animate-in-1">Une Vision Unique</h2>
-          <p class="animate-in animate-in-2">
-            <span class="highlight">La Voix du Soir</span> est bien plus qu'une application — c'est un <span class="highlight">univers créatif</span> conçu pour initier vos filles aux technologies de demain, tout en cultivant leur imagination.
-          </p>
-          <p class="animate-in animate-in-3">
-            Dans un monde où l'IA transforme chaque industrie, maîtriser l'art du <span class="highlight">prompting</span> devient une compétence aussi fondamentale que la lecture ou l'écriture.
-          </p>
-          <ul class="benefit-list animate-in animate-in-4">
-            <li>Apprentissage ludique et adapté aux enfants</li>
-            <li>Création d'histoires illustrées par IA</li>
-            <li>Compagnon pédagogique personnalisé</li>
-          </ul>
-        </div>
-        <div class="column-visual animate-in animate-in-3">
-          <div class="book-mockup">
-            <div class="book-page">
-              <div class="book-page-text">
-                Il était une fois<br>
-                une petite fille<br>
-                qui apprit à parler<br>
-                aux étoiles...
-              </div>
-            </div>
-            <div class="book-spine"></div>
-            <div class="book-page">
-              <div class="book-page-text">
-                Et les étoiles<br>
-                lui répondirent<br>
-                en créant des<br>
-                images magiques.
-              </div>
-            </div>
+    <section class="slide slide-vision stars" data-slide="1">
+      <div class="content">
+        <h2 class="animate-in animate-in-1">Une Vision pour l'Avenir</h2>
+        <p class="highlight animate-in animate-in-2">
+          Dans un monde transformé par l'IA, maîtriser l'art du prompting devient<br>
+          une compétence aussi fondamentale que la lecture ou l'écriture.
+        </p>
+        <p class="animate-in animate-in-3">
+          La Voix du Soir est une application sur-mesure, conçue exclusivement pour vos filles,<br>
+          pour leur donner les clés du monde de demain — dans un univers magique et bienveillant.
+        </p>
+        <div class="points animate-in animate-in-4">
+          <div class="point">
+            <div class="point-icon">🎓</div>
+            <div class="point-text">Pédagogie<br>adaptée</div>
+          </div>
+          <div class="point">
+            <div class="point-icon">💝</div>
+            <div class="point-text">Moments<br>en famille</div>
+          </div>
+          <div class="point">
+            <div class="point-icon">📚</div>
+            <div class="point-text">Créations<br>tangibles</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 3: Objectifs -->
-    <section class="slide slide-objectives stars" data-slide="2">
-      <div class="objectives-section">
+    <!-- Slide 3: Objectives -->
+    <section class="slide slide-objectives" data-slide="2">
+      <div class="content">
         <h2 class="animate-in animate-in-1">Les Objectifs</h2>
-        <p class="tagline animate-in animate-in-2">Ce que vos filles vont apprendre et développer</p>
-        
+        <p class="tagline animate-in animate-in-2">Ce que vos filles vont apprendre</p>
         <div class="objectives-grid animate-in animate-in-3">
           <div class="objective-card">
             <div class="objective-icon">💬</div>
-            <div class="objective-content">
-              <h3>Maîtriser le Prompting IA</h3>
-              <p><strong>Comment :</strong> Luna enseigne les "5 Clés Magiques" pour les images et les "5 Questions Magiques" pour le texte. Chaque interaction avec Midjourney, Runway ou ElevenLabs est guidée.</p>
+            <div>
+              <h3>Maîtriser le Prompting</h3>
+              <p><strong>Comment :</strong> Luna enseigne les "5 Clés Magiques" pour les images et les "5 Questions Magiques" pour le texte.</p>
             </div>
           </div>
-
-          <div class="objective-card">
-            <div class="objective-icon">📝</div>
-            <div class="objective-content">
-              <h3>Maîtriser le Traitement de Texte</h3>
-              <p><strong>Comment :</strong> Un éditeur professionnel intégré avec mise en forme, styles, images — aussi puissant que Google Docs ou Word, dans un environnement adapté aux enfants.</p>
-            </div>
-          </div>
-
-          <div class="objective-card">
-            <div class="objective-icon">🖥️</div>
-            <div class="objective-content">
-              <h3>Devenir Autonome sur Ordinateur</h3>
-              <p><strong>Comment :</strong> Application native macOS. Elles apprennent à naviguer, gérer leurs fichiers, utiliser Safari pour les ressources — en contexte réel, pas simulé.</p>
-            </div>
-          </div>
-
           <div class="objective-card">
             <div class="objective-icon">🎨</div>
-            <div class="objective-content">
-              <h3>Développer la Créativité</h3>
-              <p><strong>Comment :</strong> 5 modes créatifs (Journal, Écriture, Studio, Montage, Théâtre). Liberté totale d'imaginer, sans jugement, avec les meilleurs outils IA.</p>
+            <div>
+              <h3>Créer avec l'IA</h3>
+              <p><strong>Comment :</strong> Génération d'images (Midjourney), de vidéos (Runway) et de voix (ElevenLabs) guidée pas à pas.</p>
             </div>
           </div>
-
           <div class="objective-card">
-            <div class="objective-icon">🧠</div>
-            <div class="objective-content">
-              <h3>Structurer sa Pensée</h3>
-              <p><strong>Comment :</strong> Structures narratives guidées (conte, aventure, problème-solution). Luna pose des questions qui apprennent à décomposer et organiser les idées.</p>
+            <div class="objective-icon">📝</div>
+            <div>
+              <h3>Traitement de Texte</h3>
+              <p><strong>Comment :</strong> Éditeur professionnel intégré, aussi puissant que Google Docs, adapté aux enfants.</p>
             </div>
           </div>
-
           <div class="objective-card">
-            <div class="objective-icon">🌟</div>
-            <div class="objective-content">
-              <h3>Cultiver la Confiance en Soi</h3>
-              <p><strong>Comment :</strong> Progression invisible qui célèbre chaque réussite. Luna encourage sans juger. Chaque histoire terminée est une fierté concrète.</p>
+            <div class="objective-icon">🚀</div>
+            <div>
+              <h3>Devenir Autonomes</h3>
+              <p><strong>Comment :</strong> Application native macOS — navigation, fichiers, Safari en contexte réel.</p>
             </div>
           </div>
-        </div>
-
-        <div class="objectives-footer animate-in animate-in-4">
-          <p>Des compétences <strong>fondamentales</strong> pour le monde de demain — acquises dans le plaisir et la créativité.</p>
         </div>
       </div>
     </section>
 
     <!-- Slide 4: Luna -->
-    <section class="slide slide-luna" data-slide="3">
-      <div class="luna-section">
-        <div class="luna-avatar animate-in animate-in-1">🌙</div>
-        <div class="luna-content">
-          <h2 class="animate-in animate-in-2">Rencontrez Luna</h2>
-          <p class="animate-in animate-in-3">
-            Luna est une <span class="highlight">IA-Amie de 8 ans</span>, conçue pour accompagner vos filles dans leur voyage créatif. Elle ne fait jamais le travail à leur place — elle <span class="highlight">guide, encourage et enseigne</span>.
-          </p>
-          <p class="animate-in animate-in-4">
-            Alimentée par <span class="highlight">Gemini 2.0 Flash</span>, Luna comprend le contexte, adapte ses réponses et célèbre chaque progrès. Une vraie compagne d'apprentissage.
-          </p>
-          <div class="luna-traits animate-in animate-in-5">
-            <span class="luna-trait">💜 Bienveillante</span>
-            <span class="luna-trait">🎨 Créative</span>
-            <span class="luna-trait">🌟 Encourageante</span>
-            <span class="luna-trait">🎓 Pédagogue</span>
-            <span class="luna-trait">🗣️ Multilingue</span>
+    <section class="slide slide-luna stars" data-slide="3">
+      <div class="content">
+        <div class="luna-visual animate-in animate-in-1">
+          <div class="luna-avatar">🌙</div>
+          <div class="luna-name">Luna</div>
+          <div class="luna-tech">Propulsée par Gemini 2.0 Flash</div>
+        </div>
+        <div class="luna-features">
+          <div class="luna-feature animate-in animate-in-2">
+            <div class="luna-feature-icon">🎙️</div>
+            <p><strong>Conversation vocale temps réel</strong><br>Une vraie discussion, pas un chatbot</p>
+          </div>
+          <div class="luna-feature animate-in animate-in-3">
+            <div class="luna-feature-icon">🎓</div>
+            <p><strong>Pédagogie adaptative</strong><br>S'adapte au niveau et au rythme de chaque enfant</p>
+          </div>
+          <div class="luna-feature animate-in animate-in-4">
+            <div class="luna-feature-icon">💝</div>
+            <p><strong>Bienveillante, jamais condescendante</strong><br>Encourage, guide, célèbre chaque progrès</p>
+          </div>
+          <div class="luna-feature animate-in animate-in-5">
+            <div class="luna-feature-icon">🔒</div>
+            <p><strong>Sécurisée</strong><br>Filtres intégrés, contenu 100% adapté</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 5: Luna's Philosophy - La méthode pédagogique -->
-    <section class="slide slide-philosophy stars" data-slide="4">
-      <div class="philosophy-section">
-        <h2 class="animate-in animate-in-1">La Philosophie de Luna</h2>
-        <p class="tagline animate-in animate-in-2">Trois règles d'or qui guident chaque interaction</p>
-        
-        <div class="philosophy-rules animate-in animate-in-3">
-          <div class="philosophy-rule">
-            <span class="rule-number">1</span>
-            <h3>Copine, Pas Prof</h3>
-            <p>Luna réagit avec enthousiasme, pose des questions comme une amie curieuse. Jamais de listes scolaires ou de ton condescendant.</p>
-            <div class="rule-examples">
-              <div class="rule-example bad">
-                <span>❌</span>
-                <span>"Tu dois décrire le QUI, le OÙ et le QUOI"</span>
-              </div>
-              <div class="rule-example good">
-                <span>✅</span>
-                <span>"Oh un dragon violet ! 🐉 Il est où ? Comment il est ?"</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="philosophy-rule">
-            <span class="rule-number">2</span>
-            <h3>Guider avec des Questions</h3>
-            <p>Luna ne donne jamais la réponse. Elle pose des questions qui ouvrent l'imagination et stimulent la réflexion.</p>
-            <div class="rule-examples">
-              <div class="rule-example bad">
-                <span>❌</span>
-                <span>"Je vais créer un dragon style Pixar pour toi"</span>
-              </div>
-              <div class="rule-example good">
-                <span>✅</span>
-                <span>"Tu le vois comment ? Comme un dessin animé ? Une peinture ?"</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="philosophy-rule">
-            <span class="rule-number">3</span>
-            <h3>Jamais à Sa Place</h3>
-            <p>L'enfant reste l'auteur. Luna célèbre, guide et encourage — mais ne prend jamais le stylo des mains.</p>
-            <div class="rule-examples">
-              <div class="rule-example bad">
-                <span>❌</span>
-                <span>"Voici la suite de ton histoire : Le dragon s'envola..."</span>
-              </div>
-              <div class="rule-example good">
-                <span>✅</span>
-                <span>"C'est TON histoire ! 😊 Tu veux que je te donne des pistes ?"</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="philosophy-bottom animate-in animate-in-4">
-          <div class="philosophy-stat">
-            <span class="stat-value">1000+</span>
-            <span class="stat-label">lignes de prompt système</span>
-          </div>
-          <div class="philosophy-stat">
-            <span class="stat-value">3</span>
-            <span class="stat-label">langues (FR/EN/RU)</span>
-          </div>
-          <div class="philosophy-stat">
-            <span class="stat-value">5</span>
-            <span class="stat-label">niveaux adaptatifs</span>
-          </div>
-          <div class="philosophy-stat">
-            <span class="stat-value">∞</span>
-            <span class="stat-label">patience et bienveillance</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 6: Luna en Action - Images (Dialogue) -->
-    <section class="slide slide-dialogue" data-slide="5">
-      <div class="dialogue-section">
-        <h2 class="animate-in animate-in-1">🎨 Luna en Action — Création d'Images</h2>
-        <p class="tagline animate-in animate-in-2">Comment Luna enseigne les "5 Clés Magiques" sans que l'enfant s'en aperçoive</p>
-        
-        <div class="dialogue-container animate-in animate-in-3">
-          <div class="dialogue-chat">
-            <div class="chat-message child">
-              <div class="chat-avatar">👧</div>
-              <div class="chat-bubble">Je veux un dragon !</div>
-            </div>
-            <div class="chat-message luna">
-              <div class="chat-avatar">🌙</div>
-              <div class="chat-bubble">Un dragon ! Super ! 🐉 <span class="highlight-question">Tu le vois comment ce dragon ? Il est grand ? Petit ? De quelle couleur ?</span></div>
-            </div>
-            <div class="chat-message child">
-              <div class="chat-avatar">👧</div>
-              <div class="chat-bubble">Un dragon violet avec des écailles brillantes qui dort en boule !</div>
-            </div>
-            <div class="chat-message luna">
-              <div class="chat-avatar">🌙</div>
-              <div class="chat-bubble">Oooh un dragon violet aux écailles brillantes qui dort, j'adore ! 💜 Tu as super bien décrit le <span class="highlight-key">HÉROS</span> ! Et maintenant... <span class="highlight-question">tu le veux comment comme image ? Comme un dessin Pixar ? Une aquarelle ? Une photo réaliste ?</span> C'est ça le <span class="highlight-key">STYLE</span>, la clé la plus magique !</div>
-            </div>
-            <div class="chat-message child">
-              <div class="chat-avatar">👧</div>
-              <div class="chat-bubble">Comme Pixar ! Et il dort dans une forêt magique avec des lucioles !</div>
-            </div>
-            <div class="chat-message luna">
-              <div class="chat-avatar">🌙</div>
-              <div class="chat-bubble">Waouh ! 🌟 Style Pixar, forêt magique, lucioles... Tu viens d'utiliser 4 clés magiques d'un coup ! Tu es une vraie artiste ! On crée cette image ?</div>
-            </div>
-          </div>
-
-          <div class="dialogue-insights">
-            <div class="insight-card">
-              <h4>🔑 Clés Détectées</h4>
-              <ul>
-                <li>🎨 <strong>Style</strong> → "Pixar" (40%)</li>
-                <li>👤 <strong>Héros</strong> → "dragon violet, écailles" (25%)</li>
-                <li>🌍 <strong>Monde</strong> → "forêt magique" (10%)</li>
-                <li>✨ <strong>Magie</strong> → "lucioles" (10%)</li>
-              </ul>
-              <div class="insight-highlight">
-                💫 Qualité : Excellent (4/5 clés)<br>
-                +30 XP gagnés (invisible)
-              </div>
-            </div>
-            <div class="insight-card">
-              <h4>🧠 Technique Utilisée</h4>
-              <p>Luna enseigne <strong>une clé à la fois</strong>. Elle a d'abord demandé le Héros, puis introduit le Style naturellement. L'enfant apprend sans s'en rendre compte.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 7: Luna en Action - Écriture (Dialogue) -->
-    <section class="slide slide-dialogue stars" data-slide="6">
-      <div class="dialogue-section">
-        <h2 class="animate-in animate-in-1">✍️ Luna en Action — Écriture d'Histoires</h2>
-        <p class="tagline animate-in animate-in-2">Comment Luna utilise les "5 Questions Magiques" pour enrichir les récits</p>
-        
-        <div class="dialogue-container animate-in animate-in-3">
-          <div class="dialogue-chat">
-            <div class="chat-message child">
-              <div class="chat-avatar">👧</div>
-              <div class="chat-bubble">Mon histoire parle d'une princesse qui est triste</div>
-            </div>
-            <div class="chat-message luna">
-              <div class="chat-avatar">🌙</div>
-              <div class="chat-bubble">Oh une princesse triste ! 👸 <span class="highlight-question">Elle s'appelle comment ta princesse ? Et elle est triste pourquoi ?</span></div>
-            </div>
-            <div class="chat-message child">
-              <div class="chat-avatar">👧</div>
-              <div class="chat-bubble">Elle s'appelle Étoile et elle a perdu son chat magique dans la forêt enchantée</div>
-            </div>
-            <div class="chat-message luna">
-              <div class="chat-avatar">🌙</div>
-              <div class="chat-bubble">La princesse Étoile a perdu son chat dans la forêt enchantée... 🐱✨ Super, tu m'as dit <span class="highlight-key">QUI</span> c'est, <span class="highlight-key">QUOI</span> il se passe et <span class="highlight-key">OÙ</span> — je vois la scène ! <span class="highlight-question">Et ça se passe quand ? Le jour ? La nuit ? C'est important pour l'ambiance !</span></div>
-            </div>
-            <div class="chat-message child">
-              <div class="chat-avatar">👧</div>
-              <div class="chat-bubble">C'est la nuit, sous la pleine lune, et soudain elle entend un miaulement au loin !</div>
-            </div>
-            <div class="chat-message luna">
-              <div class="chat-avatar">🌙</div>
-              <div class="chat-bubble">Oh ! Sous la pleine lune, un miaulement au loin... 🌙 Tu viens de créer du suspense parfait ! Qu'est-ce qu'elle fait, Étoile ? Elle court vers le son ?</div>
-            </div>
-          </div>
-
-          <div class="dialogue-insights">
-            <div class="insight-card">
-              <h4>❓ Questions Détectées</h4>
-              <ul>
-                <li>👤 <strong>QUI</strong> → "Princesse Étoile"</li>
-                <li>❓ <strong>QUOI</strong> → "perdu son chat"</li>
-                <li>📍 <strong>OÙ</strong> → "forêt enchantée"</li>
-                <li>⏰ <strong>QUAND</strong> → "la nuit, pleine lune"</li>
-                <li>💥 <strong>ET ALORS</strong> → "miaulement"</li>
-              </ul>
-              <div class="insight-highlight">
-                ⭐ 5/5 Questions utilisées !<br>
-                +30 XP par message riche
-              </div>
-            </div>
-            <div class="insight-card">
-              <h4>📊 Adaptation au Niveau</h4>
-              <p>Luna nomme les questions <strong>1× sur 2</strong> pour un débutant, <strong>1× sur 4</strong> pour un intermédiaire. Un expert n'en a plus besoin !</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 8: Quand l'Enfant est Bloqué -->
-    <section class="slide slide-blocked" data-slide="7">
-      <div class="blocked-section">
-        <h2 class="animate-in animate-in-1">Quand l'Enfant est Bloqué</h2>
-        <p class="tagline animate-in animate-in-2">Une aide progressive qui respecte l'autonomie</p>
-        
-        <div class="blocked-steps animate-in animate-in-3">
-          <div class="blocked-step">
-            <div class="step-header">
-              <span class="step-number">1</span>
-              <div>
-                <div class="step-title">Guider</div>
-                <div class="step-subtitle">Par défaut</div>
-              </div>
-            </div>
-            <div class="step-content">
-              <p>Luna pose des questions simples pour relancer l'imagination.</p>
-              <div class="step-example">
-                <div class="step-example-label">Exemple</div>
-                <div class="step-example-child">"Je sais pas quoi écrire..."</div>
-                <div class="step-example-luna">"Il fait quoi maintenant ton dragon ? Il dort encore ou il se réveille ?"</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="blocked-step">
-            <div class="step-header">
-              <span class="step-number">2</span>
-              <div>
-                <div class="step-title">Pistes</div>
-                <div class="step-subtitle">Si toujours bloqué</div>
-              </div>
-            </div>
-            <div class="step-content">
-              <p>Luna donne des directions sans imposer de choix.</p>
-              <div class="step-example">
-                <div class="step-example-label">Exemple</div>
-                <div class="step-example-child">"J'arrive vraiment pas..."</div>
-                <div class="step-example-luna">"Est-ce qu'il part chercher quelque chose ? Ou il rencontre quelqu'un de nouveau ?"</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="blocked-step">
-            <div class="step-header">
-              <span class="step-number">3</span>
-              <div>
-                <div class="step-title">Options</div>
-                <div class="step-subtitle">Après 2-3 tentatives</div>
-              </div>
-            </div>
-            <div class="step-content">
-              <p>Luna propose 2-3 idées concrètes. L'enfant <strong>choisit et développe</strong> — elle reste l'auteur.</p>
-              <div class="step-example">
-                <div class="step-example-label">Exemple</div>
-                <div class="step-example-child">"Tu peux m'aider ?"</div>
-                <div class="step-example-luna">"Voici des idées : 🐰 Il rencontre un lapin guide | 🗺️ Il trouve une carte mystérieuse | 👣 Il découvre des traces étranges. Laquelle te plaît ?"</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="blocked-note animate-in animate-in-4">
-          <p>⚠️ <strong>Jamais Luna n'écrit à la place de l'enfant.</strong> Même au niveau 3, elle propose des OPTIONS — l'enfant garde le contrôle total de son histoire.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 9: AI Architecture -->
-    <section class="slide slide-ai" data-slide="8">
-      <div class="ai-architecture">
-        <h2 class="animate-in animate-in-1">L'Intelligence de Luna</h2>
-        <p class="animate-in animate-in-2">Un système conversationnel de nouvelle génération basé sur Gemini 2.0 Flash</p>
-        
-        <div class="ai-flow animate-in animate-in-3">
-          <div class="ai-flow-step">
-            <h4>Entrée</h4>
-            <p>Message de l'enfant</p>
-          </div>
-          <span class="ai-flow-arrow">→</span>
-          <div class="ai-flow-step">
-            <h4>Contexte</h4>
-            <p>Mode + Historique</p>
-          </div>
-          <span class="ai-flow-arrow">→</span>
-          <div class="ai-flow-step highlight-step">
-            <h4>Gemini 2.0</h4>
-            <p>Analyse sémantique</p>
-          </div>
-          <span class="ai-flow-arrow">→</span>
-          <div class="ai-flow-step">
-            <h4>Persona Luna</h4>
-            <p>Adaptation ton</p>
-          </div>
-          <span class="ai-flow-arrow">→</span>
-          <div class="ai-flow-step">
-            <h4>Réponse</h4>
-            <p>Guidance créative</p>
-          </div>
-        </div>
-
-        <div class="ai-features-grid animate-in animate-in-4">
-          <div class="ai-feature">
-            <span class="ai-feature-icon">🧠</span>
-            <h4>Compréhension Contextuelle</h4>
-            <p>Luna mémorise l'histoire en cours et les préférences de l'enfant</p>
-          </div>
-          <div class="ai-feature">
-            <span class="ai-feature-icon">🎯</span>
-            <h4>Réponses Adaptatives</h4>
-            <p>Le niveau de complexité s'ajuste au niveau de maîtrise détecté</p>
-          </div>
-          <div class="ai-feature">
-            <span class="ai-feature-icon">🚫</span>
-            <h4>Jamais à la Place</h4>
-            <p>L'IA guide par des questions, ne donne jamais la réponse directe</p>
-          </div>
-          <div class="ai-feature">
-            <span class="ai-feature-icon">🔒</span>
-            <h4>Safe by Design</h4>
-            <p>Filtrage intégré pour un contenu 100% adapté aux enfants</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 10: Pourquoi Gemini -->
-    <section class="slide slide-ai" data-slide="9">
-      <div class="two-columns">
-        <div class="column-content">
-          <h2 class="animate-in animate-in-1">Pourquoi Gemini 2.0 Flash ?</h2>
-          <p class="animate-in animate-in-2">
-            Le modèle le plus avancé de Google, choisi pour sa capacité unique à <span class="highlight">comprendre</span>, <span class="highlight">raisonner</span> et <span class="highlight">créer</span>.
-          </p>
-          <ul class="benefit-list animate-in animate-in-3">
-            <li><span class="highlight">Multimodal</span> — Comprend texte, images, et contexte simultanément</li>
-            <li><span class="highlight">Temps réel</span> — Réponses instantanées, conversations fluides</li>
-            <li><span class="highlight">Créatif</span> — Capable d'imaginer, suggérer, inspirer</li>
-            <li><span class="highlight">Sécurisé</span> — Filtres intégrés pour contenu 100% adapté</li>
-          </ul>
-          <p class="animate-in animate-in-4" style="margin-top: 20px;">
-            Luna a été <span class="highlight">personnalisée</span> pour devenir l'amie créative parfaite : bienveillante, jamais condescendante, toujours encourageante.
-          </p>
-        </div>
-        <div class="column-visual animate-in animate-in-3">
-          <div class="gemini-showcase">
-            <div class="gemini-badge">
-              <span class="gemini-icon">✨</span>
-              <span class="gemini-name">Gemini 2.0 Flash</span>
-              <span class="gemini-by">by Google</span>
-            </div>
-            <div class="gemini-stats">
-              <div class="gemini-stat">
-                <span class="stat-value">< 1s</span>
-                <span class="stat-label">Temps de réponse</span>
-              </div>
-              <div class="gemini-stat">
-                <span class="stat-value">200+</span>
-                <span class="stat-label">Langues supportées</span>
-              </div>
-              <div class="gemini-stat">
-                <span class="stat-value">∞</span>
-                <span class="stat-label">Créativité</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 11: Ecosystem of Tools -->
-    <section class="slide slide-ecosystem stars" data-slide="10">
-      <div class="ecosystem-section">
-        <h2 class="animate-in animate-in-1">Un Écosystème Complet d'Outils IA</h2>
-        <p class="tagline animate-in animate-in-2">Bien plus que du prompting — une formation aux outils de demain</p>
-        
-        <div class="tools-grid animate-in animate-in-3">
-          <div class="tool-card tool-midjourney">
-            <div class="tool-logo">🎨</div>
-            <h3>Midjourney</h3>
-            <p class="tool-desc">Génération d'images par IA</p>
-            <ul class="tool-skills">
-              <li>Construire un prompt visuel structuré</li>
-              <li>Comprendre les paramètres (--ar, --style)</li>
-              <li>Itérer et affiner ses créations</li>
-            </ul>
-            <span class="tool-status active">Intégré</span>
-          </div>
-
-          <div class="tool-card tool-runway">
-            <div class="tool-logo">🎬</div>
-            <h3>Runway</h3>
-            <p class="tool-desc">Création vidéo par IA</p>
-            <ul class="tool-skills">
-              <li>Animer ses illustrations</li>
-              <li>Créer des transitions magiques</li>
-              <li>Donner vie aux histoires</li>
-            </ul>
-            <span class="tool-status active">Intégré</span>
-          </div>
-
-          <div class="tool-card tool-elevenlabs">
-            <div class="tool-logo">🎙️</div>
-            <h3>ElevenLabs</h3>
-            <p class="tool-desc">Voix synthétiques IA</p>
-            <ul class="tool-skills">
-              <li>Choisir une voix narrative</li>
-              <li>Ajuster le ton et l'émotion</li>
-              <li>Créer des audiobooks</li>
-            </ul>
-            <span class="tool-status active">Intégré</span>
-          </div>
-
-          <div class="tool-card tool-future">
-            <div class="tool-logo">🚀</div>
-            <h3>Et demain...</h3>
-            <p class="tool-desc">Architecture évolutive</p>
-            <ul class="tool-skills">
-              <li>Sora (vidéo OpenAI)</li>
-              <li>Nouveaux modèles d'images</li>
-              <li>Outils 3D génératifs</li>
-            </ul>
-            <span class="tool-status future">Prêt</span>
-          </div>
-        </div>
-
-        <div class="ecosystem-note animate-in animate-in-4">
-          <span class="note-icon">💡</span>
-          <p>L'architecture modulaire permet d'intégrer les nouveaux outils IA dès leur sortie — vos filles seront toujours à la pointe</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 12: 5 Modes -->
-    <section class="slide stars" data-slide="11">
-      <div class="modes-showcase">
+    <!-- Slide 5: Modes -->
+    <section class="slide slide-modes" data-slide="4">
+      <div class="content">
         <h2 class="animate-in animate-in-1">Cinq Univers Créatifs</h2>
-        <p class="modes-tagline animate-in animate-in-1">Chaque mode, une expérience unique avec Luna</p>
-        <div class="modes-grid-enhanced">
-          <div class="mode-card-enhanced animate-in animate-in-2">
-            <span class="mode-icon-large">📔</span>
+        <p class="tagline animate-in animate-in-2">Chaque mode, une expérience unique avec Luna</p>
+        <div class="modes-grid animate-in animate-in-3">
+          <div class="mode-card">
+            <div class="mode-icon">📔</div>
             <h3>Journal Intime</h3>
-            <p class="mode-description">Espace personnel et confidentiel pour les émotions, photos, enregistrements vocaux.</p>
-            <p class="mode-luna"><em>Luna y est plus douce, plus confidente.</em></p>
+            <p>Pensées, photos, voix — Luna confidente</p>
           </div>
-          <div class="mode-card-enhanced animate-in animate-in-2">
-            <span class="mode-icon-large">✍️</span>
+          <div class="mode-card">
+            <div class="mode-icon">✍️</div>
             <h3>Éditeur d'Histoires</h3>
-            <p class="mode-description">Création de récits avec structures narratives guidées (conte, aventure, mystère).</p>
-            <p class="mode-luna"><em>Luna guide avec les 5 Questions Magiques.</em></p>
+            <p>Structures narratives guidées</p>
           </div>
-          <div class="mode-card-enhanced animate-in animate-in-3">
-            <span class="mode-icon-large">🎨</span>
-            <h3>Studio de Création</h3>
-            <p class="mode-description">Génération d'images (Midjourney), vidéos (Runway), voix (ElevenLabs).</p>
-            <p class="mode-luna"><em>Luna enseigne les 5 Clés Magiques.</em></p>
+          <div class="mode-card">
+            <div class="mode-icon">🎨</div>
+            <h3>Studio Création</h3>
+            <p>Images, vidéos, voix IA</p>
           </div>
-          <div class="mode-card-enhanced animate-in animate-in-3">
-            <span class="mode-icon-large">📐</span>
-            <h3>Studio d'Édition</h3>
-            <p class="mode-description">Mise en page professionnelle, assemblage texte/images, typographies, chapitres.</p>
-            <p class="mode-luna"><em>Préparation à l'export et à la publication.</em></p>
+          <div class="mode-card">
+            <div class="mode-icon">📐</div>
+            <h3>Studio Édition</h3>
+            <p>Mise en page professionnelle</p>
           </div>
-          <div class="mode-card-enhanced animate-in animate-in-4">
-            <span class="mode-icon-large">🎭</span>
+          <div class="mode-card">
+            <div class="mode-icon">🎭</div>
             <h3>Théâtre</h3>
-            <p class="mode-description">Projection AirPlay, lumières Hue synchronisées, Luna lit l'histoire.</p>
-            <p class="mode-luna"><em>Le salon devient une salle de cinéma.</em></p>
+            <p>Projection familiale immersive</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 13: Theatre Experience - NEW -->
-    <section class="slide slide-theatre" data-slide="12">
-      <div class="theatre-section">
-        <h2 class="animate-in animate-in-1">L'Expérience Théâtre</h2>
-        <p class="tagline animate-in animate-in-2">Le salon devient une salle de projection privée</p>
-        
-        <div class="theatre-content">
-          <div class="theatre-diagram animate-in animate-in-3">
-            <div class="theatre-device">
-              <span class="device-icon">💻</span>
-              <span class="device-label">Mac</span>
+    <!-- Slide 6: Theatre -->
+    <section class="slide slide-theatre stars" data-slide="5">
+      <div class="content">
+        <div class="theatre-visual animate-in animate-in-1">
+          <div class="theatre-icons">
+            <div class="theatre-icon-item">
+              <span>💻</span>
+              <small>Mac</small>
             </div>
-            <div class="theatre-arrow">
-              <span class="airplay-icon">📡</span>
-              <span class="arrow-label">AirPlay</span>
+            <div class="theatre-arrow">→</div>
+            <div class="theatre-icon-item">
+              <span>📺</span>
+              <small>AirPlay</small>
             </div>
-            <div class="theatre-outputs">
-              <div class="output-item">
-                <span class="output-icon">📺</span>
-                <span class="output-label">TV / Projecteur</span>
-              </div>
-              <div class="output-item">
-                <span class="output-icon">💡</span>
-                <span class="output-label">Lumières Hue</span>
-              </div>
-              <div class="output-item">
-                <span class="output-icon">🔊</span>
-                <span class="output-label">Audio</span>
-              </div>
+            <div class="theatre-arrow">+</div>
+            <div class="theatre-icon-item">
+              <span>💡</span>
+              <small>Philips Hue</small>
             </div>
           </div>
-          
-          <div class="theatre-features animate-in animate-in-4">
-            <div class="theatre-feature">
-              <span class="feature-icon">📺</span>
-              <div class="feature-text">
-                <h4>Projection sans fil</h4>
-                <p>AirPlay natif macOS — TV, Apple TV, vidéoprojecteur. Un clic suffit.</p>
-              </div>
+          <p class="theatre-tagline">"Le salon devient une salle de cinéma privée"</p>
+        </div>
+        <div class="theatre-features">
+          <h2 class="animate-in animate-in-2">Le Théâtre Familial</h2>
+          <div class="theatre-feature animate-in animate-in-3">
+            <div class="theatre-feature-icon">📺</div>
+            <div>
+              <h4>Projection sans fil</h4>
+              <p>AirPlay natif vers TV ou vidéoprojecteur</p>
             </div>
-            <div class="theatre-feature">
-              <span class="feature-icon">💡</span>
-              <div class="feature-text">
-                <h4>Ambiance immersive</h4>
-                <p>Les lumières Hue/HomeKit s'adaptent à l'histoire — forêt sombre, château doré, mer bleue.</p>
-              </div>
+          </div>
+          <div class="theatre-feature animate-in animate-in-4">
+            <div class="theatre-feature-icon">💡</div>
+            <div>
+              <h4>Lumières synchronisées</h4>
+              <p>Philips Hue s'adapte à chaque scène</p>
             </div>
-            <div class="theatre-feature">
-              <span class="feature-icon">🎙️</span>
-              <div class="feature-text">
-                <h4>Luna narratrice</h4>
-                <p>Lecture expressive synchronisée aux images. L'histoire prend vie.</p>
-              </div>
-            </div>
-            <div class="theatre-feature">
-              <span class="feature-icon">👨‍👩‍👧‍👦</span>
-              <div class="feature-text">
-                <h4>Moment famille</h4>
-                <p>Les filles présentent leur création. Fierté partagée, souvenirs inoubliables.</p>
-              </div>
+          </div>
+          <div class="theatre-feature animate-in animate-in-5">
+            <div class="theatre-feature-icon">🎙️</div>
+            <div>
+              <h4>Luna narratrice</h4>
+              <p>Lecture expressive de l'histoire</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 14: L'Horizon - Amazon KDP -->
-    <section class="slide slide-horizon stars" data-slide="13">
-      <div class="horizon-section">
-        <h2 class="animate-in animate-in-1">L'Horizon</h2>
-        <p class="tagline animate-in animate-in-2">Et si demain, elles publiaient leur premier livre ?</p>
-        
-        <div class="horizon-journey animate-in animate-in-3">
-          <div class="journey-step-horizon">
-            <span class="step-icon">✍️</span>
-            <span class="step-label">Écriture</span>
+    <!-- Slide 7: Book -->
+    <section class="slide slide-book stars" data-slide="6">
+      <div class="content">
+        <h2 class="animate-in animate-in-1">Leur Premier Livre</h2>
+        <p class="tagline animate-in animate-in-2">Et si demain, elles publiaient sur Amazon ?</p>
+        <div class="book-path animate-in animate-in-3">
+          <div class="book-step">
+            <div class="book-step-icon">✍️</div>
+            <div class="book-step-label">Écriture</div>
           </div>
-          <span class="journey-arrow-horizon">→</span>
-          <div class="journey-step-horizon">
-            <span class="step-icon">🎨</span>
-            <span class="step-label">Illustration</span>
+          <div class="book-arrow">→</div>
+          <div class="book-step">
+            <div class="book-step-icon">🎨</div>
+            <div class="book-step-label">Illustration</div>
           </div>
-          <span class="journey-arrow-horizon">→</span>
-          <div class="journey-step-horizon">
-            <span class="step-icon">📐</span>
-            <span class="step-label">Édition</span>
+          <div class="book-arrow">→</div>
+          <div class="book-step">
+            <div class="book-step-icon">📐</div>
+            <div class="book-step-label">Mise en page</div>
           </div>
-          <span class="journey-arrow-horizon">→</span>
-          <div class="journey-step-horizon">
-            <span class="step-icon">📤</span>
-            <span class="step-label">Export</span>
-          </div>
-          <span class="journey-arrow-horizon">→</span>
-          <div class="journey-step-horizon highlight-amazon">
-            <span class="step-icon">📚</span>
-            <span class="step-label">Amazon KDP</span>
+          <div class="book-arrow">→</div>
+          <div class="book-step highlight">
+            <div class="book-step-icon">📚</div>
+            <div class="book-step-label">Amazon Kindle</div>
           </div>
         </div>
-        
-        <div class="horizon-status animate-in animate-in-4">
-          <div class="status-ready">
+        <p class="book-quote animate-in animate-in-4">
+          "Imaginez leur fierté : un vrai livre, avec leur nom, disponible dans le monde entier."
+        </p>
+        <div class="book-details animate-in animate-in-5">
+          <div class="book-detail">
             <h4>✅ Déjà en place</h4>
-            <ul>
-              <li>Éditeur de texte professionnel</li>
-              <li>Illustrations IA haute qualité</li>
-              <li>Mise en page et chapitres</li>
-              <li>Export des créations</li>
-            </ul>
+            <p>Éditeur, illustrations IA, mise en page</p>
           </div>
-          <div class="status-future">
-            <h4>🔜 Possibilités futures</h4>
-            <ul>
-              <li>Export format Kindle</li>
-              <li>Génération de couverture</li>
-              <li>Accompagnement publication</li>
-              <li>ISBN et distribution</li>
-            </ul>
+          <div class="book-detail">
+            <h4>🔜 Possibilité future</h4>
+            <p>Export Kindle, accompagnement KDP</p>
           </div>
         </div>
-        
-        <p class="horizon-quote animate-in animate-in-5">
-          <em>"La Voix du Soir ne forme pas juste à utiliser l'IA — elle crée de futures auteures."</em>
+      </div>
+    </section>
+
+    <!-- Slide 8: Method -->
+    <section class="slide slide-method" data-slide="7">
+      <div class="content">
+        <h2 class="animate-in animate-in-1">La Méthode Luna</h2>
+        <p class="tagline animate-in animate-in-2">Un apprentissage structuré, jamais scolaire</p>
+        <div class="method-grid animate-in animate-in-3">
+          <div class="method-box">
+            <h3><span>🎨</span> 5 Clés Magiques — Images</h3>
+            <div class="method-list">
+              <div class="method-item">
+                <div class="method-item-icon">🎭</div>
+                <span><strong>Style</strong> — Aquarelle, 3D, anime...</span>
+              </div>
+              <div class="method-item">
+                <div class="method-item-icon">👤</div>
+                <span><strong>Héros</strong> — Qui est dans l'image</span>
+              </div>
+              <div class="method-item">
+                <div class="method-item-icon">✨</div>
+                <span><strong>Ambiance</strong> — Lumière, émotion</span>
+              </div>
+              <div class="method-item">
+                <div class="method-item-icon">🌍</div>
+                <span><strong>Monde</strong> — Le décor</span>
+              </div>
+              <div class="method-item">
+                <div class="method-item-icon">🔮</div>
+                <span><strong>Magie</strong> — Le détail unique</span>
+              </div>
+            </div>
+          </div>
+          <div class="method-box">
+            <h3><span>✍️</span> 5 Questions Magiques — Écriture</h3>
+            <div class="method-list">
+              <div class="method-item">
+                <div class="method-item-icon">👤</div>
+                <span><strong>Qui ?</strong> — Le personnage</span>
+              </div>
+              <div class="method-item">
+                <div class="method-item-icon">❓</div>
+                <span><strong>Quoi ?</strong> — Le problème</span>
+              </div>
+              <div class="method-item">
+                <div class="method-item-icon">📍</div>
+                <span><strong>Où ?</strong> — Le lieu</span>
+              </div>
+              <div class="method-item">
+                <div class="method-item-icon">⏰</div>
+                <span><strong>Quand ?</strong> — Le moment</span>
+              </div>
+              <div class="method-item">
+                <div class="method-item-icon">💫</div>
+                <span><strong>Et alors ?</strong> — La résolution</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 9: Progression -->
+    <section class="slide slide-progression stars" data-slide="8">
+      <div class="content">
+        <h2 class="animate-in animate-in-1">Une Progression Invisible</h2>
+        <p class="tagline animate-in animate-in-2">Elles apprennent sans s'en rendre compte</p>
+        <div class="progression-visual animate-in animate-in-3">
+          <div class="progression-step">
+            <div class="progression-step-icon">💬</div>
+            <div class="progression-step-label">Elles créent</div>
+          </div>
+          <div class="progression-arrow">→</div>
+          <div class="progression-step">
+            <div class="progression-step-icon">⭐</div>
+            <div class="progression-step-label">Luna analyse</div>
+          </div>
+          <div class="progression-arrow">→</div>
+          <div class="progression-step">
+            <div class="progression-step-icon">📈</div>
+            <div class="progression-step-label">XP invisible</div>
+          </div>
+          <div class="progression-arrow">→</div>
+          <div class="progression-step">
+            <div class="progression-step-icon">🎉</div>
+            <div class="progression-step-label">Encouragements</div>
+          </div>
+        </div>
+        <p class="progression-note animate-in animate-in-4">
+          "Pas de badges visibles, pas de compétition — juste la joie de créer et de progresser."
+        </p>
+        <div class="progression-levels animate-in animate-in-5">
+          <div class="progression-level active">🌱 Exploratrice</div>
+          <div class="progression-level">⭐ Apprentie</div>
+          <div class="progression-level">✨ Créatrice</div>
+          <div class="progression-level">💫 Artiste</div>
+          <div class="progression-level">👑 Maître</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 10: Stack IA -->
+    <section class="slide slide-stack" data-slide="9">
+      <div class="content">
+        <h2 class="animate-in animate-in-1">Technologies IA de Pointe</h2>
+        <p class="tagline animate-in animate-in-2">Les meilleurs outils du marché, intégrés</p>
+        <div class="stack-grid animate-in animate-in-3">
+          <div class="stack-card">
+            <div class="stack-card-icon">🧠</div>
+            <h3>Gemini 2.0 Flash</h3>
+            <div class="version">Google • Multimodal</div>
+            <p>Conversation temps réel, compréhension contextuelle, voix naturelle</p>
+          </div>
+          <div class="stack-card">
+            <div class="stack-card-icon">🎨</div>
+            <h3>Midjourney</h3>
+            <div class="version">V6 • État de l'art</div>
+            <p>Génération d'images de qualité professionnelle</p>
+          </div>
+          <div class="stack-card">
+            <div class="stack-card-icon">🎬</div>
+            <h3>Runway</h3>
+            <div class="version">Gen-3 Alpha</div>
+            <p>Création vidéo IA de nouvelle génération</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 11: Architecture -->
+    <section class="slide slide-archi stars" data-slide="10">
+      <div class="content">
+        <h2 class="animate-in animate-in-1">Architecture Technique</h2>
+        <p class="tagline animate-in animate-in-2">Robuste, sécurisée, évolutive</p>
+        <div class="archi-grid animate-in animate-in-3">
+          <div class="archi-card">
+            <div class="archi-card-icon">🖥️</div>
+            <h3>Electron</h3>
+            <p>Application native macOS</p>
+          </div>
+          <div class="archi-card">
+            <div class="archi-card-icon">⚡</div>
+            <h3>Next.js 14</h3>
+            <p>Framework React moderne</p>
+          </div>
+          <div class="archi-card">
+            <div class="archi-card-icon">🗄️</div>
+            <h3>Supabase</h3>
+            <p>Base de données temps réel</p>
+          </div>
+          <div class="archi-card">
+            <div class="archi-card-icon">📡</div>
+            <h3>WebRTC</h3>
+            <p>Communication peer-to-peer</p>
+          </div>
+        </div>
+        <div class="archi-grid animate-in animate-in-4" style="margin-top: 1.5rem;">
+          <div class="archi-card">
+            <div class="archi-card-icon">✏️</div>
+            <h3>TipTap</h3>
+            <p>Éditeur de texte riche</p>
+          </div>
+          <div class="archi-card">
+            <div class="archi-card-icon">🎞️</div>
+            <h3>Framer Motion</h3>
+            <p>Animations fluides</p>
+          </div>
+          <div class="archi-card">
+            <div class="archi-card-icon">🔐</div>
+            <h3>TypeScript</h3>
+            <p>Code typé, maintenable</p>
+          </div>
+          <div class="archi-card">
+            <div class="archi-card-icon">💡</div>
+            <h3>HomeKit</h3>
+            <p>Intégration Philips Hue</p>
+          </div>
+        </div>
+        <p class="archi-note animate-in animate-in-5">
+          Une architecture <strong>professionnelle</strong> pour un projet <strong>sur-mesure</strong>
         </p>
       </div>
     </section>
 
-    <!-- Slide 15: Autonomy & Skills -->
-    <section class="slide slide-autonomy" data-slide="14">
-      <div class="autonomy-section">
-        <h2 class="animate-in animate-in-1">Développer l'Autonomie</h2>
-        <p class="tagline animate-in animate-in-2">Des compétences qui serviront toute la vie</p>
-        
-        <div class="skills-showcase">
-          <div class="skill-category animate-in animate-in-3">
-            <div class="category-header">
-              <span class="category-icon">💻</span>
-              <h3>Compétences Techniques</h3>
-            </div>
-            <div class="skills-list">
-              <div class="skill-item">
-                <span class="skill-name">Prompting IA</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 100%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Traitement de texte</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 90%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Gestion de fichiers</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 85%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Édition d'images</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 80%"></div></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="skill-category animate-in animate-in-3">
-            <div class="category-header">
-              <span class="category-icon">🧠</span>
-              <h3>Compétences Cognitives</h3>
-            </div>
-            <div class="skills-list">
-              <div class="skill-item">
-                <span class="skill-name">Pensée structurée</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 95%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Résolution de problèmes</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 90%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Itération créative</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 85%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Expression écrite</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 100%"></div></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="skill-category animate-in animate-in-4">
-            <div class="category-header">
-              <span class="category-icon">🌟</span>
-              <h3>Soft Skills</h3>
-            </div>
-            <div class="skills-list">
-              <div class="skill-item">
-                <span class="skill-name">Autonomie</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 100%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Persévérance</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 90%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Créativité</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 95%"></div></div>
-              </div>
-              <div class="skill-item">
-                <span class="skill-name">Confiance en soi</span>
-                <div class="skill-bar"><div class="skill-fill" style="width: 85%"></div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 16: Mentorship -->
-    <section class="slide slide-mentorship stars" data-slide="15">
-      <div class="mentorship-section">
+    <!-- Slide 12: Mentorship -->
+    <section class="slide slide-mentorship" data-slide="11">
+      <div class="content">
         <h2 class="animate-in animate-in-1">Mentorship à Distance</h2>
-        <p class="tagline animate-in animate-in-2">Un accompagnement humain en plus de l'IA</p>
-        
-        <div class="mentorship-features">
-          <div class="mentor-card animate-in animate-in-3">
-            <div class="mentor-visual">
-              <div class="screen-share-icon">🖥️</div>
-              <div class="connection-line"></div>
-              <div class="mentor-icon">👨‍🏫</div>
-            </div>
-            <h3>Partage d'Écran en Direct</h3>
-            <p>Le mentor voit exactement ce que fait l'enfant et peut guider en temps réel — comme s'il était à côté d'elle</p>
+        <p class="tagline animate-in animate-in-2">Un accompagnement personnalisé, où que vous soyez</p>
+        <div class="mentorship-features animate-in animate-in-3">
+          <div class="mentorship-feature">
+            <div class="mentorship-feature-icon">🖥️</div>
+            <h3>Partage d'écran</h3>
+            <p>Sessions d'aide en temps réel via WebRTC intégré</p>
           </div>
-
-          <div class="mentor-card animate-in animate-in-3">
-            <div class="mentor-visual">
-              <div class="remote-control-icon">🎮</div>
-            </div>
-            <h3>Contrôle à Distance</h3>
-            <p>Possibilité de prendre le contrôle pour montrer, puis de rendre la main pour pratiquer</p>
+          <div class="mentorship-feature">
+            <div class="mentorship-feature-icon">📊</div>
+            <h3>Suivi des progrès</h3>
+            <p>Tableau de bord pour suivre l'évolution</p>
           </div>
-
-          <div class="mentor-card animate-in animate-in-4">
-            <div class="mentor-visual">
-              <div class="voice-icon">🎧</div>
-            </div>
-            <h3>Audio Bidirectionnel</h3>
-            <p>Communication vocale fluide pour des sessions naturelles et engageantes</p>
-          </div>
-
-          <div class="mentor-card animate-in animate-in-4">
-            <div class="mentor-visual">
-              <div class="progress-icon">📊</div>
-            </div>
-            <h3>Suivi de Progression</h3>
-            <p>Dashboard mentor pour visualiser l'évolution et adapter le parcours</p>
-          </div>
-        </div>
-
-        <div class="mentorship-quote animate-in animate-in-5">
-          <p>"Luna guide au quotidien, le mentor intervient aux moments clés"</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 17: Gamification Invisible -->
-    <section class="slide slide-gamification" data-slide="16">
-      <div class="gamification-section">
-        <h2 class="animate-in animate-in-1">Gamification Invisible</h2>
-        <p class="tagline animate-in animate-in-2">"La meilleure gamification est celle qu'on ne voit pas"</p>
-        
-        <div class="gamification-grid">
-          <div class="gamification-card animate-in animate-in-3">
-            <div class="card-header">
-              <span class="card-icon">🌟</span>
-              <h3>Les Étoiles de Luna</h3>
-            </div>
-            <div class="visible-layer">
-              <h5>Ce que l'enfant voit</h5>
-              <p>"Luna m'a dit que mon histoire était magique et m'a donné une étoile !"</p>
-            </div>
-            <div class="hidden-layer">
-              <h5>Le mécanisme caché</h5>
-              <p>Système XP invisible — chaque action créative accumule des points vers le niveau suivant</p>
-            </div>
-          </div>
-
-          <div class="gamification-card animate-in animate-in-3">
-            <div class="card-header">
-              <span class="card-icon">🎨</span>
-              <h3>Les Niveaux Poétiques</h3>
-            </div>
-            <div class="visible-layer">
-              <h5>Ce que l'enfant voit</h5>
-              <p>"Je suis devenue Artiste ! Avant j'étais Exploratrice."</p>
-            </div>
-            <div class="hidden-layer">
-              <h5>Le mécanisme caché</h5>
-              <p>5 niveaux (Explorateur → Maître) débloquent subtilement de nouvelles fonctionnalités</p>
-            </div>
-          </div>
-
-          <div class="gamification-card animate-in animate-in-4">
-            <div class="card-header">
-              <span class="card-icon">💫</span>
-              <h3>Les Encouragements</h3>
-            </div>
-            <div class="visible-layer">
-              <h5>Ce que l'enfant voit</h5>
-              <p>"Luna a remarqué que j'utilise plus de détails dans mes prompts maintenant !"</p>
-            </div>
-            <div class="hidden-layer">
-              <h5>Le mécanisme caché</h5>
-              <p>Analyse en temps réel de la qualité des prompts avec feedback positif contextuel</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="stats-row animate-in animate-in-5">
-          <div class="stat-item">
-            <div class="stat-number">0</div>
-            <div class="stat-label">Badges visibles</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">0</div>
-            <div class="stat-label">Classements</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">0</div>
-            <div class="stat-label">Compétition</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">∞</div>
-            <div class="stat-label">Encouragements</div>
+          <div class="mentorship-feature">
+            <div class="mentorship-feature-icon">🔄</div>
+            <h3>Mises à jour</h3>
+            <p>Nouvelles fonctionnalités en continu</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 18: Design Philosophy -->
-    <section class="slide slide-design" data-slide="17">
-      <!-- Slide 11 -->
-      <div class="design-section">
-        <h2 class="animate-in animate-in-1">Design Ludique & Immersif</h2>
-        
-        <div class="design-principles">
-          <div class="design-principle animate-in animate-in-2">
-            <span class="design-principle-icon">🌙</span>
-            <div>
-              <h3>Univers Nocturne Apaisant</h3>
-              <p>Palette violet profond et or — évoque le moment du coucher, la magie du soir. Pas d'écrans blancs agressifs, lumière douce pour les yeux.</p>
-            </div>
-          </div>
-
-          <div class="design-principle animate-in animate-in-2">
-            <span class="design-principle-icon">📖</span>
-            <div>
-              <h3>Métaphore du Livre Réel</h3>
-              <p>Interface livre ouvert avec reliure centrale. L'enfant écrit "dans un vrai livre", pas sur un écran. Connexion tactile et émotionnelle.</p>
-            </div>
-          </div>
-
-          <div class="design-principle animate-in animate-in-3">
-            <span class="design-principle-icon">✨</span>
-            <div>
-              <h3>Animations Subtiles</h3>
-              <p>Étoiles scintillantes, transitions fluides, micro-interactions. Chaque geste est récompensé visuellement sans être distrayant.</p>
-            </div>
-          </div>
-
-          <div class="design-principle animate-in animate-in-3">
-            <span class="design-principle-icon">🎭</span>
-            <div>
-              <h3>Mode Théâtre Immersif</h3>
-              <p>Synchronisation avec les lumières Philips Hue — la pièce devient le décor de l'histoire. Expérience sensorielle complète.</p>
-            </div>
-          </div>
-
-          <div class="design-principle animate-in animate-in-4">
-            <span class="design-principle-icon">🔤</span>
-            <div>
-              <h3>Typographies Évocatrices</h3>
-              <p>6 polices soigneusement choisies : Écriture manuscrite, Conte classique, BD... Chaque histoire a son propre caractère visuel.</p>
-            </div>
-          </div>
-
-          <div class="design-principle animate-in animate-in-4">
-            <span class="design-principle-icon">🎨</span>
-            <div>
-              <h3>Zéro Publicité, Zéro Distraction</h3>
-              <p>Interface épurée, focus total sur la création. Pas de notifications, pas de social, pas de comparaison. Juste l'enfant et son imagination.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 19: Prompting Pedagogy - SYNOPTIQUE -->
-    <section class="slide" data-slide="18">
-      <div class="synoptic-section">
-        <h2 class="animate-in animate-in-1">Les 5 Clés Magiques — Synoptique</h2>
-        <p class="animate-in animate-in-2" style="text-align: center; color: var(--text-muted); margin-bottom: 30px;">Comment Luna analyse et guide chaque prompt d'image</p>
-        
-        <div class="synoptic-flow animate-in animate-in-3">
-          <!-- Input -->
-          <div class="synoptic-input">
-            <div class="synoptic-bubble child">
-              <span class="bubble-label">🧒 L'enfant écrit</span>
-              <p>"Je veux un dragon violet qui dort"</p>
-            </div>
-          </div>
-          
-          <!-- Analysis Pipeline -->
-          <div class="synoptic-arrow">▼</div>
-          
-          <div class="synoptic-analysis">
-            <div class="analysis-title">🔍 Analyse automatique en temps réel</div>
-            <div class="analysis-grid">
-              <div class="analysis-key detected">
-                <span class="key-check">✓</span>
-                <span class="key-label">🎨 Style</span>
-                <span class="key-status">Non détecté</span>
-                <span class="key-weight">40%</span>
-              </div>
-              <div class="analysis-key detected yes">
-                <span class="key-check">✓</span>
-                <span class="key-label">🦸 Héros</span>
-                <span class="key-status">"dragon violet"</span>
-                <span class="key-weight">25%</span>
-              </div>
-              <div class="analysis-key">
-                <span class="key-check">○</span>
-                <span class="key-label">💫 Ambiance</span>
-                <span class="key-status">Non détecté</span>
-                <span class="key-weight">15%</span>
-              </div>
-              <div class="analysis-key">
-                <span class="key-check">○</span>
-                <span class="key-label">🌍 Monde</span>
-                <span class="key-status">Non détecté</span>
-                <span class="key-weight">10%</span>
-              </div>
-              <div class="analysis-key detected yes">
-                <span class="key-check">✓</span>
-                <span class="key-label">✨ Magie</span>
-                <span class="key-status">"dort"</span>
-                <span class="key-weight">10%</span>
-              </div>
-            </div>
-            <div class="analysis-result">
-              <span class="result-label">Qualité :</span>
-              <span class="result-value basic">Basique (2/5 clés)</span>
-              <span class="result-xp">+15 XP invisible</span>
-            </div>
-          </div>
-          
-          <div class="synoptic-arrow">▼</div>
-          
-          <!-- Luna Response -->
-          <div class="synoptic-output">
-            <div class="synoptic-bubble luna">
-              <span class="bubble-label">🌙 Luna répond (guidée par l'analyse)</span>
-              <p>"Un dragon violet qui dort ! 🐉 J'adore ! Et tu le vois comment ton dragon ? Comme un dessin animé Pixar ? Une peinture à l'huile ? C'est ça le <strong>STYLE</strong>, la clé la plus magique !"</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="synoptic-note animate-in animate-in-4">
-          💡 <strong>Détection par mots-clés :</strong> 200+ mots analysés en FR/EN/RU — "pixar", "aquarelle", "реалистично"...
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 20: Writing Questions - SYNOPTIQUE -->
-    <section class="slide" data-slide="19">
-      <div class="synoptic-section">
-        <h2 class="animate-in animate-in-1">Les 5 Questions Magiques — Synoptique</h2>
-        <p class="animate-in animate-in-2" style="text-align: center; color: var(--text-muted); margin-bottom: 30px;">Comment Luna détecte la richesse des descriptions et adapte sa pédagogie</p>
-        
-        <div class="writing-synoptic animate-in animate-in-3">
-          <!-- Two examples side by side -->
-          <div class="writing-comparison">
-            <!-- Basic message -->
-            <div class="writing-example poor">
-              <div class="example-header">❌ Message pauvre</div>
-              <div class="example-message">"je sais pas quoi écrire"</div>
-              <div class="example-analysis">
-                <div class="qa-row"><span>👤 QUI</span><span class="no">○</span></div>
-                <div class="qa-row"><span>❓ QUOI</span><span class="no">○</span></div>
-                <div class="qa-row"><span>📍 OÙ</span><span class="no">○</span></div>
-                <div class="qa-row"><span>⏰ QUAND</span><span class="no">○</span></div>
-                <div class="qa-row"><span>💥 ET ALORS</span><span class="no">○</span></div>
-              </div>
-              <div class="example-result">
-                <span class="quality vague">⚠️ Blocage détecté</span>
-                <span class="xp-gain">+0 XP</span>
-              </div>
-              <div class="luna-response poor">
-                🌙 "Pas de souci ! Ton dragon cherche sa maman... Est-ce qu'il trouve un indice ? Ou il rencontre quelqu'un qui peut l'aider ?"
-              </div>
-            </div>
-
-            <!-- Rich message -->
-            <div class="writing-example excellent">
-              <div class="example-header">✓ Message riche</div>
-              <div class="example-message">"Mon dragon bleu s'appelle Azur, il vit dans une montagne enneigée et un jour il découvre une grotte secrète"</div>
-              <div class="example-analysis">
-                <div class="qa-row"><span>👤 QUI</span><span class="yes">✓ "dragon bleu Azur"</span></div>
-                <div class="qa-row"><span>❓ QUOI</span><span class="yes">✓ "découvre grotte"</span></div>
-                <div class="qa-row"><span>📍 OÙ</span><span class="yes">✓ "montagne enneigée"</span></div>
-                <div class="qa-row"><span>⏰ QUAND</span><span class="yes">✓ "un jour"</span></div>
-                <div class="qa-row"><span>💥 ET ALORS</span><span class="yes">✓ "grotte secrète"</span></div>
-              </div>
-              <div class="example-result">
-                <span class="quality excellent">⭐ Excellent (5/5)</span>
-                <span class="xp-gain">+30 XP</span>
-              </div>
-              <div class="luna-response excellent">
-                🌙 "Wow Azur dans une grotte secrète ! 🐉✨ Super, tu m'as dit QUI, OÙ, et ce qui arrive — je vois la scène ! Qu'est-ce qu'il découvre dans cette grotte ?"
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="synoptic-note animate-in animate-in-4">
-          🎯 <strong>Fréquence pédagogique adaptée :</strong> Niveau Curieux → nomme les questions 1× sur 2 | Niveau Expert → 1× sur 6 | Maître IA → presque jamais (elle sait !)
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 21: Progression System - SYNOPTIQUE DETAILLÉ -->
-    <section class="slide" data-slide="20">
-      <div class="progression-synoptic">
-        <h2 class="animate-in animate-in-1">Système de Progression — Vue Technique</h2>
-        <p class="animate-in animate-in-2" style="text-align: center; color: var(--text-muted); margin-bottom: 40px;">Deux parcours parallèles, XP invisible, adaptation automatique</p>
-        
-        <div class="dual-progression animate-in animate-in-3">
-          <!-- Images Track -->
-          <div class="progression-track images">
-            <div class="track-header">
-              <span class="track-icon">🎨</span>
-              <h3>Création d'Images</h3>
-              <span class="track-method">5 Clés Magiques</span>
-            </div>
-            <div class="xp-ladder">
-              <div class="xp-level">
-                <span class="level-icon">👑</span>
-                <span class="level-name">Maître</span>
-                <span class="level-xp">500 XP</span>
-                <div class="level-bar" style="width: 100%;"></div>
-              </div>
-              <div class="xp-level">
-                <span class="level-icon">✨</span>
-                <span class="level-name">Magicien</span>
-                <span class="level-xp">300 XP</span>
-                <div class="level-bar" style="width: 60%;"></div>
-              </div>
-              <div class="xp-level">
-                <span class="level-icon">🎨</span>
-                <span class="level-name">Artiste</span>
-                <span class="level-xp">175 XP</span>
-                <div class="level-bar" style="width: 35%;"></div>
-              </div>
-              <div class="xp-level">
-                <span class="level-icon">⭐</span>
-                <span class="level-name">Apprenti</span>
-                <span class="level-xp">75 XP</span>
-                <div class="level-bar" style="width: 15%;"></div>
-              </div>
-              <div class="xp-level current">
-                <span class="level-icon">🌱</span>
-                <span class="level-name">Explorateur</span>
-                <span class="level-xp">0 XP</span>
-                <div class="level-bar" style="width: 0%;"></div>
-              </div>
-            </div>
-            <div class="xp-formula">
-              <strong>XP par image :</strong> 5 clés = +40 | 4 = +30 | 3 = +20 | 2 = +15 | 1 = +10
-            </div>
-          </div>
-
-          <!-- Writing Track -->
-          <div class="progression-track writing">
-            <div class="track-header">
-              <span class="track-icon">✍️</span>
-              <h3>Écriture & Chat</h3>
-              <span class="track-method">5 Questions Magiques</span>
-            </div>
-            <div class="xp-ladder">
-              <div class="xp-level">
-                <span class="level-icon">🧙</span>
-                <span class="level-name">Maître des IA</span>
-                <span class="level-xp">1500 XP</span>
-                <div class="level-bar writing-bar" style="width: 100%;"></div>
-              </div>
-              <div class="xp-level">
-                <span class="level-icon">🔍</span>
-                <span class="level-name">Expert</span>
-                <span class="level-xp">900 XP</span>
-                <div class="level-bar writing-bar" style="width: 60%;"></div>
-              </div>
-              <div class="xp-level">
-                <span class="level-icon">🎯</span>
-                <span class="level-name">Précis</span>
-                <span class="level-xp">500 XP</span>
-                <div class="level-bar writing-bar" style="width: 33%;"></div>
-              </div>
-              <div class="xp-level">
-                <span class="level-icon">💬</span>
-                <span class="level-name">Bavard</span>
-                <span class="level-xp">200 XP</span>
-                <div class="level-bar writing-bar" style="width: 13%;"></div>
-              </div>
-              <div class="xp-level current">
-                <span class="level-icon">🌱</span>
-                <span class="level-name">Curieux</span>
-                <span class="level-xp">0 XP</span>
-                <div class="level-bar writing-bar" style="width: 0%;"></div>
-              </div>
-            </div>
-            <div class="xp-formula">
-              <strong>XP par message :</strong> 4+ Q = +30 | 3 = +18 | 2 = +10 | 1 = +5 | 🚀 Histoire finie = +80
-            </div>
-          </div>
-        </div>
-
-        <div class="progression-note animate-in animate-in-4">
-          ⏱️ <strong>Temps estimé :</strong> ~10h pour atteindre "Maître des IA" en écriture | L'enfant ne voit que les noms poétiques, jamais les XP
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 22: Book Interface -->
-    <section class="slide" data-slide="21">
-      <div class="two-columns">
-        <div class="column-content">
-          <h2 class="animate-in animate-in-1">Interface Livre Ouvert</h2>
-          <p class="animate-in animate-in-2">
-            Une expérience d'écriture unique reproduisant la sensation d'un <span class="highlight">vrai livre</span>. Deux pages éditables côte à côte, une reliure centrale réaliste.
-          </p>
-          <ul class="benefit-list animate-in animate-in-3">
-            <li>6 polices d'écriture soigneusement sélectionnées</li>
-            <li>16 tailles de texte pour une personnalisation totale</li>
-            <li>Mode zoom pour se concentrer sur une page</li>
-            <li>Texte aligné sur les lignes du cahier</li>
-            <li>Gestion des chapitres avec indicateurs colorés</li>
-            <li>Dictée vocale intégrée</li>
-          </ul>
-        </div>
-        <div class="column-visual animate-in animate-in-4">
-          <div class="book-mockup" style="width: 450px; height: 320px;">
-            <div class="book-page">
-              <div class="book-page-text" style="font-size: 0.85rem;">
-                Chapitre 1<br><br>
-                La princesse Luna<br>
-                regardait les étoiles<br>
-                depuis sa tour...<br><br>
-                Elle rêvait de<br>
-                voyager parmi elles.
-              </div>
-            </div>
-            <div class="book-spine"></div>
-            <div class="book-page">
-              <div class="book-page-text" style="font-size: 0.85rem;">
-                Un soir, une étoile<br>
-                filante s'arrêta<br>
-                à sa fenêtre...<br><br>
-                "Veux-tu venir<br>
-                avec moi ?" dit-elle.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 23: Multi-platform -->
-    <section class="slide stars" data-slide="22">
-      <div class="feature-grid" style="max-width: 1000px;">
-        <div class="feature-card animate-in animate-in-1" style="grid-column: span 2;">
-          <span class="feature-icon">🖥️</span>
-          <h3>Application Desktop Mac</h3>
-          <p>Application native macOS avec fonctionnalités exclusives : voix haute qualité, contrôle à distance pour les mentors, partage d'écran complet.</p>
-        </div>
-        <div class="feature-card animate-in animate-in-2">
-          <span class="feature-icon">📱</span>
-          <h3>iPad & Web</h3>
-          <p>Accessible sur navigateur, optimisé pour iPad avec interface tactile intuitive.</p>
-        </div>
-        <div class="feature-card animate-in animate-in-2">
-          <span class="feature-icon">🌍</span>
-          <h3>Multilingue</h3>
-          <p>Français, Anglais et Russe — avec voix adaptées pour chaque langue.</p>
-        </div>
-        <div class="feature-card animate-in animate-in-3">
-          <span class="feature-icon">🎙️</span>
-          <h3>Voix & Dictée</h3>
-          <p>Luna parle avec des voix naturelles. Les enfants peuvent dicter leur texte ou parler à Luna.</p>
-        </div>
-        <div class="feature-card animate-in animate-in-3">
-          <span class="feature-icon">🏠</span>
-          <h3>Domotique</h3>
-          <p>Intégration HomeKit et Philips Hue pour des présentations théâtrales immersives.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Slide 24: Notre Engagement -->
-    <section class="slide" data-slide="23">
-      <div class="tech-section">
+    <!-- Slide 13: Engagement -->
+    <section class="slide slide-engagement stars" data-slide="12">
+      <div class="content">
         <h2 class="animate-in animate-in-1">Notre Engagement</h2>
-        <div class="tech-grid">
-          <div class="tech-item animate-in animate-in-2">
-            <h4>🎯 Sur-Mesure</h4>
+        <p class="tagline animate-in animate-in-2">Un projet conçu avec exigence</p>
+        <div class="engagement-grid animate-in animate-in-3">
+          <div class="engagement-card">
+            <div class="engagement-card-icon">🎯</div>
+            <h3>Sur-Mesure</h3>
             <p>Application conçue exclusivement pour vos filles</p>
           </div>
-          <div class="tech-item animate-in animate-in-2">
-            <h4>🔒 Confidentialité</h4>
+          <div class="engagement-card">
+            <div class="engagement-card-icon">🔒</div>
+            <h3>Confidentialité</h3>
             <p>Données privées, aucun partage externe</p>
           </div>
-          <div class="tech-item animate-in animate-in-2">
-            <h4>🚀 Évolutivité</h4>
-            <p>Intégration des nouveaux outils IA dès leur sortie</p>
+          <div class="engagement-card">
+            <div class="engagement-card-icon">🚀</div>
+            <h3>Évolutivité</h3>
+            <p>Nouveaux outils IA intégrés dès leur sortie</p>
           </div>
-          <div class="tech-item animate-in animate-in-2">
-            <h4>🛎️ Support Dédié</h4>
+          <div class="engagement-card">
+            <div class="engagement-card-icon">🛎️</div>
+            <h3>Support Dédié</h3>
             <p>Équipe disponible pour toute assistance</p>
-          </div>
-          <div class="tech-item animate-in animate-in-3">
-            <h4>🧠 Gemini 2.0 Flash</h4>
-            <p>Le meilleur modèle conversationnel de Google</p>
-          </div>
-          <div class="tech-item animate-in animate-in-3">
-            <h4>🎨 Midjourney V6</h4>
-            <p>Génération d'images état de l'art</p>
-          </div>
-          <div class="tech-item animate-in animate-in-3">
-            <h4>🎬 Runway Gen-3</h4>
-            <p>Création vidéo de qualité professionnelle</p>
-          </div>
-          <div class="tech-item animate-in animate-in-3">
-            <h4>🔄 Mises à jour</h4>
-            <p>Évolutions continues sans intervention</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Slide 25: Quote -->
-    <section class="slide stars" data-slide="24">
-      <div class="quote-section">
-        <div class="quote-mark animate-in animate-in-1">"</div>
-        <p class="quote-text animate-in animate-in-2">
-          L'imagination est le début de la création. On imagine ce qu'on désire, on veut ce qu'on imagine, et enfin on crée ce qu'on veut.
-        </p>
-        <p class="quote-author animate-in animate-in-3">— George Bernard Shaw</p>
+    <!-- Slide 14: Next Steps -->
+    <section class="slide slide-next" data-slide="13">
+      <div class="content">
+        <h2 class="animate-in animate-in-1">Prochaines Étapes</h2>
+        <div class="next-steps">
+          <div class="next-step animate-in animate-in-2">
+            <div class="next-step-number">1</div>
+            <div>
+              <h3>Validation du Projet</h3>
+              <p>Discussion pour affiner les besoins spécifiques</p>
+            </div>
+          </div>
+          <div class="next-step animate-in animate-in-3">
+            <div class="next-step-number">2</div>
+            <div>
+              <h3>Personnalisation</h3>
+              <p>Adaptation de Luna et des contenus pour vos filles</p>
+            </div>
+          </div>
+          <div class="next-step animate-in animate-in-4">
+            <div class="next-step-number">3</div>
+            <div>
+              <h3>Déploiement</h3>
+              <p>Installation et formation initiale</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- Slide 26: Final -->
-    <section class="slide cta-slide stars" data-slide="25">
-      <h2 class="animate-in animate-in-1">Prêtes à Créer ?</h2>
-      <p class="animate-in animate-in-2">
-        La Voix du Soir offre à vos filles les clés pour maîtriser l'intelligence artificielle, tout en développant leur créativité et leur imagination. Un investissement dans leur avenir.
+    <!-- Slide 15: End -->
+    <section class="slide slide-end stars" data-slide="14">
+      <div class="title-moon animate-in animate-in-1"></div>
+      <h2 class="animate-in animate-in-2">La Voix du Soir</h2>
+      <p class="tagline animate-in animate-in-3">
+        "Elle ne forme pas juste à utiliser l'IA — elle crée de futures créatrices."
       </p>
-      <a href="#" class="cta-button animate-in animate-in-3">Découvrir l'Application</a>
+      <p class="end-contact animate-in animate-in-4">
+        Grégory Mittelette
+      </p>
     </section>
 
   </div>
 
   <script>
-    // Presentation Logic
-    class Presentation {
-      constructor() {
-        this.slides = document.querySelectorAll('.slide');
-        this.currentIndex = 0;
-        this.totalSlides = this.slides.length;
-        this.isAnimating = false;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const currentSlideEl = document.querySelector('.current-slide');
+    const totalSlidesEl = document.querySelector('.total-slides');
+    const dotsNav = document.querySelector('.dots-nav');
+    const prevBtn = document.querySelector('.nav-arrow.prev');
+    const nextBtn = document.querySelector('.nav-arrow.next');
 
-        this.init();
-      }
+    let currentSlide = 0;
 
-      init() {
-        this.createNavDots();
-        this.updateUI();
-        this.bindEvents();
-      }
+    // Update total slides display
+    totalSlidesEl.textContent = totalSlides;
 
-      createNavDots() {
-        const container = document.getElementById('navDots');
-        for (let i = 0; i < this.totalSlides; i++) {
-          const dot = document.createElement('div');
-          dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
-          dot.addEventListener('click', () => this.goToSlide(i));
-          container.appendChild(dot);
-        }
-      }
+    // Generate dots
+    for (let i = 0; i < totalSlides; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (i === 0 ? ' active' : '');
+      dot.addEventListener('click', () => goToSlide(i));
+      dotsNav.appendChild(dot);
+    }
 
-      updateUI() {
-        // Update progress bar
-        const progress = ((this.currentIndex + 1) / this.totalSlides) * 100;
-        document.getElementById('progressBar').style.width = progress + '%';
+    const dots = document.querySelectorAll('.dot');
 
-        // Update slide counter
-        document.getElementById('currentSlide').textContent = 
-          String(this.currentIndex + 1).padStart(2, '0');
-        document.getElementById('totalSlides').textContent = 
-          String(this.totalSlides).padStart(2, '0');
+    function updateSlide() {
+      slides.forEach((slide, index) => {
+        slide.classList.toggle('active', index === currentSlide);
+      });
+      dots.forEach((dot, index) => {
+        dot.classList.toggle('active', index === currentSlide);
+      });
+      currentSlideEl.textContent = String(currentSlide + 1).padStart(2, '0');
+    }
 
-        // Update nav dots
-        document.querySelectorAll('.nav-dot').forEach((dot, i) => {
-          dot.classList.toggle('active', i === this.currentIndex);
-        });
-      }
+    function goToSlide(index) {
+      currentSlide = Math.max(0, Math.min(index, totalSlides - 1));
+      updateSlide();
+    }
 
-      goToSlide(index) {
-        if (this.isAnimating || index === this.currentIndex) return;
-        if (index < 0 || index >= this.totalSlides) return;
-
-        this.isAnimating = true;
-        const direction = index > this.currentIndex ? 1 : -1;
-
-        // Remove all classes first
-        this.slides.forEach(slide => {
-          slide.classList.remove('active', 'prev');
-        });
-
-        // Set previous slide
-        if (direction > 0) {
-          this.slides[this.currentIndex].classList.add('prev');
-        }
-
-        // Set current slide
-        this.currentIndex = index;
-        this.slides[this.currentIndex].classList.add('active');
-
-        this.updateUI();
-
-        setTimeout(() => {
-          this.isAnimating = false;
-        }, 800);
-      }
-
-      next() {
-        if (this.currentIndex < this.totalSlides - 1) {
-          this.goToSlide(this.currentIndex + 1);
-        }
-      }
-
-      prev() {
-        if (this.currentIndex > 0) {
-          this.goToSlide(this.currentIndex - 1);
-        }
-      }
-
-      bindEvents() {
-        // Keyboard navigation
-        document.addEventListener('keydown', (e) => {
-          if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
-            e.preventDefault();
-            this.next();
-          } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
-            e.preventDefault();
-            this.prev();
-          } else if (e.key === 'Home') {
-            e.preventDefault();
-            this.goToSlide(0);
-          } else if (e.key === 'End') {
-            e.preventDefault();
-            this.goToSlide(this.totalSlides - 1);
-          }
-        });
-
-        // Button navigation
-        document.getElementById('nextBtn').addEventListener('click', () => this.next());
-        document.getElementById('prevBtn').addEventListener('click', () => this.prev());
-
-        // Touch/swipe support
-        let touchStartX = 0;
-        let touchEndX = 0;
-
-        document.addEventListener('touchstart', (e) => {
-          touchStartX = e.changedTouches[0].screenX;
-        });
-
-        document.addEventListener('touchend', (e) => {
-          touchEndX = e.changedTouches[0].screenX;
-          const diff = touchStartX - touchEndX;
-          if (Math.abs(diff) > 50) {
-            if (diff > 0) this.next();
-            else this.prev();
-          }
-        });
-
-        // Mouse wheel - DÉSACTIVÉ pour éviter le défilement automatique
-        // L'utilisateur peut naviguer avec les flèches, boutons ou swipe
-        // let wheelTimeout;
-        // document.addEventListener('wheel', (e) => {
-        //   if (wheelTimeout) return;
-        //   wheelTimeout = setTimeout(() => {
-        //     wheelTimeout = null;
-        //   }, 1000);
-        //   if (e.deltaY > 0) this.next();
-        //   else this.prev();
-        // });
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateSlide();
       }
     }
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      new Presentation();
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    // Event listeners
+    prevBtn.addEventListener('click', prevSlide);
+    nextBtn.addEventListener('click', nextSlide);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        goToSlide(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        goToSlide(totalSlides - 1);
+      }
     });
+
+    // Initialize
+    updateSlide();
   </script>
 </body>
 </html>
