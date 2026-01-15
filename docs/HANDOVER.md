@@ -2,17 +2,18 @@
 
 > Document de passation complet pour la prochaine session de développement
 
-**Date** : 12 janvier 2026  
-**Version** : 1.7.0  
-**État** : Mode Écriture avec images flottantes, styles, cadres et rotation
+**Date** : 15 janvier 2026  
+**Version** : 2.1.0  
+**État** : Présentation client finalisée (22 slides), Mode Montage en cours
 
 ---
 
 ## 🎯 Contexte du Projet
 
-**Client** : Ultra-premium (top 40 fortunes mondiales)  
-**Utilisateurs** : 2 enfants de 8 ans + 1 mentor  
-**Langues** : Français, Anglais, Russe
+**Client** : Ultra-premium (top 40 fortunes mondiales, ~10 milliards €)  
+**Utilisateurs** : 2 filles de 8 ans + 1 mentor à distance  
+**Langues** : Français, Anglais, Russe  
+**Statut** : **VENDU** - Application commandée et payée
 
 ### Ce qu'est l'app
 
@@ -20,294 +21,174 @@ Application Electron/Web/iPad pour enfants permettant de :
 - Écrire un journal intime (photos, audio, images IA)
 - Créer des histoires illustrées avec structures narratives
 - Apprendre le prompting avec Luna (IA-Amie)
+- Publier des livres jusqu'à Amazon KDP
 
-### Objectifs pédagogiques de Luna
+### Objectifs pédagogiques (4 piliers)
 
-1. **Créer ensemble** : Aider à l'écriture (journal, histoires)
-2. **Rendre autonome** : Enseigner le prompting
-3. **Ne JAMAIS faire à la place** : Guider par des questions
-
----
-
-## ✅ Ce qui a été fait (Session du 12 janvier 2026 - Soir)
-
-### 🖼️ Images Flottantes - Système Complet ✨
-
-**Fonctionnalité principale** : Les images peuvent maintenant être placées librement sur les pages sans affecter le texte (overlay).
-
-#### Composant `DraggableImage`
-
-| Fonctionnalité | Comportement |
-|----------------|--------------|
-| **Drag & Drop** | Glisser-déposer l'image n'importe où sur la page |
-| **Redimensionnement** | Poignée en bas à droite pour redimensionner |
-| **Rotation libre** | Poignée de rotation (flèche enroulée) comme Word |
-| **Styles d'image** | 12+ effets visuels |
-| **Cadres** | 12+ styles de bordures |
-| **Suppression** | Bouton X pour supprimer l'image |
-| **Menus fixes** | Menus de style/cadre centrés à l'écran (lisibles même sur petites images) |
-
-#### Styles d'image disponibles
-
-```typescript
-type ImageStyle = 
-  | 'normal'       // Aucun effet
-  | 'sepia'        // Effet sépia vintage
-  | 'taped'        // Scotch décoratif
-  | 'circle'       // Forme circulaire
-  | 'heart'        // Forme cœur (polygon responsive)
-  | 'cloud'        // Bords estompés (mask-image radial-gradient)
-  | 'polaroid'     // Style photo instantanée
-  | 'sketch'       // Effet croquis
-  | 'glow'         // Lueur autour
-  | 'rounded'      // Coins arrondis
-  | 'neon'         // Effet néon lumineux
-  | 'frost'        // Effet givré
-  | 'golden'       // Teinte dorée
-  | 'shadow3d'     // Ombre 3D
-  | 'negative'     // Négatif photo
-  | 'papercut'     // Découpage papier
-  | 'watercolor'   // Aquarelle
-  | 'vintage_frame'// Cadre vintage
-  | 'filmstrip'    // Bande film
-  | 'puzzle'       // Pièce de puzzle
-  | 'torn_edge'    // Bords déchirés
-  | 'stained_glass'// Vitrail
-  | 'pixel_art'    // Art pixelisé
-```
-
-#### Cadres disponibles
-
-```typescript
-type FrameStyle = 
-  | 'none'         // Pas de cadre
-  | 'simple'       // Bordure simple noire
-  | 'double'       // Double bordure
-  | 'dotted'       // Pointillés
-  | 'polaroid'     // Cadre polaroid blanc
-  | 'taped'        // Avec scotch
-  | 'wood'         // Cadre bois (border-image)
-  | 'golden'       // Cadre doré (border-image)
-  | 'baroque'      // Cadre baroque orné (border-image)
-  | 'ornate'       // Orné coloré
-  | 'romantic'     // Rose romantique
-  | 'shadow3d'     // Ombre profonde
-```
-
-#### Interface StoryPage étendue
-
-```typescript
-// Dans useAppStore.ts
-export interface StoryPage {
-  id: string
-  stepIndex: number
-  content: string
-  image?: string
-  imagePosition?: {
-    x: number
-    y: number
-    width: number
-    height: number
-    rotation: number
-  }
-  imageStyle?: string
-  frameStyle?: string
-  order: number
-  chapterId?: string
-  title?: string
-}
-```
-
-### 🗑️ Suppression de Page
-
-- **Bouton X** sur les onglets de page (visible sur la page active)
-- **Modal de confirmation** : "Supprimer cette page ?"
-- **Protection** : Impossible de supprimer la dernière page
-
-### 🔄 Persistance des Images
-
-**Ajouté dans le store** :
-- `imagePosition` : position x, y, largeur, hauteur, rotation
-- `imageStyle` : style visuel de l'image
-- `frameStyle` : style du cadre
-
-**Chargement** : Les propriétés sont récupérées au chargement de l'histoire.
+| Pilier | Description |
+|--------|-------------|
+| 🎓 **Maîtriser l'IA** | Prompting, Midjourney, Runway, ElevenLabs |
+| ✨ **Créer & Imaginer** | Histoires, illustrations, vidéos |
+| 📚 **Publier un Livre** | Jusqu'à Amazon Kindle |
+| 🖥️ **Maîtriser l'Ordinateur** | Navigation, fichiers, autonomie |
 
 ---
 
-## ⚠️ Bug Connu - Images Uploadées
+## 🎬 PRÉSENTATION CLIENT
 
-### Problème
-Les images uploadées depuis l'ordinateur **disparaissent au rafraîchissement**.
+### Fichier : `presentation/index.html`
 
-### Cause
-`URL.createObjectURL(file)` crée des URLs `blob:` temporaires qui ne persistent pas.
+Présentation web style Keynote pour la cliente. **22 slides** au total.
 
-### Solutions possibles (à implémenter)
+### Lancer la présentation
 
-1. **Base64** - Convertir l'image en data URL
-   ```typescript
-   const reader = new FileReader()
-   reader.onload = (e) => {
-     const base64 = e.target?.result as string
-     onSelect(base64, type) // Au lieu de blob URL
-   }
-   reader.readAsDataURL(file)
-   ```
+```bash
+cd presentation
+python3 -m http.server 3003
+# → http://localhost:3003
+```
 
-2. **Supabase Storage** - Upload sur le cloud
-   ```typescript
-   const { data } = await supabase.storage
-     .from('images')
-     .upload(`stories/${storyId}/${fileName}`, file)
-   const url = supabase.storage.from('images').getPublicUrl(data.path)
-   ```
+### Navigation
+- **Flèches clavier** ← → pour naviguer
+- **Points à droite** pour accès direct
+- Scroll automatique **désactivé**
 
-3. **IndexedDB** - Stockage local persistant
+### Structure des slides
 
-**Recommandation** : Base64 pour les petites images (< 5MB), Supabase pour les plus grandes.
+| # | Titre | Contenu |
+|---|-------|---------|
+| 1 | La Voix du Soir | Titre + tagline |
+| 2 | Pour Vos Filles | **4 colonnes** : IA, Créer, Publier, Ordinateur |
+| 3 | Les Objectifs | 6 objectifs avec "Comment" |
+| 4 | Luna, l'Amie IA | Présentation de Luna |
+| 5-6 | Luna en Action | Création d'images / Écriture |
+| 7 | La Philosophie | 5 règles de Luna |
+| 8 | 5 Clés Magiques | Synoptique prompting images |
+| 9 | 5 Questions Magiques | Synoptique écriture |
+| 10 | Parcours de Maîtrise | Niveaux (Explorateur → Maître) |
+| 11 | Cinq Univers Créatifs | Les 5 modes |
+| 12 | L'Expérience Théâtre | AirPlay + Philips Hue |
+| 13 | L'Horizon | Amazon KDP |
+| 14-15 | Prompting/Progression | Synoptiques techniques |
+| 16-17 | Design Immersif | Métaphore livre, animations |
+| 18 | Comment Gemini Fonctionne | Schéma conceptuel |
+| 19 | Multimodal | Images, Vidéos, Voix |
+| 20 | Tech Stack | Technologies utilisées |
+| 21 | Fonctionnalités | Desktop, iPad, Multilingue |
+| 22 | Mon Engagement | Garanties personnelles |
+
+### Modifications récentes (session du 15 janvier)
+
+| Changement | Détail |
+|------------|--------|
+| ✅ Slide 2 refaite | 4 colonnes visuelles, pas de blabla |
+| ✅ Slide commercial supprimée | "Prêtes à Créer ?" (déjà vendu) |
+| ✅ "Notre" → "Mon" Engagement | Personnel, pas collectif |
+| ✅ 3 slides supprimées | Réduction 26 → 22 slides |
+
+### Points d'attention pour la présentation
+
+1. **Pas de discours commercial** — C'est vendu
+2. **Émotionnel** — C'est pour ses filles, partage en famille
+3. **Technique mais accessible** — Elle connaît l'IA, pas de politique
+4. **Jargon technique OK** — Justifie la technicité et le prix
 
 ---
 
-## 📁 Fichiers modifiés cette session
+## 🎬 MODE MONTAGE - État actuel
 
-### `src/components/modes/BookMode.tsx`
+### Philosophie : Timeline basée sur le TEXTE
 
-**Ajouts majeurs** :
-- Composant `DraggableImage` (~400 lignes)
-- Handlers : `handleImagePositionChange`, `handleImageStyleChange`, `handleImageFrameChange`, `handleImageDelete`
-- Modal de confirmation de suppression de page
-- Menus de style/cadre en position fixe centrée
+> Contrairement à un éditeur vidéo classique (timeline en secondes), le Montage utilise le **texte comme timeline**.
 
-**Structure du composant DraggableImage** :
-```typescript
-function DraggableImage({
-  src,
-  position,
-  imageStyle,
-  frameStyle,
-  onPositionChange,
-  onDelete,
-  onStyleChange,
-  onFrameChange,
-  containerRef
-}) {
-  // États
-  const [isDragging, setIsDragging] = useState(false)
-  const [isResizing, setIsResizing] = useState(false)
-  const [isRotating, setIsRotating] = useState(false)
-  const [showControls, setShowControls] = useState(false)
-  const [showStyleMenu, setShowStyleMenu] = useState(false)
-  const [showFrameMenu, setShowFrameMenu] = useState(false)
-  
-  // Handlers drag/resize/rotate
-  const handleDragStart = (e) => { ... }
-  const handleRotateStart = (e) => { ... }
-  
-  // Rendu avec styles conditionnels
-  return (
-    <div style={{ position: 'absolute', transform: `rotate(${position.rotation}deg)` }}>
-      {/* Image avec styles */}
-      {/* Contrôles (delete, style, frame, rotate) positionnés HORS du container clippé */}
-      {/* Menus en position: fixed au centre de l'écran */}
-    </div>
-  )
-}
+```
+CLASSIQUE (Filmora, Premiere) :
+[0s]────[5s]────[10s]────[15s]────[20s]────[25s]
+
+LA VOIX DU SOIR :
+[Il][était][une][fois][un][petit][dragon][qui][vivait][...]
+ ↑    ↑                    ↑
+ │    └─ Musique change    └─ Image apparaît
+ └─ Bruitage "vent"
 ```
 
-### `src/store/useAppStore.ts`
+### Fichiers du mode Montage
 
-**Ajouts** :
-```typescript
-imagePosition?: {
-  x: number
-  y: number
-  width: number
-  height: number
-  rotation: number
-}
-imageStyle?: string
-frameStyle?: string
+```
+src/
+├── store/
+│   └── useMontageStore.ts      # Store Zustand dédié
+│
+├── components/
+│   └── montage/
+│       ├── MontageEditor.tsx   # Éditeur principal
+│       ├── TextTimeline.tsx    # Timeline textuelle
+│       ├── EffectsPanel.tsx    # Effets texte + médias
+│       └── AudioMontagePanel.tsx # Audio (musique, bruitages)
 ```
 
-### `src/components/editor/MediaPicker.tsx`
+### Fonctionnalités implémentées ✅
 
-**Inchangé** - mais source du problème des URLs blob.
+- TextTimeline (mots cliquables, Shift+Clic multi-select)
+- Effets texte (8 types : highlight, glow, fadeIn, shake...)
+- Images & Vidéos ancrées sur les mots
+- Panneau audio (musique, bruitages, ambiance)
+- Enregistrement vocal (MediaRecorder API)
+- Sélection/création de projets
+
+### À faire 🔧
+
+| Priorité | Tâche | Description |
+|----------|-------|-------------|
+| 1 | **RhythmGame** | Jeu de synchronisation voix/texte |
+| 2 | **SyncPlayer** | Lecteur qui orchestre tout |
+| 3 | **TTS avec timings** | ElevenLabs avec timestamps |
+| 4 | **HomeKit** | Commandes lumières pendant lecture |
 
 ---
 
-## 🎨 Interface Mode Écriture - Avec Image
+## 📁 Structure du projet
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ [< Retour]  Titre histoire...        [FormatBar complète]         [≡] [⊞]   │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│      ┌─────────────────┬────┬─────────────────┐                             │
-│   <  │ PAGE GAUCHE     │ || │ PAGE DROITE     │  >                          │
-│      │ ┌─────────┐     │ || │                 │                             │
-│      │ │  IMAGE  │ [X] │ || │ La suite de     │                             │
-│      │ │ [🎨][📐]│     │ || │ l'histoire...   │                             │
-│      │ │    ↻    │     │ || │                 │                             │
-│      │ └─────────┘     │ || │                 │                             │
-│      │ Il était...     │ || │                 │                             │
-│      │     [👁] — 1 —  │ || │ [👁] — 2 —      │                             │
-│      └─────────────────┴────┴─────────────────┘                             │
-│                                                                              │
-│              [•1] [•2✕] [•3] [•4] [+]                                        │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-[X] = Supprimer image
-[🎨] = Menu styles (sépia, cercle, cœur, nuage...)
-[📐] = Menu cadres (simple, bois, doré, baroque...)
-↻ = Poignée rotation (drag pour tourner)
+lavoixdusoir/
+├── presentation/           # 🆕 Présentation client (index.html)
+├── docs/                   # Documentation
+├── electron/               # App desktop Mac
+├── src/
+│   ├── app/               # Next.js App Router
+│   ├── components/        # Composants React
+│   │   ├── modes/         # Journal, Book, Studio, Layout, Theatre
+│   │   ├── montage/       # Mode Montage (nouveau)
+│   │   └── ...
+│   ├── hooks/             # useAI, useTTS, useWebRTC...
+│   ├── lib/               # Gemini, Supabase, TTS...
+│   └── store/             # Zustand stores
+└── supabase/              # Schémas DB
 ```
 
 ---
 
-## 🚀 Ce qui reste à faire
+## 🔑 Configuration
 
-### Priorité Haute
-| Tâche | Notes |
-|-------|-------|
-| **Persistance images** | Convertir blob URLs en Base64 ou Supabase Storage |
-| Export PDF | Exporter les histoires en PDF avec images |
-| Tests utilisateur | Faire tester par les enfants |
+### Variables d'environnement (`.env.local`)
 
-### Priorité Moyenne
-| Tâche | Notes |
-|-------|-------|
-| Vidéos dans pages | Supporter les vidéos en plus des images |
-| Drag & drop pages | Réorganiser les pages par glisser-déposer |
-| Mémoire Luna cross-sessions | Se souvenir des préférences |
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+SUPABASE_SERVICE_ROLE_KEY=xxx
 
-### Priorité Basse
-| Tâche | Notes |
-|-------|-------|
-| Mode hors-ligne | Sync quand connexion retrouvée |
-| App Windows | Version Electron Windows |
-| Animations page turn | Animation 3D pour tourner les pages |
+# Google AI
+GOOGLE_GEMINI_API_KEY=xxx
 
----
+# Cloudflare R2 (vidéos)
+R2_ACCOUNT_ID=xxx
+R2_ACCESS_KEY_ID=xxx
+R2_SECRET_ACCESS_KEY=xxx
 
-## 🐛 Bugs connus / Points d'attention
-
-1. **Images blob** : Les images uploadées localement disparaissent au refresh (URLs temporaires)
-2. **Formatage texte** : Utilise manipulation DOM directe
-3. **Speech Recognition** : Ne fonctionne pas sur Firefox
-4. **TTS sur iOS** : Peut nécessiter une interaction utilisateur
-
----
-
-## 🔑 Identifiants
-
-> ⚠️ **Les identifiants sont dans le fichier `.env.local` (non commité)**
-> Voir `env.example` pour les variables nécessaires.
-
-Variables requises :
-- `GOOGLE_GEMINI_API_KEY` - Clé API Google Gemini
-- `NEXT_PUBLIC_SUPABASE_URL` - URL Supabase
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Clé anonyme Supabase
+# ElevenLabs (optionnel)
+ELEVENLABS_API_KEY=xxx
+```
 
 ---
 
@@ -317,75 +198,66 @@ Variables requises :
 # Installer
 npm install
 
-# Configurer les variables d'environnement
-cp env.example .env.local
-# Éditer .env.local avec vos clés
-
-# Dev (web)
+# Dev web
 npm run dev
+# → http://localhost:3000
 
-# Dev (Electron)
+# Dev Electron
 npm run dev:electron
 
-# Tester les images :
-# 1. Aller sur localhost:3000
-# 2. Cliquer sur "Écriture"
-# 3. Sélectionner/créer une histoire
-# 4. Cliquer sur l'icône image pour ajouter une image
-# 5. Glisser-déposer l'image sur la page
-# 6. Tester les styles (🎨) et cadres (📐)
-# 7. Tester la rotation avec la poignée
-# 8. Supprimer avec le X
+# Présentation client
+cd presentation && python3 -m http.server 3003
+# → http://localhost:3003
 ```
 
 ---
 
-## 📦 Git
+## 📊 Récapitulatif de l'état
 
-**Repository** : `https://github.com/gregjazzy/The-Evening-Voice.git`
+| Composant | État | Notes |
+|-----------|------|-------|
+| **Présentation client** | ✅ | 22 slides, prête |
+| Mode Journal | ✅ | Fonctionnel |
+| Mode Écriture | ✅ | Images flottantes, formatage |
+| Mode Studio | ✅ | Intégrations IA |
+| Mode Montage | 🔧 | Architecture OK, RhythmGame à faire |
+| Mode Théâtre | 🔧 | À développer |
 
-```bash
-# Cloner
-git clone https://github.com/gregjazzy/The-Evening-Voice.git
+---
 
-# Après modifications
-git add .
-git commit -m "description"
-git push origin main
-```
+## 🎯 Prochaines étapes
+
+### Pour la présentation
+- ✅ **Terminée** — Prête pour la cliente
+
+### Pour l'application
+1. **RhythmGame** — Synchronisation voix/texte
+2. **SyncPlayer** — Lecteur de livre-disque
+3. **Export PDF** — Exporter les histoires
+4. **Mode Théâtre** — Lecteur immersif
 
 ---
 
 ## 📚 Documentation
 
-- `README.md` - Vue d'ensemble
-- `docs/ARCHITECTURE.md` - Architecture technique
-- `docs/QUICK_START.md` - Guide de démarrage
-- `docs/API.md` - Documentation API
-- `docs/HANDOVER.md` - Ce document
+| Fichier | Contenu |
+|---------|---------|
+| `docs/CONCEPT.md` | Vision produit (livre-disque 2.0) |
+| `docs/ARCHITECTURE.md` | Architecture technique |
+| `docs/QUICK_START.md` | Guide de démarrage |
+| `docs/API.md` | Documentation API |
+| `docs/HANDOVER.md` | Ce document |
 
 ---
 
-## 📝 Résumé des changements de cette session
+## 🔗 Git
 
-### Images flottantes
-- Images positionnables librement (overlay, pas d'impact sur le texte)
-- Drag & drop, redimensionnement, rotation libre
-- 12+ styles visuels (sépia, cercle, cœur, nuage avec bords estompés...)
-- 12+ styles de cadres (bois, doré, baroque...)
-- Menus de style/cadre en position fixe (lisibles quelle que soit la taille de l'image)
+**Repository** : `https://github.com/gregjazzy/The-Evening-Voice.git`
 
-### Suppression de page
-- Bouton X sur les onglets de page active
-- Modal de confirmation avant suppression
-
-### Persistance
-- `imagePosition`, `imageStyle`, `frameStyle` ajoutés au store
-- Sauvegarde et chargement corrects
-
-### Bug identifié
-- Les images uploadées (blob URLs) ne persistent pas au refresh
-- Solution à implémenter : conversion Base64 ou Supabase Storage
+```bash
+git clone https://github.com/gregjazzy/The-Evening-Voice.git
+git add . && git commit -m "description" && git push origin main
+```
 
 ---
 
