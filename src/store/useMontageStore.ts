@@ -282,6 +282,10 @@ export interface MontageScene {
   // Durée totale de la scène (définie par la voix)
   duration: number       // En secondes
   
+  // Zones intro/outro (avant et après la narration)
+  introDuration: number  // Durée de l'intro en secondes (défaut: 0)
+  outroDuration: number  // Durée de l'outro en secondes (défaut: 0)
+  
   // Pistes (rubans)
   narration: NarrationTrack
   mediaTracks: MediaTrack[]      // Vidéos et images
@@ -453,6 +457,10 @@ interface MontageState {
   updateTextEffect: (effectId: string, updates: Partial<TextEffectTrack>) => void
   deleteTextEffect: (effectId: string) => void
   
+  // === ACTIONS INTRO/OUTRO ===
+  setIntroDuration: (duration: number) => void
+  setOutroDuration: (duration: number) => void
+  
   // === ACTIONS UI ===
   setSelectedTrack: (id: string | null, type: 'media' | 'music' | 'sound' | 'light' | 'decoration' | 'animation' | 'effect' | null) => void
   clearSelection: () => void
@@ -513,6 +521,8 @@ export const useMontageStore = create<MontageState>()(
             decorationTracks: [],
             animationTracks: [],
             textEffectTracks: [],
+            introDuration: 0,
+            outroDuration: 0,
           }
         })
 
@@ -1012,6 +1022,19 @@ export const useMontageStore = create<MontageState>()(
         }
       },
 
+      // === ACTIONS INTRO/OUTRO ===
+      setIntroDuration: (duration) => {
+        const scene = get().getCurrentScene()
+        if (!scene) return
+        get().updateCurrentScene({ introDuration: Math.max(0, duration) })
+      },
+      
+      setOutroDuration: (duration) => {
+        const scene = get().getCurrentScene()
+        if (!scene) return
+        get().updateCurrentScene({ outroDuration: Math.max(0, duration) })
+      },
+
       // === ACTIONS UI ===
       setSelectedTrack: (id, type) => set({ selectedTrackId: id, selectedTrackType: type }),
       clearSelection: () => set({ selectedTrackId: null, selectedTrackType: null }),
@@ -1022,7 +1045,11 @@ export const useMontageStore = create<MontageState>()(
       // === HELPERS ===
       getSceneDuration: () => {
         const scene = get().getCurrentScene()
-        return scene?.duration || 0
+        // Durée totale = intro + narration + outro
+        const introDuration = scene?.introDuration || 0
+        const outroDuration = scene?.outroDuration || 0
+        const narrationDuration = scene?.narration?.duration || scene?.duration || 0
+        return introDuration + narrationDuration + outroDuration
       },
 
       getActivePhrase: (time) => {

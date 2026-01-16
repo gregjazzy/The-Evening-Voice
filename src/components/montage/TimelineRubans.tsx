@@ -138,6 +138,129 @@ interface RubanProps {
 }
 
 // =============================================================================
+// ZONE INTRO / OUTRO (REDIMENSIONNABLE)
+// =============================================================================
+
+interface IntroOutroZoneProps {
+  type: 'intro' | 'outro'
+  duration: number
+  pixelsPerSecond: number
+  startOffset: number  // Position de départ en secondes
+  onDurationChange: (newDuration: number) => void
+}
+
+function IntroOutroZone({
+  type,
+  duration,
+  pixelsPerSecond,
+  startOffset,
+  onDurationChange,
+}: IntroOutroZoneProps) {
+  const zoneRef = useRef<HTMLDivElement>(null)
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeStartX = useRef(0)
+  const originalDuration = useRef(duration)
+
+  // Position en pixels
+  const leftPx = startOffset * pixelsPerSecond
+  const widthPx = duration * pixelsPerSecond
+
+  // Resize handler
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+    resizeStartX.current = e.clientX
+    originalDuration.current = duration
+  }
+
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - resizeStartX.current
+      const deltaTime = deltaX / pixelsPerSecond
+      
+      // Pour l'intro, on redimensionne depuis la droite
+      // Pour l'outro, on redimensionne depuis la gauche
+      let newDuration: number
+      if (type === 'intro') {
+        newDuration = Math.max(0, originalDuration.current + deltaTime)
+      } else {
+        // Pour outro, le delta est inversé (on tire vers la gauche pour agrandir)
+        newDuration = Math.max(0, originalDuration.current - deltaTime)
+      }
+      
+      onDurationChange(Math.round(newDuration * 10) / 10) // Arrondir à 0.1s
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizing, pixelsPerSecond, type, onDurationChange])
+
+  // Ne pas afficher si durée = 0 - on affiche juste un petit bouton + dans le label
+  if (duration === 0) {
+    return null  // Géré par le label de la piste Structure
+  }
+
+  return (
+    <div
+      ref={zoneRef}
+      className={cn(
+        'absolute h-full flex items-center px-2 rounded-md text-xs transition-shadow group',
+        type === 'intro' 
+          ? 'bg-emerald-500/30 text-emerald-200 border-r-2 border-emerald-500' 
+          : 'bg-violet-500/30 text-violet-200 border-l-2 border-violet-500',
+        isResizing && 'ring-2 ring-white'
+      )}
+      style={{
+        left: leftPx,
+        width: Math.max(40, widthPx),
+        minWidth: 40,
+      }}
+    >
+      {/* Emoji et label */}
+      <span className="truncate font-medium">
+        {type === 'intro' ? '🎬 Intro' : '🎬 Outro'}
+      </span>
+      <span className="ml-1 text-[10px] opacity-70">
+        {duration.toFixed(1)}s
+      </span>
+
+      {/* Handle de redimensionnement */}
+      <div
+        className={cn(
+          'absolute top-0 bottom-0 w-3 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity',
+          'hover:bg-white/30 flex items-center justify-center',
+          type === 'intro' ? 'right-0' : 'left-0'
+        )}
+        onMouseDown={handleResizeStart}
+      >
+        <GripVertical className="w-2 h-2 text-white/70 rotate-90" />
+      </div>
+
+      {/* Bouton supprimer (réduire à 0) */}
+      <button
+        onClick={() => onDurationChange(0)}
+        className="absolute -top-1 -right-1 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-400"
+        title="Supprimer"
+      >
+        <Trash2 className="w-2.5 h-2.5" />
+      </button>
+    </div>
+  )
+}
+
+// =============================================================================
 // RUBAN DRAGGABLE
 // =============================================================================
 
@@ -510,12 +633,14 @@ function PhrasesTrackScrollable({
   phrases, 
   pixelsPerSecond,
   timelineWidth,
-  activePhraseIndex 
+  activePhraseIndex,
+  introOffset = 0,  // Décalage dû à l'intro
 }: { 
   phrases: PhraseTiming[]
   pixelsPerSecond: number
   timelineWidth: number
   activePhraseIndex: number
+  introOffset?: number
 }) {
   return (
     <div className="flex items-center h-8">
@@ -531,7 +656,8 @@ function PhrasesTrackScrollable({
       {/* Zone des rubans (scrollable via le container parent) */}
       <div className="flex-1 h-full relative" style={{ minWidth: timelineWidth }}>
         {phrases.map((phrase, index) => {
-          const leftPx = phrase.timeRange.startTime * pixelsPerSecond
+          // Décaler les phrases par la durée de l'intro
+          const leftPx = (phrase.timeRange.startTime + introOffset) * pixelsPerSecond
           const widthPx = (phrase.timeRange.endTime - phrase.timeRange.startTime) * pixelsPerSecond
 
           return (
@@ -597,6 +723,8 @@ export function TimelineRubans() {
     updateTextEffect,
     deleteTextEffect,
     getActivePhrase,
+    setIntroDuration,
+    setOutroDuration,
   } = useMontageStore()
 
   const scene = getCurrentScene()
@@ -645,8 +773,13 @@ export function TimelineRubans() {
     setModalOpen(true)
   }, [])
 
-  // Durée de la scène (basée sur la narration audio ou défaut 10s)
-  const duration = scene?.narration?.duration || scene?.duration || 10
+  // Durées intro/outro/narration
+  const introDuration = scene?.introDuration || 0
+  const outroDuration = scene?.outroDuration || 0
+  const narrationDuration = scene?.narration?.duration || scene?.duration || 10
+  
+  // Durée totale de la scène (intro + narration + outro)
+  const duration = introDuration + narrationDuration + outroDuration
   
   // Largeur totale de la timeline en pixels
   const timelineWidth = duration * pixelsPerSecond
@@ -924,6 +1057,74 @@ export function TimelineRubans() {
         >
           <div className="absolute top-0 -left-1.5 w-3 h-3 bg-aurora-400 rounded-full shadow-lg shadow-aurora-400/50" />
         </div>
+        {/* Piste Structure (Intro / Narration / Outro) */}
+        <div className="flex items-center h-8">
+          {/* Label avec boutons d'ajout */}
+          <div 
+            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-emerald-500/30 to-violet-500/30 text-white"
+            style={{ width: LABEL_WIDTH - 8 }}
+          >
+            <Play className="w-3 h-3 text-emerald-300" />
+            <span className="truncate flex-1">Structure</span>
+            {/* Boutons d'ajout intro/outro */}
+            <div className="flex gap-0.5">
+              {introDuration === 0 && (
+                <button
+                  onClick={() => setIntroDuration(3)}
+                  className="p-0.5 rounded bg-emerald-500/50 hover:bg-emerald-500 text-white transition-colors"
+                  title="Ajouter intro (3s)"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                </button>
+              )}
+              {outroDuration === 0 && (
+                <button
+                  onClick={() => setOutroDuration(3)}
+                  className="p-0.5 rounded bg-violet-500/50 hover:bg-violet-500 text-white transition-colors"
+                  title="Ajouter outro (3s)"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Zone des rubans */}
+          <div className="flex-1 h-full relative" style={{ minWidth: timelineWidth }}>
+            {/* Zone Intro */}
+            <IntroOutroZone
+              type="intro"
+              duration={introDuration}
+              pixelsPerSecond={pixelsPerSecond}
+              startOffset={0}
+              onDurationChange={setIntroDuration}
+            />
+            
+            {/* Zone Narration (indicatif, non éditable) */}
+            {narrationDuration > 0 && (
+              <div
+                className="absolute h-full flex items-center px-2 rounded-md text-xs bg-amber-500/20 text-amber-200 border-x border-amber-500/30"
+                style={{
+                  left: introDuration * pixelsPerSecond,
+                  width: narrationDuration * pixelsPerSecond,
+                  minWidth: 40,
+                }}
+              >
+                <span className="truncate">📖 Narration ({narrationDuration.toFixed(1)}s)</span>
+              </div>
+            )}
+            
+            {/* Zone Outro */}
+            <IntroOutroZone
+              type="outro"
+              duration={outroDuration}
+              pixelsPerSecond={pixelsPerSecond}
+              startOffset={introDuration + narrationDuration}
+              onDurationChange={setOutroDuration}
+            />
+          </div>
+        </div>
+
         {/* Piste des phrases (non éditable, affiche le sync) */}
         {scene.narration?.isSynced && (scene.narration?.phrases?.length || 0) > 0 && (
           <PhrasesTrackScrollable
@@ -931,6 +1132,7 @@ export function TimelineRubans() {
             pixelsPerSecond={pixelsPerSecond}
             timelineWidth={timelineWidth}
             activePhraseIndex={activePhraseIndex}
+            introOffset={introDuration}
           />
         )}
 

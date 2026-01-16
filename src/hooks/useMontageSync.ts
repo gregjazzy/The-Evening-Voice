@@ -67,6 +67,8 @@ export function useMontageSync() {
           text: scene.text || '',
           phrases: scene.phrases || (scene.text ? scene.text.split(/[.!?]+/).filter(p => p.trim()).map(p => p.trim()) : []),
           duration: scene.duration || 0,
+          introDuration: scene.introDuration || 0,
+          outroDuration: scene.outroDuration || 0,
           narration: {
             id: scene.narration?.id || crypto.randomUUID(),
             audioUrl: scene.narration?.audioUrl || undefined,
