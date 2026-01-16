@@ -32,7 +32,9 @@ import {
   Plus,
   ZoomIn,
   ZoomOut,
-  Maximize2
+  Maximize2,
+  Minimize2,
+  Fullscreen
 } from 'lucide-react'
 import { AddElementModal } from './AddElementModal'
 
@@ -559,6 +561,9 @@ export function TimelineRubans() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalType, setModalType] = useState<ModalElementType>('media')
   
+  // État plein écran
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  
   // État du zoom (pixels par seconde) - 60px/s = 10s visible sur ~600px
   const [pixelsPerSecond, setPixelsPerSecond] = useState(60)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -725,6 +730,18 @@ export function TimelineRubans() {
       }
     }
   }, [])
+  
+  // Écouter la touche Échap pour quitter le plein écran
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullscreen])
 
   // Reset audio quand la scène change
   useEffect(() => {
@@ -745,12 +762,16 @@ export function TimelineRubans() {
   }
 
   return (
-    <div className="glass rounded-xl overflow-hidden">
+    <div className={cn(
+      "glass rounded-xl overflow-hidden flex flex-col",
+      isFullscreen && "fixed inset-4 z-50 bg-midnight-900/98 backdrop-blur-xl"
+    )}>
       {/* En-tête avec contrôles */}
-      <div className="p-3 border-b border-midnight-700/50 flex items-center justify-between">
+      <div className="p-3 border-b border-midnight-700/50 flex items-center justify-between shrink-0">
         <h3 className="text-sm font-medium flex items-center gap-2">
           <GripVertical className="w-4 h-4 text-midnight-500" />
           Timeline - Scène {currentSceneIndex + 1}
+          {isFullscreen && <span className="text-xs text-midnight-500 ml-2">(Plein écran)</span>}
         </h3>
 
         <div className="flex items-center gap-4">
@@ -778,6 +799,20 @@ export function TimelineRubans() {
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
           </div>
+          
+          {/* Bouton plein écran */}
+          <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className={cn(
+              'p-1.5 rounded-lg transition-colors',
+              isFullscreen 
+                ? 'bg-aurora-500/30 text-aurora-300 hover:bg-aurora-500/40' 
+                : 'bg-midnight-800/50 text-midnight-400 hover:text-white hover:bg-midnight-700/50'
+            )}
+            title={isFullscreen ? "Quitter le plein écran (Échap)" : "Timeline plein écran"}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Fullscreen className="w-4 h-4" />}
+          </button>
 
           {/* Contrôles de lecture */}
           <div className="flex items-center gap-2">
