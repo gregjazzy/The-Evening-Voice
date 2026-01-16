@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, Reorder } from 'framer-motion'
 import { 
   Feather, 
@@ -43,6 +44,10 @@ import {
   Palette,
   ImagePlus,
   Layers,
+  FlipHorizontal,
+  FlipVertical,
+  RotateCcw,
+  Gem,
 } from 'lucide-react'
 import { useAppStore, type Story } from '@/store/useAppStore'
 import { useTTS } from '@/hooks/useTTS'
@@ -145,7 +150,536 @@ interface BackgroundMedia {
   url: string
   type: MediaType  // 'image' ou 'video'
   opacity: number  // 0.1 à 1
+  // Position et échelle (pour le mode édition)
+  x?: number       // Décalage horizontal en %
+  y?: number       // Décalage vertical en %
+  scale?: number   // Échelle (1 = 100%, 1.5 = 150%, etc.)
 }
+
+// ============================================================================
+// DÉCORATIONS PREMIUM - Ornements luxueux pour le livre
+// ============================================================================
+
+type DecorationCategory = 'gold' | 'floral' | 'royal' | 'celestial' | 'artistic' | 'frames'
+
+interface DecorationItem {
+  id: string
+  name: string
+  category: DecorationCategory
+  svg: string  // SVG inline
+  defaultScale?: number
+  defaultColor?: string
+}
+
+interface PageDecoration {
+  id: string
+  decorationId: string
+  position: { x: number; y: number }
+  scale: number
+  rotation: number
+  color?: string  // Override couleur
+  opacity: number
+  flipH?: boolean
+  flipV?: boolean
+  // Effet de luminosité (glow)
+  glowEnabled?: boolean
+  glowColor?: string   // Couleur de la luminosité
+  glowIntensity?: number  // Intensité de 0 à 100
+}
+
+// Collection de décorations premium
+const PREMIUM_DECORATIONS: DecorationItem[] = [
+  // === ORNEMENTS DORÉS ===
+  {
+    id: 'gold-corner-1',
+    name: 'Coin Baroque',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><path d="M0 0 Q50 0 50 50 Q50 25 25 25 Q0 25 0 0 M50 50 Q25 50 25 75 Q25 100 0 100 L0 75 Q25 75 25 50 Q25 25 50 25 Q75 25 75 50 Q75 75 50 75 L50 50" opacity="0.9"/><circle cx="35" cy="35" r="3"/><circle cx="15" cy="15" r="2"/><path d="M5 5 Q15 15 5 25" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-corner-2',
+    name: 'Coin Filigrane',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 95 C5 50 50 5 95 5"/><path d="M15 95 C15 55 55 15 95 15"/><path d="M5 85 C5 45 45 5 85 5"/><circle cx="95" cy="5" r="4" fill="currentColor"/><circle cx="5" cy="95" r="4" fill="currentColor"/><path d="M25 75 Q35 65 45 75 Q55 85 65 75" stroke-width="1.5"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-divider-1',
+    name: 'Séparateur Royal',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 200 40" fill="currentColor"><path d="M0 20 H70 M130 20 H200" stroke="currentColor" stroke-width="1" fill="none"/><path d="M80 20 L90 10 L100 20 L90 30 Z"/><circle cx="100" cy="20" r="8"/><path d="M100 12 L100 8 M100 28 L100 32 M92 20 L88 20 M108 20 L112 20" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="70" cy="20" r="3"/><circle cx="130" cy="20" r="3"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-ornament-1',
+    name: 'Ornement Versailles',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 5 C60 20 80 25 80 50 C80 75 60 80 50 95 C40 80 20 75 20 50 C20 25 40 20 50 5Z" opacity="0.3"/><path d="M50 15 C55 25 70 28 70 50 C70 72 55 75 50 85 C45 75 30 72 30 50 C30 28 45 25 50 15Z"/><circle cx="50" cy="50" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="50" cy="50" r="3"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-scroll-1',
+    name: 'Volute Dorée',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 100 60" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 30 Q10 10 30 10 Q50 10 50 30 Q50 50 70 50 Q90 50 90 30"/><path d="M15 30 Q15 15 30 15 Q45 15 45 30"/><circle cx="10" cy="30" r="4" fill="currentColor"/><circle cx="90" cy="30" r="4" fill="currentColor"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-corner-3',
+    name: 'Coin Art Nouveau',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><path d="M5 5 Q5 50 50 50 Q50 5 5 5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 10 Q10 45 45 45 Q45 10 10 10" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.7"/><circle cx="27" cy="27" r="6"/><path d="M15 40 Q25 30 40 15" fill="none" stroke="currentColor" stroke-width="1"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-divider-2',
+    name: 'Séparateur Diamant',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 200 30" fill="currentColor"><path d="M0 15 H80" stroke="currentColor" stroke-width="1" fill="none"/><path d="M120 15 H200" stroke="currentColor" stroke-width="1" fill="none"/><path d="M90 15 L100 5 L110 15 L100 25 Z"/><circle cx="80" cy="15" r="2"/><circle cx="120" cy="15" r="2"/><circle cx="70" cy="15" r="1.5" opacity="0.6"/><circle cx="130" cy="15" r="1.5" opacity="0.6"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-divider-3',
+    name: 'Ligne Florale',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 200 40" fill="currentColor"><path d="M0 20 H70 M130 20 H200" stroke="currentColor" stroke-width="1" fill="none"/><circle cx="100" cy="20" r="10"/><circle cx="100" cy="20" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M80 20 Q85 10 90 20 Q85 30 80 20" opacity="0.7"/><path d="M120 20 Q115 10 110 20 Q115 30 120 20" opacity="0.7"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-frame-corner',
+    name: 'Coin Cadre Doré',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 60 60" fill="currentColor"><path d="M5 55 L5 5 L55 5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M10 50 L10 10 L50 10" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6"/><circle cx="5" cy="5" r="4"/><path d="M15 15 L25 15 M15 15 L15 25" stroke="currentColor" stroke-width="1.5"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-medallion',
+    name: 'Médaillon Antique',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 80 80" fill="currentColor"><circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="40" cy="40" r="28" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="40" cy="40" r="20" opacity="0.3"/><circle cx="40" cy="40" r="8"/><path d="M40 12 L40 8 M40 68 L40 72 M12 40 L8 40 M68 40 L72 40" stroke="currentColor" stroke-width="2"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-swirl',
+    name: 'Spirale Élégante',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="2"><path d="M40 40 Q40 20 60 20 Q80 20 80 40 Q80 60 60 60 Q40 60 40 40 Q40 30 50 30 Q60 30 60 40 Q60 50 50 50 Q45 50 45 45"/><circle cx="45" cy="45" r="3" fill="currentColor"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'gold-laurel',
+    name: 'Laurier Victorieux',
+    category: 'gold',
+    svg: `<svg viewBox="0 0 100 60" fill="currentColor"><path d="M50 55 L50 30" stroke="currentColor" stroke-width="2" fill="none"/><ellipse cx="35" cy="45" rx="8" ry="4" transform="rotate(-45 35 45)" opacity="0.8"/><ellipse cx="65" cy="45" rx="8" ry="4" transform="rotate(45 65 45)" opacity="0.8"/><ellipse cx="30" cy="35" rx="7" ry="3.5" transform="rotate(-50 30 35)" opacity="0.7"/><ellipse cx="70" cy="35" rx="7" ry="3.5" transform="rotate(50 70 35)" opacity="0.7"/><ellipse cx="28" cy="25" rx="6" ry="3" transform="rotate(-55 28 25)" opacity="0.6"/><ellipse cx="72" cy="25" rx="6" ry="3" transform="rotate(55 72 25)" opacity="0.6"/><circle cx="50" cy="10" r="5"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+
+  // === FLORAUX ===
+  {
+    id: 'floral-rose-1',
+    name: 'Rose Élégante',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><ellipse cx="50" cy="45" rx="15" ry="12" opacity="0.3"/><ellipse cx="50" cy="50" rx="12" ry="10" opacity="0.5"/><ellipse cx="50" cy="53" rx="8" ry="7" opacity="0.7"/><ellipse cx="50" cy="55" rx="5" ry="4"/><path d="M50 62 Q50 75 45 90 M50 62 Q52 75 55 88" stroke="currentColor" fill="none" stroke-width="2"/><ellipse cx="38" cy="78" rx="8" ry="4" transform="rotate(-30 38 78)" opacity="0.6"/><ellipse cx="62" cy="76" rx="8" ry="4" transform="rotate(30 62 76)" opacity="0.6"/></svg>`,
+    defaultColor: '#E8B4B8',
+  },
+  {
+    id: 'floral-branch-1',
+    name: 'Branche Fleurie',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 150 60" fill="currentColor"><path d="M10 30 Q40 25 75 30 Q110 35 140 30" stroke="currentColor" fill="none" stroke-width="2"/><circle cx="30" cy="25" r="6" opacity="0.8"/><circle cx="55" cy="22" r="5" opacity="0.6"/><circle cx="80" cy="28" r="7"/><circle cx="105" cy="24" r="5" opacity="0.7"/><circle cx="125" cy="27" r="6" opacity="0.5"/><ellipse cx="40" cy="35" rx="6" ry="3" opacity="0.4"/><ellipse cx="95" cy="36" rx="5" ry="2.5" opacity="0.4"/></svg>`,
+    defaultColor: '#F4A4BA',
+  },
+  {
+    id: 'floral-wreath-1',
+    name: 'Couronne Florale',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="50" r="35" stroke="currentColor" fill="none" stroke-width="3" opacity="0.3"/><circle cx="50" cy="15" r="6"/><circle cx="85" cy="50" r="6"/><circle cx="50" cy="85" r="6"/><circle cx="15" cy="50" r="6"/><circle cx="75" cy="25" r="5" opacity="0.7"/><circle cx="75" cy="75" r="5" opacity="0.7"/><circle cx="25" cy="75" r="5" opacity="0.7"/><circle cx="25" cy="25" r="5" opacity="0.7"/><ellipse cx="62" cy="18" rx="4" ry="2" transform="rotate(45 62 18)" opacity="0.5"/><ellipse cx="82" cy="38" rx="4" ry="2" transform="rotate(-45 82 38)" opacity="0.5"/></svg>`,
+    defaultColor: '#C9A8B4',
+  },
+  {
+    id: 'floral-leaves-1',
+    name: 'Feuillage Délicat',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 120 80" fill="currentColor"><path d="M60 70 Q60 40 60 10" stroke="currentColor" fill="none" stroke-width="2"/><ellipse cx="45" cy="25" rx="15" ry="8" transform="rotate(-30 45 25)" opacity="0.7"/><ellipse cx="75" cy="25" rx="15" ry="8" transform="rotate(30 75 25)" opacity="0.7"/><ellipse cx="40" cy="45" rx="12" ry="6" transform="rotate(-20 40 45)" opacity="0.5"/><ellipse cx="80" cy="45" rx="12" ry="6" transform="rotate(20 80 45)" opacity="0.5"/><ellipse cx="50" cy="60" rx="8" ry="4" transform="rotate(-10 50 60)" opacity="0.3"/><ellipse cx="70" cy="60" rx="8" ry="4" transform="rotate(10 70 60)" opacity="0.3"/></svg>`,
+    defaultColor: '#7BA17B',
+  },
+  {
+    id: 'floral-lily-1',
+    name: 'Lys Majestueux',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 80 100" fill="currentColor"><path d="M40 95 Q40 70 40 50" stroke="currentColor" fill="none" stroke-width="2"/><ellipse cx="40" cy="35" rx="8" ry="20" opacity="0.9"/><ellipse cx="25" cy="40" rx="6" ry="18" transform="rotate(-25 25 40)" opacity="0.7"/><ellipse cx="55" cy="40" rx="6" ry="18" transform="rotate(25 55 40)" opacity="0.7"/><ellipse cx="15" cy="50" rx="5" ry="14" transform="rotate(-40 15 50)" opacity="0.5"/><ellipse cx="65" cy="50" rx="5" ry="14" transform="rotate(40 65 50)" opacity="0.5"/><circle cx="40" cy="25" r="4" opacity="0.8"/></svg>`,
+    defaultColor: '#FFFFFF',
+  },
+  {
+    id: 'floral-tulip-1',
+    name: 'Tulipe Royale',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 60 100" fill="currentColor"><path d="M30 95 Q30 60 30 45" stroke="currentColor" fill="none" stroke-width="2"/><ellipse cx="30" cy="30" rx="15" ry="25" opacity="0.8"/><ellipse cx="20" cy="35" rx="8" ry="18" transform="rotate(-15 20 35)" opacity="0.6"/><ellipse cx="40" cy="35" rx="8" ry="18" transform="rotate(15 40 35)" opacity="0.6"/><ellipse cx="25" cy="75" rx="10" ry="5" transform="rotate(-20 25 75)" opacity="0.4"/><ellipse cx="35" cy="80" rx="8" ry="4" transform="rotate(15 35 80)" opacity="0.4"/></svg>`,
+    defaultColor: '#FF6B6B',
+  },
+  {
+    id: 'floral-orchid-1',
+    name: 'Orchidée Précieuse',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><ellipse cx="50" cy="40" rx="20" ry="15" opacity="0.4"/><ellipse cx="35" cy="35" rx="15" ry="10" transform="rotate(-30 35 35)" opacity="0.7"/><ellipse cx="65" cy="35" rx="15" ry="10" transform="rotate(30 65 35)" opacity="0.7"/><ellipse cx="50" cy="55" rx="12" ry="8" opacity="0.8"/><circle cx="50" cy="40" r="6"/><path d="M50 63 Q50 70 50 78" stroke="currentColor" fill="none" stroke-width="2"/></svg>`,
+    defaultColor: '#DA70D6',
+  },
+  {
+    id: 'floral-cherry-1',
+    name: 'Fleur de Cerisier',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 60 60" fill="currentColor"><circle cx="30" cy="20" r="8" opacity="0.7"/><circle cx="18" cy="32" r="8" opacity="0.7"/><circle cx="42" cy="32" r="8" opacity="0.7"/><circle cx="22" cy="46" r="8" opacity="0.7"/><circle cx="38" cy="46" r="8" opacity="0.7"/><circle cx="30" cy="35" r="5"/></svg>`,
+    defaultColor: '#FFB7C5',
+  },
+  {
+    id: 'floral-vine-1',
+    name: 'Vigne Grimpante',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 150 60" fill="currentColor"><path d="M10 50 Q40 20 70 40 Q100 60 130 30" stroke="currentColor" fill="none" stroke-width="2"/><ellipse cx="25" cy="35" rx="8" ry="5" transform="rotate(-30 25 35)" opacity="0.6"/><ellipse cx="55" cy="30" rx="7" ry="4" transform="rotate(20 55 30)" opacity="0.6"/><ellipse cx="85" cy="45" rx="8" ry="5" transform="rotate(-15 85 45)" opacity="0.6"/><ellipse cx="115" cy="35" rx="7" ry="4" transform="rotate(25 115 35)" opacity="0.6"/><circle cx="40" cy="25" r="4" opacity="0.8"/><circle cx="100" cy="50" r="4" opacity="0.8"/></svg>`,
+    defaultColor: '#228B22',
+  },
+  {
+    id: 'floral-daisy-1',
+    name: 'Marguerite Douce',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 80 80" fill="currentColor"><ellipse cx="40" cy="20" rx="6" ry="12" opacity="0.8"/><ellipse cx="55" cy="28" rx="6" ry="12" transform="rotate(45 55 28)" opacity="0.8"/><ellipse cx="60" cy="45" rx="6" ry="12" transform="rotate(90 60 45)" opacity="0.8"/><ellipse cx="52" cy="60" rx="6" ry="12" transform="rotate(135 52 60)" opacity="0.8"/><ellipse cx="40" cy="65" rx="6" ry="12" transform="rotate(180 40 65)" opacity="0.8"/><ellipse cx="28" cy="58" rx="6" ry="12" transform="rotate(-135 28 58)" opacity="0.8"/><ellipse cx="20" cy="42" rx="6" ry="12" transform="rotate(-90 20 42)" opacity="0.8"/><ellipse cx="28" cy="28" rx="6" ry="12" transform="rotate(-45 28 28)" opacity="0.8"/><circle cx="40" cy="42" r="10"/></svg>`,
+    defaultColor: '#FFFACD',
+  },
+  {
+    id: 'floral-bouquet-1',
+    name: 'Bouquet Raffiné',
+    category: 'floral',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 95 Q40 80 50 70 Q60 80 50 95" opacity="0.5"/><circle cx="50" cy="35" r="12" opacity="0.9"/><circle cx="35" cy="45" r="10" opacity="0.7"/><circle cx="65" cy="45" r="10" opacity="0.7"/><circle cx="30" cy="60" r="8" opacity="0.5"/><circle cx="70" cy="60" r="8" opacity="0.5"/><circle cx="45" cy="55" r="9" opacity="0.8"/><circle cx="55" cy="55" r="9" opacity="0.8"/><path d="M40 72 Q50 65 60 72" stroke="currentColor" fill="none" stroke-width="3"/></svg>`,
+    defaultColor: '#E8B4B8',
+  },
+
+  // === ROYAUX ===
+  {
+    id: 'royal-crown-1',
+    name: 'Couronne Royale',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><path d="M15 65 L20 30 L35 45 L50 20 L65 45 L80 30 L85 65 Z" opacity="0.9"/><path d="M10 65 H90 V75 H10 Z"/><circle cx="20" cy="28" r="5"/><circle cx="50" cy="15" r="6"/><circle cx="80" cy="28" r="5"/><rect x="20" y="70" width="60" height="3" opacity="0.5"/><circle cx="50" cy="50" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'royal-fleurdelis-1',
+    name: 'Fleur de Lys',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 80 100" fill="currentColor"><path d="M40 5 Q45 20 55 25 Q45 30 45 50 L55 50 Q55 70 40 95 Q25 70 25 50 L35 50 Q35 30 25 25 Q35 20 40 5Z"/><ellipse cx="25" cy="25" rx="8" ry="15" transform="rotate(-30 25 25)"/><ellipse cx="55" cy="25" rx="8" ry="15" transform="rotate(30 55 25)"/><circle cx="40" cy="55" r="5" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'royal-crest-1',
+    name: 'Blason Noble',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 80 100" fill="currentColor"><path d="M10 10 H70 V60 Q70 90 40 95 Q10 90 10 60 Z" opacity="0.2" stroke="currentColor" stroke-width="2"/><path d="M15 15 H65 V58 Q65 85 40 90 Q15 85 15 58 Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M40 25 L50 45 L40 55 L30 45 Z" opacity="0.8"/><circle cx="40" cy="70" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`,
+    defaultColor: '#8B4513',
+  },
+  {
+    id: 'royal-scepter-1',
+    name: 'Sceptre Impérial',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 40 120" fill="currentColor"><rect x="17" y="30" width="6" height="85" rx="2"/><circle cx="20" cy="20" r="15"/><circle cx="20" cy="20" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="20" cy="20" r="4"/><path d="M10 115 H30" stroke="currentColor" stroke-width="3"/><rect x="15" y="108" width="10" height="5" rx="1"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'royal-tiara-1',
+    name: 'Diadème Princesse',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 120 60" fill="currentColor"><path d="M10 55 Q20 40 35 50 Q50 30 60 20 Q70 30 85 50 Q100 40 110 55" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="60" cy="15" r="8"/><circle cx="35" cy="40" r="5"/><circle cx="85" cy="40" r="5"/><circle cx="20" cy="48" r="4" opacity="0.7"/><circle cx="100" cy="48" r="4" opacity="0.7"/><path d="M5 55 H115" stroke="currentColor" stroke-width="3"/></svg>`,
+    defaultColor: '#C0C0C0',
+  },
+  {
+    id: 'royal-lion-1',
+    name: 'Lion Héraldique',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 80 100" fill="currentColor"><ellipse cx="40" cy="35" rx="20" ry="18"/><ellipse cx="40" cy="25" rx="25" ry="15" opacity="0.6"/><circle cx="33" cy="32" r="3" opacity="0"/><circle cx="47" cy="32" r="3" opacity="0"/><ellipse cx="40" cy="42" rx="8" ry="5"/><path d="M30 50 Q25 70 20 90 M50 50 Q55 70 60 90" stroke="currentColor" fill="none" stroke-width="3"/><path d="M35 55 L35 85 M45 55 L45 85" stroke="currentColor" stroke-width="3"/><path d="M55 60 Q70 70 65 90" stroke="currentColor" fill="none" stroke-width="2"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'royal-eagle-1',
+    name: 'Aigle Impérial',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><path d="M50 20 L45 30 L55 30 Z"/><circle cx="50" cy="15" r="8"/><path d="M50 30 Q50 50 50 60" stroke="currentColor" fill="none" stroke-width="3"/><path d="M50 35 Q20 25 5 50 Q15 45 25 50 Q30 40 40 38" opacity="0.8"/><path d="M50 35 Q80 25 95 50 Q85 45 75 50 Q70 40 60 38" opacity="0.8"/><path d="M40 60 L35 75 M50 60 L50 78 M60 60 L65 75" stroke="currentColor" stroke-width="2"/></svg>`,
+    defaultColor: '#1C1C1C',
+  },
+  {
+    id: 'royal-orb-1',
+    name: 'Orbe Royal',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 80 100" fill="currentColor"><circle cx="40" cy="55" r="30"/><path d="M40 25 L40 10 M35 10 L45 10" stroke="currentColor" stroke-width="3"/><circle cx="40" cy="5" r="5"/><path d="M10 55 H70" stroke="currentColor" stroke-width="2" opacity="0.5"/><path d="M40 25 Q60 40 40 55 Q20 40 40 25" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'royal-shield-1',
+    name: 'Écu Chevaleresque',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 80 100" fill="currentColor"><path d="M10 10 H70 V50 Q70 90 40 95 Q10 90 10 50 Z" opacity="0.3"/><path d="M10 10 H70 V50 Q70 90 40 95 Q10 90 10 50 Z" fill="none" stroke="currentColor" stroke-width="3"/><path d="M40 20 L40 80" stroke="currentColor" stroke-width="2" opacity="0.5"/><path d="M20 40 H60" stroke="currentColor" stroke-width="2" opacity="0.5"/></svg>`,
+    defaultColor: '#C41E3A',
+  },
+  {
+    id: 'royal-key-1',
+    name: 'Clé du Royaume',
+    category: 'royal',
+    svg: `<svg viewBox="0 0 40 100" fill="currentColor"><circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="20" cy="20" r="6"/><rect x="17" y="35" width="6" height="55"/><path d="M23 70 H30 M23 80 H28" stroke="currentColor" stroke-width="3"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+
+  // === CÉLESTES ===
+  {
+    id: 'celestial-star-1',
+    name: 'Étoile Scintillante',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 5 L58 38 L95 38 L65 60 L75 95 L50 72 L25 95 L35 60 L5 38 L42 38 Z"/><circle cx="50" cy="50" r="8" fill="none" stroke="currentColor" stroke-width="2" opacity="0.5"/></svg>`,
+    defaultColor: '#FFD700',
+  },
+  {
+    id: 'celestial-moon-1',
+    name: 'Croissant de Lune',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><path d="M70 10 Q30 25 30 50 Q30 75 70 90 Q40 80 40 50 Q40 20 70 10Z"/><circle cx="25" cy="30" r="2" opacity="0.6"/><circle cx="20" cy="50" r="1.5" opacity="0.4"/><circle cx="25" cy="70" r="2" opacity="0.6"/><circle cx="35" cy="85" r="1" opacity="0.3"/></svg>`,
+    defaultColor: '#F5E6D3',
+  },
+  {
+    id: 'celestial-sun-1',
+    name: 'Soleil Radieux',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="50" r="20"/><path d="M50 5 L53 25 L47 25 Z M50 95 L53 75 L47 75 Z M5 50 L25 53 L25 47 Z M95 50 L75 53 L75 47 Z"/><path d="M20 20 L35 32 L32 35 Z M80 20 L68 32 L65 35 Z M20 80 L32 68 L35 65 Z M80 80 L68 68 L65 65 Z" opacity="0.7"/><circle cx="50" cy="50" r="12" fill="none" stroke="currentColor" stroke-width="2" opacity="0.5"/></svg>`,
+    defaultColor: '#FFB347',
+  },
+  {
+    id: 'celestial-constellation-1',
+    name: 'Constellation',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 120 80" fill="currentColor"><circle cx="20" cy="30" r="4"/><circle cx="45" cy="15" r="3"/><circle cx="70" cy="25" r="5"/><circle cx="55" cy="50" r="3"/><circle cx="90" cy="40" r="4"/><circle cx="100" cy="60" r="3"/><path d="M20 30 L45 15 L70 25 M70 25 L55 50 M70 25 L90 40 L100 60" stroke="currentColor" fill="none" stroke-width="1" opacity="0.5"/></svg>`,
+    defaultColor: '#E6E6FA',
+  },
+  {
+    id: 'celestial-shooting-star',
+    name: 'Étoile Filante',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 120 60" fill="currentColor"><path d="M100 15 L85 20 L95 10 L80 25 L90 15 Z"/><path d="M80 25 L10 50" stroke="currentColor" stroke-width="2" opacity="0.6"/><circle cx="60" cy="35" r="2" opacity="0.4"/><circle cx="40" cy="42" r="1.5" opacity="0.3"/><circle cx="25" cy="47" r="1" opacity="0.2"/></svg>`,
+    defaultColor: '#FFD700',
+  },
+  {
+    id: 'celestial-galaxy',
+    name: 'Galaxie Spirale',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="50" r="8"/><path d="M50 50 Q70 40 80 50 Q90 70 70 80 Q50 90 40 70 Q30 50 50 40 Q70 30 85 45" fill="none" stroke="currentColor" stroke-width="2" opacity="0.7"/><circle cx="65" cy="35" r="2" opacity="0.5"/><circle cx="80" cy="55" r="1.5" opacity="0.4"/><circle cx="60" cy="75" r="2" opacity="0.5"/><circle cx="35" cy="60" r="1.5" opacity="0.4"/></svg>`,
+    defaultColor: '#9370DB',
+  },
+  {
+    id: 'celestial-planet',
+    name: 'Planète Annelée',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><circle cx="50" cy="40" r="20"/><ellipse cx="50" cy="40" rx="40" ry="8" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6"/><circle cx="50" cy="40" r="20" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"/><circle cx="42" cy="35" r="3" opacity="0.3"/></svg>`,
+    defaultColor: '#DEB887',
+  },
+  {
+    id: 'celestial-comet',
+    name: 'Comète Brillante',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 120 60" fill="currentColor"><circle cx="100" cy="20" r="10"/><path d="M90 25 Q50 35 10 50" stroke="currentColor" stroke-width="4" opacity="0.3"/><path d="M92 28 Q55 38 15 52" stroke="currentColor" stroke-width="2" opacity="0.5"/><circle cx="100" cy="20" r="5" opacity="0.8"/></svg>`,
+    defaultColor: '#87CEEB',
+  },
+  {
+    id: 'celestial-sparkle',
+    name: 'Étincelle Magique',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 60 60" fill="currentColor"><path d="M30 5 L32 25 L30 30 L28 25 Z"/><path d="M30 55 L32 35 L30 30 L28 35 Z"/><path d="M5 30 L25 32 L30 30 L25 28 Z"/><path d="M55 30 L35 32 L30 30 L35 28 Z"/><path d="M12 12 L25 27 L30 30 L27 25 Z" opacity="0.6"/><path d="M48 12 L33 27 L30 30 L35 25 Z" opacity="0.6"/><path d="M12 48 L27 33 L30 30 L25 35 Z" opacity="0.6"/><path d="M48 48 L33 33 L30 30 L35 35 Z" opacity="0.6"/></svg>`,
+    defaultColor: '#FFD700',
+  },
+  {
+    id: 'celestial-eclipse',
+    name: 'Éclipse Mystique',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="50" r="35"/><circle cx="60" cy="45" r="30" fill="#1a1a2e"/><path d="M50 10 L50 5 M50 90 L50 95 M10 50 L5 50 M90 50 L95 50" stroke="currentColor" stroke-width="2" opacity="0.5"/><circle cx="25" cy="35" r="2" opacity="0.3"/><circle cx="30" cy="65" r="1.5" opacity="0.3"/></svg>`,
+    defaultColor: '#FFD700',
+  },
+  {
+    id: 'celestial-aurora',
+    name: 'Aurore Boréale',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 120 80" fill="currentColor"><path d="M10 70 Q30 30 50 50 Q70 70 90 40 Q110 10 120 30" fill="none" stroke="currentColor" stroke-width="8" opacity="0.3"/><path d="M0 75 Q25 40 45 55 Q65 70 85 45 Q105 20 120 35" fill="none" stroke="currentColor" stroke-width="5" opacity="0.5"/><path d="M5 80 Q30 50 50 60 Q70 70 90 50 Q110 30 120 40" fill="none" stroke="currentColor" stroke-width="3" opacity="0.7"/></svg>`,
+    defaultColor: '#00FF7F',
+  },
+  {
+    id: 'celestial-north-star',
+    name: 'Étoile Polaire',
+    category: 'celestial',
+    svg: `<svg viewBox="0 0 80 80" fill="currentColor"><path d="M40 5 L43 35 L40 40 L37 35 Z"/><path d="M40 75 L43 45 L40 40 L37 45 Z"/><path d="M5 40 L35 43 L40 40 L35 37 Z"/><path d="M75 40 L45 43 L40 40 L45 37 Z"/><circle cx="40" cy="40" r="6"/><circle cx="40" cy="40" r="12" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg>`,
+    defaultColor: '#FFFFFF',
+  },
+
+  // === ARTISTIQUES ===
+  {
+    id: 'artistic-butterfly-1',
+    name: 'Papillon Élégant',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><ellipse cx="35" cy="30" rx="25" ry="20" opacity="0.8"/><ellipse cx="65" cy="30" rx="25" ry="20" opacity="0.8"/><ellipse cx="30" cy="55" rx="15" ry="12" opacity="0.6"/><ellipse cx="70" cy="55" rx="15" ry="12" opacity="0.6"/><ellipse cx="50" cy="40" rx="4" ry="20"/><path d="M48 20 Q40 5 35 10 M52 20 Q60 5 65 10" stroke="currentColor" fill="none" stroke-width="1.5"/><circle cx="35" cy="10" r="2"/><circle cx="65" cy="10" r="2"/></svg>`,
+    defaultColor: '#DDA0DD',
+  },
+  {
+    id: 'artistic-feather-1',
+    name: 'Plume d\'Or',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 60 120" fill="currentColor"><path d="M30 10 Q45 30 45 60 Q45 90 30 110 Q15 90 15 60 Q15 30 30 10Z" opacity="0.3"/><path d="M30 5 Q30 60 30 115" stroke="currentColor" fill="none" stroke-width="2"/><path d="M30 20 Q40 25 42 35 M30 35 Q42 38 45 50 M30 50 Q43 52 47 65 M30 65 Q42 68 45 80 M30 80 Q38 83 40 92" stroke="currentColor" fill="none" stroke-width="1" opacity="0.6"/><path d="M30 20 Q20 25 18 35 M30 35 Q18 38 15 50 M30 50 Q17 52 13 65 M30 65 Q18 68 15 80 M30 80 Q22 83 20 92" stroke="currentColor" fill="none" stroke-width="1" opacity="0.6"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'artistic-ribbon-1',
+    name: 'Ruban Soyeux',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 150 60" fill="currentColor"><path d="M10 30 Q30 10 50 30 Q70 50 90 30 Q110 10 130 30 Q140 40 140 50 L130 45 Q110 25 90 45 Q70 65 50 45 Q30 25 10 45 L5 40 Q5 35 10 30Z" opacity="0.8"/><path d="M10 30 Q30 10 50 30" stroke="currentColor" fill="none" stroke-width="1" opacity="0.5"/></svg>`,
+    defaultColor: '#C41E3A',
+  },
+  {
+    id: 'artistic-heart-1',
+    name: 'Cœur Orné',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><path d="M50 90 Q10 60 10 35 Q10 10 35 10 Q50 10 50 25 Q50 10 65 10 Q90 10 90 35 Q90 60 50 90Z"/><path d="M50 80 Q20 55 20 35 Q20 18 35 18 Q50 18 50 30" fill="none" stroke="currentColor" stroke-width="2" opacity="0.3"/><circle cx="35" cy="35" r="5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"/></svg>`,
+    defaultColor: '#DC143C',
+  },
+  {
+    id: 'artistic-swan-1',
+    name: 'Cygne Gracieux',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><path d="M30 70 Q20 60 25 45 Q30 30 45 25 Q60 20 65 30 Q70 40 60 45 Q50 50 55 40 Q60 30 50 30 Q40 30 35 40 Q30 50 35 60 Q40 70 50 70 Q70 70 85 60" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="50" cy="28" r="3"/><ellipse cx="60" cy="65" rx="25" ry="10" opacity="0.6"/></svg>`,
+    defaultColor: '#FFFFFF',
+  },
+  {
+    id: 'artistic-peacock-1',
+    name: 'Paon Majestueux',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="20" r="6"/><path d="M50 26 Q50 50 50 70" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="30" cy="35" r="12" opacity="0.7"/><circle cx="70" cy="35" r="12" opacity="0.7"/><circle cx="20" cy="55" r="10" opacity="0.5"/><circle cx="80" cy="55" r="10" opacity="0.5"/><circle cx="35" cy="65" r="8" opacity="0.4"/><circle cx="65" cy="65" r="8" opacity="0.4"/><circle cx="30" cy="35" r="4"/><circle cx="70" cy="35" r="4"/><circle cx="20" cy="55" r="3" opacity="0.8"/><circle cx="80" cy="55" r="3" opacity="0.8"/></svg>`,
+    defaultColor: '#1E90FF',
+  },
+  {
+    id: 'artistic-dragonfly-1',
+    name: 'Libellule Délicate',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><ellipse cx="50" cy="40" rx="4" ry="25"/><circle cx="50" cy="12" r="6"/><ellipse cx="30" cy="35" rx="20" ry="8" opacity="0.5"/><ellipse cx="70" cy="35" rx="20" ry="8" opacity="0.5"/><ellipse cx="32" cy="50" rx="15" ry="6" opacity="0.4"/><ellipse cx="68" cy="50" rx="15" ry="6" opacity="0.4"/><circle cx="47" cy="10" r="2" opacity="0"/><circle cx="53" cy="10" r="2" opacity="0"/></svg>`,
+    defaultColor: '#00CED1',
+  },
+  {
+    id: 'artistic-hummingbird-1',
+    name: 'Colibri Irisé',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><ellipse cx="55" cy="40" rx="18" ry="15"/><circle cx="70" cy="35" r="8"/><path d="M78 35 L95 30" stroke="currentColor" stroke-width="2"/><ellipse cx="40" cy="35" rx="15" ry="8" transform="rotate(-20 40 35)" opacity="0.6"/><ellipse cx="38" cy="48" rx="12" ry="6" transform="rotate(20 38 48)" opacity="0.5"/><path d="M55 55 Q55 70 60 75 Q50 70 55 55" opacity="0.7"/></svg>`,
+    defaultColor: '#FF1493',
+  },
+  {
+    id: 'artistic-mask-1',
+    name: 'Masque Vénitien',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 100 60" fill="currentColor"><path d="M10 30 Q30 10 50 20 Q70 10 90 30 Q70 50 50 40 Q30 50 10 30" opacity="0.8"/><ellipse cx="30" cy="28" rx="10" ry="8" fill="#1a1a2e"/><ellipse cx="70" cy="28" rx="10" ry="8" fill="#1a1a2e"/><path d="M45 35 L50 40 L55 35" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0 25 Q5 20 10 30 M90 30 Q95 20 100 25" stroke="currentColor" stroke-width="2" fill="none" opacity="0.6"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'artistic-quill-ink-1',
+    name: 'Plume et Encrier',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 80 100" fill="currentColor"><path d="M55 10 Q60 30 55 60 Q50 90 45 95" fill="none" stroke="currentColor" stroke-width="2"/><path d="M55 10 Q70 15 65 25 Q60 35 55 30 Q50 25 55 10" opacity="0.7"/><ellipse cx="25" cy="85" rx="20" ry="12"/><ellipse cx="25" cy="80" rx="15" ry="8" fill="#1a1a2e"/><path d="M45 95 Q35 90 30 85" stroke="currentColor" stroke-width="1" opacity="0.5"/></svg>`,
+    defaultColor: '#2F4F4F',
+  },
+  {
+    id: 'artistic-scroll-1',
+    name: 'Parchemin Ancien',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><path d="M15 15 Q10 15 10 25 L10 60 Q10 70 20 70 L85 70 Q90 70 90 60 L90 25 Q90 15 80 15" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="15" cy="20" rx="5" ry="8"/><ellipse cx="15" cy="65" rx="5" ry="8"/><path d="M25 30 H75 M25 42 H75 M25 54 H60" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg>`,
+    defaultColor: '#DEB887',
+  },
+  {
+    id: 'artistic-music-note',
+    name: 'Note de Musique',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 60 100" fill="currentColor"><ellipse cx="20" cy="80" rx="15" ry="10" transform="rotate(-20 20 80)"/><path d="M32 75 L32 15" stroke="currentColor" stroke-width="3"/><path d="M32 15 Q50 20 50 35 Q50 50 32 45" fill="currentColor"/></svg>`,
+    defaultColor: '#1C1C1C',
+  },
+  {
+    id: 'artistic-treble-clef',
+    name: 'Clé de Sol',
+    category: 'artistic',
+    svg: `<svg viewBox="0 0 60 100" fill="currentColor"><path d="M30 90 Q20 85 20 75 Q20 65 30 60 Q40 55 40 45 Q40 30 30 25 Q20 20 15 30 Q10 40 20 50 Q30 60 30 75 Q30 85 25 90 Q20 95 15 90" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="30" cy="40" r="5"/><circle cx="30" cy="20" r="3"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+
+  // === CADRES ===
+  {
+    id: 'frame-elegant-1',
+    name: 'Cadre Élégant',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 120 80" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="110" height="70" rx="3"/><rect x="10" y="10" width="100" height="60" rx="2"/><circle cx="10" cy="10" r="3" fill="currentColor"/><circle cx="110" cy="10" r="3" fill="currentColor"/><circle cx="10" cy="70" r="3" fill="currentColor"/><circle cx="110" cy="70" r="3" fill="currentColor"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'frame-ornate-1',
+    name: 'Cadre Orné',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 120 80" fill="currentColor"><rect x="5" y="5" width="110" height="70" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M5 20 Q15 25 15 15 Q15 5 25 5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M115 20 Q105 25 105 15 Q105 5 95 5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 60 Q15 55 15 65 Q15 75 25 75" fill="none" stroke="currentColor" stroke-width="2"/><path d="M115 60 Q105 55 105 65 Q105 75 95 75" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="60" cy="5" r="4"/><circle cx="60" cy="75" r="4"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'frame-baroque-1',
+    name: 'Cadre Baroque',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 120 80" fill="currentColor"><rect x="8" y="8" width="104" height="64" rx="2" fill="none" stroke="currentColor" stroke-width="4"/><path d="M0 20 Q8 25 8 15 Q8 5 18 0" fill="none" stroke="currentColor" stroke-width="2"/><path d="M120 20 Q112 25 112 15 Q112 5 102 0" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0 60 Q8 55 8 65 Q8 75 18 80" fill="none" stroke="currentColor" stroke-width="2"/><path d="M120 60 Q112 55 112 65 Q112 75 102 80" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="60" cy="0" r="5"/><circle cx="60" cy="80" r="5"/><circle cx="0" cy="40" r="5"/><circle cx="120" cy="40" r="5"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'frame-art-deco-1',
+    name: 'Cadre Art Déco',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 120 80" fill="currentColor"><rect x="5" y="5" width="110" height="70" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 5 L20 20 M115 5 L100 20 M5 75 L20 60 M115 75 L100 60" stroke="currentColor" stroke-width="2"/><rect x="15" y="15" width="90" height="50" fill="none" stroke="currentColor" stroke-width="1"/><path d="M30 5 L30 15 M60 5 L60 15 M90 5 L90 15" stroke="currentColor" stroke-width="1"/><path d="M30 75 L30 65 M60 75 L60 65 M90 75 L90 65" stroke="currentColor" stroke-width="1"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'frame-victorian-1',
+    name: 'Cadre Victorien',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 120 80" fill="currentColor"><rect x="5" y="5" width="110" height="70" rx="5" fill="none" stroke="currentColor" stroke-width="3"/><rect x="12" y="12" width="96" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5" cy="5" r="4"/><circle cx="115" cy="5" r="4"/><circle cx="5" cy="75" r="4"/><circle cx="115" cy="75" r="4"/><path d="M40 5 Q45 12 50 5 Q55 12 60 5 Q65 12 70 5 Q75 12 80 5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M40 75 Q45 68 50 75 Q55 68 60 75 Q65 68 70 75 Q75 68 80 75" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`,
+    defaultColor: '#8B4513',
+  },
+  {
+    id: 'frame-circle-1',
+    name: 'Médaillon Cadre',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="50" cy="5" r="4"/><circle cx="50" cy="95" r="4"/><circle cx="5" cy="50" r="4"/><circle cx="95" cy="50" r="4"/><circle cx="20" cy="20" r="3" opacity="0.7"/><circle cx="80" cy="20" r="3" opacity="0.7"/><circle cx="20" cy="80" r="3" opacity="0.7"/><circle cx="80" cy="80" r="3" opacity="0.7"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'frame-oval-1',
+    name: 'Cadre Ovale',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 100 80" fill="currentColor"><ellipse cx="50" cy="40" rx="45" ry="35" fill="none" stroke="currentColor" stroke-width="3"/><ellipse cx="50" cy="40" rx="38" ry="28" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="50" cy="5" r="4"/><circle cx="50" cy="75" r="4"/><path d="M20 15 Q25 20 20 25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M80 15 Q75 20 80 25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M20 55 Q25 60 20 65" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M80 55 Q75 60 80 65" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`,
+    defaultColor: '#D4AF37',
+  },
+  {
+    id: 'frame-ribbon-1',
+    name: 'Cadre Ruban',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 140 100" fill="currentColor"><rect x="20" y="15" width="100" height="70" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0 25 L20 15 L20 85 L0 95 L0 70 L10 65 L10 55 L0 50 L0 25" opacity="0.8"/><path d="M140 25 L120 15 L120 85 L140 95 L140 70 L130 65 L130 55 L140 50 L140 25" opacity="0.8"/></svg>`,
+    defaultColor: '#C41E3A',
+  },
+  {
+    id: 'frame-shield-1',
+    name: 'Cadre Blason',
+    category: 'frames',
+    svg: `<svg viewBox="0 0 80 100" fill="currentColor"><path d="M5 10 H75 V55 Q75 90 40 98 Q5 90 5 55 Z" fill="none" stroke="currentColor" stroke-width="3"/><path d="M12 17 H68 V52 Q68 82 40 90 Q12 82 12 52 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="40" cy="10" r="5"/></svg>`,
+    defaultColor: '#1E3A5F',
+  },
+]
+
+// Catégories de décorations avec leurs infos
+const DECORATION_CATEGORIES: { id: DecorationCategory; name: string; icon: string }[] = [
+  { id: 'gold', name: 'Ornements Dorés', icon: '✨' },
+  { id: 'floral', name: 'Floraux', icon: '🌸' },
+  { id: 'royal', name: 'Royaux', icon: '👑' },
+  { id: 'celestial', name: 'Célestes', icon: '⭐' },
+  { id: 'artistic', name: 'Artistiques', icon: '🦋' },
+  { id: 'frames', name: 'Cadres', icon: '🖼️' },
+]
 
 interface StoryPageLocal {
   id: string
@@ -155,6 +689,8 @@ interface StoryPageLocal {
   images?: PageMedia[]
   // Fond de page (image ou vidéo avec opacité)
   backgroundMedia?: BackgroundMedia
+  // Décorations premium (stickers luxueux)
+  decorations?: PageDecoration[]
   // Legacy: anciens champs pour rétrocompatibilité
   image?: string
   imagePosition?: ImagePosition
@@ -1084,6 +1620,743 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
 }
 
 // ============================================================================
+// COMPOSANT : Fond d'image éditable (draggable)
+// ============================================================================
+// DRAGGABLE DECORATION - Décorations draggables sur les pages
+// ============================================================================
+
+interface DraggableDecorationProps {
+  decoration: PageDecoration
+  decorationItem: DecorationItem
+  onPositionChange: (id: string, position: { x: number; y: number }) => void
+  onScaleChange: (id: string, scale: number) => void
+  onRotationChange: (id: string, rotation: number) => void
+  onColorChange: (id: string, color: string) => void
+  onOpacityChange: (id: string, opacity: number) => void
+  onFlip: (id: string, direction: 'h' | 'v') => void
+  onGlowChange: (id: string, glowEnabled: boolean, glowColor: string, glowIntensity: number) => void
+  onDelete: (id: string) => void
+  containerRef: React.RefObject<HTMLDivElement>
+}
+
+function DraggableDecoration({
+  decoration,
+  decorationItem,
+  onPositionChange,
+  onScaleChange,
+  onRotationChange,
+  onColorChange,
+  onOpacityChange,
+  onGlowChange,
+  onFlip,
+  onDelete,
+  containerRef,
+}: DraggableDecorationProps) {
+  const [isDragging, setIsDragging] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [showColorPicker, setShowColorPicker] = useState(false)
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
+  const [menuOffset, setMenuOffset] = useState({ x: 0, y: 0 }) // Offset de drag du menu
+  const [isDraggingMenu, setIsDraggingMenu] = useState(false)
+  const [menuDragStart, setMenuDragStart] = useState({ x: 0, y: 0 })
+  const decorationRef = useRef<HTMLDivElement>(null)
+
+  const color = decoration.color || decorationItem.defaultColor || '#D4AF37'
+  const scale = decoration.scale || 1
+  const rotation = decoration.rotation || 0
+  const opacity = decoration.opacity || 1
+  const glowEnabled = decoration.glowEnabled || false
+  const glowColor = decoration.glowColor || color  // Par défaut, même couleur que la décoration
+  const glowIntensity = decoration.glowIntensity || 50  // 0-100
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+    
+    // Stocker la position initiale du clic ET la position actuelle de la décoration
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      // Position du clic en pourcentage du conteneur
+      const clickXPercent = ((e.clientX - rect.left) / rect.width) * 100
+      const clickYPercent = ((e.clientY - rect.top) / rect.height) * 100
+      // Offset entre le clic et le centre de la décoration
+      setDragStart({ 
+        x: clickXPercent - decoration.position.x, 
+        y: clickYPercent - decoration.position.y 
+      })
+    }
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !containerRef.current) return
+      
+      const rect = containerRef.current.getBoundingClientRect()
+      // Position de la souris en pourcentage du conteneur
+      const mouseXPercent = ((e.clientX - rect.left) / rect.width) * 100
+      const mouseYPercent = ((e.clientY - rect.top) / rect.height) * 100
+      
+      // Soustraire l'offset initial pour maintenir la position relative
+      const x = mouseXPercent - dragStart.x
+      const y = mouseYPercent - dragStart.y
+      
+      // Clamp entre -20 et 120 pour permettre de dépasser un peu les bords
+      const clampedX = Math.max(-20, Math.min(120, x))
+      const clampedY = Math.max(-20, Math.min(120, y))
+      
+      onPositionChange(decoration.id, { x: clampedX, y: clampedY })
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, dragStart, containerRef, decoration.id, onPositionChange])
+
+  // Gérer le drag du menu d'édition
+  useEffect(() => {
+    if (!isDraggingMenu) return
+
+    const handleMenuMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - menuDragStart.x
+      const deltaY = e.clientY - menuDragStart.y
+      setMenuOffset({ x: deltaX, y: deltaY })
+    }
+
+    const handleMenuMouseUp = () => {
+      setIsDraggingMenu(false)
+    }
+
+    window.addEventListener('mousemove', handleMenuMouseMove)
+    window.addEventListener('mouseup', handleMenuMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMenuMouseMove)
+      window.removeEventListener('mouseup', handleMenuMouseUp)
+    }
+  }, [isDraggingMenu, menuDragStart])
+
+  // Réinitialiser l'offset du menu quand on ferme/ouvre l'édition
+  useEffect(() => {
+    if (!isEditing) {
+      setMenuOffset({ x: 0, y: 0 })
+    }
+  }, [isEditing])
+
+  // Calculer la position du menu directement au click
+  const updateMenuPosition = useCallback(() => {
+    if (decorationRef.current) {
+      const rect = decorationRef.current.getBoundingClientRect()
+      const newPos = {
+        x: rect.left + rect.width / 2,
+        y: Math.min(rect.bottom + 10, window.innerHeight - 350)
+      }
+      console.log('Menu position updated:', newPos)
+      setMenuPosition(newPos)
+    }
+  }, [])
+
+  // Mettre à jour quand isEditing change ou quand la position change
+  useEffect(() => {
+    if (isEditing) {
+      updateMenuPosition()
+    }
+  }, [isEditing, updateMenuPosition])
+
+  const premiumColors = [
+    '#D4AF37', // Or
+    '#C0C0C0', // Argent
+    '#B87333', // Cuivre
+    '#E8B4B8', // Rose poudré
+    '#7BA17B', // Vert sauge
+    '#6B5B95', // Violet royal
+    '#DC143C', // Rouge cramoisi
+    '#1E3A5F', // Bleu marine
+    '#2F4F4F', // Gris ardoise
+    '#8B4513', // Brun selle
+    '#FFB347', // Orange abricot
+    '#DDA0DD', // Prune
+  ]
+
+  return (
+    <>
+    <div
+      ref={decorationRef}
+      className={cn(
+        'absolute cursor-move select-none group overflow-visible',
+        isDragging && 'z-50',
+        isEditing && 'ring-2 ring-dream-400 ring-offset-2 ring-offset-transparent'
+      )}
+      style={{
+        left: `${decoration.position.x}%`,
+        top: `${decoration.position.y}%`,
+        transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${scale}) ${decoration.flipH ? 'scaleX(-1)' : ''} ${decoration.flipV ? 'scaleY(-1)' : ''}`,
+        opacity,
+        zIndex: isEditing ? 100 : 30,
+      }}
+      onMouseDown={handleMouseDown}
+      onClick={(e) => {
+        e.stopPropagation()
+        console.log('Decoration wrapper clicked, isEditing:', isEditing)
+        // Calculer la position du menu immédiatement
+        if (decorationRef.current) {
+          const rect = decorationRef.current.getBoundingClientRect()
+          setMenuPosition({
+            x: rect.left + rect.width / 2,
+            y: Math.min(rect.bottom + 10, window.innerHeight - 350)
+          })
+        }
+        setIsEditing(!isEditing)
+      }}
+    >
+      {/* Croix rouge de suppression - visible quand sélectionné */}
+      {isEditing && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(decoration.id)
+          }}
+          className="absolute -top-4 -right-4 w-8 h-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-2xl border-2 border-white cursor-pointer transition-all hover:scale-110"
+          style={{ 
+            transform: `rotate(${-rotation}deg) scale(${1/scale})`,
+            zIndex: 200,
+          }}
+          title="Supprimer cette décoration"
+        >
+          <X className="w-5 h-5 text-white" strokeWidth={3} />
+        </button>
+      )}
+
+      {/* SVG de la décoration - pointer-events:none pour que le clic soit capturé par le parent */}
+      <div
+        className="w-16 h-16 transition-transform hover:scale-110"
+        style={{ 
+          color, 
+          pointerEvents: 'none',
+          filter: glowEnabled 
+            ? `drop-shadow(0 0 ${Math.round(glowIntensity / 10)}px ${glowColor}) drop-shadow(0 0 ${Math.round(glowIntensity / 5)}px ${glowColor})`
+            : 'none',
+          transition: 'filter 0.3s ease'
+        }}
+        dangerouslySetInnerHTML={{ __html: decorationItem.svg }}
+      />
+
+      {/* SVG indicator quand sélectionné */}
+      {isEditing && (
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-2 h-2 bg-dream-500 rounded-full animate-pulse" />
+      )}
+    </div>
+
+    {/* Menu d'édition flottant - rendu via Portal pour échapper au overflow:hidden du conteneur */}
+    {isEditing && menuPosition.x > 0 && typeof document !== 'undefined' && createPortal(
+      <div 
+        id={`decoration-menu-${decoration.id}`}
+        className="fixed bg-midnight-900/95 backdrop-blur-lg rounded-xl p-4 shadow-2xl border border-midnight-700 min-w-[280px]"
+        style={{
+          left: `${menuPosition.x + menuOffset.x}px`,
+          top: `${menuPosition.y + menuOffset.y}px`,
+          transform: 'translateX(-50%)',
+          zIndex: 99999,
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Header déplaçable avec croix de fermeture */}
+        <div 
+          className="flex items-center justify-between mb-3 pb-2 border-b border-midnight-700 cursor-move select-none"
+          onMouseDown={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setIsDraggingMenu(true)
+            setMenuDragStart({ 
+              x: e.clientX - menuOffset.x, 
+              y: e.clientY - menuOffset.y 
+            })
+          }}
+        >
+          <span className="text-sm font-medium text-white flex items-center gap-2">
+            <Move className="w-3.5 h-3.5 text-midnight-400" />
+            Éditer la décoration
+          </span>
+          <button
+            onClick={() => setIsEditing(false)}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="p-1 rounded-full hover:bg-midnight-700 text-midnight-400 hover:text-white transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Taille */}
+        <div className="mb-3">
+          <label className="text-xs text-midnight-400 block mb-1">Taille</label>
+          <input
+            type="range"
+            min="20"
+            max="300"
+            value={scale * 100}
+            onChange={(e) => onScaleChange(decoration.id, parseInt(e.target.value) / 100)}
+            className="w-full h-2 bg-midnight-700 rounded-lg appearance-none cursor-pointer accent-dream-500"
+          />
+          <div className="flex justify-between text-[10px] text-midnight-500 mt-1">
+            <span>20%</span>
+            <span>{Math.round(scale * 100)}%</span>
+            <span>300%</span>
+          </div>
+        </div>
+
+        {/* Rotation */}
+        <div className="mb-3">
+          <label className="text-xs text-midnight-400 block mb-1">Rotation</label>
+          <input
+            type="range"
+            min="-180"
+            max="180"
+            value={rotation}
+            onChange={(e) => onRotationChange(decoration.id, parseInt(e.target.value))}
+            className="w-full h-2 bg-midnight-700 rounded-lg appearance-none cursor-pointer accent-aurora-500"
+          />
+          <div className="flex justify-between text-[10px] text-midnight-500 mt-1">
+            <span>-180°</span>
+            <span>{rotation}°</span>
+            <span>180°</span>
+          </div>
+        </div>
+
+        {/* Opacité */}
+        <div className="mb-3">
+          <label className="text-xs text-midnight-400 block mb-1">Opacité</label>
+          <input
+            type="range"
+            min="20"
+            max="100"
+            value={opacity * 100}
+            onChange={(e) => onOpacityChange(decoration.id, parseInt(e.target.value) / 100)}
+            className="w-full h-2 bg-midnight-700 rounded-lg appearance-none cursor-pointer accent-sunset-500"
+          />
+          <div className="flex justify-between text-[10px] text-midnight-500 mt-1">
+            <span>20%</span>
+            <span>{Math.round(opacity * 100)}%</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+        {/* Couleurs premium */}
+        <div className="mb-3">
+          <label className="text-xs text-midnight-400 block mb-2">Couleur</label>
+          <div className="grid grid-cols-6 gap-1.5">
+            {premiumColors.map((c) => (
+              <button
+                key={c}
+                onClick={() => onColorChange(decoration.id, c)}
+                className={cn(
+                  'w-6 h-6 rounded-full border-2 transition-all hover:scale-110',
+                  color === c ? 'border-white shadow-lg ring-2 ring-white/30' : 'border-transparent'
+                )}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Luminosité / Glow */}
+        <div className="mb-3 p-3 rounded-lg bg-midnight-800/50 border border-midnight-700/50">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-midnight-400 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+              Luminosité
+            </label>
+            <button
+              onClick={() => onGlowChange(decoration.id, !glowEnabled, glowColor, glowIntensity)}
+              className={cn(
+                'w-10 h-5 rounded-full transition-all relative',
+                glowEnabled ? 'bg-aurora-500' : 'bg-midnight-600'
+              )}
+            >
+              <div 
+                className={cn(
+                  'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md transition-all',
+                  glowEnabled ? 'left-5' : 'left-0.5'
+                )}
+              />
+            </button>
+          </div>
+          
+          {glowEnabled && (
+            <>
+              {/* Intensité du glow */}
+              <div className="mb-2">
+                <div className="flex items-center justify-between text-xs text-midnight-400 mb-1">
+                  <span>Intensité</span>
+                  <span className="text-aurora-400">{glowIntensity}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  value={glowIntensity}
+                  onChange={(e) => onGlowChange(decoration.id, glowEnabled, glowColor, parseInt(e.target.value))}
+                  className="w-full h-2 bg-midnight-700 rounded-lg appearance-none cursor-pointer slider-aurora"
+                />
+              </div>
+              
+              {/* Couleur du glow */}
+              <div>
+                <label className="text-xs text-midnight-400 block mb-1.5">Couleur du halo</label>
+                <div className="grid grid-cols-6 gap-1">
+                  {[
+                    '#FFD700', // Or
+                    '#FFFFFF', // Blanc
+                    '#87CEEB', // Bleu ciel
+                    '#FFB6C1', // Rose
+                    '#90EE90', // Vert clair
+                    '#DDA0DD', // Violet clair
+                    '#FF6B6B', // Rouge
+                    '#4ECDC4', // Turquoise
+                    '#FF8C00', // Orange
+                    '#9B59B6', // Violet
+                    '#3498DB', // Bleu
+                    '#1ABC9C', // Émeraude
+                  ].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => onGlowChange(decoration.id, glowEnabled, c, glowIntensity)}
+                      className={cn(
+                        'w-5 h-5 rounded-full border-2 transition-all hover:scale-110',
+                        glowColor === c ? 'border-white shadow-lg ring-1 ring-white/50' : 'border-transparent',
+                        'relative'
+                      )}
+                      style={{ 
+                        backgroundColor: c,
+                        boxShadow: glowColor === c ? `0 0 10px ${c}, 0 0 20px ${c}` : 'none'
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between pt-3 border-t border-midnight-700">
+          <div className="flex gap-1">
+            <button
+              onClick={() => onFlip(decoration.id, 'h')}
+              className="p-2 rounded-lg bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white transition-colors"
+              title="Miroir horizontal"
+            >
+              <FlipHorizontal className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onFlip(decoration.id, 'v')}
+              className="p-2 rounded-lg bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white transition-colors"
+              title="Miroir vertical"
+            >
+              <FlipVertical className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onRotationChange(decoration.id, 0)}
+              className="p-2 rounded-lg bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white transition-colors"
+              title="Réinitialiser rotation"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={() => onDelete(decoration.id)}
+            className="px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium text-sm transition-colors flex items-center gap-1.5"
+            title="Supprimer"
+          >
+            <Trash2 className="w-4 h-4" />
+            Supprimer
+          </button>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
+  )
+}
+
+// ============================================================================
+// DECORATION PICKER - Sélecteur de décorations premium
+// ============================================================================
+
+interface DecorationPickerProps {
+  isOpen: boolean
+  onClose: () => void
+  onSelect: (decorationId: string) => void
+}
+
+function DecorationPicker({ isOpen, onClose, onSelect }: DecorationPickerProps) {
+  const [activeCategory, setActiveCategory] = useState<DecorationCategory>('gold')
+  const [hoveredDecoration, setHoveredDecoration] = useState<string | null>(null)
+
+  const filteredDecorations = PREMIUM_DECORATIONS.filter(d => d.category === activeCategory)
+
+  if (!isOpen) return null
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[100] flex items-center justify-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        {/* Backdrop */}
+        <motion.div
+          className="absolute inset-0 bg-midnight-950/90 backdrop-blur-md"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        />
+
+        {/* Modal */}
+        <motion.div
+          className="relative bg-gradient-to-br from-midnight-900 via-midnight-850 to-midnight-900 rounded-2xl shadow-2xl border border-midnight-700 overflow-hidden max-w-2xl w-full mx-4"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-midnight-700/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Décorations Premium</h2>
+                <p className="text-xs text-midnight-400">Ornements luxueux pour embellir votre livre</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Categories */}
+          <div className="flex gap-2 p-4 border-b border-midnight-700/30 overflow-x-auto">
+            {DECORATION_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all',
+                  activeCategory === cat.id
+                    ? 'bg-gradient-to-r from-dream-600 to-aurora-600 text-white shadow-lg'
+                    : 'bg-midnight-800/50 text-midnight-300 hover:bg-midnight-800 hover:text-white'
+                )}
+              >
+                <span>{cat.icon}</span>
+                <span>{cat.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Grid de décorations */}
+          <div className="p-4 max-h-[400px] overflow-y-auto">
+            <div className="grid grid-cols-4 gap-4">
+              {filteredDecorations.map((deco) => (
+                <motion.button
+                  key={deco.id}
+                  onClick={() => {
+                    onSelect(deco.id)
+                    onClose()
+                  }}
+                  onMouseEnter={() => setHoveredDecoration(deco.id)}
+                  onMouseLeave={() => setHoveredDecoration(null)}
+                  className={cn(
+                    'relative aspect-square rounded-xl border-2 transition-all p-4 group',
+                    'bg-gradient-to-br from-midnight-800/50 to-midnight-900/50',
+                    hoveredDecoration === deco.id
+                      ? 'border-dream-500 shadow-lg shadow-dream-500/20 scale-105'
+                      : 'border-midnight-700 hover:border-midnight-600'
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <div
+                    className="w-full h-full flex items-center justify-center transition-transform group-hover:scale-110"
+                    style={{ color: deco.defaultColor }}
+                    dangerouslySetInnerHTML={{ __html: deco.svg }}
+                  />
+                  <div className="absolute inset-x-0 bottom-0 p-2 text-center">
+                    <span className="text-xs text-midnight-400 group-hover:text-white transition-colors">
+                      {deco.name}
+                    </span>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-midnight-700/30 bg-midnight-900/50">
+            <p className="text-xs text-midnight-500 text-center">
+              💫 Cliquez sur une décoration pour l'ajouter à votre page. Vous pourrez ensuite la déplacer, redimensionner et personnaliser.
+            </p>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+// ============================================================================
+// EDITABLE BACKGROUND - Fond de page éditable
+// ============================================================================
+
+interface EditableBackgroundProps {
+  backgroundMedia: BackgroundMedia
+  onPositionChange: (x: number, y: number, scale: number) => void
+  onEditEnd: () => void
+  containerRef: React.RefObject<HTMLDivElement>
+  roundedClass?: string
+}
+
+function EditableBackground({ 
+  backgroundMedia, 
+  onPositionChange, 
+  onEditEnd,
+  containerRef,
+  roundedClass = 'rounded-r-lg'
+}: EditableBackgroundProps) {
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [position, setPosition] = useState({ 
+    x: backgroundMedia.x || 0, 
+    y: backgroundMedia.y || 0,
+    scale: backgroundMedia.scale || 1
+  })
+  
+  // Synchroniser avec les props
+  useEffect(() => {
+    setPosition({
+      x: backgroundMedia.x || 0,
+      y: backgroundMedia.y || 0,
+      scale: backgroundMedia.scale || 1
+    })
+  }, [backgroundMedia.x, backgroundMedia.y, backgroundMedia.scale])
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newX = e.clientX - dragStart.x
+      const newY = e.clientY - dragStart.y
+      setPosition(prev => ({ ...prev, x: newX, y: newY }))
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      onPositionChange(position.x, position.y, position.scale)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, dragStart, position, onPositionChange])
+
+  // Gérer le zoom à la molette
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    const newScale = Math.max(0.1, Math.min(3, position.scale + delta))
+    setPosition(prev => ({ ...prev, scale: newScale }))
+    onPositionChange(position.x, position.y, newScale)
+  }
+
+  return (
+    <div 
+      className={`absolute inset-0 overflow-hidden ${roundedClass} z-50 cursor-move`}
+      onMouseDown={handleMouseDown}
+      onWheel={handleWheel}
+    >
+      {/* Image de fond avec transformation */}
+      {backgroundMedia.type === 'video' ? (
+        <video
+          src={backgroundMedia.url}
+          className="absolute w-full h-full object-cover pointer-events-none"
+          style={{ 
+            opacity: backgroundMedia.opacity,
+            transform: `translate(${position.x}px, ${position.y}px) scale(${position.scale})`,
+            transformOrigin: 'center center',
+          }}
+          muted
+          loop
+          autoPlay
+          playsInline
+        />
+      ) : (
+        <img
+          src={backgroundMedia.url}
+          alt=""
+          className="absolute w-full h-full object-cover pointer-events-none"
+          style={{ 
+            opacity: backgroundMedia.opacity,
+            transform: `translate(${position.x}px, ${position.y}px) scale(${position.scale})`,
+            transformOrigin: 'center center',
+          }}
+        />
+      )}
+      
+      {/* Overlay d'édition */}
+      <div className="absolute inset-0 border-4 border-aurora-500 border-dashed pointer-events-none" />
+      
+      {/* Instructions */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-midnight-900/90 rounded-full text-xs text-white flex items-center gap-2 pointer-events-none">
+        <Move className="w-3.5 h-3.5" />
+        Glisser pour déplacer • Molette pour zoomer
+      </div>
+      
+      {/* Bouton terminer */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onEditEnd()
+        }}
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2 bg-aurora-500 hover:bg-aurora-600 text-white text-sm font-medium rounded-lg shadow-lg transition-colors pointer-events-auto"
+      >
+        ✓ Terminer
+      </button>
+      
+      {/* Affichage des valeurs */}
+      <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/70 rounded text-[10px] text-white pointer-events-none">
+        Zoom: {Math.round(position.scale * 100)}%
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
 // COMPOSANT : Onglet de page
 // ============================================================================
 
@@ -1600,10 +2873,13 @@ interface FormatBarProps {
   backgroundMedia?: BackgroundMedia
   onBackgroundAdd?: () => void
   onBackgroundOpacityChange?: (opacity: number) => void
+  onBackgroundPositionChange?: (x: number, y: number, scale: number) => void
   onBackgroundRemove?: () => void
+  onBackgroundEditToggle?: () => void
+  isEditingBackground?: boolean
 }
 
-function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, backgroundMedia, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundRemove }: FormatBarProps) {
+function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, backgroundMedia, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onBackgroundEditToggle, isEditingBackground }: FormatBarProps) {
   const [showFonts, setShowFonts] = useState(false)
   const [showFontSizes, setShowFontSizes] = useState(false)
   const [showColors, setShowColors] = useState(false)
@@ -2289,6 +3565,44 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
                       </div>
                     </div>
                     
+                    {/* Slider de zoom */}
+                    <div className="mb-3">
+                      <label className="text-xs text-midnight-400 block mb-1">Zoom</label>
+                      <input
+                        type="range"
+                        min="10"
+                        max="300"
+                        value={(backgroundMedia.scale || 1) * 100}
+                        onChange={(e) => onBackgroundPositionChange?.(
+                          backgroundMedia.x || 0,
+                          backgroundMedia.y || 0,
+                          parseInt(e.target.value) / 100
+                        )}
+                        className="w-full h-2 bg-midnight-700 rounded-lg appearance-none cursor-pointer accent-dream-500"
+                      />
+                      <div className="flex justify-between text-[10px] text-midnight-500 mt-1">
+                        <span>10%</span>
+                        <span>{Math.round((backgroundMedia.scale || 1) * 100)}%</span>
+                        <span>300%</span>
+                      </div>
+                    </div>
+                    
+                    {/* Bouton éditer position */}
+                    <button
+                      onClick={() => {
+                        onBackgroundEditToggle?.()
+                        setShowBackgroundMenu(false)
+                      }}
+                      className={`w-full mb-3 px-3 py-2 text-xs rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                        isEditingBackground 
+                          ? 'bg-aurora-500 text-white' 
+                          : 'bg-midnight-800 hover:bg-midnight-700 text-white'
+                      }`}
+                    >
+                      <Move className="w-3.5 h-3.5" />
+                      {isEditingBackground ? 'Terminer le positionnement' : 'Déplacer l\'image'}
+                    </button>
+                    
                     {/* Boutons */}
                     <div className="flex gap-2">
                       <button
@@ -2389,10 +3703,21 @@ interface WritingAreaProps {
   // Fond de page
   onBackgroundAdd?: (pageIndex: number) => void
   onBackgroundOpacityChange?: (pageIndex: number, opacity: number) => void
+  onBackgroundPositionChange?: (pageIndex: number, x: number, y: number, scale: number) => void
   onBackgroundRemove?: (pageIndex: number) => void
+  // Décorations premium
+  onDecorationAdd?: (pageIndex: number) => void
+  onDecorationPositionChange?: (pageIndex: number, decoId: string, position: { x: number; y: number }) => void
+  onDecorationScaleChange?: (pageIndex: number, decoId: string, scale: number) => void
+  onDecorationRotationChange?: (pageIndex: number, decoId: string, rotation: number) => void
+  onDecorationColorChange?: (pageIndex: number, decoId: string, color: string) => void
+  onDecorationOpacityChange?: (pageIndex: number, decoId: string, opacity: number) => void
+  onDecorationGlowChange?: (pageIndex: number, decoId: string, glowEnabled: boolean, glowColor: string, glowIntensity: number) => void
+  onDecorationFlip?: (pageIndex: number, decoId: string, direction: 'h' | 'v') => void
+  onDecorationDelete?: (pageIndex: number, decoId: string) => void
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageDelete, onImageBringForward, onImageSendBackward, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundRemove }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageDelete, onImageBringForward, onImageSendBackward, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete }: WritingAreaProps) {
   const style = page?.style || leftPage?.style || DEFAULT_STYLE
   const editorRef = useRef<HTMLDivElement>(null)
   const leftEditorRef = useRef<HTMLDivElement>(null)
@@ -2413,6 +3738,12 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   
   // État pour le menu de couleur de page
   const [colorMenuOpen, setColorMenuOpen] = useState(false)
+  
+  // État pour l'édition du fond de page (drag & zoom)
+  const [editingBackgroundPage, setEditingBackgroundPage] = useState<'left' | 'right' | 'zoom' | null>(null)
+  
+  // État pour tracker quelle page est "active" (dernière page cliquée/focusée)
+  const [activePage, setActivePage] = useState<'left' | 'right'>('right')
   
   // Helper pour obtenir les styles de couleur de page
   const getPageColorStyles = (color?: PageColor) => {
@@ -2621,6 +3952,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         
         {/* Centre : Outils de formatage */}
         <div className="glass rounded-lg px-2 py-0.5 shadow-lg z-50">
+              {/* L'index de la page active dépend de quelle page a été cliquée en dernier */}
+              {(() => {
+                const activePageIndex = activePage === 'left' ? (leftPageIndex ?? pageIndex) : pageIndex
+                const activePageData = activePage === 'left' ? leftPage : page
+                return (
               <FormatBar 
                 style={style} 
                 onStyleChange={onStyleChange}
@@ -2628,11 +3964,16 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onToggleLines={onToggleLines}
                 bookColor={bookColor}
                 onBookColorChange={onBookColorChange}
-                backgroundMedia={page?.backgroundMedia}
-                onBackgroundAdd={() => onBackgroundAdd?.(pageIndex)}
-                onBackgroundOpacityChange={(opacity) => onBackgroundOpacityChange?.(pageIndex, opacity)}
-                onBackgroundRemove={() => onBackgroundRemove?.(pageIndex)}
-              />
+                    backgroundMedia={activePageData?.backgroundMedia}
+                    onBackgroundAdd={() => onBackgroundAdd?.(activePageIndex)}
+                    onBackgroundOpacityChange={(opacity) => onBackgroundOpacityChange?.(activePageIndex, opacity)}
+                    onBackgroundPositionChange={(x, y, scale) => onBackgroundPositionChange?.(activePageIndex, x, y, scale)}
+                    onBackgroundRemove={() => onBackgroundRemove?.(activePageIndex)}
+                    onBackgroundEditToggle={() => setEditingBackgroundPage(editingBackgroundPage === activePage ? null : activePage)}
+                    isEditingBackground={editingBackgroundPage === activePage}
+                  />
+                )
+              })()}
             </div>
         
         {/* Droite : Structure + Vue */}
@@ -2725,12 +4066,25 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Fond de page (image ou vidéo) */}
             {zPage?.backgroundMedia && (
+              editingBackgroundPage === 'zoom' ? (
+                <EditableBackground
+                  backgroundMedia={zPage.backgroundMedia}
+                  onPositionChange={(x, y, scale) => onBackgroundPositionChange?.(zPageIndex, x, y, scale)}
+                  onEditEnd={() => setEditingBackgroundPage(null)}
+                  containerRef={zoomedPageContainerRef}
+                  roundedClass="rounded-xl"
+                />
+              ) : (
               <div className="absolute inset-0 overflow-hidden rounded-xl z-0">
                 {zPage.backgroundMedia.type === 'video' ? (
                   <video
                     src={zPage.backgroundMedia.url}
                     className="w-full h-full object-cover"
-                    style={{ opacity: zPage.backgroundMedia.opacity }}
+                      style={{ 
+                        opacity: zPage.backgroundMedia.opacity,
+                        transform: `translate(${zPage.backgroundMedia.x || 0}px, ${zPage.backgroundMedia.y || 0}px) scale(${zPage.backgroundMedia.scale || 1})`,
+                        transformOrigin: 'center center',
+                      }}
                     muted
                     loop
                     autoPlay
@@ -2741,10 +4095,15 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     src={zPage.backgroundMedia.url}
                     alt=""
                     className="w-full h-full object-cover"
-                    style={{ opacity: zPage.backgroundMedia.opacity }}
+                      style={{ 
+                        opacity: zPage.backgroundMedia.opacity,
+                        transform: `translate(${zPage.backgroundMedia.x || 0}px, ${zPage.backgroundMedia.y || 0}px) scale(${zPage.backgroundMedia.scale || 1})`,
+                        transformOrigin: 'center center',
+                      }}
                   />
                 )}
               </div>
+              )
             )}
             
             {/* Texture papier */}
@@ -2866,6 +4225,28 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 totalMedia={zPageImages.length}
               />
             ))}
+            
+            {/* Décorations premium en mode zoom */}
+            {zPage?.decorations?.map((deco) => {
+              const decorationItem = PREMIUM_DECORATIONS.find(d => d.id === deco.decorationId)
+              if (!decorationItem) return null
+              return (
+                <DraggableDecoration
+                  key={deco.id}
+                  decoration={deco}
+                  decorationItem={decorationItem}
+                  onPositionChange={(id, pos) => onDecorationPositionChange?.(zPageIndex, id, pos)}
+                  onScaleChange={(id, scale) => onDecorationScaleChange?.(zPageIndex, id, scale)}
+                  onRotationChange={(id, rotation) => onDecorationRotationChange?.(zPageIndex, id, rotation)}
+                  onColorChange={(id, color) => onDecorationColorChange?.(zPageIndex, id, color)}
+                  onOpacityChange={(id, opacity) => onDecorationOpacityChange?.(zPageIndex, id, opacity)}
+                  onGlowChange={(id, enabled, color, intensity) => onDecorationGlowChange?.(zPageIndex, id, enabled, color, intensity)}
+                  onFlip={(id, direction) => onDecorationFlip?.(zPageIndex, id, direction)}
+                  onDelete={(id) => onDecorationDelete?.(zPageIndex, id)}
+                  containerRef={zoomedPageContainerRef}
+                />
+              )
+            })}
       
             {/* Zone d'écriture avec lignes intégrées */}
             <div className="flex-1 relative overflow-hidden">
@@ -2929,6 +4310,32 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 >
                   <ImageIcon className="w-5 h-5" />
                 </button>
+                <button
+                  onClick={() => onBackgroundAdd?.(zPageIndex)}
+                  className={cn(
+                    'p-2 rounded-full transition-all',
+                    zPage.backgroundMedia
+                      ? 'text-aurora-600 bg-aurora-100'
+                      : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                  )}
+                  title="Fond de page"
+                >
+                  <Layers className="w-5 h-5" />
+                </button>
+                {zPage.backgroundMedia && (
+                  <button
+                    onClick={() => setEditingBackgroundPage(editingBackgroundPage === 'zoom' ? null : 'zoom')}
+                    className={cn(
+                      'p-2 rounded-full transition-all',
+                      editingBackgroundPage === 'zoom'
+                        ? 'text-aurora-600 bg-aurora-100'
+                        : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                    )}
+                    title="Déplacer le fond"
+                  >
+                    <Move className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
             
@@ -2973,6 +4380,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           <div 
             ref={leftPageContainerRef}
             className="relative flex flex-col group"
+            onClick={() => setActivePage('left')}
             style={{
               height: '100%',
               aspectRatio: '2 / 3',
@@ -2987,12 +4395,25 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Fond de page gauche (image ou vidéo) */}
             {leftPage?.backgroundMedia && (
+              editingBackgroundPage === 'left' ? (
+                <EditableBackground
+                  backgroundMedia={leftPage.backgroundMedia}
+                  onPositionChange={(x, y, scale) => leftPageIndex !== undefined && onBackgroundPositionChange?.(leftPageIndex, x, y, scale)}
+                  onEditEnd={() => setEditingBackgroundPage(null)}
+                  containerRef={leftPageContainerRef}
+                  roundedClass="rounded-l-lg"
+                />
+              ) : (
               <div className="absolute inset-0 overflow-hidden rounded-l-lg z-0">
                 {leftPage.backgroundMedia.type === 'video' ? (
                   <video
                     src={leftPage.backgroundMedia.url}
                     className="w-full h-full object-cover"
-                    style={{ opacity: leftPage.backgroundMedia.opacity }}
+                      style={{ 
+                        opacity: leftPage.backgroundMedia.opacity,
+                        transform: `translate(${leftPage.backgroundMedia.x || 0}px, ${leftPage.backgroundMedia.y || 0}px) scale(${leftPage.backgroundMedia.scale || 1})`,
+                        transformOrigin: 'center center',
+                      }}
                     muted
                     loop
                     autoPlay
@@ -3003,10 +4424,15 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     src={leftPage.backgroundMedia.url}
                     alt=""
                     className="w-full h-full object-cover"
-                    style={{ opacity: leftPage.backgroundMedia.opacity }}
+                      style={{ 
+                        opacity: leftPage.backgroundMedia.opacity,
+                        transform: `translate(${leftPage.backgroundMedia.x || 0}px, ${leftPage.backgroundMedia.y || 0}px) scale(${leftPage.backgroundMedia.scale || 1})`,
+                        transformOrigin: 'center center',
+                      }}
                   />
                 )}
               </div>
+              )
             )}
             
             {/* Texture papier subtile */}
@@ -3036,6 +4462,28 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 totalMedia={leftPageImages.length}
               />
             ))}
+            
+            {/* Décorations premium de la page gauche */}
+            {leftPageIndex !== undefined && leftPage?.decorations?.map((deco) => {
+              const decorationItem = PREMIUM_DECORATIONS.find(d => d.id === deco.decorationId)
+              if (!decorationItem) return null
+              return (
+                <DraggableDecoration
+                  key={deco.id}
+                  decoration={deco}
+                  decorationItem={decorationItem}
+                  onPositionChange={(id, pos) => onDecorationPositionChange?.(leftPageIndex, id, pos)}
+                  onScaleChange={(id, scale) => onDecorationScaleChange?.(leftPageIndex, id, scale)}
+                  onRotationChange={(id, rotation) => onDecorationRotationChange?.(leftPageIndex, id, rotation)}
+                  onColorChange={(id, color) => onDecorationColorChange?.(leftPageIndex, id, color)}
+                  onOpacityChange={(id, opacity) => onDecorationOpacityChange?.(leftPageIndex, id, opacity)}
+                  onGlowChange={(id, enabled, color, intensity) => onDecorationGlowChange?.(leftPageIndex, id, enabled, color, intensity)}
+                  onFlip={(id, direction) => onDecorationFlip?.(leftPageIndex, id, direction)}
+                  onDelete={(id) => onDecorationDelete?.(leftPageIndex, id)}
+                  containerRef={leftPageContainerRef}
+                />
+              )
+            })}
             
             {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
             {(() => {
@@ -3147,7 +4595,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 ref={leftEditorRef}
                 contentEditable
                 onInput={handleLeftInput}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); setActivePage('left'); }}
                 data-placeholder={placeholders[locale]}
                 style={{
                   ...textStyle,
@@ -3170,7 +4618,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             )}
             
             {/* Barre d'outils en bas - page gauche */}
-            {leftPage && (
+            {leftPage && leftPageIndex !== undefined && (
               <div 
                 className="relative z-10 px-6 py-2 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent"
                 onClick={(e) => e.stopPropagation()}
@@ -3198,6 +4646,40 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     title="Ajouter une image"
                   >
                     <ImageIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (leftPageIndex !== undefined) {
+                        onBackgroundAdd?.(leftPageIndex); 
+                      }
+                    }}
+                    className={cn(
+                      'p-2 rounded-full transition-all',
+                      leftPage.backgroundMedia
+                        ? 'text-aurora-600 bg-aurora-100'
+                        : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                    )}
+                    title="Fond de page"
+                  >
+                    <Layers className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (leftPageIndex !== undefined) {
+                        onDecorationAdd?.(leftPageIndex); 
+                      }
+                    }}
+                    className={cn(
+                      'p-2 rounded-full transition-all',
+                      (leftPage.decorations?.length || 0) > 0
+                        ? 'text-amber-500 bg-amber-100'
+                        : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                    )}
+                    title="Décorations"
+                  >
+                    <Gem className="w-4 h-4" />
                   </button>
               </div>
             </div>
@@ -3240,6 +4722,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           <div 
             ref={rightPageContainerRef}
             className="relative flex flex-col group"
+            onClick={() => setActivePage('right')}
             style={{
               height: '100%',
               aspectRatio: '2 / 3', // Ratio livre standard
@@ -3254,12 +4737,25 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Fond de page droite (image ou vidéo) */}
             {page?.backgroundMedia && (
+              editingBackgroundPage === 'right' ? (
+                <EditableBackground
+                  backgroundMedia={page.backgroundMedia}
+                  onPositionChange={(x, y, scale) => onBackgroundPositionChange?.(pageIndex, x, y, scale)}
+                  onEditEnd={() => setEditingBackgroundPage(null)}
+                  containerRef={rightPageContainerRef}
+                  roundedClass="rounded-r-lg"
+                />
+              ) : (
               <div className="absolute inset-0 overflow-hidden rounded-r-lg z-0">
                 {page.backgroundMedia.type === 'video' ? (
                   <video
                     src={page.backgroundMedia.url}
                     className="w-full h-full object-cover"
-                    style={{ opacity: page.backgroundMedia.opacity }}
+                      style={{ 
+                        opacity: page.backgroundMedia.opacity,
+                        transform: `translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1})`,
+                        transformOrigin: 'center center',
+                      }}
                     muted
                     loop
                     autoPlay
@@ -3270,10 +4766,15 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     src={page.backgroundMedia.url}
                     alt=""
                     className="w-full h-full object-cover"
-                    style={{ opacity: page.backgroundMedia.opacity }}
+                      style={{ 
+                        opacity: page.backgroundMedia.opacity,
+                        transform: `translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1})`,
+                        transformOrigin: 'center center',
+                      }}
                   />
                 )}
               </div>
+              )
             )}
             
             {/* Texture papier */}
@@ -3303,6 +4804,28 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 totalMedia={rightPageImages.length}
               />
             ))}
+            
+            {/* Décorations premium de la page droite */}
+            {page?.decorations?.map((deco) => {
+              const decorationItem = PREMIUM_DECORATIONS.find(d => d.id === deco.decorationId)
+              if (!decorationItem) return null
+              return (
+                <DraggableDecoration
+                  key={deco.id}
+                  decoration={deco}
+                  decorationItem={decorationItem}
+                  onPositionChange={(id, pos) => onDecorationPositionChange?.(pageIndex, id, pos)}
+                  onScaleChange={(id, scale) => onDecorationScaleChange?.(pageIndex, id, scale)}
+                  onRotationChange={(id, rotation) => onDecorationRotationChange?.(pageIndex, id, rotation)}
+                  onColorChange={(id, color) => onDecorationColorChange?.(pageIndex, id, color)}
+                  onOpacityChange={(id, opacity) => onDecorationOpacityChange?.(pageIndex, id, opacity)}
+                  onGlowChange={(id, enabled, color, intensity) => onDecorationGlowChange?.(pageIndex, id, enabled, color, intensity)}
+                  onFlip={(id, direction) => onDecorationFlip?.(pageIndex, id, direction)}
+                  onDelete={(id) => onDecorationDelete?.(pageIndex, id)}
+                  containerRef={rightPageContainerRef}
+                />
+              )
+            })}
             
             {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
             {(() => {
@@ -3414,7 +4937,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               ref={editorRef}
               contentEditable
               onInput={handleInput}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setActivePage('right'); }}
               data-placeholder={placeholders[locale]}
               style={{
                 ...textStyle,
@@ -3462,6 +4985,30 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   title="Ajouter une image"
             >
               <ImageIcon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onBackgroundAdd?.(pageIndex); }}
+              className={cn(
+                'p-2 rounded-full transition-all',
+                page?.backgroundMedia
+                  ? 'text-aurora-600 bg-aurora-100'
+                  : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+              )}
+              title="Fond de page"
+            >
+              <Layers className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDecorationAdd?.(pageIndex); }}
+              className={cn(
+                'p-2 rounded-full transition-all',
+                (page?.decorations?.length || 0) > 0
+                  ? 'text-amber-500 bg-amber-100'
+                  : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+              )}
+              title="Décorations"
+            >
+              <Gem className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -4180,6 +5727,10 @@ export function BookMode() {
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false)
   const [backgroundPickerTargetPage, setBackgroundPickerTargetPage] = useState<number>(0)
   
+  // État pour le DecorationPicker
+  const [showDecorationPicker, setShowDecorationPicker] = useState(false)
+  const [decorationPickerTargetPage, setDecorationPickerTargetPage] = useState<number>(0)
+  
   // État pour la confirmation de suppression de page
   const [pageToDelete, setPageToDelete] = useState<number | null>(null)
   
@@ -4243,6 +5794,17 @@ export function BookMode() {
           id: p.id,
           title: p.title || '',
           content: p.content || '',
+          // Nouveau format multi-médias (cast pour compatibilité de types)
+          images: p.images?.map(img => ({
+            ...img,
+            style: img.style as ImageStyle,
+            frame: img.frame as FrameStyle,
+          })),
+          // Fond de page (image ou vidéo)
+          backgroundMedia: p.backgroundMedia as BackgroundMedia | undefined,
+          // Décorations (stickers, ornements)
+          decorations: p.decorations as PageDecoration[] | undefined,
+          // Legacy fields
           image: p.image,
           imagePosition: p.imagePosition,
           imageStyle: p.imageStyle as ImageStyle | undefined,
@@ -4364,6 +5926,9 @@ export function BookMode() {
       stepIndex: 0,
       content: p.content,
       images: p.images,
+      // Fond de page et décorations
+      backgroundMedia: p.backgroundMedia,
+      decorations: p.decorations,
       // Legacy fields pour rétrocompatibilité
       image: p.image,
       imagePosition: p.imagePosition,
@@ -4561,6 +6126,8 @@ export function BookMode() {
     // On ne gère pas l'audio pour l'instant
     if (type === 'audio') return
     
+    console.log('🎯 handleBackgroundSelect - backgroundPickerTargetPage:', backgroundPickerTargetPage, 'pages.length:', pages.length)
+    
     if (!pages[backgroundPickerTargetPage]) return
     
     const newPages = [...pages]
@@ -4573,6 +6140,7 @@ export function BookMode() {
       },
     }
     setPages(newPages)
+    console.log('✅ Fond appliqué à la page', backgroundPickerTargetPage)
     
     if (currentStory) {
       updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
@@ -4599,12 +6167,203 @@ export function BookMode() {
     }
   }
 
+  const handleBackgroundPositionChange = (pageIndex: number, x: number, y: number, scale: number) => {
+    if (!pages[pageIndex]?.backgroundMedia) return
+    
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...newPages[pageIndex],
+      backgroundMedia: {
+        ...newPages[pageIndex].backgroundMedia!,
+        x,
+        y,
+        scale,
+      },
+    }
+    setPages(newPages)
+    
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
   const handleBackgroundRemove = (pageIndex: number) => {
     if (!pages[pageIndex]) return
     
     const newPages = [...pages]
     const { backgroundMedia, ...pageWithoutBackground } = newPages[pageIndex]
     newPages[pageIndex] = pageWithoutBackground
+    setPages(newPages)
+    
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  // === Gestion des décorations premium ===
+  const handleOpenDecorationPicker = (targetIndex: number) => {
+    setDecorationPickerTargetPage(targetIndex)
+    setShowDecorationPicker(true)
+  }
+
+  const handleAddDecoration = (decorationId: string) => {
+    const targetPage = pages[decorationPickerTargetPage]
+    if (!targetPage) return
+
+    const newDecoration: PageDecoration = {
+      id: `deco-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      decorationId,
+      position: { x: 50, y: 50 }, // Centre de la page
+      scale: 1,
+      rotation: 0,
+      opacity: 1,
+    }
+
+    const newPages = [...pages]
+    newPages[decorationPickerTargetPage] = {
+      ...targetPage,
+      decorations: [...(targetPage.decorations || []), newDecoration],
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleDecorationPositionChange = (pageIndex: number, decoId: string, position: { x: number; y: number }) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.decorations) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      decorations: targetPage.decorations.map(d =>
+        d.id === decoId ? { ...d, position } : d
+      ),
+    }
+    setPages(newPages)
+  }
+
+  const handleDecorationScaleChange = (pageIndex: number, decoId: string, scale: number) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.decorations) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      decorations: targetPage.decorations.map(d =>
+        d.id === decoId ? { ...d, scale } : d
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleDecorationRotationChange = (pageIndex: number, decoId: string, rotation: number) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.decorations) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      decorations: targetPage.decorations.map(d =>
+        d.id === decoId ? { ...d, rotation } : d
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleDecorationColorChange = (pageIndex: number, decoId: string, color: string) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.decorations) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      decorations: targetPage.decorations.map(d =>
+        d.id === decoId ? { ...d, color } : d
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleDecorationGlowChange = (pageIndex: number, decoId: string, glowEnabled: boolean, glowColor: string, glowIntensity: number) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.decorations) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      decorations: targetPage.decorations.map(d =>
+        d.id === decoId ? { ...d, glowEnabled, glowColor, glowIntensity } : d
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleDecorationOpacityChange = (pageIndex: number, decoId: string, opacity: number) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.decorations) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      decorations: targetPage.decorations.map(d =>
+        d.id === decoId ? { ...d, opacity } : d
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleDecorationFlip = (pageIndex: number, decoId: string, direction: 'h' | 'v') => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.decorations) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      decorations: targetPage.decorations.map(d =>
+        d.id === decoId 
+          ? { ...d, [direction === 'h' ? 'flipH' : 'flipV']: !d[direction === 'h' ? 'flipH' : 'flipV'] } 
+          : d
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleDecorationDelete = (pageIndex: number, decoId: string) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.decorations) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      decorations: targetPage.decorations.filter(d => d.id !== decoId),
+    }
     setPages(newPages)
     
     if (currentStory) {
@@ -4905,7 +6664,17 @@ export function BookMode() {
               onBookColorChange={setBookColor}
               onBackgroundAdd={handleOpenBackgroundPicker}
               onBackgroundOpacityChange={handleBackgroundOpacityChange}
+              onBackgroundPositionChange={handleBackgroundPositionChange}
               onBackgroundRemove={handleBackgroundRemove}
+              onDecorationAdd={handleOpenDecorationPicker}
+              onDecorationPositionChange={handleDecorationPositionChange}
+              onDecorationScaleChange={handleDecorationScaleChange}
+              onDecorationRotationChange={handleDecorationRotationChange}
+              onDecorationColorChange={handleDecorationColorChange}
+              onDecorationOpacityChange={handleDecorationOpacityChange}
+              onDecorationGlowChange={handleDecorationGlowChange}
+              onDecorationFlip={handleDecorationFlip}
+              onDecorationDelete={handleDecorationDelete}
             />
         )}
         </div>
@@ -4942,6 +6711,13 @@ export function BookMode() {
             onSelect={handleBackgroundSelect}
             allowedTypes="all"
             title="Ajouter un média"
+          />
+          
+          {/* DecorationPicker pour les décorations premium */}
+          <DecorationPicker
+            isOpen={showDecorationPicker}
+            onClose={() => setShowDecorationPicker(false)}
+            onSelect={handleAddDecoration}
           />
           
           {/* Modal de confirmation pour supprimer une page */}

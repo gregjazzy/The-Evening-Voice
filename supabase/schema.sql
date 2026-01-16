@@ -282,6 +282,34 @@ CREATE TABLE realtime_state (
 CREATE INDEX idx_realtime_state_session_id ON realtime_state(session_id);
 
 -- ===========================================
+-- TABLE: montage_projects (Projets de montage)
+-- ===========================================
+-- Architecture Timeline v2 :
+-- - Chaque projet contient des SCÈNES (plus de pages)
+-- - Chaque scène a une timeline temporelle (en secondes)
+-- - Les éléments (médias, sons, lumières) sont des RUBANS positionnés dans le temps
+-- - Synchronisation phrase par phrase (plus mot par mot)
+CREATE TABLE montage_projects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  story_id UUID REFERENCES stories(id) ON DELETE CASCADE,
+  
+  title TEXT NOT NULL,
+  
+  -- Données complètes du projet (scènes, rubans, timings)
+  scenes JSONB NOT NULL DEFAULT '[]'::jsonb,
+  
+  -- État du projet
+  is_complete BOOLEAN DEFAULT false,
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_montage_projects_profile_id ON montage_projects(profile_id);
+CREATE INDEX idx_montage_projects_story_id ON montage_projects(story_id);
+
+-- ===========================================
 -- TRIGGERS pour updated_at automatique
 -- ===========================================
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -308,6 +336,10 @@ CREATE TRIGGER diary_entries_updated_at
   BEFORE UPDATE ON diary_entries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+CREATE TRIGGER montage_projects_updated_at
+  BEFORE UPDATE ON montage_projects
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ===========================================
 -- ROW LEVEL SECURITY (RLS)
 -- ===========================================
@@ -319,6 +351,7 @@ ALTER TABLE diary_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE generation_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mentor_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE montage_projects ENABLE ROW LEVEL SECURITY;
 
 -- Policies pour profiles
 CREATE POLICY "Users can view own profile"
@@ -341,6 +374,11 @@ CREATE POLICY "Users can manage own stories"
 -- Policies pour diary_entries (très privé)
 CREATE POLICY "Users can manage own diary"
   ON diary_entries FOR ALL
+  USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
+
+-- Policies pour montage_projects
+CREATE POLICY "Users can manage own montage projects"
+  ON montage_projects FOR ALL
   USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
 
 -- ===========================================

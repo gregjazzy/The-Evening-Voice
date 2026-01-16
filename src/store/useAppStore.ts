@@ -99,12 +99,40 @@ export interface PageMedia {
 // Alias pour rétrocompatibilité
 export type PageImage = PageMedia
 
+// Fond de page (image ou vidéo avec opacité)
+export interface BackgroundMedia {
+  url: string
+  type: 'image' | 'video'
+  opacity: number
+  x?: number
+  y?: number
+  scale?: number
+}
+
+// Décoration sur une page (sticker luxueux)
+export interface PageDecoration {
+  id: string
+  decorationId: string
+  position: { x: number; y: number }
+  scale: number
+  rotation: number
+  color?: string
+  opacity?: number
+  glow?: boolean
+  flipX?: boolean
+  flipY?: boolean
+}
+
 export interface StoryPage {
   id: string
   stepIndex: number
   content: string
   // Nouveau format multi-médias (images et vidéos)
   images?: PageMedia[]
+  // Fond de page (image ou vidéo avec opacité)
+  backgroundMedia?: BackgroundMedia
+  // Décorations premium (stickers luxueux)
+  decorations?: PageDecoration[]
   // Legacy fields (rétrocompatibilité)
   image?: string
   imagePosition?: {

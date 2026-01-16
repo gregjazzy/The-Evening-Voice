@@ -189,6 +189,82 @@ recognition.stop()   // Arrêter l'écoute
 
 ---
 
+## Structures de Données Client
+
+### StoryPage (Zustand Store)
+
+```typescript
+interface StoryPage {
+  id: string
+  stepIndex: number
+  content: string
+  image?: string
+  imagePosition?: {
+    x: number
+    y: number
+    width: number
+    height: number
+    rotation: number
+  }
+  imageStyle?: string
+  frameStyle?: string
+  backgroundMedia?: BackgroundMedia
+  decorations?: PageDecoration[]
+  order: number
+  chapterId?: string
+  title?: string
+}
+```
+
+### BackgroundMedia
+
+```typescript
+interface BackgroundMedia {
+  type: 'image' | 'video'
+  url: string
+  opacity: number   // 0-100
+  x: number         // Position X en %
+  y: number         // Position Y en %
+  scale: number     // 0.1-3.0
+}
+```
+
+### PageDecoration
+
+```typescript
+interface PageDecoration {
+  id: string
+  decorationId: string   // Référence vers PREMIUM_DECORATIONS
+  position: {
+    x: number            // Position X en %
+    y: number            // Position Y en %
+  }
+  scale: number          // 0.2-3.0
+  rotation: number       // -180 à 180
+  color?: string         // Couleur override
+  opacity: number        // 0.2-1.0
+  flipH?: boolean        // Miroir horizontal
+  flipV?: boolean        // Miroir vertical
+  glowEnabled?: boolean  // Effet luminosité
+  glowColor?: string     // Couleur du halo
+  glowIntensity?: number // Intensité 10-100
+}
+```
+
+### DecorationType
+
+```typescript
+interface DecorationType {
+  id: string
+  name: string
+  category: 'gold' | 'floral' | 'royal' | 'celestial' | 'artistic' | 'frames'
+  svg: string           // Code SVG inline
+  defaultColor: string  // Couleur par défaut
+}
+```
+
+---
+
 ## Codes d'erreur
 
 | Code | Description |
@@ -237,3 +313,32 @@ curl -X POST http://localhost:3000/api/ai/image \
     "ambiance": "jour"
   }'
 ```
+
+---
+
+## Notes Techniques
+
+### Décorations Premium
+
+Les décorations sont gérées **entièrement côté client** :
+- Stockées dans le state Zustand
+- Persistées dans localStorage
+- Pas d'appel API nécessaire
+- Les SVG sont inline dans le code
+
+### Fond de Page
+
+Les fonds de page (images/vidéos) sont également gérés **côté client** :
+- Images via `URL.createObjectURL()` ou URLs externes
+- Vidéos en lecture automatique, muette, en boucle
+- Contrôles d'opacité et zoom en temps réel
+
+### Effet Glow
+
+L'effet de luminosité utilise CSS `filter: drop-shadow()` :
+
+```css
+filter: drop-shadow(0 0 5px #D4AF37) drop-shadow(0 0 10px #D4AF37);
+```
+
+L'intensité contrôle le rayon de l'ombre (blur radius).

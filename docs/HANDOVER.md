@@ -2,104 +2,37 @@
 
 > Document de passation complet pour la prochaine session de développement
 
-**Date** : 15 janvier 2026  
-**Version** : 2.1.0  
-**État** : Présentation client finalisée (22 slides), Mode Montage en cours
+**Date** : 14 janvier 2026  
+**Version** : 2.0.0  
+**État** : Mode Montage en cours - Architecture posée, fonctionnalités de base OK
 
 ---
 
-## 🎯 Contexte du Projet
+## 🎯 Vision Produit (IMPORTANT)
 
-**Client** : Ultra-premium (top 40 fortunes mondiales, ~10 milliards €)  
-**Utilisateurs** : 2 filles de 8 ans + 1 mentor à distance  
-**Langues** : Français, Anglais, Russe  
-**Statut** : **VENDU** - Application commandée et payée
+> **Lire `docs/CONCEPT.md` pour la vision complète**
 
-### Ce qu'est l'app
+### Résumé : C'est quoi l'app ?
 
-Application Electron/Web/iPad pour enfants permettant de :
-- Écrire un journal intime (photos, audio, images IA)
-- Créer des histoires illustrées avec structures narratives
-- Apprendre le prompting avec Luna (IA-Amie)
-- Publier des livres jusqu'à Amazon KDP
+Application pour enfants permettant de créer des **livres-disques numériques 2.0** - inspirés des livres-disques d'antan (Marlène Jobert, Disney) mais augmentés avec IA et domotique.
 
-### Objectifs pédagogiques (4 piliers)
+### Les 5 Modes
 
-| Pilier | Description |
-|--------|-------------|
-| 🎓 **Maîtriser l'IA** | Prompting, Midjourney, Runway, ElevenLabs |
-| ✨ **Créer & Imaginer** | Histoires, illustrations, vidéos |
-| 📚 **Publier un Livre** | Jusqu'à Amazon Kindle |
-| 🖥️ **Maîtriser l'Ordinateur** | Navigation, fichiers, autonomie |
+| Mode | Fonction | État |
+|------|----------|------|
+| 📔 **Journal** | Journal intime avec Luna (IA) | ✅ Fonctionnel |
+| ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Fonctionnel |
+| 🎨 **Studio** | Génération d'assets IA (images, voix, vidéos) | ✅ Existe (intégrations à vérifier) |
+| 🎬 **Montage** | Création du LIVRE-DISQUE (audio + timing) | 🔧 **EN COURS** |
+| 🎭 **Théâtre** | Lecteur immersif avec projection + lumières | 🔧 À développer |
 
 ---
 
-## 🎬 PRÉSENTATION CLIENT
-
-### Fichier : `presentation/index.html`
-
-Présentation web style Keynote pour la cliente. **22 slides** au total.
-
-### Lancer la présentation
-
-```bash
-cd presentation
-python3 -m http.server 3003
-# → http://localhost:3003
-```
-
-### Navigation
-- **Flèches clavier** ← → pour naviguer
-- **Points à droite** pour accès direct
-- Scroll automatique **désactivé**
-
-### Structure des slides
-
-| # | Titre | Contenu |
-|---|-------|---------|
-| 1 | La Voix du Soir | Titre + tagline |
-| 2 | Pour Vos Filles | **4 colonnes** : IA, Créer, Publier, Ordinateur |
-| 3 | Les Objectifs | 6 objectifs avec "Comment" |
-| 4 | Luna, l'Amie IA | Présentation de Luna |
-| 5-6 | Luna en Action | Création d'images / Écriture |
-| 7 | La Philosophie | 5 règles de Luna |
-| 8 | 5 Clés Magiques | Synoptique prompting images |
-| 9 | 5 Questions Magiques | Synoptique écriture |
-| 10 | Parcours de Maîtrise | Niveaux (Explorateur → Maître) |
-| 11 | Cinq Univers Créatifs | Les 5 modes |
-| 12 | L'Expérience Théâtre | AirPlay + Philips Hue |
-| 13 | L'Horizon | Amazon KDP |
-| 14-15 | Prompting/Progression | Synoptiques techniques |
-| 16-17 | Design Immersif | Métaphore livre, animations |
-| 18 | Comment Gemini Fonctionne | Schéma conceptuel |
-| 19 | Multimodal | Images, Vidéos, Voix |
-| 20 | Tech Stack | Technologies utilisées |
-| 21 | Fonctionnalités | Desktop, iPad, Multilingue |
-| 22 | Mon Engagement | Garanties personnelles |
-
-### Modifications récentes (session du 15 janvier)
-
-| Changement | Détail |
-|------------|--------|
-| ✅ Slide 2 refaite | 4 colonnes visuelles, pas de blabla |
-| ✅ Slide commercial supprimée | "Prêtes à Créer ?" (déjà vendu) |
-| ✅ "Notre" → "Mon" Engagement | Personnel, pas collectif |
-| ✅ 3 slides supprimées | Réduction 26 → 22 slides |
-
-### Points d'attention pour la présentation
-
-1. **Pas de discours commercial** — C'est vendu
-2. **Émotionnel** — C'est pour ses filles, partage en famille
-3. **Technique mais accessible** — Elle connaît l'IA, pas de politique
-4. **Jargon technique OK** — Justifie la technicité et le prix
-
----
-
-## 🎬 MODE MONTAGE - État actuel
+## 🎬 MODE MONTAGE - Ce qui a été fait
 
 ### Philosophie : Timeline basée sur le TEXTE
 
-> Contrairement à un éditeur vidéo classique (timeline en secondes), le Montage utilise le **texte comme timeline**.
+> **IMPORTANT** : Contrairement à un éditeur vidéo classique (timeline en secondes), le Montage utilise le **texte comme timeline**.
 
 ```
 CLASSIQUE (Filmora, Premiere) :
@@ -112,59 +45,257 @@ LA VOIX DU SOIR :
  └─ Bruitage "vent"
 ```
 
-### Fichiers du mode Montage
+**Pourquoi ?**
+- Plus intuitif pour un enfant
+- Le rythme suit la voix, pas un chronomètre
+- Permet de synchroniser après l'enregistrement (RhythmGame)
+
+### Architecture des fichiers créés
 
 ```
 src/
 ├── store/
-│   └── useMontageStore.ts      # Store Zustand dédié
+│   └── useMontageStore.ts      # Store Zustand dédié au montage
 │
 ├── components/
 │   └── montage/
+│       ├── index.ts            # Exports
 │       ├── MontageEditor.tsx   # Éditeur principal
-│       ├── TextTimeline.tsx    # Timeline textuelle
-│       ├── EffectsPanel.tsx    # Effets texte + médias
-│       └── AudioMontagePanel.tsx # Audio (musique, bruitages)
+│       ├── TextTimeline.tsx    # Timeline textuelle (les mots cliquables)
+│       ├── EffectsPanel.tsx    # Panneau d'effets (texte, médias, sons)
+│       └── AudioMontagePanel.tsx # Panneau audio (musique, bruitages, ambiance)
 ```
 
-### Fonctionnalités implémentées ✅
+### Le Store (`useMontageStore.ts`)
 
-- TextTimeline (mots cliquables, Shift+Clic multi-select)
-- Effets texte (8 types : highlight, glow, fadeIn, shake...)
-- Images & Vidéos ancrées sur les mots
-- Panneau audio (musique, bruitages, ambiance)
-- Enregistrement vocal (MediaRecorder API)
-- Sélection/création de projets
+Types principaux :
 
-### À faire 🔧
+```typescript
+// Un projet de montage
+interface MontageProject {
+  id: string
+  storyId: string          // Lien vers l'histoire (mode Écriture)
+  title: string
+  pages: MontagePage[]
+  createdAt: Date
+  updatedAt: Date
+}
 
-| Priorité | Tâche | Description |
-|----------|-------|-------------|
-| 1 | **RhythmGame** | Jeu de synchronisation voix/texte |
-| 2 | **SyncPlayer** | Lecteur qui orchestre tout |
-| 3 | **TTS avec timings** | ElevenLabs avec timestamps |
-| 4 | **HomeKit** | Commandes lumières pendant lecture |
+// Une page de montage
+interface MontagePage {
+  id: string
+  text: string             // Texte nettoyé (sans HTML)
+  words: string[]          // Texte splitté en mots
+  narration: NarrationTrack
+  textEffects: TextEffect[]
+  mediaTriggers: MediaTrigger[]
+  soundTriggers: SoundTrigger[]
+  musicTrack?: MusicTrack
+  lightTriggers: LightTrigger[]
+}
+
+// Ancrage sur les mots
+interface MediaTrigger {
+  appearAtWord: number     // -1 = avant le texte
+  disappearAtWord?: number // undefined = reste jusqu'à la fin
+  // ...
+}
+```
+
+**Fonctionnalités clés du store :**
+- ✅ `stripHtml()` : Nettoie le HTML importé de l'Écriture
+- ✅ Migration automatique des anciens projets (au chargement)
+- ✅ Sélection multi-mots (`selectedWordIndex` + `selectedWordEndIndex`)
+- ✅ CRUD pour tous les types (effets, médias, sons, lumières)
+
+### Fonctionnalités implémentées
+
+#### 1. TextTimeline ✅
+- Affiche le texte mot par mot
+- Chaque mot est cliquable
+- **Shift+Clic** pour sélectionner une plage de mots
+- Indicateurs visuels des ancres (points colorés sous les mots)
+- Marqueurs "Avant" et "Après" le texte
+
+#### 2. Sélection de projet ✅
+- Liste des projets de montage existants
+- Création depuis une histoire existante (mode Écriture)
+- Suppression de projets
+
+#### 3. Effets sur le texte ✅
+- 8 types : highlight, glow, fadeIn, fadeOut, scale, shake, colorChange, typewriter
+- Application sur un mot OU une plage de mots
+- Interface avec emojis pour les enfants
+
+#### 4. Images & Vidéos ✅
+- Upload de fichiers
+- Ancrage sur les mots (apparaît au mot X, disparaît au mot Y)
+- Opacité réglable
+- Options vidéo : loop, muted
+
+#### 5. Panneau Audio ✅
+- **Musique** : Upload + segments avec changement à certains mots
+- **Bruitages** : Sons ponctuels ancrés sur des mots
+- **Ambiance** : Sons continus (forêt, pluie, mer...)
+- Pour chaque son : volume, fade in/out, loop, début/fin
+
+#### 6. Enregistrement vocal ✅
+- Utilise MediaRecorder API
+- Timer pendant l'enregistrement
+- Lecture de l'enregistrement
+- Suppression pour recommencer
+- Message d'erreur si micro bloqué
 
 ---
 
-## 📁 Structure du projet
+## 🔧 CE QUI RESTE À FAIRE (Montage)
+
+### Priorité 1 : Synchronisation voix/texte
+
+Le bouton **"Synchroniser avec le texte"** n'est pas fonctionnel.
+
+#### Option A : RhythmGame (synchronisation manuelle)
+Pour les voix enregistrées (enfant, parent).
 
 ```
-lavoixdusoir/
-├── presentation/           # 🆕 Présentation client (index.html)
-├── docs/                   # Documentation
-├── electron/               # App desktop Mac
-├── src/
-│   ├── app/               # Next.js App Router
-│   ├── components/        # Composants React
-│   │   ├── modes/         # Journal, Book, Studio, Layout, Theatre
-│   │   ├── montage/       # Mode Montage (nouveau)
-│   │   └── ...
-│   ├── hooks/             # useAI, useTTS, useWebRTC...
-│   ├── lib/               # Gemini, Supabase, TTS...
-│   └── store/             # Zustand stores
-└── supabase/              # Schémas DB
+┌─────────────────────────────────────────────────────────┐
+│  🎮 Jeu de Rythme - Clique sur chaque mot !             │
+│                                                         │
+│        Il  était  une  fois  un  petit  dragon          │
+│        ──                                               │
+│        ↑                                                │
+│   [ En attente... ]                                     │
+│                                                         │
+│   🔊 Audio: ▶ ─────●────────────────────────── 0:03     │
+│                                                         │
+│   Clique sur le mot quand tu l'entends !                │
+└─────────────────────────────────────────────────────────┘
 ```
+
+**À implémenter :**
+1. Lecture de l'audio enregistré
+2. L'enfant clique sur chaque mot quand il l'entend
+3. Enregistrement des `wordTimings` (startTime, endTime)
+4. Possibilité de recommencer si erreur
+
+#### Option B : TTS avec timings (synchronisation auto)
+Pour les voix IA (Luna, ElevenLabs).
+
+**À implémenter :**
+1. Appeler ElevenLabs avec l'option `with_timestamps`
+2. Parser la réponse pour extraire les timings par mot
+3. Stocker dans `wordTimings`
+
+### Priorité 2 : SyncPlayer (Lecteur synchronisé)
+
+Le lecteur qui joue le livre-disque avec tous les éléments synchronisés.
+
+**À implémenter :**
+1. Lecture de l'audio de narration
+2. Mise à jour du `currentPlaybackTime`
+3. Affichage du mot courant (highlight)
+4. Déclenchement des effets texte au bon moment
+5. Apparition/disparition des médias
+6. Play/pause des sons et musique
+7. (Optionnel) Envoi des commandes HomeKit
+
+### Priorité 3 : Améliorations UX
+
+| Tâche | Description |
+|-------|-------------|
+| **Preview Canvas amélioré** | Afficher les médias avec leurs effets réels |
+| **Drag & Drop** | Glisser des fichiers sur les mots |
+| **Position des médias** | Interface pour positionner images/vidéos sur le canvas |
+| **Export** | Sauvegarder le projet finalisé |
+
+### Priorité 4 : Intégration TTS
+
+| Source | État | Notes |
+|--------|------|-------|
+| Luna (macOS TTS) | 🔧 | Utiliser `useTTS.ts` existant |
+| ElevenLabs | 🔧 | Intégration existante dans `elevenlabs.ts` |
+| Web Speech API | 🔧 | Fallback navigateur |
+
+---
+
+## 📁 Fichiers clés du projet
+
+### Stores
+| Fichier | Rôle |
+|---------|------|
+| `src/store/useAppStore.ts` | État global (stories, diary, chat...) |
+| `src/store/useMontageStore.ts` | **État mode Montage** |
+| `src/store/useLayoutStore.ts` | Ancien store Layout (plus utilisé pour le montage) |
+| `src/store/useStudioStore.ts` | État mode Studio |
+
+### Mode Montage
+| Fichier | Rôle |
+|---------|------|
+| `src/components/montage/MontageEditor.tsx` | Composant principal |
+| `src/components/montage/TextTimeline.tsx` | Timeline textuelle |
+| `src/components/montage/EffectsPanel.tsx` | Effets texte + médias |
+| `src/components/montage/AudioMontagePanel.tsx` | Musique + bruitages + ambiance |
+| `src/components/modes/LayoutMode.tsx` | Wrapper qui affiche MontageEditor |
+
+### Hooks utiles
+| Fichier | Rôle |
+|---------|------|
+| `src/hooks/useMediaUpload.ts` | Upload médias (Supabase + R2) |
+| `src/hooks/useTTS.ts` | Text-to-Speech |
+| `src/hooks/useAI.ts` | Interactions avec Luna/Gemini |
+
+### API Routes
+| Route | Fonction |
+|-------|----------|
+| `src/app/api/ai/voice/route.ts` | Génération voix IA |
+| `src/app/api/upload/video/route.ts` | Upload vidéo vers R2 |
+
+---
+
+## 💡 Points d'attention
+
+### 1. Nettoyage HTML
+Le texte importé de l'Écriture peut contenir des balises HTML (`<p>`, `<br>`, etc.).
+La fonction `stripHtml()` dans `useMontageStore.ts` nettoie automatiquement.
+Une migration automatique nettoie les anciens projets au chargement.
+
+### 2. Sélection multi-mots
+Pour appliquer un effet sur plusieurs mots :
+1. Clic sur le premier mot
+2. Shift+Clic sur le dernier mot
+3. L'effet s'applique à toute la plage
+
+### 3. Ancrage "Avant le texte"
+Index `-1` = l'élément démarre avant que la narration commence.
+Utile pour : musique d'intro, ambiance qui s'installe.
+
+### 4. Persistance
+Le store utilise `zustand/persist` avec localStorage.
+Seuls les `projects` sont persistés, pas l'état UI.
+
+---
+
+## 🚀 Pour démarrer
+
+```bash
+# Installer
+npm install
+
+# Dev (web + signaling)
+npm run dev
+# → http://localhost:3000
+
+# Dev Electron
+npm run dev:electron
+```
+
+### Tester le mode Montage
+
+1. Aller sur l'app → Mode **Écriture**
+2. Créer une histoire avec du texte
+3. Passer en mode **Montage**
+4. Créer un nouveau projet depuis l'histoire
+5. Tester : sélection de mots, ajout d'effets, enregistrement vocal
 
 ---
 
@@ -185,6 +316,8 @@ GOOGLE_GEMINI_API_KEY=xxx
 R2_ACCOUNT_ID=xxx
 R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
+R2_BUCKET_NAME=lavoixdusoir-videos
+CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
 
 # ElevenLabs (optionnel)
 ELEVENLABS_API_KEY=xxx
@@ -192,57 +325,11 @@ ELEVENLABS_API_KEY=xxx
 
 ---
 
-## 🚀 Pour démarrer
-
-```bash
-# Installer
-npm install
-
-# Dev web
-npm run dev
-# → http://localhost:3000
-
-# Dev Electron
-npm run dev:electron
-
-# Présentation client
-cd presentation && python3 -m http.server 3003
-# → http://localhost:3003
-```
-
----
-
-## 📊 Récapitulatif de l'état
-
-| Composant | État | Notes |
-|-----------|------|-------|
-| **Présentation client** | ✅ | 22 slides, prête |
-| Mode Journal | ✅ | Fonctionnel |
-| Mode Écriture | ✅ | Images flottantes, formatage |
-| Mode Studio | ✅ | Intégrations IA |
-| Mode Montage | 🔧 | Architecture OK, RhythmGame à faire |
-| Mode Théâtre | 🔧 | À développer |
-
----
-
-## 🎯 Prochaines étapes
-
-### Pour la présentation
-- ✅ **Terminée** — Prête pour la cliente
-
-### Pour l'application
-1. **RhythmGame** — Synchronisation voix/texte
-2. **SyncPlayer** — Lecteur de livre-disque
-3. **Export PDF** — Exporter les histoires
-4. **Mode Théâtre** — Lecteur immersif
-
----
-
 ## 📚 Documentation
 
 | Fichier | Contenu |
 |---------|---------|
-| `docs/CONCEPT.md` | Vision produit (livre-disque 2.0) |
+| `docs/CONCEPT.md` | Vision produit (les 5 modes, livre-disque, projection) |
 | `docs/ARCHITECTURE.md` | Architecture technique |
 | `docs/QUICK_START.md` | Guide de démarrage |
 | `docs/API.md` | Documentation API |
@@ -250,15 +337,52 @@ cd presentation && python3 -m http.server 3003
 
 ---
 
-## 🔗 Git
+## 🎯 Pour le prochain chat
 
-**Repository** : `https://github.com/gregjazzy/The-Evening-Voice.git`
+### Objectif immédiat : RhythmGame
 
-```bash
-git clone https://github.com/gregjazzy/The-Evening-Voice.git
-git add . && git commit -m "description" && git push origin main
-```
+Créer le jeu de synchronisation pour permettre à l'enfant de cliquer sur les mots pendant que l'audio joue.
+
+**Fichier à créer** : `src/components/montage/RhythmGame.tsx`
+
+**Specs** :
+1. Modal plein écran
+2. Affiche les mots en gros
+3. Highlight le mot actuel pendant la sync
+4. Bouton pour démarrer l'audio
+5. Détection des clics et enregistrement des timings
+6. Possibilité de recommencer
+7. Validation et sauvegarde
+
+### Après le RhythmGame : SyncPlayer
+
+**Fichier à créer** : `src/components/montage/SyncPlayer.tsx`
+
+Le lecteur qui orchestre tout :
+- Audio
+- Mots qui s'illuminent
+- Médias qui apparaissent/disparaissent
+- Sons qui se déclenchent
+- (Plus tard) Lumières HomeKit
+
+---
+
+## 📊 Récapitulatif de l'état
+
+| Composant | État | Notes |
+|-----------|------|-------|
+| Store Montage | ✅ | Complet avec types et actions |
+| TextTimeline | ✅ | Multi-select, ancres visuelles |
+| EffectsPanel | ✅ | Texte, médias, sons |
+| AudioMontagePanel | ✅ | Musique, bruitages, ambiance |
+| Enregistrement vocal | ✅ | MediaRecorder API |
+| Sélection projet | ✅ | Création, chargement, suppression |
+| RhythmGame | 🔧 | **À faire** |
+| SyncPlayer | 🔧 | **À faire** |
+| TTS avec timings | 🔧 | À intégrer |
+| HomeKit | 🔧 | À intégrer |
 
 ---
 
 **Bon courage pour la suite !** 🌙✨
+

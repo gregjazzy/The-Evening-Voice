@@ -8,7 +8,6 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { Sparkles, Mail, Lock, Eye, EyeOff, ArrowRight, Wand2 } from 'lucide-react'
 import Link from 'next/link'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
-import { StarsBackground } from '@/components/ui/StarsBackground'
 
 export default function LoginPage() {
   const t = useTranslations('auth')
@@ -52,8 +51,60 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Fond étoilé (ne re-render pas) */}
-      <StarsBackground />
+      {/* Image de fond avec overlay */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/auth-background.png)' }}
+      />
+      
+      {/* Animation de lueur oscillante sur la lanterne */}
+      <motion.div
+        className="absolute pointer-events-none"
+        style={{
+          top: '25%',
+          right: '18%',
+          width: '250px',
+          height: '300px',
+          background: 'radial-gradient(ellipse at center, rgba(255, 180, 50, 0.4) 0%, rgba(255, 150, 30, 0.2) 30%, transparent 70%)',
+          filter: 'blur(20px)',
+        }}
+        animate={{
+          opacity: [0.6, 1, 0.7, 0.9, 0.6],
+          scale: [1, 1.1, 0.95, 1.05, 1],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      {/* Halo secondaire plus subtil */}
+      <motion.div
+        className="absolute pointer-events-none"
+        style={{
+          top: '20%',
+          right: '15%',
+          width: '350px',
+          height: '400px',
+          background: 'radial-gradient(ellipse at center, rgba(255, 200, 100, 0.15) 0%, transparent 60%)',
+          filter: 'blur(40px)',
+        }}
+        animate={{
+          opacity: [0.4, 0.7, 0.5, 0.6, 0.4],
+          scale: [1, 1.15, 1, 1.1, 1],
+        }}
+        transition={{
+          duration: 4,
+          repeat: Infinity,
+          ease: 'easeInOut',
+          delay: 0.5,
+        }}
+      />
+      
+      {/* Overlay sombre pour lisibilité */}
+      <div className="absolute inset-0 bg-gradient-to-t from-gray-950/90 via-gray-950/60 to-gray-950/40" />
+      {/* Effet de vignette subtil */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
 
       {/* Sélecteur de langue */}
       <div className="absolute top-4 right-4 z-50">

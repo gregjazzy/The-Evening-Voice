@@ -17,6 +17,23 @@ export interface TextBlock {
   shadow: boolean
 }
 
+// Keyframe pour animation d'opacité
+export interface OpacityKeyframe {
+  time: number      // Temps en secondes (relatif à la durée de la vidéo ou de la page)
+  value: number     // Opacité 0-1
+  easing?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
+}
+
+// Effets vidéo disponibles
+export interface VideoEffects {
+  opacityKeyframes: OpacityKeyframe[]   // Timeline d'opacité (fade in/out)
+  playbackSpeed?: number                 // Vitesse de lecture (0.5 - 2)
+  startOffset?: number                   // Début de la vidéo (en secondes)
+  endOffset?: number                     // Fin de la vidéo (en secondes)
+  loop?: boolean                         // Boucle
+  muted?: boolean                        // Son coupé
+}
+
 export interface MediaLayer {
   id: string
   type: 'image' | 'video'
@@ -25,8 +42,12 @@ export interface MediaLayer {
   y: number
   width: number
   height: number
-  opacity: number
+  opacity: number                // Opacité de base (si pas de keyframes)
   zIndex: number
+  // Nouveaux champs pour les vidéos
+  name?: string                  // Nom du fichier/layer
+  duration?: number              // Durée de la vidéo en secondes
+  videoEffects?: VideoEffects    // Effets appliqués à la vidéo
 }
 
 export interface AudioTrack {
@@ -126,9 +147,15 @@ interface LayoutState {
   deleteTextBlock: (blockId: string) => void
   
   // Actions MediaLayer
-  addMediaLayer: (type: 'image' | 'video', url: string) => void
+  addMediaLayer: (type: 'image' | 'video', url: string, name?: string, duration?: number) => void
   updateMediaLayer: (layerId: string, updates: Partial<MediaLayer>) => void
   deleteMediaLayer: (layerId: string) => void
+  
+  // Actions Effets Vidéo
+  addOpacityKeyframe: (layerId: string, keyframe: OpacityKeyframe) => void
+  updateOpacityKeyframe: (layerId: string, keyframeIndex: number, updates: Partial<OpacityKeyframe>) => void
+  deleteOpacityKeyframe: (layerId: string, keyframeIndex: number) => void
+  setVideoEffects: (layerId: string, effects: Partial<VideoEffects>) => void
   
   // Actions Audio
   addAudioTrack: (type: AudioTrack['type'], url: string) => void
@@ -357,7 +384,7 @@ export const useLayoutStore = create<LayoutState>()(
       },
 
       // === ACTIONS MEDIALAYER ===
-      addMediaLayer: (type, url) => {
+      addMediaLayer: (type, url, name, duration) => {
         const { currentPage, updatePage } = get()
         if (!currentPage) return
 
@@ -365,17 +392,30 @@ export const useLayoutStore = create<LayoutState>()(
           id: generateId(),
           type,
           url,
-          x: 0,
-          y: 0,
-          width: 100,
-          height: 100,
+          name: name || `${type}-${Date.now()}`,
+          x: 10,
+          y: 10,
+          width: 40,
+          height: 40,
           opacity: 1,
           zIndex: currentPage.mediaLayers.length,
+          ...(type === 'video' && {
+            duration,
+            videoEffects: {
+              opacityKeyframes: [],
+              playbackSpeed: 1,
+              loop: true,
+              muted: true,
+            },
+          }),
         }
 
         updatePage({
           mediaLayers: [...currentPage.mediaLayers, newLayer],
         })
+        
+        // Sélectionner automatiquement le nouveau layer
+        set({ selectedElement: newLayer.id })
       },
 
       updateMediaLayer: (layerId, updates) => {
@@ -389,12 +429,109 @@ export const useLayoutStore = create<LayoutState>()(
       },
 
       deleteMediaLayer: (layerId) => {
-        const { currentPage, updatePage } = get()
+        const { currentPage, updatePage, selectedElement } = get()
         if (!currentPage) return
 
         updatePage({
           mediaLayers: currentPage.mediaLayers.filter((l) => l.id !== layerId),
         })
+        
+        // Désélectionner si c'était l'élément sélectionné
+        if (selectedElement === layerId) {
+          set({ selectedElement: null })
+        }
+      },
+
+      // === ACTIONS EFFETS VIDÉO ===
+      addOpacityKeyframe: (layerId, keyframe) => {
+        const { currentPage, updatePage } = get()
+        if (!currentPage) return
+
+        const updatedLayers = currentPage.mediaLayers.map((l) => {
+          if (l.id !== layerId || l.type !== 'video') return l
+          
+          const currentKeyframes = l.videoEffects?.opacityKeyframes || []
+          // Trier les keyframes par temps
+          const newKeyframes = [...currentKeyframes, keyframe].sort((a, b) => a.time - b.time)
+          
+          return {
+            ...l,
+            videoEffects: {
+              ...l.videoEffects,
+              opacityKeyframes: newKeyframes,
+            },
+          }
+        })
+        updatePage({ mediaLayers: updatedLayers })
+      },
+
+      updateOpacityKeyframe: (layerId, keyframeIndex, updates) => {
+        const { currentPage, updatePage } = get()
+        if (!currentPage) return
+
+        const updatedLayers = currentPage.mediaLayers.map((l) => {
+          if (l.id !== layerId || l.type !== 'video' || !l.videoEffects) return l
+          
+          const newKeyframes = [...l.videoEffects.opacityKeyframes]
+          if (newKeyframes[keyframeIndex]) {
+            newKeyframes[keyframeIndex] = { ...newKeyframes[keyframeIndex], ...updates }
+          }
+          // Re-trier si le temps a changé
+          newKeyframes.sort((a, b) => a.time - b.time)
+          
+          return {
+            ...l,
+            videoEffects: {
+              ...l.videoEffects,
+              opacityKeyframes: newKeyframes,
+            },
+          }
+        })
+        updatePage({ mediaLayers: updatedLayers })
+      },
+
+      deleteOpacityKeyframe: (layerId, keyframeIndex) => {
+        const { currentPage, updatePage } = get()
+        if (!currentPage) return
+
+        const updatedLayers = currentPage.mediaLayers.map((l) => {
+          if (l.id !== layerId || l.type !== 'video' || !l.videoEffects) return l
+          
+          const newKeyframes = l.videoEffects.opacityKeyframes.filter((_, i) => i !== keyframeIndex)
+          
+          return {
+            ...l,
+            videoEffects: {
+              ...l.videoEffects,
+              opacityKeyframes: newKeyframes,
+            },
+          }
+        })
+        updatePage({ mediaLayers: updatedLayers })
+      },
+
+      setVideoEffects: (layerId, effects) => {
+        const { currentPage, updatePage } = get()
+        if (!currentPage) return
+
+        const updatedLayers = currentPage.mediaLayers.map((l): MediaLayer => {
+          if (l.id !== layerId || l.type !== 'video') return l
+          
+          // Assurer que opacityKeyframes a toujours une valeur
+          const currentEffects = l.videoEffects || { opacityKeyframes: [] }
+          const mergedEffects = {
+            ...currentEffects,
+            ...effects,
+          }
+          return {
+            ...l,
+            videoEffects: {
+              ...mergedEffects,
+              opacityKeyframes: mergedEffects.opacityKeyframes || [],
+            },
+          }
+        })
+        updatePage({ mediaLayers: updatedLayers })
       },
 
       // === ACTIONS AUDIO ===

@@ -2,7 +2,7 @@
 
 > Une application magique de création d'histoires pour enfants, avec une IA-Amie nommée Luna.
 
-![Version](https://img.shields.io/badge/version-1.6.0-purple)
+![Version](https://img.shields.io/badge/version-1.8.0-purple)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)
 ![Supabase](https://img.shields.io/badge/Supabase-Database-green)
@@ -18,6 +18,7 @@
 - 📔 Écrire dans leur journal intime (avec photos, audio et images IA)
 - 📖 Créer des histoires magiques avec structures narratives
 - 🎨 Générer des images avec l'IA
+- 🖼️ Décorer les pages avec des ornements premium
 - 🎬 Assembler des livres interactifs
 - 🎭 Présenter leurs créations en mode Théâtre
 
@@ -32,7 +33,7 @@ Le tout accompagné par **Luna**, une IA-Amie de 8 ans qui guide, encourage et e
 | Mode | Description |
 |------|-------------|
 | 📔 **Journal** | Espace de confidences avec photos, enregistrements vocaux, et génération d'images IA |
-| ✍️ **Écriture** | Création de récits avec structures narratives, chapitres et mise en forme avancée |
+| ✍️ **Écriture** | Création de récits avec structures narratives, chapitres, fonds de page et décorations |
 | 🎨 **Studio** | Génération d'images (Midjourney), voix (ElevenLabs), vidéos (Runway/Luma) |
 | 📐 **Montage** | Assemblage de texte sur images, choix de typographies, synchronisation audio |
 | 🎭 **Théâtre** | Mode immersif avec synchronisation domotique (HomeKit/Hue) |
@@ -50,58 +51,77 @@ Le tout accompagné par **Luna**, une IA-Amie de 8 ans qui guide, encourage et e
 │                                                                              │
 │      ┌─────────────────┬────┬─────────────────┐                             │
 │   <  │ PAGE GAUCHE     │ || │ PAGE DROITE     │  >                          │
-│      │ (éditable)      │ || │ (éditable)      │                             │
-│      │ ─────────────── │ || │ ─────────────── │                             │
+│      │ ╔═════════════╗ │ || │ ┌─────┐         │                             │
+│      │ ║ 🖼️ FOND    ║ │ || │ │ 👑  │         │                             │
+│      │ ║ (image/    ║ │ || │ │DÉCOR│         │                             │
+│      │ ║  vidéo)    ║ │ || │ └─────┘         │                             │
+│      │ ╚═════════════╝ │ || │                 │                             │
 │      │ Il était une    │ || │ La suite de     │                             │
 │      │ fois...         │ || │ l'histoire...   │                             │
-│      │ ─────────────── │ || │ ─────────────── │                             │
-│      │     [👁] — 1 —  │ || │ [👁] — 2 —      │                             │
+│      │                 │ || │                 │                             │
+│      │ [🎙️][📷][🖼️][🎨]│ || │ [🎙️][📷][🖼️][🎨]│                             │
+│      │     — 1 —       │ || │     — 2 —       │                             │
 │      └─────────────────┴────┴─────────────────┘                             │
 │                                                                              │
 │              [•1] [•2] [•3] [•4] [+]                                         │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Vue Livre Ouvert
+### Fonctionnalités de l'éditeur
 
-- **2 pages éditables côte à côte** comme un vrai livre
-- **Reliure centrale** avec effet visuel réaliste
-- **Mode zoom** : Cliquer sur l'œil pour agrandir une page (gauche OU droite)
-- **Texte SUR les lignes** : Écriture alignée sur les lignes du cahier
-- **Ratio 2:3** respecté (format livre standard)
-- **Points colorés** sur les onglets pour indiquer les chapitres
+| Fonctionnalité | Description |
+|----------------|-------------|
+| **Vue livre ouvert** | 2 pages éditables côte à côte comme un vrai livre |
+| **Mode zoom** | Agrandir une page (gauche ou droite) |
+| **Texte sur lignes** | Écriture alignée sur les lignes du cahier |
+| **Fond de page** | Image ou vidéo en arrière-plan avec opacité/zoom |
+| **Décorations** | Ornements premium déplaçables avec effets |
+| **Images flottantes** | Photos positionnables avec rotation et effets |
 
-### Barre de Formatage (Nouveau ✨)
+### 🖼️ Fond de Page (Nouveau ✨)
+
+| Contrôle | Description |
+|----------|-------------|
+| **Type** | Image ou vidéo |
+| **Opacité** | Slider 0-100% |
+| **Zoom** | Slider 10-300% |
+| **Position** | Drag pour déplacer |
+
+### 🎨 Décorations Premium (Nouveau ✨)
+
+Collection luxueuse de 60+ décorations SVG pour embellir les pages :
+
+| Catégorie | Exemples |
+|-----------|----------|
+| ✨ **Ornements Dorés** | Coins baroques, volutes, séparateurs |
+| 🌸 **Floraux** | Roses, sakura, guirlandes |
+| 👑 **Royaux** | Couronnes, blasons, sceptres |
+| ⭐ **Célestes** | Lunes, étoiles, constellations |
+| 🦋 **Artistiques** | Papillons, plumes, cœurs |
+| 🖼️ **Cadres** | Cadres dorés, parchemins |
+
+#### Contrôles des décorations
+
+| Contrôle | Range |
+|----------|-------|
+| **Taille** | 20-300% |
+| **Rotation** | -180° à 180° |
+| **Opacité** | 20-100% |
+| **Couleur** | 12 couleurs premium |
+| **Flip** | Miroir H/V |
+| **Luminosité** | Effet glow avec couleur/intensité |
+| **Menu déplaçable** | Glisser le header pour repositionner |
+
+### Barre de Formatage
 
 | Outil | Comportement |
 |-------|--------------|
-| **6 Polices** | S'applique au texte **sélectionné uniquement** |
-| **Tailles numériques** | S'applique au texte **sélectionné uniquement** |
-| **Gras / Italique** | Fonctionne sans déplacer le curseur |
-| **Couleurs** | Palette complète avec nuancier |
-| **Détection auto** | L'indicateur affiche la taille/police du texte sous le curseur |
-
-**Tailles disponibles** : 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72
-
-**Polices** : Écriture, Conte, Enfant, Livre, BD, Magie
-
-### Mode Zoom
-
-```
-┌────────────────────────────────────────────────────┐
-│                                         [👁̸]       │
-│              Introduction                          │
-│  ───────────────────────────────────────────────   │
-│  Il était une fois une histoire fabuleuse qui      │
-│  ───────────────────────────────────────────────   │
-│  commençait par une belle journée ensoleillée.     │
-│  ───────────────────────────────────────────────   │
-│                                                    │
-│                  — Page 1 —                        │
-├────────────────────────────────────────────────────┤
-│              [•1] [•2] [•3] [•4] [+]               │
-└────────────────────────────────────────────────────┘
-```
+| **6 Polices** | S'applique au texte sélectionné |
+| **Tailles numériques** | 8 à 72px |
+| **Gras / Italique** | Toggle sans déplacer le curseur |
+| **Couleurs** | Palette complète |
+| **Fond de page** | Contrôles opacité/zoom |
+| **Toggle lignes** | Afficher/masquer les lignes |
 
 ### Structures Narratives
 
@@ -272,7 +292,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ### 4. Lancer l'application
 
 ```bash
-# Version Web
+# Version Web (Next.js + Signaling Server)
 npm run dev
 
 # Version Electron
@@ -284,7 +304,8 @@ npm run dev:electron
 ## 🚀 Scripts disponibles
 
 ```bash
-npm run dev           # App web
+npm run dev           # App web + signaling server
+npm run dev:client    # App web uniquement
 npm run dev:electron  # App Electron
 npm run build         # Build web
 npm run build:electron # Build app Electron
@@ -320,8 +341,12 @@ npm run lint          # Vérifier le code
 - [x] **Mode zoom bidirectionnel** (page gauche ou droite)
 - [x] **Texte aligné sur les lignes** du cahier
 - [x] **Gestion des chapitres** par page (points colorés)
-- [x] **Formatage sur sélection** (taille, police, couleur appliqués au texte sélectionné)
-- [x] **Détection auto des styles** (indicateur mis à jour selon le curseur)
+- [x] **Formatage sur sélection** (taille, police, couleur)
+- [x] **Images flottantes** avec rotation et styles
+- [x] **Fond de page** (image/vidéo avec opacité/zoom/position)
+- [x] **Décorations premium** (60+ ornements SVG)
+- [x] **Effet de luminosité** (glow) pour les décorations
+- [x] **Menu d'édition déplaçable**
 
 ### À venir 📋
 
@@ -329,6 +354,7 @@ npm run lint          # Vérifier le code
 - [ ] Intégration images Studio → Livre
 - [ ] Mode hors-ligne avec sync
 - [ ] App Electron pour Windows
+- [ ] Animations décoratives
 
 ---
 

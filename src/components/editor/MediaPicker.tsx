@@ -13,8 +13,10 @@ import {
   Check,
   Trash2,
   ExternalLink,
+  Loader2,
 } from 'lucide-react'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
+import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { cn } from '@/lib/utils'
 
 type MediaType = 'image' | 'video' | 'audio' | 'all'
@@ -35,6 +37,7 @@ export function MediaPicker({
   title = 'Ajouter un média',
 }: MediaPickerProps) {
   const { importedAssets } = useStudioStore()
+  const { upload, isUploading, progress } = useMediaUpload()
   const [activeTab, setActiveTab] = useState<'studio' | 'upload'>('studio')
   const [isDragging, setIsDragging] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<ImportedAsset | null>(null)
@@ -55,20 +58,25 @@ export function MediaPicker({
   const audioAssets = filteredAssets.filter((a) => a.type === 'audio')
 
   const handleFileSelect = useCallback(
-    (files: FileList | null) => {
+    async (files: FileList | null) => {
       if (!files || files.length === 0) return
 
       const file = files[0]
-      const url = URL.createObjectURL(file)
 
+      // Déterminer le type de média
       let type: 'image' | 'video' | 'audio' = 'image'
       if (file.type.startsWith('video/')) type = 'video'
       else if (file.type.startsWith('audio/')) type = 'audio'
 
-      onSelect(url, type)
-      onClose()
+      // Upload vers Supabase (images/audio) ou R2 (videos)
+      const result = await upload(file, { type, source: 'upload' })
+      
+      if (result) {
+        onSelect(result.url, type)
+        onClose()
+      }
     },
-    [onSelect, onClose]
+    [upload, onSelect, onClose]
   )
 
   const handleDrop = useCallback(
@@ -292,12 +300,14 @@ export function MediaPicker({
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => !isUploading && fileInputRef.current?.click()}
                     className={cn(
-                      'relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all',
-                      isDragging
-                        ? 'border-dream-500 bg-dream-500/10'
-                        : 'border-midnight-700 hover:border-dream-500/50 hover:bg-midnight-800/30'
+                      'relative border-2 border-dashed rounded-2xl p-12 text-center transition-all',
+                      isUploading
+                        ? 'border-aurora-500 bg-aurora-500/10 cursor-wait'
+                        : isDragging
+                          ? 'border-dream-500 bg-dream-500/10 cursor-pointer'
+                          : 'border-midnight-700 hover:border-dream-500/50 hover:bg-midnight-800/30 cursor-pointer'
                     )}
                   >
                     <input
@@ -306,51 +316,78 @@ export function MediaPicker({
                       accept={getAcceptTypes()}
                       onChange={(e) => handleFileSelect(e.target.files)}
                       className="hidden"
+                      disabled={isUploading}
                     />
 
                     <div
                       className={cn(
                         'w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-all',
-                        isDragging
-                          ? 'bg-dream-500/20 scale-110'
-                          : 'bg-midnight-800/50'
+                        isUploading
+                          ? 'bg-aurora-500/20'
+                          : isDragging
+                            ? 'bg-dream-500/20 scale-110'
+                            : 'bg-midnight-800/50'
                       )}
                     >
-                      <Upload
-                        className={cn(
-                          'w-10 h-10 transition-all',
-                          isDragging ? 'text-dream-400' : 'text-midnight-500'
-                        )}
-                      />
+                      {isUploading ? (
+                        <Loader2 className="w-10 h-10 text-aurora-400 animate-spin" />
+                      ) : (
+                        <Upload
+                          className={cn(
+                            'w-10 h-10 transition-all',
+                            isDragging ? 'text-dream-400' : 'text-midnight-500'
+                          )}
+                        />
+                      )}
                     </div>
 
                     <h3 className="text-lg font-semibold text-white mb-2">
-                      {isDragging ? 'Lâche ici !' : 'Glisse un fichier ici'}
+                      {isUploading 
+                        ? `Upload en cours... ${progress}%` 
+                        : isDragging 
+                          ? 'Lâche ici !' 
+                          : 'Glisse un fichier ici'}
                     </h3>
                     <p className="text-midnight-400 text-sm">
-                      ou clique pour parcourir ton ordinateur
+                      {isUploading 
+                        ? 'Ton fichier est envoyé vers le cloud ✨' 
+                        : 'ou clique pour parcourir ton ordinateur'}
                     </p>
 
-                    <div className="mt-6 flex items-center justify-center gap-4 text-xs text-midnight-500">
-                      {(allowedTypes === 'all' || allowedTypes === 'image') && (
-                        <span className="flex items-center gap-1">
-                          <ImageIcon className="w-3 h-3" />
-                          Images
-                        </span>
-                      )}
-                      {(allowedTypes === 'all' || allowedTypes === 'video') && (
-                        <span className="flex items-center gap-1">
-                          <Video className="w-3 h-3" />
-                          Vidéos
-                        </span>
-                      )}
-                      {(allowedTypes === 'all' || allowedTypes === 'audio') && (
-                        <span className="flex items-center gap-1">
-                          <Music className="w-3 h-3" />
-                          Sons
-                        </span>
-                      )}
-                    </div>
+                    {/* Barre de progression */}
+                    {isUploading && (
+                      <div className="mt-4 w-full max-w-xs mx-auto h-2 bg-midnight-800 rounded-full overflow-hidden">
+                        <motion.div 
+                          className="h-full bg-gradient-to-r from-aurora-500 to-dream-500"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progress}%` }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                    )}
+
+                    {!isUploading && (
+                      <div className="mt-6 flex items-center justify-center gap-4 text-xs text-midnight-500">
+                        {(allowedTypes === 'all' || allowedTypes === 'image') && (
+                          <span className="flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" />
+                            Images
+                          </span>
+                        )}
+                        {(allowedTypes === 'all' || allowedTypes === 'video') && (
+                          <span className="flex items-center gap-1">
+                            <Video className="w-3 h-3" />
+                            Vidéos
+                          </span>
+                        )}
+                        {(allowedTypes === 'all' || allowedTypes === 'audio') && (
+                          <span className="flex items-center gap-1">
+                            <Music className="w-3 h-3" />
+                            Sons
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}

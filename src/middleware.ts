@@ -81,11 +81,11 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Vérifier si c'est une route publique
+  // Vérifier si c'est une route publique (login/register uniquement)
   const isPublicRoute = publicPaths.some(p => 
     pathnameWithoutLocale === p || 
     pathnameWithoutLocale.startsWith(p + '/')
-  ) || pathnameWithoutLocale === '' || pathnameWithoutLocale === '/'
+  )
 
   // Si sur login/register et déjà connecté, rediriger vers home
   if (user && publicPaths.some(p => pathnameWithoutLocale === p)) {

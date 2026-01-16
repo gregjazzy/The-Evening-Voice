@@ -22,6 +22,7 @@ import {
   VolumeX
 } from 'lucide-react'
 import { useTTS } from '@/hooks/useTTS'
+import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { useAppStore } from '@/store/useAppStore'
 import { cn, formatDate, getGreeting, getMoodEmoji } from '@/lib/utils'
 
@@ -182,6 +183,9 @@ export function DiaryMode() {
   const [autoSpeak, setAutoSpeak] = useState(false) // Toggle écrit / écrit+oral
   const lastMessageIdRef = useRef<string | null>(null)
 
+  // Hook pour uploader les médias vers Supabase Storage
+  const { upload, uploadFromUrl, isUploading, progress, error: uploadError } = useMediaUpload()
+
   // Speech recognition pour parler à Luna
   const { 
     isListening: isListeningToUser, 
@@ -238,14 +242,14 @@ export function DiaryMode() {
   const [showMemoryPrompt, setShowMemoryPrompt] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   
-  // Images du journal
-  const [diaryImages, setDiaryImages] = useState<string[]>([])
+  // Images du journal (URLs permanentes Supabase)
+  const [diaryImages, setDiaryImages] = useState<{ url: string; assetId?: string }[]>([])
   const [showImagePrompt, setShowImagePrompt] = useState(false)
   const [imagePrompt, setImagePrompt] = useState('')
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   
-  // Enregistrements audio
-  const [audioRecordings, setAudioRecordings] = useState<{ url: string; duration: number }[]>([])
+  // Enregistrements audio (URLs permanentes Supabase)
+  const [audioRecordings, setAudioRecordings] = useState<{ url: string; duration: number; assetId?: string }[]>([])
   const [recordingTime, setRecordingTime] = useState(0)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -359,7 +363,7 @@ export function DiaryMode() {
     addDiaryEntry({
       content: diaryText,
       mood: selectedMood || undefined,
-      memoryImage: diaryImages.length > 0 ? diaryImages[0] : undefined, // Première image comme image principale
+      memoryImage: diaryImages.length > 0 ? diaryImages[0].url : undefined, // Première image comme image principale
       audioUrl: audioRecordings.length > 0 ? audioRecordings[0].url : undefined, // Premier audio
     })
     
@@ -406,19 +410,31 @@ export function DiaryMode() {
         }
       }
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        const audioUrl = URL.createObjectURL(audioBlob)
-        setAudioRecordings((prev) => [...prev, { url: audioUrl, duration: recordingTime }])
+        const duration = recordingTime
         
         // Arrêter le stream
         stream.getTracks().forEach((track) => track.stop())
         
-        // Message de Luna
-        addChatMessage({
-          role: 'assistant',
-          content: `J'ai entendu ta belle voix ! 🎙️ Ton message vocal est ajouté au journal. C'est chouette de t'entendre ! ✨`
-        })
+        // Upload vers Supabase Storage
+        const audioFile = new File([audioBlob], `recording-${Date.now()}.webm`, { type: 'audio/webm' })
+        const result = await upload(audioFile, { type: 'audio', source: 'upload' })
+        
+        if (result) {
+          setAudioRecordings((prev) => [...prev, { url: result.url, duration, assetId: result.assetId }])
+          
+          // Message de Luna
+          addChatMessage({
+            role: 'assistant',
+            content: `J'ai entendu ta belle voix ! 🎙️ Ton message vocal est sauvegardé. C'est chouette de t'entendre ! ✨`
+          })
+        } else {
+          addChatMessage({
+            role: 'assistant',
+            content: `Oups ! 😅 Je n'ai pas pu sauvegarder ton message vocal. Tu peux réessayer ?`
+          })
+        }
       }
 
       mediaRecorder.start()
@@ -459,15 +475,9 @@ export function DiaryMode() {
     }
   }
 
-  // Supprimer un enregistrement
+  // Supprimer un enregistrement (Note: le fichier reste sur Supabase pour l'instant)
   const handleRemoveAudio = (index: number) => {
-    setAudioRecordings((prev) => {
-      const removed = prev[index]
-      if (removed) {
-        URL.revokeObjectURL(removed.url)
-      }
-      return prev.filter((_, i) => i !== index)
-    })
+    setAudioRecordings((prev) => prev.filter((_, i) => i !== index))
   }
 
   // Formater le temps en mm:ss
@@ -482,20 +492,19 @@ export function DiaryMode() {
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
 
-    Array.from(files).forEach((file) => {
+    // Upload chaque image vers Supabase Storage
+    for (const file of Array.from(files)) {
       if (file.type.startsWith('image/')) {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          const result = e.target?.result as string
-          setDiaryImages((prev) => [...prev, result])
+        const result = await upload(file, { type: 'image', source: 'upload' })
+        if (result) {
+          setDiaryImages((prev) => [...prev, { url: result.url, assetId: result.assetId }])
         }
-        reader.readAsDataURL(file)
       }
-    })
+    }
 
     // Reset input
     e.target.value = ''
@@ -526,13 +535,21 @@ export function DiaryMode() {
       if (response.ok) {
         const data = await response.json()
         if (data.imageUrl) {
-          setDiaryImages((prev) => [...prev, data.imageUrl])
-          
-          // Message de Luna
-          addChatMessage({
-            role: 'assistant',
-            content: `Tadaa ! 🎨 J'ai créé une image magique pour ton journal ! "${imagePrompt}" - Elle est jolie, non ? ✨`
+          // Télécharger et uploader l'image vers Supabase Storage
+          const result = await uploadFromUrl(data.imageUrl, { 
+            type: 'image', 
+            source: 'midjourney' 
           })
+          
+          if (result) {
+            setDiaryImages((prev) => [...prev, { url: result.url, assetId: result.assetId }])
+            
+            // Message de Luna
+            addChatMessage({
+              role: 'assistant',
+              content: `Tadaa ! 🎨 J'ai créé une image magique pour ton journal ! "${imagePrompt}" - Elle est jolie, non ? ✨`
+            })
+          }
         }
       } else {
         // Fallback : ouvrir Midjourney dans Safari
@@ -618,13 +635,13 @@ export function DiaryMode() {
                 <div className="flex flex-wrap gap-3">
                   {diaryImages.map((img, index) => (
                     <motion.div
-                      key={`img-${index}`}
+                      key={img.assetId || `img-${index}`}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="relative group"
                     >
                       <img
-                        src={img}
+                        src={img.url}
                         alt={`Image ${index + 1}`}
                         className="w-24 h-24 object-cover rounded-xl border-2 border-aurora-500/30"
                       />
@@ -644,7 +661,7 @@ export function DiaryMode() {
                 <div className="flex flex-wrap gap-3">
                   {audioRecordings.map((audio, index) => (
                     <motion.div
-                      key={`audio-${index}`}
+                      key={audio.assetId || `audio-${index}`}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="relative group flex items-center gap-2 px-3 py-2 bg-aurora-900/30 rounded-xl border border-aurora-500/30"
@@ -667,11 +684,19 @@ export function DiaryMode() {
             </div>
           )}
           
-          {/* Compteur de mots et médias */}
-          <div className="absolute bottom-4 right-4 text-xs text-midnight-400">
-            {diaryText.split(/\s+/).filter(Boolean).length} mots
-            {diaryImages.length > 0 && ` • ${diaryImages.length} 🖼️`}
-            {audioRecordings.length > 0 && ` • ${audioRecordings.length} 🎙️`}
+          {/* Compteur de mots et médias + indicateur d'upload */}
+          <div className="absolute bottom-4 right-4 text-xs text-midnight-400 flex items-center gap-2">
+            {isUploading && (
+              <span className="flex items-center gap-1 text-aurora-400">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                {progress}%
+              </span>
+            )}
+            <span>
+              {diaryText.split(/\s+/).filter(Boolean).length} mots
+              {diaryImages.length > 0 && ` • ${diaryImages.length} 🖼️`}
+              {audioRecordings.length > 0 && ` • ${audioRecordings.length} 🎙️`}
+            </span>
           </div>
         </div>
 

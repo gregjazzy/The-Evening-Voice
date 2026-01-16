@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useSupabaseSync } from '@/hooks/useSupabaseSync'
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 
@@ -12,6 +13,9 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const { initialize, isInitialized, isLoading } = useAuthStore()
   const [isMounted, setIsMounted] = useState(false)
+  
+  // Synchronisation avec Supabase (charge les données au login)
+  useSupabaseSync()
 
   useEffect(() => {
     setIsMounted(true)

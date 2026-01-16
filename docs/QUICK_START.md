@@ -54,7 +54,7 @@ npm run dev:electron
 
 ---
 
-## ✍️ Mode Écriture (Nouveau !)
+## ✍️ Mode Écriture
 
 ### Créer une histoire
 
@@ -73,43 +73,87 @@ npm run dev:electron
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │  [Onglets]  Page 1 | Page 2 | Page 3 | +                       │
-├────────────────────────────────────────┬───────────────────────┤
-│                                        │  💜 Luna      🔊      │
-│  [Barre de formatage]                  │                       │
-│                                        │  Chat avec Luna       │
-│  ┌──────────────────────────────────┐  │                       │
-│  │ Zone d'écriture                  │  │  [📖 Luna, lis ma    │
-│  │                                  │  │   page !]            │
-│  │                                  │  │                       │
-│  ├──────────────────────────────────┤  │  [Écrire...] 🎙️ 💬   │
-│  │ 42 mots    [🎙️ Dicter] [Image]  │  │                       │
-│  └──────────────────────────────────┘  └───────────────────────┘
+├────────────────────────────────────┬───────────────────────────┤
+│                                    │  💜 Luna      🔊          │
+│  [Barre de formatage]              │                           │
+│                                    │  Chat avec Luna           │
+│  ┌──────────────────────────────┐  │                           │
+│  │ Zone d'écriture              │  │  [📖 Luna, lis ma page!]  │
+│  │                              │  │                           │
+│  ├──────────────────────────────┤  │                           │
+│  │ [🎙️][📷][🖼️][🎨]            │  │  [Écrire...] 🎙️ 💬       │
+│  └──────────────────────────────┘  └───────────────────────────┘
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### Barre de formatage
+### Barre d'outils page
 
-| Outil | Description |
-|-------|-------------|
-| **Police** | 6 choix : Écriture, Conte, Enfant, Livre, BD, Magie |
-| **Taille** | S (petit), M (moyen), L (grand) |
-| **Style** | **B** Gras, *I* Italique |
-| **Alignement** | ◀ Gauche, ▣ Centré, ▶ Droite |
-| **Position** | ← → Décalage horizontal, ↑ ↓ Décalage vertical |
-| **Couleurs** | 6 couleurs disponibles |
+| Icône | Fonction |
+|-------|----------|
+| 🎙️ | Dicter du texte |
+| 📷 | Ajouter une image |
+| 🖼️ | Fond de page |
+| 🎨 | Décorations premium |
 
-### Panneau Luna
+---
 
-- **🔊 Toggle voix** : Luna parle ses réponses
-- **📖 Luna, lis ma page** : Luna analyse ton texte et t'aide
-- **🎙️ Micro** : Parle à Luna au lieu de taper
-- **💬 Envoyer** : Envoie ton message
+## 🖼️ Fond de Page (Nouveau !)
 
-### Dictée vocale
+### Ajouter un fond
 
-- Clique sur **🎙️ Dicter** pour dicter ton texte
-- Le texte s'ajoute automatiquement à ton histoire
-- Clique à nouveau pour arrêter
+1. Cliquer sur **🖼️ Fond de page** en bas de la page
+2. Choisir une image ou vidéo
+3. Ajuster les contrôles dans la barre d'outils :
+   - **Opacité** : Slider 0-100%
+   - **Zoom** : Slider 10-300%
+   - **Éditer position** : Activer pour déplacer le fond à la souris
+
+### Supprimer un fond
+
+- Cliquer sur **🖼️** et sélectionner "Supprimer le fond"
+
+---
+
+## 🎨 Décorations Premium (Nouveau !)
+
+### Ajouter une décoration
+
+1. Cliquer sur **🎨 Décorations** en bas de la page
+2. Choisir une **catégorie** :
+   - ✨ Ornements Dorés
+   - 🌸 Floraux
+   - 👑 Royaux
+   - ⭐ Célestes
+   - 🦋 Artistiques
+   - 🖼️ Cadres
+3. Cliquer sur une décoration pour l'ajouter
+
+### Éditer une décoration
+
+1. **Cliquer** sur la décoration sur la page
+2. Le **menu d'édition** apparaît avec :
+   - Taille (20-300%)
+   - Rotation (-180° à 180°)
+   - Opacité (20-100%)
+   - Couleur (12 choix)
+   - Flip horizontal/vertical
+   - **Luminosité** (effet glow)
+3. **Déplacer le menu** en glissant le header (icône ✥)
+
+### Effet de Luminosité
+
+1. Dans le menu d'édition, activer **Luminosité**
+2. Ajuster l'**intensité** avec le slider
+3. Choisir la **couleur du halo**
+
+### Déplacer une décoration
+
+- **Cliquer-glisser** la décoration vers sa nouvelle position
+
+### Supprimer une décoration
+
+- Cliquer sur la **croix rouge** (visible quand la décoration est sélectionnée)
+- Ou cliquer sur **Supprimer** dans le menu
 
 ---
 
@@ -141,7 +185,7 @@ npm run dev:electron
 ### Les 5 Clés Magiques (pour les images)
 
 | Clé | Ce que Luna enseigne |
-|-----|--------------------|
+|-----|---------------------|
 | 🎨 Style | "Cartoon, peinture, photo ?" |
 | 🦸 Héros | "Qui ou quoi ? Décris-le !" |
 | 💫 Ambiance | "Quelle émotion ? Quelle lumière ?" |
@@ -208,6 +252,14 @@ Si ça ne marche pas, installe la voix (voir section Electron).
 - Les histoires sont sauvegardées automatiquement dans le navigateur (localStorage)
 - Si tu changes de navigateur, les histoires ne seront pas là
 
+### Les décorations ne s'affichent pas en mode zoom
+
+- Ce bug a été corrigé ! Rafraîchis la page si nécessaire
+
+### Le menu d'édition est caché
+
+- Le menu peut être déplacé ! Glisse le header (icône ✥)
+
 ---
 
 ## 📞 Support
@@ -216,3 +268,4 @@ Consulte la documentation complète :
 - `README.md` - Vue d'ensemble
 - `docs/ARCHITECTURE.md` - Architecture technique
 - `docs/HANDOVER.md` - Guide de passation complet
+- `docs/API.md` - Documentation API
