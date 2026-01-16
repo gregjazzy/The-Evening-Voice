@@ -788,7 +788,7 @@ function PhrasesTrackScrollable({
   timelineWidth,
   activePhraseIndex,
   introOffset = 0,
-  narrationDuration,
+  maxDuration,
   onPhraseTimeRangeChange,
 }: { 
   phrases: PhraseTiming[]
@@ -796,7 +796,7 @@ function PhrasesTrackScrollable({
   timelineWidth: number
   activePhraseIndex: number
   introOffset?: number
-  narrationDuration: number
+  maxDuration: number  // Durée max (narration + outro)
   onPhraseTimeRangeChange: (phraseId: string, timeRange: TimeRange) => void
 }) {
   return (
@@ -817,7 +817,7 @@ function PhrasesTrackScrollable({
             key={phrase.id}
             phrase={phrase}
             pixelsPerSecond={pixelsPerSecond}
-            duration={narrationDuration}
+            duration={maxDuration}
             introOffset={introOffset}
             isActive={index === activePhraseIndex}
             onTimeRangeChange={(timeRange) => onPhraseTimeRangeChange(phrase.id, timeRange)}
@@ -1277,7 +1277,7 @@ export function TimelineRubans() {
             timelineWidth={timelineWidth}
             activePhraseIndex={activePhraseIndex}
             introOffset={introDuration}
-            narrationDuration={narrationDuration}
+            maxDuration={narrationDuration + outroDuration}
             onPhraseTimeRangeChange={(phraseId, timeRange) => 
               updatePhraseTiming(phraseId, { timeRange })
             }
