@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { useMontageStore } from '@/store/useMontageStore'
 import { cn } from '@/lib/utils'
@@ -161,9 +162,9 @@ export function PreviewCanvas() {
     [setSelectedTrack]
   )
 
-  return (
+  const previewContent = (
     <div className={cn(
-      'glass rounded-xl overflow-hidden flex flex-col',
+      'glass rounded-xl overflow-hidden flex flex-col h-full',
       isFullscreen && 'fixed inset-0 z-[9999] bg-midnight-900 rounded-none'
     )}>
       {/* Header */}
@@ -473,4 +474,11 @@ export function PreviewCanvas() {
       </div>
     </div>
   )
+
+  // En plein écran, rendre via un portal directement dans le body
+  if (isFullscreen && typeof document !== 'undefined') {
+    return createPortal(previewContent, document.body)
+  }
+
+  return previewContent
 }

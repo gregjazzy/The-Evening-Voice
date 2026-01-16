@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { 
   useMontageStore, 
@@ -761,9 +762,9 @@ export function TimelineRubans() {
     )
   }
 
-  return (
+  const timelineContent = (
     <div className={cn(
-      "glass rounded-xl overflow-hidden flex flex-col",
+      "glass rounded-xl overflow-hidden flex flex-col h-full",
       isFullscreen && "fixed inset-0 z-[9999] bg-midnight-900 rounded-none"
     )}>
       {/* En-tête avec contrôles */}
@@ -1091,4 +1092,11 @@ export function TimelineRubans() {
       />
     </div>
   )
+
+  // En plein écran, rendre via un portal directement dans le body
+  if (isFullscreen && typeof document !== 'undefined') {
+    return createPortal(timelineContent, document.body)
+  }
+
+  return timelineContent
 }
