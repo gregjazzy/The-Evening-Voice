@@ -3,8 +3,8 @@
 > Document de passation complet pour la prochaine session de développement
 
 **Date** : 16 janvier 2026  
-**Version** : 3.2.0  
-**État** : IA personnalisable ✅ + Mode Publication Gelato ✅
+**Version** : 3.3.0  
+**État** : Studio Pédagogique ✅ + Voix configurées ✅
 
 ---
 
@@ -14,38 +14,174 @@
 
 ### Résumé : C'est quoi l'app ?
 
-Application pour enfants permettant de créer des **livres-disques numériques 2.0** - inspirés des livres-disques d'antan (Marlène Jobert, Disney) mais augmentés avec IA et domotique.
+Application pour **filles de 8 ans** permettant de créer des **livres-disques numériques 2.0** - inspirés des livres-disques d'antan (Marlène Jobert, Disney) mais augmentés avec IA et domotique.
 
-### Les 5 Modes (Journal supprimé)
+**Cliente** : Multimilliardaire avec commande spéciale. Budget non limité.
+
+### Les 5 Modes
 
 | Mode | Fonction | État |
 |------|----------|------|
 | ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Complet |
-| 🎨 **Studio** | Création d'assets via outils externes | ⚠️ Pont Safari |
+| 🎨 **Studio** | Apprentissage progressif du prompting (Midjourney/Runway) | ✅ Pédagogique |
 | 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ Complet |
 | 🎭 **Théâtre** | Lecteur immersif avec projection + lumières | ⚠️ Données non connectées |
 | 📖 **Publier** | Publication livre imprimé via Gelato | ✅ Complet |
 
+### Flux Logique
+
+```
+📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
+   (texte)    (assets)    (assemblage)  (lecture)
+```
+
 ---
 
-## 🆕 Dernières modifications (Session actuelle)
+## 🆕 Dernières modifications (Session 16 janvier)
 
-### IA Personnalisable (Plus de "Luna")
+### 🎨 Studio Pédagogique (NOUVEAU)
+
+**Objectif** : Apprendre aux filles à prompter ET à utiliser les outils seules, progressivement.
+
+#### Progressions SÉPARÉES
+
+| Parcours | Outil | Niveaux | Créations pour finir |
+|----------|-------|---------|---------------------|
+| 🖼️ **Images** | Midjourney | 5 | 3+5+7+10 = 25 |
+| 🎬 **Vidéos** | Runway | 5 | 3+5+7+10 = 25 |
+
+#### Les 5 Niveaux
+
+| Niveau | Nom | Ce que fait l'enfant |
+|--------|-----|---------------------|
+| 1 🌱 | Je découvre | Décrit son idée + importe |
+| 2 🌿 | Je participe | + Choisit style et ambiance |
+| 3 ⭐ | Je m'entraîne | + Voit le prompt, colle dans Safari |
+| 4 🌟 | Je sais faire | + Ouvre Safari seule, génère |
+| 5 👑 | Experte | Tout seule ! |
+
+#### Composants créés
+
+```
+src/
+├── store/
+│   └── useStudioProgressStore.ts    # Progressions, badges, niveaux
+│
+├── components/studio/
+│   ├── StudioGuide.tsx              # Guide visuel étape par étape
+│   ├── StudioAIChat.tsx             # IA-Amie qui guide
+│   ├── StudioMagicKeys.tsx          # Les 5 Clés Magiques
+│   └── StudioTutorial.tsx           # Tutoriels Midjourney/Runway
+```
+
+#### Interface à 3 panneaux
+
+```
+┌──────────────┬─────────────────────┬──────────────┐
+│  IA-Amie     │   PromptBuilder     │   Guide      │
+│  Chat 💬     │   + 5 Clés          │   Étapes 📋  │
+│              │   + Safari Bridge   │   0/3 créa   │
+│              │   + Import          │   [Aide]     │
+└──────────────┴─────────────────────┴──────────────┘
+```
+
+#### Les 5 Clés Magiques
+
+**Pour Images** :
+- 🎨 Style (40%) : Dessin, photo, magique...
+- 🦸 Héros (25%) : Qui ou quoi
+- 💫 Ambiance (15%) : Émotion, lumière
+- 🌍 Monde (10%) : Où ça se passe
+- ✨ Magie (10%) : Détail unique
+
+**Pour Vidéos** :
+- 🎨 Style (30%) : Réaliste, animé...
+- 🎬 Action (30%) : Qu'est-ce qui bouge
+- 💫 Ambiance (15%) : Émotion
+- ⏱️ Rythme (15%) : Lent, rapide
+- ✨ Effet (10%) : Effet spécial
+
+#### Système d'aide
+
+- Bouton "J'ai besoin d'aide" à tout moment
+- IA-Amie reformule les étapes difficiles
+- Messages d'encouragement
+- Pas de pénalité, progression bienveillante
+
+---
+
+### 🎙️ Stratégie Voix (CONFIGURÉE)
+
+| Contexte | Service | Pourquoi |
+|----------|---------|----------|
+| **IA-Amie chat** | Apple Voice (TTS système) | 0 délai, instantané |
+| **Narration histoires** | ElevenLabs | Qualité premium |
+| **Fallback** | Apple Voice | Si ElevenLabs indisponible |
+
+#### Configuration ElevenLabs
+
+```bash
+# Dans .env.local
+ELEVENLABS_API_KEY=xxx
+
+# Voice IDs (créer des voix personnalisées sur le compte client)
+ELEVENLABS_VOICE_NARRATOR=xxx   # Voix principale conte
+ELEVENLABS_VOICE_FAIRY=xxx      # Voix fée
+ELEVENLABS_VOICE_DRAGON=xxx     # Voix dragon
+ELEVENLABS_VOICE_DEFAULT=xxx    # Voix par défaut
+```
+
+#### Fichiers voix
+
+```
+src/
+├── lib/
+│   ├── ai/
+│   │   └── elevenlabs.ts            # Service ElevenLabs + fallback
+│   └── tts/
+│       └── macos-tts.ts             # Apple Voice (système)
+│
+├── hooks/
+│   └── useNarration.ts              # Hook unifié narration
+│
+├── app/api/ai/
+│   └── narration/route.ts           # API narration avec fallback
+```
+
+#### Fonction de fallback
+
+```typescript
+// Dans elevenlabs.ts
+export async function generateNarrationWithFallback(
+  text: string,
+  voiceType: VoiceType = 'narrator',
+  locale: 'fr' | 'en' | 'ru' = 'fr'
+): Promise<{ audioUrl: string; audioBlob: Blob; source: 'elevenlabs' | 'apple' }>
+```
+
+---
+
+### 👤 IA Personnalisable
+
 - **Nom choisi par l'enfant** à la première connexion
 - **Modal `AINameModal`** avec suggestions de prénoms
 - **Persistance** dans Supabase (`profiles.ai_name`)
 - **Modification** possible via menu utilisateur
-- **Toutes les références "Luna"** remplacées par le nom choisi
+- **Toutes les références "Luna"** remplacées
 
-### Mode Publication (Gelato)
+---
+
+### 📖 Mode Publication (Gelato)
+
 - **6 étapes** : Sélection → Format → Couverture → Aperçu → Qualité → Commande
 - **Formats** : Carré (21×21), A5, A4
-- **Couverture** : Titre, auteur, couleur de fond, image
 - **API Gelato** : Devis en temps réel + passage de commande
-- **Routes API** : `/api/gelato/quote` et `/api/gelato/order`
 
-### Suppressions
-- ❌ **Mode Journal** supprimé (demande cliente)
+---
+
+### 🗑️ Supprimé
+
+- ❌ **Mode Journal** (DiaryMode) retiré de l'UI
 - ❌ **Référence "Luna"** supprimée partout
 
 ---
@@ -55,234 +191,65 @@ Application pour enfants permettant de créer des **livres-disques numériques 2
 ### 3 systèmes de données séparés
 
 ```
-Mode Écriture   →   useAppStore     →   projects[] + chapters[]
+Mode Écriture   →   useAppStore     →   stories[] + pages[]
 Mode Montage    →   useMontageStore →   projects[] + scenes[]
 Mode Théâtre    →   useLayoutStore  →   books[] + pages[]    ← VIDE !
-```
-
-### Le flux logique devrait être
-
-```
-📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
-   (texte)    (assets)    (assemblage)  (lecture)
-```
-
-### Ce qui fonctionne actuellement
-
-```
-Écriture ────────────────────────────→ Montage ✅ (fonctionne)
-            ↓
-         Studio ─ · · · · · · · · · → Montage ❓ (assets non connectés)
-                                          ↓
-                                      Théâtre ❌ (lit useLayoutStore qui est VIDE)
 ```
 
 ### Corrections nécessaires
 
 | Tâche | Description | Effort |
 |-------|-------------|--------|
-| **Studio → Montage** | Ajouter "Utiliser dans Montage" pour les assets | 1h |
+| **Studio → Montage** | Assets créés utilisables dans Montage | 1h |
 | **Montage → Théâtre** | Théâtre lit `useMontageStore.projects` | 2h |
 | **Supprimer useLayoutStore** | N'est plus utile | 30min |
 
 ---
 
-## 🎬 MODE MONTAGE v2 - Système "Rubans Magiques"
+## 📁 Structure des fichiers clés
 
-### Philosophie : Timeline basée sur le TEMPS
-
-> La v2 utilise une timeline temporelle classique (en secondes) avec des "rubans" visuels pour chaque élément.
+### Store
 
 ```
-Timeline v2 "Rubans Magiques" :
-┌─────────────────────────────────────────────────────────────────────┐
-│ Structure  │🎬 Intro 3s│  📖 Narration (16.9s)           │🎬 Outro│
-├─────────────────────────────────────────────────────────────────────┤
-│ Phrases    │           │ Phrase 1 │ Phrase 2 │ Phrase 3 │          │
-├─────────────────────────────────────────────────────────────────────┤
-│ Médias     │     [▶ Video d'intro           ]                      │
-├─────────────────────────────────────────────────────────────────────┤
-│ Musique    │[♫ Musique de fond                                     ]│
-├─────────────────────────────────────────────────────────────────────┤
-│ Sons       │                    [🔔 Carillon]                       │
-├─────────────────────────────────────────────────────────────────────┤
-│ Lumières   │        [💡 Magique 60%                                ]│
-├─────────────────────────────────────────────────────────────────────┤
-│ Anim       │    [✨ Étoiles]          [💖 Cœurs qui s'envolent]     │
-└─────────────────────────────────────────────────────────────────────┘
-        0s        3s        6s        9s       12s       15s      19s
+src/store/
+├── useAppStore.ts            # État global + histoires + aiName
+├── useStudioStore.ts         # Kits de création (ancien)
+├── useStudioProgressStore.ts # Progression pédagogique (nouveau)
+├── useMontageStore.ts        # Projets montage
+├── usePublishStore.ts        # Publication Gelato
+├── useLayoutStore.ts         # ⚠️ À SUPPRIMER (vide)
+├── useMentorStore.ts         # Session mentor
+└── useAuthStore.ts           # Authentification
 ```
 
-### Fichiers du Montage v2
+### Composants Studio
 
 ```
-src/
-├── store/
-│   └── useMontageStore.ts      # Store Zustand (~1100 lignes)
-│
-├── hooks/
-│   └── useMontageSync.ts       # Synchronisation avec Supabase
-│
-├── components/
-│   └── montage/
-│       ├── MontageEditor.tsx   # Éditeur principal (2 vues)
-│       ├── TimelineRubans.tsx  # Timeline "Rubans Magiques"
-│       ├── PreviewCanvas.tsx   # Prévisualisation temps réel
-│       ├── RhythmGame.tsx      # Jeu de sync phrase par phrase
-│       ├── KaraokePlayer.tsx   # Affichage karaoké des phrases
-│       ├── AddElementModal.tsx # Modal d'ajout d'éléments
-│       ├── TrackPropertiesPanel.tsx # Panneau propriétés
-│       ├── AnimationEffects.tsx    # Rendu des animations
-│       └── NarrationPanel.tsx  # Enregistrement/TTS
+src/components/studio/
+├── PromptBuilder.tsx         # Construction du prompt
+├── SafariBridge.tsx          # Passerelles vers outils externes
+├── AssetDropzone.tsx         # Import des créations
+├── StudioMissionFlash.tsx    # Missions flash
+├── StudioGuide.tsx           # Guide étape par étape ✨
+├── StudioAIChat.tsx          # Chat IA-Amie ✨
+├── StudioMagicKeys.tsx       # Les 5 Clés Magiques ✨
+├── StudioTutorial.tsx        # Tutoriels Midjourney/Runway ✨
+└── index.ts
 ```
 
----
-
-## 📖 MODE PUBLIER - Intégration Gelato
-
-### Fichiers de la Publication
+### API
 
 ```
-src/
-├── store/
-│   └── usePublishStore.ts      # Store Zustand
-│
-├── components/
-│   └── modes/
-│       └── PublishMode.tsx     # Composant principal (~1500 lignes)
-│
-├── lib/
-│   └── gelato/
-│       ├── types.ts            # Types Gelato
-│       ├── client.ts           # Fonctions client
-│       └── index.ts            # Export
-│
-├── app/
-│   └── api/
-│       └── gelato/
-│           ├── quote/route.ts  # API devis
-│           └── order/route.ts  # API commande
+src/app/api/
+├── ai/
+│   ├── chat/route.ts         # Chat IA (reçoit aiName)
+│   ├── voice/route.ts        # Génération voix
+│   └── narration/route.ts    # Narration avec fallback ✨
+├── gelato/
+│   ├── quote/route.ts        # Devis Gelato
+│   └── order/route.ts        # Commande Gelato
+└── upload/route.ts           # Upload fichiers
 ```
-
-### Flux de publication
-
-1. **Sélection** : Choisir une histoire complète
-2. **Format** : Carré (21×21), A5, A4
-3. **Couverture** : Titre, auteur, couleur, image
-4. **Aperçu** : Prévisualisation pages + couverture
-5. **Qualité** : Vérifications automatiques
-6. **Commande** : Devis Gelato → Paiement → Confirmation
-
----
-
-## 🤖 IA PERSONNALISABLE
-
-### Fichiers modifiés
-
-| Fichier | Modification |
-|---------|--------------|
-| `src/store/useAppStore.ts` | Ajout `aiName` + `setAiName` |
-| `src/lib/ai/gemini.ts` | Fonctions avec paramètre `aiName` |
-| `src/lib/ai/elevenlabs.ts` | Renommé `luna` → `ai_friend` |
-| `src/hooks/useSupabaseSync.ts` | Sync `aiName` avec Supabase |
-| `src/hooks/useAI.ts` | Passe `aiName` au chat |
-| `src/app/api/ai/chat/route.ts` | Reçoit `aiName` dans le body |
-| `src/components/ui/AINameModal.tsx` | Nouveau composant |
-| `src/components/ui/UserMenu.tsx` | Bouton "Mon amie IA" |
-| `src/components/ClientLayout.tsx` | Affiche modal première connexion |
-| `messages/*.json` | Placeholder `{aiName}` + nouvelles clés |
-| `supabase/schema.sql` | Colonne `ai_name` dans `profiles` |
-
-### Migration Supabase
-
-```sql
--- Migration à exécuter si base existante
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ai_name TEXT;
-```
-
----
-
-## 🎨 MODE STUDIO - État actuel
-
-### ⚠️ C'est un "Pont Safari", pas un générateur
-
-Le Studio aide à créer des prompts puis ouvre Safari vers :
-- **Midjourney** (images) - Discord
-- **ElevenLabs** (voix) - Site web
-- **Runway** (vidéos) - Site web
-
-L'enfant doit ensuite importer manuellement les créations via le dropzone.
-
-### Amélioration possible
-
-Intégrer directement l'API ElevenLabs pour la génération de voix (payant mais pratique).
-
----
-
-## 🎭 MODE THÉÂTRE - État actuel
-
-### ⚠️ Données non connectées
-
-Le Théâtre lit `useLayoutStore.books` qui est **toujours vide** car :
-- Le mode Écriture utilise `useAppStore.projects`
-- Le mode Montage utilise `useMontageStore.projects`
-- Rien ne remplit `useLayoutStore.books`
-
-### Correction nécessaire
-
-Modifier `TheaterMode.tsx` pour lire depuis `useMontageStore` :
-```typescript
-// Actuellement
-const { books } = useLayoutStore()
-const completedBooks = books.filter((b) => b.isComplete)
-
-// Devrait être
-const { projects } = useMontageStore()
-const completedProjects = projects.filter((p) => p.isComplete)
-```
-
----
-
-## ✅ Fonctionnalités implémentées
-
-### Mode Écriture
-- [x] Vue livre ouvert (2 pages côte à côte)
-- [x] Mode zoom bidirectionnel
-- [x] Texte aligné sur les lignes
-- [x] Gestion des chapitres
-- [x] Formatage (taille, police, couleur)
-- [x] Images flottantes avec rotation
-- [x] Fond de page (image/vidéo avec opacité/zoom)
-- [x] Décorations premium (60+ ornements SVG)
-- [x] Effet de luminosité (glow)
-- [x] Menu d'édition déplaçable
-
-### Mode Montage
-- [x] Timeline "Rubans Magiques" avec zoom
-- [x] Drag & drop des éléments
-- [x] Zones Intro/Outro redimensionnables
-- [x] PreviewCanvas avec animations
-- [x] RhythmGame phrase par phrase
-- [x] 121 sons catégorisés
-- [x] 30 animations (localisées + ambiance)
-- [x] Panneau de propriétés draggable
-- [x] Synchronisation Supabase debounced
-
-### Mode Publication
-- [x] 3 formats de livre (Carré, A5, A4)
-- [x] Design de couverture
-- [x] Prévisualisation
-- [x] Vérifications qualité
-- [x] Intégration API Gelato
-- [x] Devis en temps réel
-- [x] Passage de commande
-
-### IA
-- [x] Nom personnalisable par l'enfant
-- [x] Modal de choix à la première connexion
-- [x] Modification via menu utilisateur
-- [x] Persistance Supabase
-- [x] Prompts dynamiques avec le nom choisi
 
 ---
 
@@ -292,9 +259,9 @@ const completedProjects = projects.filter((p) => p.isComplete)
 
 | Tâche | Description | Effort |
 |-------|-------------|--------|
-| **Studio → Montage** | Bouton "Utiliser dans Montage" | 1h |
-| **Montage → Théâtre** | Théâtre lit useMontageStore | 2h |
-| **Supprimer useLayoutStore** | N'est plus nécessaire | 30min |
+| **Studio → Montage** | Assets importés → utilisables dans scènes | 1h |
+| **Montage → Théâtre** | Projets terminés → lisibles dans Théâtre | 2h |
+| **Supprimer useLayoutStore** | Code mort | 30min |
 
 ### Priorité 2 : Exports
 
@@ -303,13 +270,12 @@ const completedProjects = projects.filter((p) => p.isComplete)
 | **Export PDF** | Pour l'impression (300 DPI) | 4h |
 | **Export MP4** | Le livre-disque en vidéo | 6h |
 
-### Priorité 3 : Intégrations
+### Priorité 3 : Finitions Studio
 
-| Service | État | Notes |
-|---------|------|-------|
-| **ElevenLabs TTS** | 🔧 | Intégration directe (payant) |
-| **HomeKit réel** | 🔧 | Contrôle des lumières Hue |
-| **AirPlay** | 🔧 | Projection vers TV |
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Screenshots tutoriels** | Images/GIFs pour Midjourney et Runway | 2h |
+| **Tests progression** | Vérifier les passages de niveaux | 1h |
 
 ---
 
@@ -321,7 +287,7 @@ npm install
 
 # Dev (web + signaling)
 npm run dev
-# → http://localhost:3000
+# → http://localhost:3000 (ou 3004 si port occupé)
 
 # Dev Electron
 npm run dev:electron
@@ -329,9 +295,10 @@ npm run dev:electron
 
 ### Tester l'app
 
-1. **Écriture** : Créer une histoire avec du texte et des décos
-2. **Montage** : Créer un projet, enregistrer la voix, ajouter des effets
-3. **Publier** : Sélectionner l'histoire, configurer, voir le devis Gelato
+1. **Écriture** : Créer une histoire avec du texte
+2. **Studio** : Voir la progression à 0, cliquer sur Images/Vidéos
+3. **Montage** : Créer un projet depuis une histoire
+4. **Publier** : Sélectionner histoire, voir devis Gelato
 
 ---
 
@@ -348,6 +315,13 @@ SUPABASE_SERVICE_ROLE_KEY=xxx
 # Google AI
 GOOGLE_GEMINI_API_KEY=xxx
 
+# ElevenLabs (voix premium - optionnel)
+ELEVENLABS_API_KEY=xxx
+ELEVENLABS_VOICE_NARRATOR=xxx
+ELEVENLABS_VOICE_FAIRY=xxx
+ELEVENLABS_VOICE_DRAGON=xxx
+ELEVENLABS_VOICE_DEFAULT=xxx
+
 # Gelato (publication)
 GELATO_API_KEY=xxx
 GELATO_TEST_MODE=true
@@ -358,9 +332,6 @@ R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
 R2_BUCKET_NAME=lavoixdusoir-videos
 CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
-
-# ElevenLabs (optionnel)
-ELEVENLABS_API_KEY=xxx
 ```
 
 ---
@@ -370,12 +341,14 @@ ELEVENLABS_API_KEY=xxx
 | Composant | État | Notes |
 |-----------|------|-------|
 | Mode Écriture | ✅ | Complet |
-| Mode Studio | ⚠️ | Pont Safari (pas d'intégration directe) |
+| Mode Studio | ✅ | Pédagogique avec 5 niveaux |
 | Mode Montage | ✅ | Timeline v2 complète |
 | Mode Théâtre | ⚠️ | Lit le mauvais store (vide) |
 | Mode Publier | ✅ | Gelato intégré |
 | IA personnalisable | ✅ | Nom choisi par l'enfant |
-| Sync Supabase | ✅ | Debounced, normalisation |
+| Voix IA-Amie | ✅ | Apple Voice (0 délai) |
+| Voix narration | ✅ | ElevenLabs + fallback Apple |
+| Sync Supabase | ✅ | Debounced |
 | Export PDF | 🔧 | À faire |
 | Export MP4 | 🔧 | À faire |
 
@@ -391,6 +364,17 @@ ELEVENLABS_API_KEY=xxx
 | `docs/API.md` | Documentation API |
 | `docs/HANDOVER.md` | Ce document |
 | `README.md` | Documentation générale |
+
+---
+
+## 💡 Notes importantes pour le prochain dev
+
+1. **L'enfant cible a 8 ans** → Tout doit être simple et encourageant
+2. **Budget illimité** → Pas d'hésitation sur les services payants
+3. **Apple Voice pour le chat** → Impératif pour le 0 délai
+4. **ElevenLabs pour les histoires** → Qualité premium
+5. **Progression séparée** → L'enfant apprend Images ET Vidéos indépendamment
+6. **useLayoutStore à supprimer** → Ne sert plus à rien
 
 ---
 
