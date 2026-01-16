@@ -57,6 +57,18 @@ export function PreviewCanvas() {
   const [showGrid, setShowGrid] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
+  // Écouter la touche Échap pour quitter le plein écran
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullscreen])
+
   if (!scene) {
     return (
       <div className="glass rounded-xl p-6 flex items-center justify-center h-64">
@@ -152,7 +164,7 @@ export function PreviewCanvas() {
   return (
     <div className={cn(
       'glass rounded-xl overflow-hidden flex flex-col',
-      isFullscreen && 'fixed inset-4 z-50'
+      isFullscreen && 'fixed inset-0 z-[100] bg-midnight-900 rounded-none'
     )}>
       {/* Header */}
       <div className="p-3 border-b border-midnight-700/50 flex items-center justify-between">

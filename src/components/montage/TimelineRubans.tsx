@@ -764,7 +764,7 @@ export function TimelineRubans() {
   return (
     <div className={cn(
       "glass rounded-xl overflow-hidden flex flex-col",
-      isFullscreen && "fixed inset-4 z-50 bg-midnight-900/98 backdrop-blur-xl"
+      isFullscreen && "fixed inset-0 z-[100] bg-midnight-900 rounded-none"
     )}>
       {/* En-tête avec contrôles */}
       <div className="p-3 border-b border-midnight-700/50 flex items-center justify-between shrink-0">
