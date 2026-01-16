@@ -32,7 +32,6 @@ import {
   Check,
   Image,
   Volume2,
-  Video,
   Grid3X3,
   Layers,
   PanelLeftClose,
@@ -514,106 +513,164 @@ function NarrationPanel() {
 }
 
 // =============================================================================
-// MEDIA PANEL - Ajout d'images/vidéos
+// SCENE STATUS PANEL - État de la scène
 // =============================================================================
 
-function MediaPanel() {
-  const { getCurrentScene, addMediaTrack } = useMontageStore()
-  const { upload, isUploading } = useMediaUpload()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
+function SceneStatusPanel({ onGoToTimeline }: { onGoToTimeline: () => void }) {
+  const { getCurrentScene } = useMontageStore()
   const scene = getCurrentScene()
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !scene) return
-
-    try {
-      const result = await upload(file, { 
-        type: file.type.startsWith('video') ? 'video' : 'image',
-        source: 'upload'
-      })
-
-      if (result) {
-        addMediaTrack({
-          type: file.type.startsWith('video') ? 'video' : 'image',
-          url: result.url,
-          name: file.name,
-          timeRange: {
-            startTime: 0,
-            endTime: scene.duration || 10,
-            fadeIn: 0.5,
-            fadeOut: 0.5,
-          },
-          position: { x: 0, y: 0, width: 100, height: 100 },
-          zIndex: scene.mediaTracks.length,
-          loop: file.type.startsWith('video'),
-          muted: true,
-        })
-      }
-    } catch (err) {
-      console.error('Erreur upload média:', err)
-    }
-
-    e.target.value = ''
-  }
 
   if (!scene) return null
 
+  const hasAudio = !!scene.narration.audioUrl
+  const isSynced = scene.narration.isSynced
+  
+  // Compte des éléments
+  const mediasCount = scene.mediaTracks.length
+  const soundsCount = scene.soundTracks.length
+  const musicCount = scene.musicTracks?.length || 0
+  const lightsCount = scene.lightTracks.length
+  const decorationsCount = scene.decorationTracks?.length || 0
+  const animationsCount = scene.animationTracks?.length || 0
+  const textEffectsCount = scene.textEffectTracks?.length || 0
+  
+  const totalElements = mediasCount + soundsCount + musicCount + lightsCount + decorationsCount + animationsCount + textEffectsCount
+
+  // Calcul du progrès
+  const steps = [
+    { done: hasAudio, label: 'Voix' },
+    { done: isSynced, label: 'Sync' },
+  ]
+  const completedSteps = steps.filter(s => s.done).length
+
   return (
     <div className="glass rounded-xl p-4 space-y-4">
+      {/* En-tête */}
       <div className="flex items-center justify-between">
         <h3 className="font-medium flex items-center gap-2">
-          <Image className="w-5 h-5 text-blue-400" />
-          Médias
+          📊 État de la scène
         </h3>
-        <span className="text-xs text-midnight-500">{scene.mediaTracks.length} éléments</span>
+        <span className={cn(
+          'px-2 py-0.5 rounded-full text-xs font-medium',
+          completedSteps === steps.length 
+            ? 'bg-emerald-500/20 text-emerald-300' 
+            : 'bg-amber-500/20 text-amber-300'
+        )}>
+          {completedSteps === steps.length ? '✅ Prêt' : `${completedSteps}/${steps.length}`}
+        </span>
       </div>
 
-      {/* Liste des médias */}
-      {scene.mediaTracks.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
-          {scene.mediaTracks.map((media) => (
-            <div
-              key={media.id}
-              className="aspect-square rounded-lg bg-midnight-800 overflow-hidden relative group"
-            >
-              {media.type === 'image' ? (
-                <img src={media.url} alt={media.name} className="w-full h-full object-cover" />
-              ) : (
-                <video src={media.url} className="w-full h-full object-cover" muted />
+      {/* Étapes principales */}
+      <div className="space-y-2">
+        {/* Voix */}
+        <div className={cn(
+          'flex items-center gap-3 p-3 rounded-lg',
+          hasAudio ? 'bg-emerald-500/10' : 'bg-midnight-800/50'
+        )}>
+          <div className={cn(
+            'w-8 h-8 rounded-full flex items-center justify-center',
+            hasAudio ? 'bg-emerald-500/30 text-emerald-300' : 'bg-midnight-700 text-midnight-500'
+          )}>
+            {hasAudio ? <Check className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </div>
+          <div className="flex-1">
+            <p className={cn('font-medium text-sm', hasAudio ? 'text-emerald-300' : 'text-midnight-400')}>
+              Voix
+            </p>
+            <p className="text-xs text-midnight-500">
+              {hasAudio 
+                ? `${scene.narration.duration.toFixed(1)}s enregistré`
+                : 'Enregistre ta voix ci-dessous'
+              }
+            </p>
+          </div>
+        </div>
+
+        {/* Synchronisation */}
+        <div className={cn(
+          'flex items-center gap-3 p-3 rounded-lg',
+          isSynced ? 'bg-emerald-500/10' : hasAudio ? 'bg-amber-500/10' : 'bg-midnight-800/30'
+        )}>
+          <div className={cn(
+            'w-8 h-8 rounded-full flex items-center justify-center',
+            isSynced 
+              ? 'bg-emerald-500/30 text-emerald-300' 
+              : hasAudio 
+                ? 'bg-amber-500/30 text-amber-300' 
+                : 'bg-midnight-700/50 text-midnight-600'
+          )}>
+            {isSynced ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+          </div>
+          <div className="flex-1">
+            <p className={cn(
+              'font-medium text-sm', 
+              isSynced ? 'text-emerald-300' : hasAudio ? 'text-amber-300' : 'text-midnight-500'
+            )}>
+              Synchronisation
+            </p>
+            <p className="text-xs text-midnight-500">
+              {isSynced 
+                ? `${scene.narration.phrases.length} phrases sync`
+                : hasAudio 
+                  ? 'Joue au jeu de rythme !'
+                  : 'Enregistre d\'abord la voix'
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Résumé des éléments */}
+      <div className="pt-3 border-t border-midnight-700">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm text-midnight-400">Éléments dans la timeline</span>
+          <span className="text-xs text-midnight-500">{totalElements} total</span>
+        </div>
+        
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { icon: <Image className="w-4 h-4" />, count: mediasCount, label: 'Médias', color: 'text-blue-400' },
+            { icon: <Volume2 className="w-4 h-4" />, count: soundsCount + musicCount, label: 'Sons', color: 'text-pink-400' },
+            { icon: <Lightbulb className="w-4 h-4" />, count: lightsCount, label: 'Lumières', color: 'text-yellow-400' },
+            { icon: <Sparkles className="w-4 h-4" />, count: animationsCount + decorationsCount, label: 'Effets', color: 'text-purple-400' },
+          ].map((item, i) => (
+            <div 
+              key={i}
+              className={cn(
+                'flex flex-col items-center gap-1 p-2 rounded-lg',
+                item.count > 0 ? 'bg-midnight-800/50' : 'bg-midnight-800/20'
               )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                {media.type === 'video' ? <Video className="w-6 h-6 text-white" /> : null}
-              </div>
+            >
+              <span className={item.count > 0 ? item.color : 'text-midnight-600'}>{item.icon}</span>
+              <span className={cn(
+                'text-lg font-bold',
+                item.count > 0 ? 'text-white' : 'text-midnight-600'
+              )}>
+                {item.count}
+              </span>
+              <span className="text-xs text-midnight-500">{item.label}</span>
             </div>
           ))}
         </div>
-      )}
+      </div>
 
-      {/* Bouton ajouter */}
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isUploading}
-        className="w-full p-4 rounded-xl border-2 border-dashed border-midnight-700 hover:border-blue-500/50 hover:bg-blue-500/10 transition-colors flex flex-col items-center gap-2"
-      >
-        {isUploading ? (
-          <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
-        ) : (
-          <Plus className="w-6 h-6 text-blue-400" />
+      {/* Bouton Timeline */}
+      <motion.button
+        onClick={onGoToTimeline}
+        disabled={!isSynced}
+        className={cn(
+          'w-full p-4 rounded-xl flex items-center justify-center gap-3 transition-colors',
+          isSynced
+            ? 'bg-gradient-to-r from-aurora-500/20 to-dream-500/20 text-aurora-300 hover:from-aurora-500/30 hover:to-dream-500/30'
+            : 'bg-midnight-800/30 text-midnight-500 cursor-not-allowed'
         )}
-        <span className="text-sm text-midnight-400">
-          {isUploading ? 'Upload...' : 'Ajouter image/vidéo'}
+        whileHover={isSynced ? { scale: 1.01 } : {}}
+      >
+        <Layers className="w-5 h-5" />
+        <span className="font-medium">
+          {isSynced ? 'Aller à la Timeline →' : 'Synchronise d\'abord la voix'}
         </span>
-      </button>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
+      </motion.button>
     </div>
   )
 }
@@ -894,9 +951,9 @@ export function MontageEditor() {
               )}
             </div>
 
-            {/* Colonne médias */}
+            {/* Colonne état de la scène */}
             <div className="col-span-4 flex flex-col gap-4 overflow-y-auto">
-              <MediaPanel />
+              <SceneStatusPanel onGoToTimeline={() => setViewMode('timeline')} />
             </div>
           </div>
         ) : (
