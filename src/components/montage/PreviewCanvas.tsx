@@ -164,7 +164,7 @@ export function PreviewCanvas() {
   return (
     <div className={cn(
       'glass rounded-xl overflow-hidden flex flex-col',
-      isFullscreen && 'fixed inset-0 z-[100] bg-midnight-900 rounded-none'
+      isFullscreen && 'fixed inset-0 z-[9999] bg-midnight-900 rounded-none'
     )}>
       {/* Header */}
       <div className="p-3 border-b border-midnight-700/50 flex items-center justify-between">
