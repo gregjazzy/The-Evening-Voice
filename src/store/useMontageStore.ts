@@ -404,6 +404,7 @@ interface MontageState {
   // === ACTIONS PROJET ===
   createProject: (storyId: string, title: string, pages: { id: string; title: string; text: string }[]) => MontageProject
   loadProject: (projectId: string) => void
+  closeProject: () => void
   updateProject: (updates: Partial<MontageProject>) => void
   deleteProject: (projectId: string) => void
   
@@ -551,6 +552,10 @@ export const useMontageStore = create<MontageState>()(
         if (project) {
           set({ currentProject: project, currentSceneIndex: 0 })
         }
+      },
+
+      closeProject: () => {
+        set({ currentProject: null, currentSceneIndex: 0 })
       },
 
       updateProject: (updates) => {
@@ -883,8 +888,8 @@ export const useMontageStore = create<MontageState>()(
         if (!scene) return
         
         const newTrack: LightTrack = {
-          ...track,
-          id: generateId(),
+            ...track, 
+            id: generateId(),
         }
         
         get().updateCurrentScene({

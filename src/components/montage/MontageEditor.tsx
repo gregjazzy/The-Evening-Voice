@@ -35,7 +35,9 @@ import {
   Grid3X3,
   Layers,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  ArrowLeft,
+  Home
 } from 'lucide-react'
 
 // =============================================================================
@@ -680,7 +682,7 @@ function SceneStatusPanel({ onGoToTimeline }: { onGoToTimeline: () => void }) {
 // =============================================================================
 
 export function MontageEditor() {
-  const { currentProject, currentSceneIndex, getCurrentScene, setCurrentScene, viewMode, setViewMode } = useMontageStore()
+  const { currentProject, currentSceneIndex, getCurrentScene, setCurrentScene, viewMode, setViewMode, closeProject } = useMontageStore()
   const { stories } = useAppStore()
   const { projects, loadProject, deleteProject, createProject } = useMontageStore()
   
@@ -848,12 +850,37 @@ export function MontageEditor() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div>
-          <h1 className="font-display text-2xl text-aurora-300 flex items-center gap-3">
-            <Film className="w-7 h-7" />
-            Montage
-          </h1>
-          <p className="text-midnight-300">{currentProject.title}</p>
+        <div className="flex items-center gap-4">
+          {/* Bouton Retour - visible en mode Timeline */}
+          {viewMode === 'timeline' ? (
+            <motion.button
+              onClick={() => setViewMode('cards')}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors"
+              whileHover={{ x: -2 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Retour</span>
+            </motion.button>
+          ) : (
+            <motion.button
+              onClick={closeProject}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors"
+              whileHover={{ scale: 0.98 }}
+              whileTap={{ scale: 0.95 }}
+              title="Fermer le projet"
+            >
+              <Home className="w-5 h-5" />
+            </motion.button>
+          )}
+          
+          <div>
+            <h1 className="font-display text-2xl text-aurora-300 flex items-center gap-3">
+              <Film className="w-7 h-7" />
+              Montage
+            </h1>
+            <p className="text-midnight-300">{currentProject.title}</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
