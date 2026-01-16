@@ -964,10 +964,8 @@ export function MontageEditor() {
               <TimelineRubans />
             </div>
             
-            {/* Panneau de propriétés (quand un élément est sélectionné) */}
-            <div className="absolute top-4 right-4 z-20">
-              <TrackPropertiesPanel />
-            </div>
+            {/* Panneau de propriétés déplaçable (quand un élément est sélectionné) */}
+            <TrackPropertiesPanel />
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   useMontageStore,
@@ -27,6 +27,7 @@ import {
   Eye,
   Clock,
   Sliders,
+  GripVertical,
 } from 'lucide-react'
 
 // =============================================================================
@@ -621,7 +622,7 @@ function LightProperties({ track }: { track: LightTrack }) {
 }
 
 // =============================================================================
-// MAIN PANEL
+// MAIN PANEL (DRAGGABLE)
 // =============================================================================
 export function TrackPropertiesPanel() {
   const {
@@ -633,6 +634,47 @@ export function TrackPropertiesPanel() {
 
   const scene = getCurrentScene()
   
+  // État pour la position du panneau (déplaçable)
+  const [position, setPosition] = useState({ x: 16, y: 16 }) // Position initiale en haut à droite
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartRef = useRef({ x: 0, y: 0 })
+  const positionStartRef = useRef({ x: 0, y: 0 })
+
+  // Handlers pour le drag
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+    dragStartRef.current = { x: e.clientX, y: e.clientY }
+    positionStartRef.current = position
+  }, [position])
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - dragStartRef.current.x
+      const deltaY = e.clientY - dragStartRef.current.y
+      
+      // Limiter aux bords de l'écran
+      const newX = Math.max(0, Math.min(window.innerWidth - 300, positionStartRef.current.x + deltaX))
+      const newY = Math.max(0, Math.min(window.innerHeight - 200, positionStartRef.current.y + deltaY))
+      
+      setPosition({ x: newX, y: newY })
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
   // Trouver l'élément sélectionné
   const getSelectedTrack = () => {
     if (!scene || !selectedTrackId || !selectedTrackType) return null
@@ -678,39 +720,55 @@ export function TrackPropertiesPanel() {
     <AnimatePresence>
       {selected?.track && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
-          className="glass rounded-xl p-4 w-72 max-h-[calc(100vh-200px)] overflow-y-auto"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className={cn(
+            "fixed glass rounded-xl w-72 max-h-[calc(100vh-100px)] overflow-hidden flex flex-col shadow-2xl z-[100]",
+            isDragging && "cursor-grabbing"
+          )}
+          style={{ 
+            right: position.x, 
+            top: position.y,
+          }}
         >
-          {/* En-tête */}
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-midnight-700/50">
+          {/* Barre de drag */}
+          <div 
+            className="flex items-center justify-between px-3 py-2 bg-midnight-800/50 border-b border-midnight-700/50 cursor-grab active:cursor-grabbing select-none"
+            onMouseDown={handleDragStart}
+          >
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-aurora-500/20 text-aurora-400">
-                {getTrackIcon()}
-              </div>
-              <div>
-                <h3 className="font-medium text-sm text-white truncate max-w-[180px]">
-                  {getTrackName()}
-                </h3>
-                <p className="text-xs text-midnight-500 capitalize">{selected.type}</p>
+              <GripVertical className="w-4 h-4 text-midnight-500" />
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded bg-aurora-500/20 text-aurora-400">
+                  {getTrackIcon()}
+                </div>
+                <div>
+                  <h3 className="font-medium text-xs text-white truncate max-w-[140px]">
+                    {getTrackName()}
+                  </h3>
+                  <p className="text-[10px] text-midnight-500 capitalize">{selected.type}</p>
+                </div>
               </div>
             </div>
             <button
               onClick={clearSelection}
               className="p-1 rounded hover:bg-midnight-700/50 text-midnight-500 hover:text-white transition-colors"
+              onMouseDown={(e) => e.stopPropagation()} // Empêcher le drag quand on clique sur fermer
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Contenu selon le type */}
-          {selected.type === 'media' && <MediaProperties track={selected.track as MediaTrack} />}
-          {selected.type === 'sound' && <SoundProperties track={selected.track as SoundTrack} type="sound" />}
-          {selected.type === 'music' && <SoundProperties track={selected.track as MusicTrack} type="music" />}
-          {selected.type === 'light' && <LightProperties track={selected.track as LightTrack} />}
-          {selected.type === 'decoration' && <DecorationProperties track={selected.track as DecorationTrack} />}
-          {selected.type === 'animation' && <AnimationProperties track={selected.track as AnimationTrack} />}
+          {/* Contenu scrollable */}
+          <div className="p-4 overflow-y-auto flex-1">
+            {selected.type === 'media' && <MediaProperties track={selected.track as MediaTrack} />}
+            {selected.type === 'sound' && <SoundProperties track={selected.track as SoundTrack} type="sound" />}
+            {selected.type === 'music' && <SoundProperties track={selected.track as MusicTrack} type="music" />}
+            {selected.type === 'light' && <LightProperties track={selected.track as LightTrack} />}
+            {selected.type === 'decoration' && <DecorationProperties track={selected.track as DecorationTrack} />}
+            {selected.type === 'animation' && <AnimationProperties track={selected.track as AnimationTrack} />}
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
