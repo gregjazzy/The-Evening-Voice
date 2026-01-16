@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from '@/lib/i18n/context'
 import { 
-  BookHeart, 
   Feather, 
   Palette, 
   LayoutGrid, 
@@ -12,8 +11,8 @@ import {
   Sparkles,
   Link2,
   Wifi,
-  WifiOff,
-  Monitor
+  Monitor,
+  Printer,
 } from 'lucide-react'
 import { useAppStore, type AppMode } from '@/store/useAppStore'
 import { useMentorStore } from '@/store/useMentorStore'
@@ -28,11 +27,6 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  {
-    id: 'diary',
-    icon: <BookHeart className="w-6 h-6" />,
-    labelKey: 'diary'
-  },
   {
     id: 'book',
     icon: <Feather className="w-6 h-6" />,
@@ -52,6 +46,11 @@ const navItems: NavItem[] = [
     id: 'theater',
     icon: <Theater className="w-6 h-6" />,
     labelKey: 'theater'
+  },
+  {
+    id: 'publish',
+    icon: <Printer className="w-6 h-6" />,
+    labelKey: 'publish'
   },
 ]
 

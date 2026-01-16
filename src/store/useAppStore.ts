@@ -27,7 +27,7 @@ import {
 } from '@/lib/ai/prompting-pedagogy'
 
 // Types pour les différents modes
-export type AppMode = 'diary' | 'book' | 'studio' | 'layout' | 'theater' | 'mentor'
+export type AppMode = 'book' | 'studio' | 'layout' | 'theater' | 'mentor' | 'publish'
 
 export interface DiaryEntry {
   id: string
@@ -216,6 +216,10 @@ interface AppState {
   userName: string
   setUserName: (name: string) => void
   
+  // Nom personnalisable de l'IA (choisi par l'enfant)
+  aiName: string
+  setAiName: (name: string) => void
+  
   // Contexte émotionnel (pour que l'IA se souvienne)
   emotionalContext: string[]
   addEmotionalContext: (context: string) => void
@@ -247,7 +251,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       // Mode initial
-      currentMode: 'diary',
+      currentMode: 'book',
       setCurrentMode: (mode) => set({ currentMode: mode }),
 
       // Diary
@@ -591,6 +595,10 @@ export const useAppStore = create<AppState>()(
       // Préférences
       userName: '',
       setUserName: (name) => set({ userName: name }),
+      
+      // Nom de l'IA (personnalisable, vide par défaut = l'enfant choisit à la première connexion)
+      aiName: '',
+      setAiName: (name) => set({ aiName: name }),
 
       // Contexte émotionnel
       emotionalContext: [],
@@ -669,6 +677,7 @@ export const useAppStore = create<AppState>()(
         currentProject: state.currentProject,
         generatedAssets: state.generatedAssets,
         userName: state.userName,
+        aiName: state.aiName, // Nom personnalisé de l'IA - persisté pour chaque utilisateur
         emotionalContext: state.emotionalContext,
         promptingProgress: state.promptingProgress,
         writingProgress: state.writingProgress,

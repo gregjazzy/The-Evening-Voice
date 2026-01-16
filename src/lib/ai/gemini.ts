@@ -1,5 +1,5 @@
 /**
- * Service Gemini AI - Luna, l'IA-Amie
+ * Service Gemini AI - L'IA-Amie (nom personnalisable par l'enfant)
  * Utilise Google Generative AI SDK avec Gemini 2.0 Flash
  */
 
@@ -37,10 +37,13 @@ const safetySettings = [
 ]
 
 // ============================================================================
-// PROMPT SYSTÈME LUNA - BASE
+// PROMPT SYSTÈME IA-AMIE - BASE (nom personnalisable par l'enfant)
 // ============================================================================
 
-const LUNA_BASE_PROMPT = `Tu es Luna, une amie imaginaire de 8 ans, douce, créative et magique.
+// Génère le prompt de base avec le nom personnalisé de l'IA
+function getBasePrompt(aiName: string): string {
+  const name = aiName || 'ton amie' // Fallback si pas de nom
+  return `Tu es ${name}, une amie imaginaire de 8 ans, douce, créative et magique.
 Tu parles à un enfant de 8 ans et tu es sa meilleure copine.
 
 PERSONNALITÉ:
@@ -62,12 +65,18 @@ RÈGLES IMPORTANTES:
 - Si on te demande quelque chose d'inapproprié, change gentiment de sujet
 - Si l'enfant est triste, sois réconfortante et empathique
 - Réponds dans la langue de l'enfant (français, anglais ou russe)`
+}
+
+// Legacy constant pour rétrocompatibilité (sera remplacé par getBasePrompt)
+const LUNA_BASE_PROMPT = getBasePrompt('')
 
 // ============================================================================
-// PROMPT SYSTÈME LUNA - MODE IMAGES (5 Clés Magiques)
+// PROMPT SYSTÈME IA-AMIE - MODE IMAGES (5 Clés Magiques)
 // ============================================================================
 
-const LUNA_IMAGE_PROMPT = `${LUNA_BASE_PROMPT}
+// Génère le prompt image avec le nom personnalisé
+function getImagePrompt(aiName: string): string {
+  return `${getBasePrompt(aiName)}
 
 🎨 MODE CRÉATION D'IMAGES - LES 5 CLÉS MAGIQUES
 
@@ -119,14 +128,19 @@ IMPORTANT:
 - Guide avec des questions, pas des solutions
 - L'enfant doit ÉCRIRE le prompt, pas toi
 - Tu valides et encourages, tu ne crées pas à sa place`
+}
+
+// Legacy constant pour rétrocompatibilité
+const LUNA_IMAGE_PROMPT = getImagePrompt('')
 
 // ============================================================================
-// PROMPT SYSTÈME LUNA - MODE ÉCRITURE (Multilingue)
+// PROMPT SYSTÈME IA-AMIE - MODE ÉCRITURE (Multilingue)
 // ============================================================================
 
-function getLunaWritingPrompt(locale: 'fr' | 'en' | 'ru'): string {
+function getWritingPrompt(aiName: string, locale: 'fr' | 'en' | 'ru'): string {
+  const basePrompt = getBasePrompt(aiName)
   const prompts = {
-    fr: `${LUNA_BASE_PROMPT}
+    fr: `${basePrompt}
 
 ✍️ MODE ÉCRITURE - Tu aides l'enfant à écrire son histoire et tu lui apprends à bien parler aux IA.
 
@@ -238,7 +252,7 @@ Si NIVEAU DÉBUTANT (1-2) : Nomme les questions plus souvent (~1 sur 2)
 Si NIVEAU INTERMÉDIAIRE (3) : Nomme les questions parfois (~1 sur 4)
 Si NIVEAU AVANCÉ (4-5) : Laisse faire, interviens peu, elle sait déjà !`,
 
-    en: `${LUNA_BASE_PROMPT}
+    en: `${basePrompt}
 
 ✍️ WRITING MODE - You help the child write their story and teach them how to talk to AIs.
 
@@ -350,7 +364,7 @@ If BEGINNER LEVEL (1-2): Name the questions more often (~1 in 2)
 If INTERMEDIATE LEVEL (3): Name the questions sometimes (~1 in 4)
 If ADVANCED LEVEL (4-5): Let them be, intervene little, they already know!`,
 
-    ru: `${LUNA_BASE_PROMPT}
+    ru: `${basePrompt}
 
 ✍️ РЕЖИМ ПИСЬМА - Ты помогаешь ребёнку писать историю и учишь общаться с ИИ.
 
@@ -466,6 +480,11 @@ If ADVANCED LEVEL (4-5): Let them be, intervene little, they already know!`,
   return prompts[locale]
 }
 
+// Legacy wrapper pour rétrocompatibilité
+function getLunaWritingPrompt(locale: 'fr' | 'en' | 'ru'): string {
+  return getWritingPrompt('', locale)
+}
+
 // ============================================================================
 // PROMPT SYSTÈME LUNA - MODE JOURNAL
 // ============================================================================
@@ -506,6 +525,7 @@ export interface ChatMessage {
 export interface LunaContext {
   mode: 'diary' | 'book' | 'studio' | 'general'
   locale: 'fr' | 'en' | 'ru'
+  aiName?: string // Nom personnalisé de l'IA (choisi par l'enfant)
   promptingProgress?: PromptingProgress
   writingProgress?: WritingPromptingProgress
   storyStructure?: StoryStructure
@@ -528,7 +548,7 @@ export interface GeminiResponse {
 // ============================================================================
 
 /**
- * Génère une réponse de Luna (IA-Amie)
+ * Génère une réponse de l'IA-Amie (nom personnalisable)
  */
 export async function generateLunaResponse(
   userMessage: string,
@@ -541,12 +561,15 @@ export async function generateLunaResponse(
       safetySettings,
     })
 
-    // Construire le prompt système selon le mode
-    let systemPrompt = LUNA_BASE_PROMPT
+    // Nom personnalisé de l'IA (ou fallback)
+    const aiName = context.aiName || ''
+
+    // Construire le prompt système selon le mode avec le nom personnalisé
+    let systemPrompt = getBasePrompt(aiName)
     
     switch (context.mode) {
       case 'studio':
-        systemPrompt = LUNA_IMAGE_PROMPT
+        systemPrompt = getImagePrompt(aiName)
         // Ajouter le contexte pédagogique si disponible
         if (context.promptingProgress) {
           systemPrompt += '\n\n' + generateImagePedagogyContext(
@@ -557,7 +580,7 @@ export async function generateLunaResponse(
         break
         
       case 'book':
-        systemPrompt = getLunaWritingPrompt(context.locale)
+        systemPrompt = getWritingPrompt(aiName, context.locale)
         // Ajouter le contexte de structure si disponible
         systemPrompt += '\n\n' + generateWritingPedagogyContext(
           'story',
@@ -575,7 +598,15 @@ export async function generateLunaResponse(
         break
         
       case 'diary':
-        systemPrompt = LUNA_DIARY_PROMPT
+        // Mode journal (obsolète mais gardé pour compatibilité)
+        systemPrompt = getBasePrompt(aiName) + `\n\n📔 MODE JOURNAL - ÉCOUTE ET ACCOMPAGNEMENT
+
+Tu es là pour écouter l'enfant raconter sa journée, ses pensées, ses émotions.
+
+TON RÔLE:
+- Écouter avec bienveillance
+- Poser des questions pour l'aider à développer
+- Réconforter si besoin`
         // Ajouter le contexte pour les images souvenirs
         if (context.promptingProgress) {
           systemPrompt += '\n\nSi l\'enfant veut créer une image souvenir, utilise cette méthode :\n'
@@ -584,7 +615,7 @@ export async function generateLunaResponse(
         break
         
       default:
-        systemPrompt = LUNA_BASE_PROMPT
+        systemPrompt = getBasePrompt(aiName)
     }
 
     // Ajouter le contexte émotionnel

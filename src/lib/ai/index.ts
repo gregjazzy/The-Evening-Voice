@@ -2,9 +2,9 @@
  * Point d'entrée pour tous les services IA
  */
 
-// Gemini (IA-Amie Luna)
+// Gemini (IA-Amie - nom personnalisable)
 export {
-  generateLunaResponse,
+  generateLunaResponse, // Legacy alias, l'IA utilise maintenant le nom personnalisé
   generateImagePrompt,
   analyzeForMemoryImage,
 } from './gemini'
@@ -54,12 +54,18 @@ export type {
 export {
   generateVoice,
   generatePageNarration,
-  generateLunaVoice,
+  generateNarrationWithFallback,
+  generateAIFriendVoice,
+  generateLunaVoice, // Legacy alias
   estimateAudioDuration,
   getAvailableVoices,
+  getNarrationVoices,
+  isElevenLabsAvailable,
   checkQuota as checkElevenLabsQuota,
   AVAILABLE_VOICES,
 } from './elevenlabs'
+
+export type { NarrationResult } from './elevenlabs'
 
 // Midjourney (Images)
 export {

@@ -1,8 +1,8 @@
 # 🌙 La Voix du Soir
 
-> Une application magique de création d'histoires pour enfants, avec une IA-Amie nommée Luna.
+> Une application magique de création de livres-disques numériques pour enfants, avec une IA-Amie personnalisable.
 
-![Version](https://img.shields.io/badge/version-1.8.0-purple)
+![Version](https://img.shields.io/badge/version-3.2.0-purple)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)
 ![Supabase](https://img.shields.io/badge/Supabase-Database-green)
@@ -13,34 +13,158 @@
 
 ## ✨ Présentation
 
-**La Voix du Soir** est une application iPad/Desktop conçue pour les enfants de 8 ans. Elle offre un espace créatif où ils peuvent :
+**La Voix du Soir** est une application iPad/Desktop conçue pour les enfants. Elle offre un espace créatif où ils peuvent :
 
-- 📔 Écrire dans leur journal intime (avec photos, audio et images IA)
-- 📖 Créer des histoires magiques avec structures narratives
-- 🎨 Générer des images avec l'IA
-- 🖼️ Décorer les pages avec des ornements premium
-- 🎬 Assembler des livres interactifs
-- 🎭 Présenter leurs créations en mode Théâtre
+- ✍️ Écrire des histoires magiques avec structures narratives
+- 🎨 Créer des assets (images, voix, vidéos) au Studio
+- 🎬 Assembler des livres-disques interactifs avec timeline
+- 🎭 Présenter leurs créations en mode Théâtre immersif
+- 📖 Publier un vrai livre imprimé (via Gelato)
 
-Le tout accompagné par **Luna**, une IA-Amie de 8 ans qui guide, encourage et enseigne l'art du prompting.
-
----
-
-## 🎯 Fonctionnalités
-
-### 5 Modes de Navigation
-
-| Mode | Description |
-|------|-------------|
-| 📔 **Journal** | Espace de confidences avec photos, enregistrements vocaux, et génération d'images IA |
-| ✍️ **Écriture** | Création de récits avec structures narratives, chapitres, fonds de page et décorations |
-| 🎨 **Studio** | Génération d'images (Midjourney), voix (ElevenLabs), vidéos (Runway/Luma) |
-| 📐 **Montage** | Assemblage de texte sur images, choix de typographies, synchronisation audio |
-| 🎭 **Théâtre** | Mode immersif avec synchronisation domotique (HomeKit/Hue) |
+Le tout accompagné par une **IA-Amie** dont l'enfant choisit le nom lors de sa première connexion ! 🌟
 
 ---
 
-## ✍️ Mode Écriture Avancé
+## 📊 État du Projet (Janvier 2026)
+
+### Modes Disponibles
+
+| Mode | État | Description |
+|------|------|-------------|
+| ✍️ **Écriture** | ✅ Complet | Création de livres avec chapitres, décorations, fonds |
+| 🎨 **Studio** | ⚠️ Partiel | Assistant de prompts (pont vers outils externes) |
+| 🎬 **Montage** | ✅ Complet | Timeline "Rubans Magiques" avec effets |
+| 🎭 **Théâtre** | ⚠️ Partiel | Lecteur basique (données non connectées) |
+| 📖 **Publier** | ✅ Complet | Publication via Gelato (print-on-demand) |
+| 🤝 **Collab** | ✅ Complet | Création à distance parent/enfant (WebRTC) |
+
+### Fonctionnalités Clés
+
+| Fonctionnalité | État | Notes |
+|----------------|------|-------|
+| IA-Amie personnalisable | ✅ | L'enfant choisit le nom de son IA |
+| Éditeur livre ouvert | ✅ | 2 pages côte à côte |
+| Décorations premium | ✅ | 60+ ornements SVG |
+| Timeline Montage v2 | ✅ | Drag & drop, zoom, effets |
+| Synchronisation Supabase | ✅ | Auto-save debounced |
+| Intégration Gelato | ✅ | Devis + commande |
+| Mode multi-langue | ✅ | FR, EN, RU |
+
+---
+
+## 🎯 Flux de Production
+
+```
+📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
+   (texte)    (assets)    (assemblage)  (lecture)
+                              ↓
+                         📖 Publier
+                       (livre imprimé)
+```
+
+### Détail du flux
+
+| Étape | Mode | Ce qu'on fait |
+|-------|------|---------------|
+| 1 | **Écriture** | Écrire l'histoire, les chapitres, ajouter les décos |
+| 2 | **Studio** | Créer les illustrations, voix, vidéos (via outils externes) |
+| 3 | **Montage** | Assembler texte + assets + effets sonores + timeline |
+| 4 | **Théâtre** | Regarder/écouter le résultat final avec lumières |
+| 5 | **Publier** | Commander un vrai livre imprimé |
+
+---
+
+## 🔧 Ce qui reste à faire
+
+### Priorité 1 - Connexion des données
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Studio → Montage** | Les assets créés doivent être utilisables dans le Montage | 1h |
+| **Montage → Théâtre** | Le Théâtre doit lire les projets terminés du Montage | 2h |
+
+### Priorité 2 - Améliorations
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Export PDF** | Générer un PDF haute qualité pour l'impression | 4h |
+| **Export MP4** | Exporter le livre-disque en vidéo | 6h |
+| **HomeKit réel** | Contrôler les vraies lumières Hue | 3h |
+| **Projection AirPlay** | Envoyer vers TV/écran externe | 2h |
+
+### Priorité 3 - Optionnel
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **ElevenLabs intégré** | Générer les voix directement (API payante) | 2h |
+| **Undo/Redo** | Historique des modifications | 3h |
+
+---
+
+## 🏗️ Architecture
+
+### Stores (Zustand)
+
+| Store | Usage |
+|-------|-------|
+| `useAppStore` | État global, projets d'écriture, chapitres |
+| `useMontageStore` | Projets de montage, scènes, timeline |
+| `usePublishStore` | État de publication, Gelato |
+| `useStudioStore` | Kits de création, prompts |
+| `useAuthStore` | Authentification, profils |
+| `useMentorStore` | Mode collaboration |
+
+### Structure des fichiers
+
+```
+src/
+├── app/                    # Pages Next.js (App Router)
+│   ├── [locale]/          # Pages localisées
+│   └── api/               # Routes API
+│       ├── ai/            # Chat, image, voice, video
+│       ├── gelato/        # Quote, order
+│       └── upload/        # Upload vidéos
+├── components/
+│   ├── modes/             # BookMode, StudioMode, MontageEditor, TheaterMode, PublishMode
+│   ├── montage/           # Timeline, Preview, RhythmGame...
+│   ├── studio/            # PromptBuilder, SafariBridge...
+│   └── ui/                # Composants réutilisables
+├── hooks/                 # useAI, useSupabaseSync, useMontageSync...
+├── lib/
+│   ├── ai/                # Gemini, ElevenLabs, prompts
+│   ├── gelato/            # Client API Gelato
+│   └── supabase/          # Client, types
+├── store/                 # Zustand stores
+└── messages/              # Traductions (fr, en, ru)
+```
+
+---
+
+## 🤖 IA-Amie Personnalisable
+
+### Fonctionnement
+
+1. **Première connexion** : Modal pour choisir le nom de l'IA
+2. **Modification** : Menu utilisateur → "Mon amie IA"
+3. **Persistance** : Sauvegardé dans Supabase (`profiles.ai_name`)
+
+### Personnalité de l'IA
+
+- 💜 Enthousiaste et encourageante
+- 🎨 Passionnée par les histoires et l'imagination
+- 🌟 Patiente et bienveillante
+- 🚫 Ne fait JAMAIS le travail à la place de l'enfant
+
+### Modes de communication
+
+| Mode | Comportement |
+|------|--------------|
+| **Écrit** | L'IA répond en texte uniquement |
+| **Oral** | L'IA répond ET parle automatiquement (TTS) |
+
+---
+
+## ✍️ Mode Écriture
 
 ### Interface Livre Ouvert
 
@@ -58,38 +182,24 @@ Le tout accompagné par **Luna**, une IA-Amie de 8 ans qui guide, encourage et e
 │      │ ╚═════════════╝ │ || │                 │                             │
 │      │ Il était une    │ || │ La suite de     │                             │
 │      │ fois...         │ || │ l'histoire...   │                             │
-│      │                 │ || │                 │                             │
-│      │ [🎙️][📷][🖼️][🎨]│ || │ [🎙️][📷][🖼️][🎨]│                             │
 │      │     — 1 —       │ || │     — 2 —       │                             │
 │      └─────────────────┴────┴─────────────────┘                             │
-│                                                                              │
 │              [•1] [•2] [•3] [•4] [+]                                         │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Fonctionnalités de l'éditeur
+### Fonctionnalités
 
 | Fonctionnalité | Description |
 |----------------|-------------|
-| **Vue livre ouvert** | 2 pages éditables côte à côte comme un vrai livre |
-| **Mode zoom** | Agrandir une page (gauche ou droite) |
-| **Texte sur lignes** | Écriture alignée sur les lignes du cahier |
-| **Fond de page** | Image ou vidéo en arrière-plan avec opacité/zoom |
-| **Décorations** | Ornements premium déplaçables avec effets |
-| **Images flottantes** | Photos positionnables avec rotation et effets |
+| **Vue livre ouvert** | 2 pages éditables côte à côte |
+| **Mode zoom** | Agrandir page gauche ou droite |
+| **Texte sur lignes** | Écriture alignée sur les lignes |
+| **Fond de page** | Image/vidéo avec opacité/zoom |
+| **Décorations** | 60+ ornements premium déplaçables |
+| **Images flottantes** | Photos avec rotation et effets |
 
-### 🖼️ Fond de Page (Nouveau ✨)
-
-| Contrôle | Description |
-|----------|-------------|
-| **Type** | Image ou vidéo |
-| **Opacité** | Slider 0-100% |
-| **Zoom** | Slider 10-300% |
-| **Position** | Drag pour déplacer |
-
-### 🎨 Décorations Premium (Nouveau ✨)
-
-Collection luxueuse de 60+ décorations SVG pour embellir les pages :
+### 🎨 Décorations Premium
 
 | Catégorie | Exemples |
 |-----------|----------|
@@ -98,137 +208,98 @@ Collection luxueuse de 60+ décorations SVG pour embellir les pages :
 | 👑 **Royaux** | Couronnes, blasons, sceptres |
 | ⭐ **Célestes** | Lunes, étoiles, constellations |
 | 🦋 **Artistiques** | Papillons, plumes, cœurs |
-| 🖼️ **Cadres** | Cadres dorés, parchemins |
-
-#### Contrôles des décorations
-
-| Contrôle | Range |
-|----------|-------|
-| **Taille** | 20-300% |
-| **Rotation** | -180° à 180° |
-| **Opacité** | 20-100% |
-| **Couleur** | 12 couleurs premium |
-| **Flip** | Miroir H/V |
-| **Luminosité** | Effet glow avec couleur/intensité |
-| **Menu déplaçable** | Glisser le header pour repositionner |
-
-### Barre de Formatage
-
-| Outil | Comportement |
-|-------|--------------|
-| **6 Polices** | S'applique au texte sélectionné |
-| **Tailles numériques** | 8 à 72px |
-| **Gras / Italique** | Toggle sans déplacer le curseur |
-| **Couleurs** | Palette complète |
-| **Fond de page** | Contrôles opacité/zoom |
-| **Toggle lignes** | Afficher/masquer les lignes |
-
-### Structures Narratives
-
-| Structure | Pages | Description |
-|-----------|-------|-------------|
-| 📖 Conte Classique | 5-8 | Début → Problème → Aventure → Résolution → Fin |
-| 🗺️ Aventure | 6-10 | Appel → Départ → Épreuves → Victoire → Retour |
-| 🧩 Problème-Solution | 4-6 | Situation → Problème → Tentatives → Solution |
-| 📔 Journal Illustré | 3-5 | Page par moment de la journée |
-| 🔄 La Boucle | 4-6 | Retour au point de départ transformé |
-| 🎨 Libre | Illimité | Sans structure imposée |
-
-### Panneau Luna latéral
-
-- **Chat toujours visible** pendant l'écriture
-- **"📖 Luna, lis ma page !"** → Luna analyse le texte et pose des questions
-- **🔊 Toggle voix** → Luna parle ses réponses
-- **🎙️ Micro** → Parler à Luna au lieu de taper
-
-### Dictée vocale
-
-- **🎙️ Dicter** dans la zone d'écriture → Le texte s'ajoute à l'histoire
-- **🎙️ Micro** dans le chat → Parler à Luna
-- Supporté sur Chrome, Safari, Edge
 
 ---
 
-## 🤖 Luna - L'IA-Amie
+## 🎬 Mode Montage
 
-### Personnalité
+### Timeline "Rubans Magiques"
 
-- 💜 Enthousiaste et encourageante
-- 🎨 Passionnée par les histoires et l'imagination
-- 🌟 Patiente et bienveillante
-- 🚫 Ne fait JAMAIS le travail à la place de l'enfant
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ Structure  │🎬 Intro 3s│  📖 Narration (16.9s)           │🎬 Outro│
+├─────────────────────────────────────────────────────────────────────┤
+│ Phrases    │           │ Phrase 1 │ Phrase 2 │ Phrase 3 │          │
+├─────────────────────────────────────────────────────────────────────┤
+│ Médias     │     [▶ Video d'intro           ]                      │
+├─────────────────────────────────────────────────────────────────────┤
+│ Musique    │[♫ Musique de fond                                     ]│
+├─────────────────────────────────────────────────────────────────────┤
+│ Sons       │                    [🔔 Carillon]                       │
+├─────────────────────────────────────────────────────────────────────┤
+│ Lumières   │        [💡 Magique 60%                                ]│
+├─────────────────────────────────────────────────────────────────────┤
+│ Anim       │    [✨ Étoiles]          [💖 Cœurs qui s'envolent]     │
+└─────────────────────────────────────────────────────────────────────┘
+        0s        3s        6s        9s       12s       15s      19s
+```
 
-### Mode Oral
+### Pistes disponibles
 
-| Mode | Comportement |
-|------|--------------|
-| **Écrit** | Luna répond en texte uniquement |
-| **Oral** | Luna répond ET parle automatiquement |
-
-### Voix
-
-| Langue | Voix (macOS) | Voix (Web/iPad) |
-|--------|--------------|-----------------|
-| 🇫🇷 Français | Audrey (Enhanced) | Voix système FR |
-| 🇬🇧 Anglais | Samantha | Voix système EN |
-| 🇷🇺 Russe | Milena (Enhanced) | Voix système RU |
-
----
-
-## 🎓 Système Pédagogique
-
-### Les 5 Clés Magiques (Pour les Images)
-
-| Clé | Impact | Question Luna |
-|-----|--------|---------------|
-| 🎨 **Style** | 40% | "Cartoon, peinture, ou photo ?" |
-| 🦸 **Héros** | 25% | "Qui ou quoi ? Décris-le !" |
-| 💫 **Ambiance** | 15% | "Quelle émotion ? Quelle lumière ?" |
-| 🌍 **Monde** | 10% | "Où ça se passe ? Jour ou nuit ?" |
-| ✨ **Magie** | 10% | "Quel détail rendrait l'image unique ?" |
-
-### Les 5 Questions Magiques (Pour l'Écriture)
-
-| Question | But |
-|----------|-----|
-| 👤 **Qui ?** | Définir le personnage principal |
-| ❓ **Quoi ?** | L'action ou l'événement central |
-| 📍 **Où ?** | Le lieu de l'histoire |
-| ⏰ **Quand ?** | Le moment (jour, nuit, saison) |
-| 🔄 **Et alors ?** | Le rebondissement |
-
-### 5 Niveaux de Progression
-
-| Niveau | Nom | XP requis |
-|--------|-----|-----------|
-| 1 | 🌱 Explorateur | 0 |
-| 2 | ⭐ Apprenti | 50 |
-| 3 | 🎨 Artiste | 150 |
-| 4 | ✨ Magicien | 300 |
-| 5 | 👑 Maître | 500 |
+| Piste | Icône | Description |
+|-------|-------|-------------|
+| Structure | ▶ | Intro / Narration / Outro |
+| Phrases | T | Affichage karaoké synchronisé |
+| Médias | 🖼 | Images et vidéos positionnables |
+| Musique | 🎵 | Musique de fond avec fade |
+| Sons | 🔊 | 120+ effets sonores catégorisés |
+| Lumières | 💡 | Couleurs HomeKit |
+| Déco | ✨ | Stickers et décorations |
+| Anim | 🌟 | 30 animations (localisées + ambiance) |
 
 ---
 
-## 🖥️ Application Desktop (Electron)
+## 🎨 Mode Studio
 
-### Fonctionnalités exclusives
+### ⚠️ Fonctionnement actuel
 
-| Fonctionnalité | Web/iPad | Electron |
-|----------------|----------|----------|
-| Toutes les fonctionnalités créatives | ✅ | ✅ |
-| TTS voix natives macOS | ❌ | ✅ |
-| Contrôle à distance du Mac | ❌ | ✅ |
-| Partage d'écran complet | ❌ | ✅ |
+Le mode Studio est un **assistant de prompts** qui aide à créer du contenu via des outils externes :
+
+| Outil | Usage | Intégration |
+|-------|-------|-------------|
+| **Midjourney** | Images | Copie prompt → ouvre Discord |
+| **ElevenLabs** | Voix | Copie prompt → ouvre le site |
+| **Runway** | Vidéos | Copie prompt → ouvre le site |
+
+**Workflow** :
+1. L'enfant construit son prompt (style, ambiance, sujet)
+2. Le prompt est copié dans le presse-papier
+3. Safari s'ouvre sur l'outil choisi
+4. L'enfant colle et génère
+5. Il importe l'asset créé via le dropzone
+
+---
+
+## 📖 Mode Publier
+
+### Intégration Gelato (Print-on-Demand)
+
+| Étape | Description |
+|-------|-------------|
+| 1. **Sélection** | Choisir l'histoire à publier |
+| 2. **Format** | Carré, A5 ou A4 |
+| 3. **Couverture** | Titre, auteur, couleur, image |
+| 4. **Aperçu** | Prévisualisation du livre |
+| 5. **Qualité** | Vérification automatique |
+| 6. **Commande** | Devis Gelato + paiement |
+
+### Formats disponibles
+
+| Format | Dimensions | Prix indicatif |
+|--------|------------|----------------|
+| Carré | 21×21 cm | ~15€ |
+| A5 | 14.8×21 cm | ~12€ |
+| A4 | 21×29.7 cm | ~18€ |
 
 ---
 
 ## 🌍 Internationalisation
 
-| Langue | Code |
-|--------|------|
-| 🇫🇷 Français | `fr` (défaut) |
-| 🇬🇧 English | `en` |
-| 🇷🇺 Русский | `ru` |
+| Langue | Code | État |
+|--------|------|------|
+| 🇫🇷 Français | `fr` | ✅ Complet |
+| 🇬🇧 English | `en` | ✅ Complet |
+| 🇷🇺 Русский | `ru` | ✅ Complet |
 
 ---
 
@@ -242,7 +313,8 @@ Collection luxueuse de 60+ décorations SVG pour embellir les pages :
 | **Framer Motion** | Animations |
 | **Zustand** | State management |
 | **Supabase** | Base de données + Auth + Realtime |
-| **Gemini 2.0 Flash** | IA conversationnelle (Luna) |
+| **Gemini 2.0 Flash** | IA conversationnelle |
+| **Gelato API** | Print-on-demand |
 | **Web Speech API** | TTS & STT navigateur |
 | **Electron** | Application desktop Mac |
 | **WebRTC** | Communication peer-to-peer |
@@ -257,6 +329,7 @@ Collection luxueuse de 60+ décorations SVG pour embellir les pages :
 - npm ou yarn
 - Compte Supabase
 - Clé API Google Gemini
+- (Optionnel) Clé API Gelato
 
 ### 1. Cloner le projet
 
@@ -283,11 +356,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-clé-anon
 # GEMINI (obligatoire)
 GOOGLE_GEMINI_API_KEY=votre-clé-gemini
 
+# GELATO (optionnel - pour publication)
+GELATO_API_KEY=votre-clé-gelato
+GELATO_TEST_MODE=true
+
 # CONFIG
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-> ⚠️ **Ne jamais commiter le fichier `.env.local`** - Il contient vos clés API privées.
+> ⚠️ **Ne jamais commiter le fichier `.env.local`**
 
 ### 4. Lancer l'application
 
@@ -323,54 +400,56 @@ npm run lint          # Vérifier le code
 
 ---
 
-## 🔮 Roadmap
+## 📁 Base de données Supabase
 
-### Fait ✅
+### Tables principales
 
-- [x] App Electron pour desktop Mac
-- [x] Contrôle à distance complet du Mac
-- [x] Journal avec photos, audio, images IA
-- [x] TTS macOS natif + Web Speech API
-- [x] Système pédagogique (5 Clés + 5 Questions)
-- [x] Mode Écriture avec onglets/chapitres
-- [x] Barre de formatage complète (6 polices, tailles numériques)
-- [x] Panneau Luna latéral avec chat
-- [x] Dictée vocale (Speech-to-Text)
-- [x] Parler à Luna (micro)
-- [x] **Vue livre ouvert** (2 pages éditables côte à côte)
-- [x] **Mode zoom bidirectionnel** (page gauche ou droite)
-- [x] **Texte aligné sur les lignes** du cahier
-- [x] **Gestion des chapitres** par page (points colorés)
-- [x] **Formatage sur sélection** (taille, police, couleur)
-- [x] **Images flottantes** avec rotation et styles
-- [x] **Fond de page** (image/vidéo avec opacité/zoom/position)
-- [x] **Décorations premium** (60+ ornements SVG)
-- [x] **Effet de luminosité** (glow) pour les décorations
-- [x] **Menu d'édition déplaçable**
+| Table | Description |
+|-------|-------------|
+| `profiles` | Utilisateurs (enfants, mentors, parents) |
+| `stories` | Histoires créées (mode Écriture) |
+| `montage_projects` | Projets de montage (timeline) |
 
-### À venir 📋
+### Colonnes `profiles` importantes
 
-- [ ] Export PDF des livres
-- [ ] Intégration images Studio → Livre
-- [ ] Mode hors-ligne avec sync
-- [ ] App Electron pour Windows
-- [ ] Animations décoratives
+| Colonne | Type | Description |
+|---------|------|-------------|
+| `ai_name` | TEXT | Nom personnalisé de l'IA |
+| `emotional_context` | JSONB | Contexte émotionnel pour l'IA |
+| `role` | TEXT | `child`, `mentor`, `parent` |
 
 ---
 
-## 📦 Git Repository
+## 📚 Documentation
 
-**URL** : `https://github.com/gregjazzy/The-Evening-Voice.git`
+| Fichier | Contenu |
+|---------|---------|
+| `docs/CONCEPT.md` | Vision produit |
+| `docs/ARCHITECTURE.md` | Architecture technique |
+| `docs/QUICK_START.md` | Guide de démarrage |
+| `docs/API.md` | Documentation API |
+| `docs/HANDOVER.md` | Document de passation |
 
-```bash
-# Cloner
-git clone https://github.com/gregjazzy/The-Evening-Voice.git
+---
 
-# Après modifications
-git add .
-git commit -m "description"
-git push origin main
-```
+## 🔮 Changelog récent
+
+### v3.2.0 (Janvier 2026)
+- ✅ Mode Publication avec Gelato
+- ✅ Nom de l'IA personnalisable (plus de "Luna" en dur)
+- ✅ Modal de choix du nom à la première connexion
+- ❌ Suppression du mode Journal (demande cliente)
+
+### v3.1.0
+- ✅ Mode Montage v2 "Rubans Magiques"
+- ✅ Zones Intro/Outro
+- ✅ PreviewCanvas avec animations
+- ✅ RhythmGame phrase par phrase
+
+### v3.0.0
+- ✅ Vue livre ouvert (2 pages)
+- ✅ Décorations premium (60+)
+- ✅ Fond de page (image/vidéo)
 
 ---
 

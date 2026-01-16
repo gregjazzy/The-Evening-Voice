@@ -19,11 +19,11 @@
     "welcome": "Bienvenue"
   },
   "nav": {
-    "diary": "Journal",
     "book": "Écriture",
     "studio": "Studio",
     "layout": "Montage",
     "theater": "Théâtre",
+    "publish": "Publier",
     "collab": "Collab",
     "settings": "Paramètres",
     "logout": "Déconnexion"
@@ -82,10 +82,14 @@
     "memoryImage": "Image souvenir",
     "generateMemory": "Créer une image souvenir",
     "aiChat": {
-      "lunaName": "Luna",
-      "lunaSubtitle": "Ta copine magique ✨",
+      "aiName": "Ma copine IA",
+      "aiSubtitle": "Ton aide magique ✨",
       "placeholder": "Parle-moi...",
-      "send": "Envoyer"
+      "send": "Envoyer",
+      "chooseNameTitle": "Choisis le nom de ton aide magique !",
+      "chooseNamePlaceholder": "Entre un joli prénom...",
+      "chooseNameButton": "C'est parti !",
+      "changeNameButton": "Changer le nom"
     }
   },
   "book": {

@@ -19,11 +19,11 @@
     "welcome": "Welcome"
   },
   "nav": {
-    "diary": "Diary",
     "book": "Writing",
     "studio": "Studio",
     "layout": "Layout",
     "theater": "Theater",
+    "publish": "Publish",
     "collab": "Collab",
     "settings": "Settings",
     "logout": "Logout"
@@ -82,10 +82,14 @@
     "memoryImage": "Memory image",
     "generateMemory": "Create a memory image",
     "aiChat": {
-      "lunaName": "Luna",
-      "lunaSubtitle": "Your magical friend ✨",
+      "aiName": "My AI friend",
+      "aiSubtitle": "Your magical helper ✨",
       "placeholder": "Talk to me...",
-      "send": "Send"
+      "send": "Send",
+      "chooseNameTitle": "Choose your magical helper's name!",
+      "chooseNamePlaceholder": "Enter a nice name...",
+      "chooseNameButton": "Let's go!",
+      "changeNameButton": "Change name"
     }
   },
   "book": {

@@ -3,8 +3,8 @@
 > Document de passation complet pour la prochaine session de développement
 
 **Date** : 16 janvier 2026  
-**Version** : 3.1.0  
-**État** : Mode Montage v2 - UX améliorée ✅ Fonctionnel
+**Version** : 3.2.0  
+**État** : IA personnalisable ✅ + Mode Publication Gelato ✅
 
 ---
 
@@ -16,36 +16,74 @@
 
 Application pour enfants permettant de créer des **livres-disques numériques 2.0** - inspirés des livres-disques d'antan (Marlène Jobert, Disney) mais augmentés avec IA et domotique.
 
-### Les 5 Modes
+### Les 5 Modes (Journal supprimé)
 
 | Mode | Fonction | État |
 |------|----------|------|
-| 📔 **Journal** | Journal intime avec Luna (IA) | ✅ Fonctionnel |
-| ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Fonctionnel |
-| 🎨 **Studio** | Génération d'assets IA (images, voix, vidéos) | ✅ Existe |
-| 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ **FONCTIONNEL** |
-| 🎭 **Théâtre** | Lecteur immersif avec projection + lumières | 🔧 À développer |
+| ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Complet |
+| 🎨 **Studio** | Création d'assets via outils externes | ⚠️ Pont Safari |
+| 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ Complet |
+| 🎭 **Théâtre** | Lecteur immersif avec projection + lumières | ⚠️ Données non connectées |
+| 📖 **Publier** | Publication livre imprimé via Gelato | ✅ Complet |
 
 ---
 
 ## 🆕 Dernières modifications (Session actuelle)
 
-### UX / Navigation
-- **Bouton "← Retour"** en mode Timeline pour revenir aux Cartes
-- **Bouton "🏠 Home"** en mode Cartes pour fermer le projet
-- **Action `closeProject()`** ajoutée au store
+### IA Personnalisable (Plus de "Luna")
+- **Nom choisi par l'enfant** à la première connexion
+- **Modal `AINameModal`** avec suggestions de prénoms
+- **Persistance** dans Supabase (`profiles.ai_name`)
+- **Modification** possible via menu utilisateur
+- **Toutes les références "Luna"** remplacées par le nom choisi
 
-### Vue Cartes
-- **Remplacement du panneau "Médias"** (inutile) par "📊 État de la scène" :
-  - Badge de statut global (✅ Prêt / En cours)
-  - État de la voix (durée enregistrée)
-  - État de la synchronisation (phrases sync)
-  - Compteur d'éléments dans la timeline
-  - Bouton rapide vers la Timeline
+### Mode Publication (Gelato)
+- **6 étapes** : Sélection → Format → Couverture → Aperçu → Qualité → Commande
+- **Formats** : Carré (21×21), A5, A4
+- **Couverture** : Titre, auteur, couleur de fond, image
+- **API Gelato** : Devis en temps réel + passage de commande
+- **Routes API** : `/api/gelato/quote` et `/api/gelato/order`
 
-### Corrections
-- Phrases extensibles jusqu'à la zone Outro (plus de limite à la narration)
-- Plein écran fonctionne correctement avec `createPortal`
+### Suppressions
+- ❌ **Mode Journal** supprimé (demande cliente)
+- ❌ **Référence "Luna"** supprimée partout
+
+---
+
+## 🔴 PROBLÈME MAJEUR : Données non connectées
+
+### 3 systèmes de données séparés
+
+```
+Mode Écriture   →   useAppStore     →   projects[] + chapters[]
+Mode Montage    →   useMontageStore →   projects[] + scenes[]
+Mode Théâtre    →   useLayoutStore  →   books[] + pages[]    ← VIDE !
+```
+
+### Le flux logique devrait être
+
+```
+📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
+   (texte)    (assets)    (assemblage)  (lecture)
+```
+
+### Ce qui fonctionne actuellement
+
+```
+Écriture ────────────────────────────→ Montage ✅ (fonctionne)
+            ↓
+         Studio ─ · · · · · · · · · → Montage ❓ (assets non connectés)
+                                          ↓
+                                      Théâtre ❌ (lit useLayoutStore qui est VIDE)
+```
+
+### Corrections nécessaires
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Studio → Montage** | Ajouter "Utiliser dans Montage" pour les assets | 1h |
+| **Montage → Théâtre** | Théâtre lit `useMontageStore.projects` | 2h |
+| **Supprimer useLayoutStore** | N'est plus utile | 30min |
 
 ---
 
@@ -53,7 +91,7 @@ Application pour enfants permettant de créer des **livres-disques numériques 2
 
 ### Philosophie : Timeline basée sur le TEMPS
 
-> **CHANGEMENT MAJEUR** : La v2 utilise une timeline temporelle classique (en secondes) avec des "rubans" visuels pour chaque élément.
+> La v2 utilise une timeline temporelle classique (en secondes) avec des "rubans" visuels pour chaque élément.
 
 ```
 Timeline v2 "Rubans Magiques" :
@@ -75,70 +113,12 @@ Timeline v2 "Rubans Magiques" :
         0s        3s        6s        9s       12s       15s      19s
 ```
 
-**Avantages :**
-- Plus flexible pour ajouter intro/outro
-- Permet le drag & drop des éléments
-- Positionnement précis en pixels
-- Sous-lignes automatiques pour éléments superposés
-
----
-
-## 🏗️ Architecture Montage v2
-
-### Structure des données
-
-```typescript
-// Une scène (anciennement "page")
-interface MontageScene {
-  id: string
-  bookPageId: string       // Lien vers la page du livre
-  title: string
-  text: string
-  phrases: string[]        // Texte splitté en phrases
-  duration: number         // Durée narration (secondes)
-  introDuration: number    // 🆕 Zone intro (secondes)
-  outroDuration: number    // 🆕 Zone outro (secondes)
-  
-  // Pistes (rubans)
-  narration: NarrationTrack      // Voix + timings phrases
-  mediaTracks: MediaTrack[]      // Vidéos et images
-  musicTracks: MusicTrack[]      // Musique de fond
-  soundTracks: SoundTrack[]      // Effets sonores
-  lightTracks: LightTrack[]      // Lumières HomeKit
-  decorationTracks: DecorationTrack[]  // Stickers et décorations
-  animationTracks: AnimationTrack[]    // 🆕 Animations de fond
-  textEffectTracks: TextEffectTrack[]  // Effets sur le texte
-}
-
-// TimeRange commun à toutes les pistes
-interface TimeRange {
-  startTime: number  // En secondes
-  endTime: number    // En secondes
-}
-
-// Exemple : MediaTrack
-interface MediaTrack {
-  id: string
-  url: string
-  name: string
-  type: 'image' | 'video'
-  timeRange: TimeRange
-  position: { x: number; y: number; width: number; height: number }
-  opacity?: number
-  fadeIn?: number
-  fadeOut?: number
-  zIndex?: number
-}
-```
-
 ### Fichiers du Montage v2
 
 ```
 src/
 ├── store/
 │   └── useMontageStore.ts      # Store Zustand (~1100 lignes)
-│                               # Actions : createProject, loadProject,
-│                               # closeProject, setIntroDuration, etc.
 │
 ├── hooks/
 │   └── useMontageSync.ts       # Synchronisation avec Supabase
@@ -146,196 +126,190 @@ src/
 ├── components/
 │   └── montage/
 │       ├── MontageEditor.tsx   # Éditeur principal (2 vues)
-│       │                       # + SceneStatusPanel (état de la scène)
-│       │                       # + Boutons Retour/Home
 │       ├── TimelineRubans.tsx  # Timeline "Rubans Magiques"
 │       ├── PreviewCanvas.tsx   # Prévisualisation temps réel
 │       ├── RhythmGame.tsx      # Jeu de sync phrase par phrase
 │       ├── KaraokePlayer.tsx   # Affichage karaoké des phrases
 │       ├── AddElementModal.tsx # Modal d'ajout d'éléments
-│       ├── TrackPropertiesPanel.tsx # Panneau propriétés (draggable)
+│       ├── TrackPropertiesPanel.tsx # Panneau propriétés
 │       ├── AnimationEffects.tsx    # Rendu des animations
 │       └── NarrationPanel.tsx  # Enregistrement/TTS
+```
+
+---
+
+## 📖 MODE PUBLIER - Intégration Gelato
+
+### Fichiers de la Publication
+
+```
+src/
+├── store/
+│   └── usePublishStore.ts      # Store Zustand
+│
+├── components/
+│   └── modes/
+│       └── PublishMode.tsx     # Composant principal (~1500 lignes)
 │
 ├── lib/
-│   └── audio/
-│       └── synth-sounds.ts     # Sons synthétiques (Web Audio API)
+│   └── gelato/
+│       ├── types.ts            # Types Gelato
+│       ├── client.ts           # Fonctions client
+│       └── index.ts            # Export
+│
+├── app/
+│   └── api/
+│       └── gelato/
+│           ├── quote/route.ts  # API devis
+│           └── order/route.ts  # API commande
+```
+
+### Flux de publication
+
+1. **Sélection** : Choisir une histoire complète
+2. **Format** : Carré (21×21), A5, A4
+3. **Couverture** : Titre, auteur, couleur, image
+4. **Aperçu** : Prévisualisation pages + couverture
+5. **Qualité** : Vérifications automatiques
+6. **Commande** : Devis Gelato → Paiement → Confirmation
+
+---
+
+## 🤖 IA PERSONNALISABLE
+
+### Fichiers modifiés
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/store/useAppStore.ts` | Ajout `aiName` + `setAiName` |
+| `src/lib/ai/gemini.ts` | Fonctions avec paramètre `aiName` |
+| `src/lib/ai/elevenlabs.ts` | Renommé `luna` → `ai_friend` |
+| `src/hooks/useSupabaseSync.ts` | Sync `aiName` avec Supabase |
+| `src/hooks/useAI.ts` | Passe `aiName` au chat |
+| `src/app/api/ai/chat/route.ts` | Reçoit `aiName` dans le body |
+| `src/components/ui/AINameModal.tsx` | Nouveau composant |
+| `src/components/ui/UserMenu.tsx` | Bouton "Mon amie IA" |
+| `src/components/ClientLayout.tsx` | Affiche modal première connexion |
+| `messages/*.json` | Placeholder `{aiName}` + nouvelles clés |
+| `supabase/schema.sql` | Colonne `ai_name` dans `profiles` |
+
+### Migration Supabase
+
+```sql
+-- Migration à exécuter si base existante
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ai_name TEXT;
+```
+
+---
+
+## 🎨 MODE STUDIO - État actuel
+
+### ⚠️ C'est un "Pont Safari", pas un générateur
+
+Le Studio aide à créer des prompts puis ouvre Safari vers :
+- **Midjourney** (images) - Discord
+- **ElevenLabs** (voix) - Site web
+- **Runway** (vidéos) - Site web
+
+L'enfant doit ensuite importer manuellement les créations via le dropzone.
+
+### Amélioration possible
+
+Intégrer directement l'API ElevenLabs pour la génération de voix (payant mais pratique).
+
+---
+
+## 🎭 MODE THÉÂTRE - État actuel
+
+### ⚠️ Données non connectées
+
+Le Théâtre lit `useLayoutStore.books` qui est **toujours vide** car :
+- Le mode Écriture utilise `useAppStore.projects`
+- Le mode Montage utilise `useMontageStore.projects`
+- Rien ne remplit `useLayoutStore.books`
+
+### Correction nécessaire
+
+Modifier `TheaterMode.tsx` pour lire depuis `useMontageStore` :
+```typescript
+// Actuellement
+const { books } = useLayoutStore()
+const completedBooks = books.filter((b) => b.isComplete)
+
+// Devrait être
+const { projects } = useMontageStore()
+const completedProjects = projects.filter((p) => p.isComplete)
 ```
 
 ---
 
 ## ✅ Fonctionnalités implémentées
 
-### 1. Vue "Cartes" (préparation)
-- Liste des scènes avec aperçu
-- Texte découpé en phrases numérotées
-- Panel narration : enregistrement micro ou TTS
-- **Panneau "État de la scène"** 🆕 :
-  - Badge de statut (✅ Prêt / En cours)
-  - Indicateur voix (durée enregistrée)
-  - Indicateur synchronisation (nombre de phrases)
-  - Compteur d'éléments (médias, sons, lumières, animations...)
-  - Bouton rapide "Aller à la Timeline →"
-- **Bouton Home** 🆕 : Fermer le projet et revenir à la sélection
+### Mode Écriture
+- [x] Vue livre ouvert (2 pages côte à côte)
+- [x] Mode zoom bidirectionnel
+- [x] Texte aligné sur les lignes
+- [x] Gestion des chapitres
+- [x] Formatage (taille, police, couleur)
+- [x] Images flottantes avec rotation
+- [x] Fond de page (image/vidéo avec opacité/zoom)
+- [x] Décorations premium (60+ ornements SVG)
+- [x] Effet de luminosité (glow)
+- [x] Menu d'édition déplaçable
 
-### 2. Vue "Timeline" (montage)
+### Mode Montage
+- [x] Timeline "Rubans Magiques" avec zoom
+- [x] Drag & drop des éléments
+- [x] Zones Intro/Outro redimensionnables
+- [x] PreviewCanvas avec animations
+- [x] RhythmGame phrase par phrase
+- [x] 121 sons catégorisés
+- [x] 30 animations (localisées + ambiance)
+- [x] Panneau de propriétés draggable
+- [x] Synchronisation Supabase debounced
 
-- **Bouton "← Retour"** 🆕 : Revenir à la vue Cartes
+### Mode Publication
+- [x] 3 formats de livre (Carré, A5, A4)
+- [x] Design de couverture
+- [x] Prévisualisation
+- [x] Vérifications qualité
+- [x] Intégration API Gelato
+- [x] Devis en temps réel
+- [x] Passage de commande
 
-#### Timeline "Rubans Magiques"
-- **Règle temporelle** avec zoom (60-200 px/seconde)
-- **Scroll horizontal** synchronisé (règle + pistes)
-- **Tête de lecture** verticale traversant toutes les pistes
-- **Clic pour repositionner** la tête de lecture
-- **Sous-lignes automatiques** pour éléments superposés
-- **Plein écran** via portail React
-
-#### Pistes disponibles
-| Piste | Icône | Description |
-|-------|-------|-------------|
-| Structure | ▶ | Intro / Narration / Outro |
-| Phrases | T | Affichage karaoké synchronisé |
-| Médias | 🖼 | Images et vidéos positionnables |
-| Musique | 🎵 | Musique de fond avec fade |
-| Sons | 🔊 | 120+ effets sonores catégorisés |
-| Lumières | 💡 | Couleurs HomeKit avec noms |
-| Déco | ✨ | Stickers et décorations SVG |
-| Anim | 🌟 | Animations (15 localisées + 15 ambiance) |
-| Effets | T | Effets texte (glow, shake, etc.) |
-
-#### Rubans interactifs
-- **Drag** : Déplacer dans le temps
-- **Resize** : Tirer les bords pour ajuster la durée
-- **Sélection** : Clic pour voir les propriétés
-- **Suppression** : Bouton ❌
-
-### 3. Zones Intro/Outro 🆕
-- **Ajout** : Boutons `+` dans le label Structure
-- **Durée par défaut** : 3 secondes
-- **Redimensionnement** : Drag du bord
-- **Suppression** : Bouton ❌
-- Les phrases sont décalées automatiquement
-
-### 4. PreviewCanvas 🆕
-- **Prévisualisation temps réel** de la scène
-- **Drag & Drop** pour positionner les éléments
-- **Resize** des médias et décorations
-- **Animations visuelles** (étoiles, cœurs, etc.)
-- **Karaoké** : phrase active en surbrillance
-- **Grille optionnelle** pour alignement
-- **Plein écran** via portail React
-
-### 5. Panneau de propriétés 🆕
-- **Apparaît** quand un élément est sélectionné
-- **Draggable** sur l'écran
-- **Propriétés par type** :
-  - Médias : position, taille, opacité, fade, z-index
-  - Sons/Musique : volume, fade, loop
-  - Lumières : couleur, intensité, pulse
-  - Animations : position, intensité, vitesse, opacité
-
-### 6. RhythmGame (synchronisation)
-- **Phrase par phrase** (plus intuitif que mot par mot)
-- L'audio joue, l'enfant tape à la fin de chaque phrase
-- Enregistre les `PhraseTiming` avec startTime/endTime
-- Possibilité de recommencer
-
-### 7. Bibliothèque de sons
-- **7 catégories** : Animaux, Humains, Météo, Nature, Magie, Ambiance, Actions
-- **121 sons** organisés en sous-catégories
-- **Sons synthétiques** via Web Audio API (fallback)
-
-### 8. Animations
-- **15 Effets Localisés** (position XY) :
-  - Baguette magique, Explosion de cœurs, Étoiles, Traînée d'étincelles...
-- **15 Effets Ambiance** (plein écran) :
-  - Étoiles filantes, Cœurs flottants, Neige, Lucioles, Confettis...
-
-### 9. Synchronisation Supabase
-- **Chargement** automatique des projets au démarrage
-- **Sauvegarde** debounced (500ms) à chaque modification
-- **Normalisation** des données anciennes (migration auto)
-- **Table** : `montage_projects` avec colonne `scenes` (JSONB)
-
-### 10. Navigation améliorée 🆕
-
-| Vue | Bouton | Action |
-|-----|--------|--------|
-| **Sélection** | Clic projet | Ouvrir le projet |
-| **Cartes** | 🏠 Home | Fermer projet → Sélection |
-| **Cartes** | Timeline | Passer en vue Timeline |
-| **Timeline** | ← Retour | Revenir aux Cartes |
-| **Timeline** | Cartes | Revenir aux Cartes |
-
-**Sauvegarde** : 100% automatique (pas de bouton "Sauvegarder")
-
----
-
-## 📁 Structure de la base de données
-
-### Table `montage_projects`
-
-```sql
-CREATE TABLE montage_projects (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  story_id UUID REFERENCES stories(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  scenes JSONB NOT NULL DEFAULT '[]'::jsonb,  -- Données complètes
-  is_complete BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-### Stockage des médias
-
-| Type | Stockage | Raison |
-|------|----------|--------|
-| Images | Supabase Storage | Taille modérée |
-| Audio | Supabase Storage | Taille modérée |
-| Vidéos | Cloudflare R2 | Gros fichiers, egress gratuit |
-
----
-
-## 🎨 UI/UX
-
-### Design
-- **Thème** : Nuit étoilée (midnight-900, auroras)
-- **Police** : Space Grotesk
-- **Animations** : Framer Motion
-- **Icônes** : Lucide React
-
-### Accessibilité enfant
-- **Emojis** pour identifier les pistes
-- **Couleurs vives** par type d'élément
-- **Boutons larges** pour les actions principales
-- **Feedback visuel** immédiat
+### IA
+- [x] Nom personnalisable par l'enfant
+- [x] Modal de choix à la première connexion
+- [x] Modification via menu utilisateur
+- [x] Persistance Supabase
+- [x] Prompts dynamiques avec le nom choisi
 
 ---
 
 ## 🔧 Ce qui reste à faire
 
-### Priorité 1 : Mode Théâtre
-- Lecteur plein écran immersif
-- Projection (via AirPlay/HDMI)
-- Contrôle HomeKit des lumières
-- Télécommande depuis autre appareil
+### Priorité 1 : Connecter les modes
 
-### Priorité 2 : Améliorations Montage
-| Tâche | Description |
-|-------|-------------|
-| Export MP4 | Exporter le livre-disque en vidéo |
-| Copier/Coller rubans | Faciliter la réutilisation |
-| Templates d'effets | Packs d'effets prédéfinis |
-| Undo/Redo | Historique des modifications |
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Studio → Montage** | Bouton "Utiliser dans Montage" | 1h |
+| **Montage → Théâtre** | Théâtre lit useMontageStore | 2h |
+| **Supprimer useLayoutStore** | N'est plus nécessaire | 30min |
+
+### Priorité 2 : Exports
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Export PDF** | Pour l'impression (300 DPI) | 4h |
+| **Export MP4** | Le livre-disque en vidéo | 6h |
 
 ### Priorité 3 : Intégrations
+
 | Service | État | Notes |
 |---------|------|-------|
-| ElevenLabs TTS | 🔧 | Timings automatiques |
-| HomeKit | 🔧 | Envoi commandes lumières |
-| WebRTC | ✅ | Mode Collab existe |
+| **ElevenLabs TTS** | 🔧 | Intégration directe (payant) |
+| **HomeKit réel** | 🔧 | Contrôle des lumières Hue |
+| **AirPlay** | 🔧 | Projection vers TV |
 
 ---
 
@@ -353,15 +327,11 @@ npm run dev
 npm run dev:electron
 ```
 
-### Tester le mode Montage
+### Tester l'app
 
-1. Aller sur l'app → Mode **Écriture**
-2. Créer une histoire avec du texte (2-3 phrases par page)
-3. Passer en mode **Montage**
-4. Créer un nouveau projet depuis l'histoire
-5. Vue **Cartes** : Enregistrer la voix, faire le jeu de rythme
-6. Vue **Timeline** : Ajouter intro/outro, médias, sons, animations
-7. Prévisualiser avec le bouton **Lire**
+1. **Écriture** : Créer une histoire avec du texte et des décos
+2. **Montage** : Créer un projet, enregistrer la voix, ajouter des effets
+3. **Publier** : Sélectionner l'histoire, configurer, voir le devis Gelato
 
 ---
 
@@ -375,8 +345,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
 SUPABASE_SERVICE_ROLE_KEY=xxx
 
-# Google AI (Luna)
+# Google AI
 GOOGLE_GEMINI_API_KEY=xxx
+
+# Gelato (publication)
+GELATO_API_KEY=xxx
+GELATO_TEST_MODE=true
 
 # Cloudflare R2 (vidéos)
 R2_ACCOUNT_ID=xxx
@@ -395,20 +369,15 @@ ELEVENLABS_API_KEY=xxx
 
 | Composant | État | Notes |
 |-----------|------|-------|
-| Store Montage v2 | ✅ | Scènes, pistes, closeProject() |
-| Timeline Rubans | ✅ | Zoom, scroll, sous-lignes |
-| PreviewCanvas | ✅ | Drag & drop, animations |
-| RhythmGame | ✅ | Phrase par phrase |
-| KaraokePlayer | ✅ | Affichage synchronisé |
-| Zones Intro/Outro | ✅ | Redimensionnables |
-| Panneau propriétés | ✅ | Draggable |
-| Bibliothèque sons | ✅ | 121 sons catégorisés |
-| Animations | ✅ | 30 types (localisés + ambiance) |
+| Mode Écriture | ✅ | Complet |
+| Mode Studio | ⚠️ | Pont Safari (pas d'intégration directe) |
+| Mode Montage | ✅ | Timeline v2 complète |
+| Mode Théâtre | ⚠️ | Lit le mauvais store (vide) |
+| Mode Publier | ✅ | Gelato intégré |
+| IA personnalisable | ✅ | Nom choisi par l'enfant |
 | Sync Supabase | ✅ | Debounced, normalisation |
-| Panneau État scène | ✅ | 🆕 Remplace le panneau Médias |
-| Navigation | ✅ | 🆕 Boutons Retour/Home |
-| Mode Théâtre | 🔧 | **À faire** |
-| Export MP4 | 🔧 | **À faire** |
+| Export PDF | 🔧 | À faire |
+| Export MP4 | 🔧 | À faire |
 
 ---
 
@@ -421,6 +390,7 @@ ELEVENLABS_API_KEY=xxx
 | `docs/QUICK_START.md` | Guide de démarrage |
 | `docs/API.md` | Documentation API |
 | `docs/HANDOVER.md` | Ce document |
+| `README.md` | Documentation générale |
 
 ---
 

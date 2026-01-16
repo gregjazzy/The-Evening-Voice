@@ -177,7 +177,7 @@ export function ConnectionModal({ isOpen, onClose }: ConnectionModalProps) {
                       type="text"
                       value={userName}
                       onChange={(e) => setUserName(e.target.value)}
-                      placeholder={selectedRole === 'mentor' ? 'Ex: Maître Lucas' : 'Ex: Luna'}
+                      placeholder={selectedRole === 'mentor' ? 'Ex: Maître Lucas' : 'Ex: Emma'}
                       className="w-full px-4 py-3 rounded-xl bg-midnight-900/50 border border-white/10 focus:border-aurora-500/50 focus:ring-2 focus:ring-aurora-500/20"
                     />
                   </div>

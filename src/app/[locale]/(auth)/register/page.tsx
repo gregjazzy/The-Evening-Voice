@@ -263,7 +263,7 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="input-field w-full"
-                  placeholder="Luna"
+                  placeholder="Étoile"
                 />
               </div>
 

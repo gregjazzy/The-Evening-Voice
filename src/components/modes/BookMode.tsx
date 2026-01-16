@@ -5046,7 +5046,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
 }
 
 // ============================================================================
-// COMPOSANT : Panneau latéral Luna
+// COMPOSANT : Panneau latéral IA-Amie (nom personnalisable)
 // ============================================================================
 
 interface ChatMessage {
@@ -5054,7 +5054,7 @@ interface ChatMessage {
   content: string
 }
 
-interface LunaSidePanelProps {
+interface AISidePanelProps {
   isOpen: boolean
   onToggle: () => void
   pageContent: string
@@ -5069,7 +5069,7 @@ interface LunaSidePanelProps {
   storyTitle: string
 }
 
-function LunaSidePanel({ 
+function AISidePanel({ 
   isOpen, 
   onToggle, 
   pageContent, 
@@ -5081,7 +5081,7 @@ function LunaSidePanel({
   chapters,
   currentChapterId,
   storyTitle
-}: LunaSidePanelProps) {
+}: AISidePanelProps) {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -5092,7 +5092,7 @@ function LunaSidePanel({
   // TTS
   const { speak, stop, isSpeaking, isAvailable: isTTSAvailable } = useTTS(locale)
   
-  // Speech recognition for voice input to Luna
+  // Speech recognition for voice input to AI
   const { 
     isListening, 
     isSupported: isSpeechSupported, 
@@ -5102,19 +5102,23 @@ function LunaSidePanel({
     resetTranscript 
   } = useSpeechRecognition(locale)
   
-  // Send transcript to Luna when dictation stops
+  // Send transcript to AI when dictation stops
   useEffect(() => {
     if (!isListening && transcript) {
-      sendToLuna(transcript)
+      sendToAI(transcript)
       resetTranscript()
     }
   }, [isListening, transcript])
   
+  // Récupérer le nom personnalisé de l'IA depuis le store
+  const { aiName } = useAppStore()
+  const displayName = aiName || (locale === 'fr' ? 'Mon aide' : locale === 'en' ? 'My helper' : 'Мой помощник')
+  
   const labels = {
     fr: {
-      title: 'Luna',
+      title: displayName,
       subtitle: 'Ton aide pour écrire',
-      placeholder: 'Écris à Luna...',
+      placeholder: `Écris à ${displayName}...`,
       intro: 'Je suis là pour t\'aider à écrire ton histoire ! 📖✨ Qu\'est-ce que tu veux raconter ?',
       readPage: '📄 Lis ma page',
       readChapter: '📑 Lis mon chapitre',
@@ -5122,7 +5126,7 @@ function LunaSidePanel({
       reading: 'Je lis...',
       send: 'Envoyer',
       collapse: 'Réduire',
-      expand: 'Luna',
+      expand: displayName,
       voiceOn: 'Mode oral activé',
       voiceOff: 'Mode écrit',
       emptyPage: 'Je n\'ai pas encore commencé à écrire. Tu peux m\'aider ?',
@@ -5130,9 +5134,9 @@ function LunaSidePanel({
       emptyBook: 'Ton livre est encore vide ! Par quoi tu veux commencer ?',
     },
     en: {
-      title: 'Luna',
+      title: displayName,
       subtitle: 'Your writing helper',
-      placeholder: 'Write to Luna...',
+      placeholder: `Write to ${displayName}...`,
       intro: 'I\'m here to help you write your story! 📖✨ What do you want to tell?',
       readPage: '📄 Read my page',
       readChapter: '📑 Read my chapter',
@@ -5140,7 +5144,7 @@ function LunaSidePanel({
       reading: 'Reading...',
       send: 'Send',
       collapse: 'Collapse',
-      expand: 'Luna',
+      expand: displayName,
       voiceOn: 'Voice mode on',
       voiceOff: 'Text mode',
       emptyPage: 'I haven\'t started writing yet. Can you help me?',
@@ -5148,9 +5152,9 @@ function LunaSidePanel({
       emptyBook: 'Your book is still empty! What do you want to start with?',
     },
     ru: {
-      title: 'Луна',
+      title: displayName,
       subtitle: 'Твой помощник в письме',
-      placeholder: 'Напиши Луне...',
+      placeholder: `Напиши ${displayName}...`,
       intro: 'Я здесь, чтобы помочь тебе написать историю! 📖✨ Что ты хочешь рассказать?',
       readPage: '📄 Прочитай страницу',
       readChapter: '📑 Прочитай главу',
@@ -5158,7 +5162,7 @@ function LunaSidePanel({
       reading: 'Читаю...',
       send: 'Отправить',
       collapse: 'Свернуть',
-      expand: 'Луна',
+      expand: displayName,
       voiceOn: 'Голосовой режим',
       voiceOff: 'Текстовый режим',
       emptyPage: 'Я ещё не начала писать. Можешь помочь?',
@@ -5181,8 +5185,8 @@ function LunaSidePanel({
     }
   }, [])
 
-  // sendToLuna avec message visible (court) et message complet (pour l'API)
-  const sendToLuna = async (userMessage: string, hiddenContext?: string) => {
+  // sendToAI avec message visible (court) et message complet (pour l'API)
+  const sendToAI = async (userMessage: string, hiddenContext?: string) => {
     if (!userMessage.trim() || isLoading) return
     
     // Stop any current speech
@@ -5205,6 +5209,7 @@ function LunaSidePanel({
         body: JSON.stringify({
           message: fullMessage,
           context: 'book',
+          aiName, // Transmettre le nom personnalisé de l'IA
           chatHistory: messages.slice(-10),
         }),
       })
@@ -5220,7 +5225,7 @@ function LunaSidePanel({
         }
       }
     } catch (error) {
-      console.error('Error sending to Luna:', error)
+      console.error('Error sending to AI:', error)
       const errorMessage = locale === 'fr' 
         ? 'Oups, j\'ai eu un petit problème... Réessaie !' 
         : locale === 'en'
@@ -5247,16 +5252,16 @@ function LunaSidePanel({
     const cleanContent = stripHtml(pageContent).trim()
     
     if (!cleanContent) {
-      sendToLuna(t.emptyPage)
+      sendToAI(t.emptyPage)
       return
     }
     
     // Message visible (court)
     const visibleMessage = locale === 'fr'
-      ? `Luna, lis ma page ${pageNumber} ! 📄`
+      ? `${displayName}, lis ma page ${pageNumber} ! 📄`
       : locale === 'en'
-      ? `Luna, read my page ${pageNumber}! 📄`
-      : `Луна, прочитай страницу ${pageNumber}! 📄`
+      ? `${displayName}, read my page ${pageNumber}! 📄`
+      : `${displayName}, прочитай страницу ${pageNumber}! 📄`
     
     // Contexte caché (envoyé à l'API)
     const hiddenContext = locale === 'fr'
@@ -5265,7 +5270,7 @@ function LunaSidePanel({
       ? `Content of page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${cleanContent}"\n\n→ Analyze the structure (WHO, WHAT, WHERE...), tell me if it's coherent, and help me improve! If you see small mistakes, tell me gently.`
       : `Содержание страницы ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${cleanContent}"\n\n→ Проанализируй структуру (КТО, ЧТО, ГДЕ...), скажи, всё ли логично, и помоги улучшить! Если увидишь ошибки, скажи мягко.`
     
-    sendToLuna(visibleMessage, hiddenContext)
+    sendToAI(visibleMessage, hiddenContext)
   }
 
   // === LECTURE CHAPITRE ===
@@ -5282,7 +5287,7 @@ function LunaSidePanel({
       .join('\n\n')
     
     if (!chapterContent.trim() || chapterPages.every(p => !stripHtml(p.content).trim())) {
-      sendToLuna(t.emptyChapter)
+      sendToAI(t.emptyChapter)
       return
     }
     
@@ -5292,10 +5297,10 @@ function LunaSidePanel({
     
     // Message visible (court)
     const visibleMessage = locale === 'fr'
-      ? `Luna, lis ${chapterTitle} ! 📑`
+      ? `${displayName}, lis ${chapterTitle} ! 📑`
       : locale === 'en'
-      ? `Luna, read ${chapterTitle}! 📑`
-      : `Луна, прочитай ${chapterTitle}! 📑`
+      ? `${displayName}, read ${chapterTitle}! 📑`
+      : `${displayName}, прочитай ${chapterTitle}! 📑`
     
     // Contexte caché
     const hiddenContext = locale === 'fr'
@@ -5304,7 +5309,7 @@ function LunaSidePanel({
       ? `Chapter content:\n\n${chapterContent}\n\n→ Is the story coherent? Are the characters well described? Is something missing? Any advice for what's next?`
       : `Содержание главы:\n\n${chapterContent}\n\n→ История логична? Персонажи хорошо описаны? Чего-то не хватает? Советы для продолжения?`
     
-    sendToLuna(visibleMessage, hiddenContext)
+    sendToAI(visibleMessage, hiddenContext)
   }
 
   // === LECTURE LIVRE ENTIER ===
@@ -5319,7 +5324,7 @@ function LunaSidePanel({
       .join('\n\n')
     
     if (!bookContent.trim() || allPages.every(p => !stripHtml(p.content).trim())) {
-      sendToLuna(t.emptyBook)
+      sendToAI(t.emptyBook)
       return
     }
     
@@ -5327,10 +5332,10 @@ function LunaSidePanel({
     
     // Message visible (court)
     const visibleMessage = locale === 'fr'
-      ? `Luna, lis tout mon livre "${title}" ! 📚`
+      ? `${displayName}, lis tout mon livre "${title}" ! 📚`
       : locale === 'en'
-      ? `Luna, read my whole book "${title}"! 📚`
-      : `Луна, прочитай всю книгу "${title}"! 📚`
+      ? `${displayName}, read my whole book "${title}"! 📚`
+      : `${displayName}, прочитай всю книгу "${title}"! 📚`
     
     // Contexte caché
     const hiddenContext = locale === 'fr'
@@ -5339,12 +5344,12 @@ function LunaSidePanel({
       ? `Full book content:\n\n${bookContent}\n\n→ Global analysis: does the story have a good beginning, middle and end? Are the characters consistent? Is the story interesting? What could I improve? Are there mistakes you notice often?`
       : `Полное содержание книги:\n\n${bookContent}\n\n→ Общий анализ: есть хорошее начало, середина и конец? Персонажи последовательны? История интересная? Что можно улучшить? Есть ли частые ошибки?`
     
-    sendToLuna(visibleMessage, hiddenContext)
+    sendToAI(visibleMessage, hiddenContext)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    sendToLuna(message)
+    sendToAI(message)
   }
 
   // Collapsed state - just a button
@@ -5435,7 +5440,7 @@ function LunaSidePanel({
             )}
           >
             <p className="leading-relaxed">{msg.content}</p>
-            {/* Bouton écouter pour les messages de Luna */}
+            {/* Bouton écouter pour les messages de l'IA */}
             {msg.role === 'assistant' && isTTSAvailable && (
               <button
                 onClick={() => {
@@ -5451,7 +5456,7 @@ function LunaSidePanel({
                     ? 'bg-aurora-500/30 text-aurora-300'
                     : 'bg-midnight-700/30 text-midnight-400 hover:text-aurora-300 hover:bg-aurora-500/20'
                 )}
-                title={isSpeaking ? (locale === 'fr' ? 'Arrêter' : locale === 'en' ? 'Stop' : 'Стоп') : (locale === 'fr' ? 'Écouter Luna' : locale === 'en' ? 'Listen to Luna' : 'Слушать Луну')}
+                title={isSpeaking ? (locale === 'fr' ? 'Arrêter' : locale === 'en' ? 'Stop' : 'Стоп') : (locale === 'fr' ? `Écouter ${displayName}` : locale === 'en' ? `Listen to ${displayName}` : `Слушать ${displayName}`)}
               >
                 <Volume2 className="w-4 h-4" />
               </button>
@@ -5474,7 +5479,7 @@ function LunaSidePanel({
       
       {/* Input avec analyse premium */}
       <form onSubmit={handleSubmit} className="p-3 border-t border-midnight-700/30">
-        {/* Pastille Luna Analyse - Design Premium */}
+        {/* Pastille IA Analyse - Design Premium */}
         <div className="flex justify-end mb-3 relative">
           <motion.button
             type="button"
@@ -5516,7 +5521,7 @@ function LunaSidePanel({
               >
                 <Sparkles className="w-3.5 h-3.5" />
               </motion.span>
-              <span className="uppercase">{locale === 'fr' ? 'Luna lit' : locale === 'en' ? 'Luna reads' : 'Луна читает'}</span>
+              <span className="uppercase">{locale === 'fr' ? `${displayName} lit` : locale === 'en' ? `${displayName} reads` : `${displayName} читает`}</span>
             </span>
           </motion.button>
           
@@ -5578,7 +5583,7 @@ function LunaSidePanel({
             className="flex-1 px-4 py-2 rounded-xl bg-midnight-800/50 border border-midnight-700/50 text-white placeholder-midnight-500 text-sm focus:outline-none focus:border-aurora-500/30 disabled:opacity-50"
           />
           
-          {/* Bouton micro pour parler à Luna */}
+          {/* Bouton micro pour parler à l'IA */}
           <motion.button
             type="button"
             onClick={isListening ? stopListening : startListening}
@@ -5593,7 +5598,7 @@ function LunaSidePanel({
             )}
             animate={isListening ? { scale: [1, 1.1, 1] } : {}}
             transition={isListening ? { repeat: Infinity, duration: 0.8 } : {}}
-            title={!isSpeechSupported ? 'Non supporté par ce navigateur' : isListening ? 'Arrêter' : 'Parler à Luna'}
+            title={!isSpeechSupported ? 'Non supporté par ce navigateur' : isListening ? 'Arrêter' : `Parler à ${displayName}`}
           >
             {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </motion.button>
@@ -5694,7 +5699,7 @@ export function BookMode() {
   } = useAppStore()
   
   const [storyTitle, setStoryTitle] = useState('')
-  const [showLunaPanel, setShowLunaPanel] = useState(true) // Panneau Luna ouvert par défaut
+  const [showAIPanel, setShowAIPanel] = useState(true) // Panneau IA ouvert par défaut
   const [showOverview, setShowOverview] = useState(false)
   const [showStructureSelector, setShowStructureSelector] = useState(false)
   const [showStructureView, setShowStructureView] = useState(false)
@@ -6530,9 +6535,9 @@ export function BookMode() {
   // Vue : écriture (version compacte - livre maximisé)
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* ZONE PRINCIPALE - Livre + Luna + Onglets */}
+      {/* ZONE PRINCIPALE - Livre + IA + Onglets */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Sous-zone : Livre + Luna */}
+        {/* Sous-zone : Livre + IA */}
         <div className="flex-1 flex gap-1 min-h-0 overflow-hidden">
         {/* ZONE CENTRALE - Livre maximisé */}
           <div className="flex-1 min-w-0 overflow-hidden">
@@ -6679,11 +6684,11 @@ export function BookMode() {
         )}
         </div>
 
-          {/* Panneau Luna */}
+          {/* Panneau IA */}
           <AnimatePresence mode="wait">
-            <LunaSidePanel
-              isOpen={showLunaPanel}
-              onToggle={() => setShowLunaPanel(!showLunaPanel)}
+            <AISidePanel
+              isOpen={showAIPanel}
+              onToggle={() => setShowAIPanel(!showAIPanel)}
               pageContent={rightPage?.content || ''}
               pageTitle={rightPage?.title || ''}
               pageNumber={rightPageIndex + 1}
@@ -6784,7 +6789,7 @@ export function BookMode() {
         {/* BARRE SOUS LE LIVRE - Onglets de pages centrés par rapport au livre */}
         <div className={cn(
           "flex items-center justify-center gap-4 py-3 flex-shrink-0 transition-all",
-          showLunaPanel ? "pr-[320px]" : "pr-12" // Compenser la largeur du panneau Luna
+          showAIPanel ? "pr-[320px]" : "pr-12" // Compenser la largeur du panneau IA
         )}>
           {/* Nom du chapitre actif (à gauche des onglets) */}
           {(() => {

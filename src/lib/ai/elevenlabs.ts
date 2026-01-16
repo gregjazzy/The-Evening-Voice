@@ -1,33 +1,45 @@
 /**
  * Service ElevenLabs - Génération de voix/narration
  * Pour lire les histoires avec des voix magiques
+ * 
+ * IMPORTANT: 
+ * - Les Voice IDs sont configurables via variables d'environnement
+ * - Si ElevenLabs échoue, fallback sur Apple Voice (TTS système)
  */
 
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1'
 
-// Voix disponibles pour les enfants (douces et engageantes)
+// Voix disponibles pour la narration des histoires
+// Les IDs sont lus depuis les variables d'environnement pour faciliter les changements
 export const AVAILABLE_VOICES = {
-  luna: {
-    id: process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB', // Adam (example)
-    name: 'Luna',
-    description: 'Voix douce et magique de Luna',
-  },
   narrator: {
-    id: 'EXAVITQu4vr4xnSDxMaL', // Bella (example)
-    name: 'Narrateur',
+    id: process.env.ELEVENLABS_VOICE_NARRATOR || 'EXAVITQu4vr4xnSDxMaL',
+    name: 'Conteur',
     description: 'Voix de conte de fées',
+    emoji: '📖',
   },
   fairy: {
-    id: 'MF3mGyEYCl7XYWbV9V6O', // Elli (example)
+    id: process.env.ELEVENLABS_VOICE_FAIRY || 'MF3mGyEYCl7XYWbV9V6O',
     name: 'Fée',
     description: 'Voix légère et féerique',
+    emoji: '🧚',
   },
   dragon: {
-    id: 'TxGEqnHWrfWFTfGW9XjX', // Josh (example)
+    id: process.env.ELEVENLABS_VOICE_DRAGON || 'TxGEqnHWrfWFTfGW9XjX',
     name: 'Dragon',
     description: 'Voix grave et amicale',
+    emoji: '🐉',
+  },
+  default: {
+    id: process.env.ELEVENLABS_VOICE_DEFAULT || 'pNInz6obpgDQGcFmaJgB',
+    name: 'Narrateur par défaut',
+    description: 'Voix douce et engageante',
+    emoji: '✨',
   },
 }
+
+// Legacy: Garder ai_friend comme alias de default
+export const VOICE_AI_FRIEND = AVAILABLE_VOICES.default
 
 export type VoiceType = keyof typeof AVAILABLE_VOICES
 
@@ -45,15 +57,17 @@ interface GenerateVoiceResponse {
   audioUrl: string
   audioBlob: Blob
   duration?: number
+  source: 'elevenlabs' | 'apple_fallback'
 }
 
 /**
- * Génère un fichier audio à partir du texte
+ * Génère un fichier audio à partir du texte via ElevenLabs
+ * @throws Error si ElevenLabs échoue (utiliser generateNarrationWithFallback pour le fallback)
  */
 export async function generateVoice(params: GenerateVoiceParams): Promise<GenerateVoiceResponse> {
   const {
     text,
-    voiceType = 'luna',
+    voiceType = 'default',
     voiceId,
     stability = 0.5,
     similarityBoost = 0.75,
@@ -99,15 +113,23 @@ export async function generateVoice(params: GenerateVoiceParams): Promise<Genera
     return {
       audioUrl,
       audioBlob,
+      source: 'elevenlabs',
     }
   } catch (error) {
-    console.error('Erreur génération voix:', error)
+    console.error('Erreur génération voix ElevenLabs:', error)
     throw error
   }
 }
 
 /**
- * Génère la narration d'une page complète
+ * Vérifie si ElevenLabs est configuré et disponible
+ */
+export function isElevenLabsAvailable(): boolean {
+  return !!process.env.ELEVENLABS_API_KEY
+}
+
+/**
+ * Génère la narration d'une page complète (ElevenLabs uniquement)
  */
 export async function generatePageNarration(
   pageText: string,
@@ -129,18 +151,23 @@ export async function generatePageNarration(
 }
 
 /**
- * Génère une réponse vocale de Luna
+ * Génère une réponse vocale (deprecated - utiliser Apple Voice pour l'IA-Amie)
+ * @deprecated Utiliser useTTS() pour l'IA-Amie (Apple Voice, instantané)
  */
-export async function generateLunaVoice(text: string): Promise<GenerateVoiceResponse> {
+export async function generateAIFriendVoice(text: string): Promise<GenerateVoiceResponse> {
+  console.warn('generateAIFriendVoice est deprecated. Utiliser useTTS() pour l\'IA-Amie.')
   return generateVoice({
     text,
-    voiceType: 'luna',
-    stability: 0.4, // Plus expressif
+    voiceType: 'default',
+    stability: 0.4,
     similarityBoost: 0.7,
-    style: 0.7, // Plus de personnalité
+    style: 0.7,
     speakerBoost: true,
   })
 }
+
+// Legacy alias pour rétrocompatibilité
+export const generateLunaVoice = generateAIFriendVoice
 
 /**
  * Estime la durée de l'audio (approximatif)
@@ -187,5 +214,94 @@ export async function checkQuota(): Promise<{ charactersRemaining: number; tier:
     console.error('Erreur vérification quota:', error)
     return { charactersRemaining: 0, tier: 'unknown' }
   }
+}
+
+// ============================================================================
+// NARRATION AVEC FALLBACK APPLE VOICE
+// ============================================================================
+
+export interface NarrationResult {
+  /** URL de l'audio généré (blob URL ou null si Apple Voice) */
+  audioUrl: string | null
+  /** Blob audio (si ElevenLabs) */
+  audioBlob: Blob | null
+  /** Source de la voix utilisée */
+  source: 'elevenlabs' | 'apple_fallback'
+  /** Texte à lire (pour Apple Voice fallback) */
+  text: string
+  /** Type de voix utilisé */
+  voiceType: VoiceType
+  /** Durée estimée en secondes */
+  estimatedDuration: number
+}
+
+/**
+ * Génère la narration d'une histoire avec fallback automatique sur Apple Voice
+ * 
+ * - Essaie d'abord ElevenLabs (qualité premium)
+ * - Si échec (pas de clé API, erreur réseau, etc.) → Apple Voice
+ * 
+ * @param text Le texte à narrer
+ * @param voiceType Le type de voix ElevenLabs souhaité
+ * @returns NarrationResult avec audioUrl ou instructions pour Apple Voice
+ */
+export async function generateNarrationWithFallback(
+  text: string,
+  voiceType: VoiceType = 'narrator'
+): Promise<NarrationResult> {
+  // Nettoyer le texte
+  const cleanedText = text
+    .replace(/\n+/g, '. ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const estimatedDuration = estimateAudioDuration(cleanedText)
+
+  // Essayer ElevenLabs si disponible
+  if (isElevenLabsAvailable()) {
+    try {
+      const result = await generatePageNarration(cleanedText, voiceType)
+      return {
+        audioUrl: result.audioUrl,
+        audioBlob: result.audioBlob,
+        source: 'elevenlabs',
+        text: cleanedText,
+        voiceType,
+        estimatedDuration,
+      }
+    } catch (error) {
+      console.warn('ElevenLabs a échoué, fallback sur Apple Voice:', error)
+      // Continue vers le fallback
+    }
+  }
+
+  // Fallback : Apple Voice (TTS système)
+  // On retourne les infos nécessaires pour que le client utilise useTTS()
+  console.log('Utilisation du fallback Apple Voice pour la narration')
+  return {
+    audioUrl: null,
+    audioBlob: null,
+    source: 'apple_fallback',
+    text: cleanedText,
+    voiceType,
+    estimatedDuration,
+  }
+}
+
+/**
+ * Liste des voix disponibles pour la narration (pour l'UI)
+ */
+export function getNarrationVoices(): Array<{
+  id: VoiceType
+  name: string
+  description: string
+  emoji: string
+}> {
+  return Object.entries(AVAILABLE_VOICES).map(([id, voice]) => ({
+    id: id as VoiceType,
+    name: voice.name,
+    description: voice.description,
+    emoji: voice.emoji,
+  }))
 }
 

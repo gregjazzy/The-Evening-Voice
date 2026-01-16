@@ -1,5 +1,5 @@
 /**
- * API Route - Chat avec Luna (IA-Amie)
+ * API Route - Chat avec l'IA-Amie (nom personnalisable)
  * Utilise le système des 5 Clés Magiques (images) + 5 Questions Magiques (écriture)
  */
 
@@ -11,6 +11,7 @@ interface ChatRequestBody {
   message: string
   context?: 'diary' | 'book' | 'studio' | 'general'
   locale?: 'fr' | 'en' | 'ru'
+  aiName?: string // Nom personnalisé de l'IA
   chatHistory?: ChatMessage[]
   emotionalContext?: string[]
   promptingProgress?: PromptingProgress
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
       message, 
       context = 'general',
       locale = 'fr',
+      aiName,
       chatHistory = [], 
       emotionalContext = [],
       promptingProgress,
@@ -41,10 +43,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Construire le contexte Luna
-    const lunaContext: LunaContext = {
+    // Construire le contexte de l'IA-Amie
+    const aiContext: LunaContext = {
       mode: context,
       locale,
+      aiName, // Nom personnalisé transmis au prompt
       promptingProgress,
       writingProgress,
       storyStructure,
@@ -52,10 +55,10 @@ export async function POST(request: NextRequest) {
       emotionalContext,
     }
 
-    // Générer la réponse de Luna
+    // Générer la réponse de l'IA-Amie
     const response = await generateLunaResponse(
       message,
-      lunaContext,
+      aiContext,
       chatHistory
     )
 

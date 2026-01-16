@@ -21,6 +21,7 @@ export interface Database {
           skills_unlocked: Json
           preferred_voice_id: string | null
           preferred_style: string
+          ai_name: string | null // Nom personnalisé de l'IA
           emotional_context: Json
           created_at: string
           updated_at: string
@@ -36,6 +37,7 @@ export interface Database {
           skills_unlocked?: Json
           preferred_voice_id?: string | null
           preferred_style?: string
+          ai_name?: string | null
           emotional_context?: Json
           created_at?: string
           updated_at?: string
@@ -51,6 +53,7 @@ export interface Database {
           skills_unlocked?: Json
           preferred_voice_id?: string | null
           preferred_style?: string
+          ai_name?: string | null
           emotional_context?: Json
           created_at?: string
           updated_at?: string

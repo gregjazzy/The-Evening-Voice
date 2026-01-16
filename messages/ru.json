@@ -19,11 +19,11 @@
     "welcome": "Добро пожаловать"
   },
   "nav": {
-    "diary": "Дневник",
     "book": "Письмо",
     "studio": "Студия",
     "layout": "Макет",
     "theater": "Театр",
+    "publish": "Печать",
     "collab": "Совместно",
     "settings": "Настройки",
     "logout": "Выход"
@@ -82,10 +82,14 @@
     "memoryImage": "Картинка воспоминания",
     "generateMemory": "Создать картинку воспоминания",
     "aiChat": {
-      "lunaName": "Луна",
-      "lunaSubtitle": "Твоя волшебная подруга ✨",
+      "aiName": "Моя подруга ИИ",
+      "aiSubtitle": "Твоя волшебная помощница ✨",
       "placeholder": "Поговори со мной...",
-      "send": "Отправить"
+      "send": "Отправить",
+      "chooseNameTitle": "Выбери имя для своей волшебной помощницы!",
+      "chooseNamePlaceholder": "Введи красивое имя...",
+      "chooseNameButton": "Поехали!",
+      "changeNameButton": "Изменить имя"
     }
   },
   "book": {

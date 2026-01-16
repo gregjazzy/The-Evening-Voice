@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { 
   generateVoice, 
   generatePageNarration,
-  generateLunaVoice,
+  generateAIFriendVoice,
   checkQuota,
   AVAILABLE_VOICES 
 } from '@/lib/ai/elevenlabs'
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       text, 
-      type = 'narration', // 'narration' | 'luna' | 'custom'
+      type = 'narration', // 'narration' | 'ai_friend' | 'custom'
       voiceType = 'narrator',
       voiceId 
     } = body
@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
 
     let result
     switch (type) {
-      case 'luna':
-        result = await generateLunaVoice(text)
+      case 'ai_friend':
+        result = await generateAIFriendVoice(text)
         break
       case 'narration':
         result = await generatePageNarration(text, voiceType)

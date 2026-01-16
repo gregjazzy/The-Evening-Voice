@@ -3,8 +3,8 @@
  * Gratuit et illimité - pas de latence réseau
  */
 
-// Configuration des voix par langue
-export const LUNA_VOICES = {
+// Configuration des voix par langue (pour l'IA-Amie)
+export const AI_FRIEND_VOICES = {
   fr: {
     voice: 'Audrey (Enhanced)',
     pitch: '', // Pas de modification
@@ -22,13 +22,16 @@ export const LUNA_VOICES = {
   },
 } as const
 
-export type SupportedLocale = keyof typeof LUNA_VOICES
+export type SupportedLocale = keyof typeof AI_FRIEND_VOICES
+
+// Legacy alias
+export const LUNA_VOICES = AI_FRIEND_VOICES
 
 /**
  * Génère la commande say pour macOS
  */
 export function buildSayCommand(text: string, locale: SupportedLocale): string {
-  const config = LUNA_VOICES[locale]
+  const config = AI_FRIEND_VOICES[locale]
   
   // Échapper les caractères spéciaux pour le shell
   const escapedText = text

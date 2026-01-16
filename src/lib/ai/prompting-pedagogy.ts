@@ -902,7 +902,7 @@ export function getNextQuestionToLearn(progress: WritingPromptingProgress): Writ
 }
 
 /**
- * Met à jour la progression après un message à Luna
+ * Met à jour la progression après un message à l'IA-Amie
  */
 export function updateWritingProgression(
   currentProgress: WritingPromptingProgress,
@@ -1023,7 +1023,7 @@ export function getInitialWritingProgress(): WritingPromptingProgress {
 }
 
 /**
- * Génère le contexte pédagogique pour Luna (écriture)
+ * Génère le contexte pédagogique pour l'IA-Amie (écriture)
  */
 export function generateWritingLevelContext(
   progress: WritingPromptingProgress,
@@ -1170,7 +1170,7 @@ export function updateProgression(
 // ============================================================================
 
 /**
- * Génère le contexte pédagogique pour Luna (images)
+ * Génère le contexte pédagogique pour l'IA-Amie (images)
  */
 export function generateImagePedagogyContext(
   progress: PromptingProgress,

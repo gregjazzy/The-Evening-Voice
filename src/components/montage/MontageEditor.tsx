@@ -440,7 +440,7 @@ function NarrationPanel() {
               <div className="w-12 h-12 rounded-full flex items-center justify-center bg-dream-500/30">
                 <Wand2 className="w-6 h-6 text-dream-300" />
               </div>
-              <span className="text-sm">Luna raconte</span>
+              <span className="text-sm">IA raconte</span>
               <span className="text-xs text-midnight-400">TTS (bientôt)</span>
             </motion.button>
           </div>

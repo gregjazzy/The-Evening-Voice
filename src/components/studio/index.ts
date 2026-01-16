@@ -2,4 +2,7 @@ export { PromptBuilder } from './PromptBuilder'
 export { SafariBridge } from './SafariBridge'
 export { AssetDropzone } from './AssetDropzone'
 export { StudioMissionFlash } from './StudioMissionFlash'
-
+export { StudioGuide, StudioLevelBadge } from './StudioGuide'
+export { StudioAIChat } from './StudioAIChat'
+export { StudioTutorial, TutorialButton } from './StudioTutorial'
+export { StudioMagicKeys } from './StudioMagicKeys'

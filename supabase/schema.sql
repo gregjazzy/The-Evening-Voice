@@ -24,6 +24,7 @@ CREATE TABLE profiles (
   -- Préférences
   preferred_voice_id TEXT,
   preferred_style TEXT DEFAULT 'magique',
+  ai_name TEXT, -- Nom personnalisé de l'IA (choisi par l'enfant)
   
   -- Contexte émotionnel (pour l'IA)
   emotional_context JSONB DEFAULT '[]'::jsonb,

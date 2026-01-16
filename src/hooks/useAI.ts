@@ -15,7 +15,7 @@ interface ChatMessage {
 }
 
 interface UseAIReturn {
-  // Chat avec Luna
+  // Chat avec l'IA-Amie
   sendMessage: (message: string, context?: 'diary' | 'book' | 'studio' | 'general') => Promise<{ text: string }>
   isLoadingChat: boolean
   
@@ -26,7 +26,7 @@ interface UseAIReturn {
   imageProgress: number
   
   // Génération de voix
-  generateVoice: (text: string, type?: 'narration' | 'luna') => Promise<string | null>
+  generateVoice: (text: string, type?: 'narration' | 'ai_friend') => Promise<string | null>
   isGeneratingVoice: boolean
   
   // Génération de vidéo
@@ -62,7 +62,7 @@ export function useAI(): UseAIReturn {
   const [videoProgress, setVideoProgress] = useState(0)
 
   // ============================================
-  // CHAT AVEC LUNA
+  // CHAT AVEC L'IA-AMIE
   // ============================================
   
   const sendMessage = useCallback(async (
@@ -108,7 +108,7 @@ export function useAI(): UseAIReturn {
       
       const data = await response.json()
       
-      // Ajouter la réponse de Luna
+      // Ajouter la réponse de l'IA
       addChatMessage({ role: 'assistant', content: data.text })
       
       return { text: data.text }
@@ -186,7 +186,7 @@ export function useAI(): UseAIReturn {
   
   const generateVoice = useCallback(async (
     text: string,
-    type: 'narration' | 'luna' = 'narration'
+    type: 'narration' | 'ai_friend' = 'narration'
   ): Promise<string | null> => {
     setIsGeneratingVoice(true)
     

@@ -155,7 +155,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input-field w-full pl-11"
-                placeholder="luna@magic.com"
+                placeholder="email@magic.com"
                 autoComplete="email"
               />
             </div>

@@ -130,6 +130,7 @@ export function useSupabaseSync() {
     chatHistory,
     stories,
     userName,
+    aiName, // Nom personnalisé de l'IA
     emotionalContext,
     // Setters (à créer si nécessaire)
   } = useAppStore()
@@ -252,6 +253,13 @@ export function useSupabaseSync() {
       if (profile.name) {
         useAppStore.setState({ userName: profile.name })
       }
+      // Charger le nom personnalisé de l'IA (priorité Supabase)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const profileAny = profile as any
+      if (profileAny.ai_name) {
+        useAppStore.setState({ aiName: profileAny.ai_name })
+        console.log(`   ✅ Nom de l'IA chargé: ${profileAny.ai_name}`)
+      }
       if (profile.emotional_context) {
         useAppStore.setState({ emotionalContext: profile.emotional_context as string[] })
       }
@@ -348,9 +356,28 @@ export function useSupabaseSync() {
     }
   }, [profile?.id])
 
+  // Sauvegarder le nom personnalisé de l'IA
+  const saveAiName = useCallback(async (name: string) => {
+    if (!profile?.id) return
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = supabase as any
+    const { error } = await client
+      .from('profiles')
+      .update({ ai_name: name })
+      .eq('id', profile.id)
+
+    if (error) {
+      console.error('Erreur sauvegarde ai_name:', error)
+    } else {
+      console.log(`   ✅ Nom de l'IA sauvegardé: ${name}`)
+    }
+  }, [profile?.id])
+
   // Versions debounced pour éviter trop de requêtes
   const debouncedSaveStory = useDebouncedCallback(saveStory, 2000)
   const debouncedSaveEmotionalContext = useDebouncedCallback(saveEmotionalContext, 5000)
+  const debouncedSaveAiName = useDebouncedCallback(saveAiName, 1000)
 
   // ============================================
   // ÉCOUTE DES CHANGEMENTS DU STORE
@@ -412,6 +439,18 @@ export function useSupabaseSync() {
     }
     prevEmotionalContextRef.current = contextKey
   }, [emotionalContext, profile?.id, debouncedSaveEmotionalContext])
+
+  // Sauvegarder le nom de l'IA quand il change
+  const prevAiNameRef = useRef<string>('')
+  useEffect(() => {
+    if (!profile?.id || !hasLoadedRef.current) return
+    
+    // Sauvegarder seulement si le nom a changé et n'est pas vide
+    if (aiName && aiName !== prevAiNameRef.current && prevAiNameRef.current !== '') {
+      debouncedSaveAiName(aiName)
+    }
+    prevAiNameRef.current = aiName || ''
+  }, [aiName, profile?.id, debouncedSaveAiName])
 
   return {
     isLoading: isLoadingRef.current,

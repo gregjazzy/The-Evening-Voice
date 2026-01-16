@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from '@/lib/i18n/context'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useAppStore } from '@/store/useAppStore'
 import { 
   User, 
   Settings, 
@@ -12,18 +13,22 @@ import {
   ChevronDown,
   Shield,
   Heart,
-  Users
+  Users,
+  Sparkles
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { AINameModal } from './AINameModal'
 
 export function UserMenu() {
   const t = useTranslations('nav')
   const tAuth = useTranslations('auth')
   const router = useRouter()
   const { user, profile, signOut } = useAuthStore()
+  const { aiName } = useAppStore()
   
   const [isOpen, setIsOpen] = useState(false)
+  const [showAINameModal, setShowAINameModal] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Fermer le menu si clic en dehors
@@ -128,6 +133,27 @@ export function UserMenu() {
               <LanguageSwitcher />
             </div>
 
+            {/* Nom de l'IA (pour les enfants) */}
+            {profile.role === 'child' && (
+              <div className="px-4 py-2 border-b border-aurora-700/50">
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    setShowAINameModal(true)
+                  }}
+                  className="w-full flex items-center justify-between text-aurora-200 hover:text-white transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-stardust-400" />
+                    <span className="text-sm">Mon amie IA</span>
+                  </div>
+                  <span className="text-sm font-semibold text-stardust-300">
+                    {aiName || '✨ Choisir'}
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* Options du menu */}
             <div className="py-1">
               <button
@@ -162,6 +188,13 @@ export function UserMenu() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal pour modifier le nom de l'IA */}
+      <AINameModal
+        isOpen={showAINameModal}
+        onClose={() => setShowAINameModal(false)}
+        isFirstTime={false}
+      />
     </div>
   )
 }
