@@ -131,6 +131,7 @@ interface RubanProps {
   duration: number
   pixelsPerSecond: number
   isSelected: boolean
+  lane?: number // Sous-ligne (0 par défaut)
   onSelect: () => void
   onTimeRangeChange: (timeRange: TimeRange) => void
   onDelete: () => void
@@ -149,6 +150,7 @@ function Ruban({
   duration,
   pixelsPerSecond,
   isSelected,
+  lane = 0,
   onSelect,
   onTimeRangeChange,
   onDelete,
@@ -159,6 +161,9 @@ function Ruban({
   const [isResizingRight, setIsResizingRight] = useState(false)
   const dragStartX = useRef(0)
   const originalTimeRange = useRef(timeRange)
+
+  // Position verticale basée sur la lane
+  const topPosition = lane * (LANE_HEIGHT + LANE_GAP)
 
   // Calculer les positions en pixels
   const leftPx = timeRange.startTime * pixelsPerSecond
@@ -257,14 +262,16 @@ function Ruban({
     <div
       ref={rubanRef}
       className={cn(
-        'absolute h-8 rounded-md cursor-grab transition-shadow flex items-center overflow-hidden',
+        'absolute rounded-md cursor-grab transition-shadow flex items-center overflow-hidden',
         isSelected && 'ring-2 ring-white shadow-lg',
         isDragging && 'cursor-grabbing opacity-80',
         color
       )}
       style={{
         left: leftPx,
+        top: topPosition,
         width: Math.max(40, widthPx),
+        height: LANE_HEIGHT - 4,
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => {
@@ -311,8 +318,45 @@ function Ruban({
 }
 
 // =============================================================================
-// PISTE DE RUBANS
+// PISTE DE RUBANS (AVEC SOUS-LIGNES AUTOMATIQUES)
 // =============================================================================
+
+// Calcule les lanes pour éviter les chevauchements
+export function calculateLanes(timeRanges: { id: string; startTime: number; endTime: number }[]): Map<string, number> {
+  const lanes = new Map<string, number>()
+  const laneEndTimes: number[] = [] // Temps de fin de chaque lane
+  
+  // Trier par temps de début
+  const sorted = [...timeRanges].sort((a, b) => a.startTime - b.startTime)
+  
+  for (const item of sorted) {
+    // Trouver la première lane disponible (où l'élément précédent est terminé)
+    let laneIndex = laneEndTimes.findIndex(endTime => endTime <= item.startTime)
+    
+    if (laneIndex === -1) {
+      // Aucune lane disponible, en créer une nouvelle
+      laneIndex = laneEndTimes.length
+      laneEndTimes.push(item.endTime)
+    } else {
+      // Mettre à jour le temps de fin de cette lane
+      laneEndTimes[laneIndex] = item.endTime
+    }
+    
+    lanes.set(item.id, laneIndex)
+  }
+  
+  return lanes
+}
+
+// Compte le nombre de lanes nécessaires
+export function countLanes(timeRanges: { id: string; startTime: number; endTime: number }[]): number {
+  if (timeRanges.length === 0) return 1
+  const lanes = calculateLanes(timeRanges)
+  return Math.max(1, Math.max(...Array.from(lanes.values())) + 1)
+}
+
+const LANE_HEIGHT = 28 // Hauteur d'une sous-ligne en pixels
+const LANE_GAP = 2 // Espacement entre les sous-lignes
 
 interface TrackRowScrollableProps {
   label: string
@@ -320,15 +364,18 @@ interface TrackRowScrollableProps {
   color: string
   buttonColor: string
   timelineWidth: number
+  laneCount?: number // Nombre de sous-lignes (1 par défaut)
   onAdd?: () => void
   children: React.ReactNode
 }
 
-function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, onAdd, children }: TrackRowScrollableProps) {
+function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, laneCount = 1, onAdd, children }: TrackRowScrollableProps) {
+  const totalHeight = Math.max(1, laneCount) * LANE_HEIGHT + (Math.max(0, laneCount - 1) * LANE_GAP)
+  
   return (
-    <div className="flex items-center h-10">
+    <div className="flex items-start" style={{ minHeight: totalHeight + 4 }}>
       {/* Label de la piste + bouton add */}
-      <div className="shrink-0 flex items-center gap-1" style={{ width: LABEL_WIDTH }}>
+      <div className="shrink-0 flex items-center gap-1 pt-0.5" style={{ width: LABEL_WIDTH }}>
         <div className={cn(
           'flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium flex-1 min-w-0',
           color
@@ -355,10 +402,10 @@ function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, on
         )}
       </div>
 
-      {/* Zone des rubans - largeur basée sur timelineWidth */}
+      {/* Zone des rubans - hauteur adaptée au nombre de lanes */}
       <div 
-        className="h-full relative bg-midnight-800/30 rounded-md"
-        style={{ width: timelineWidth, minWidth: timelineWidth }}
+        className="relative bg-midnight-800/30 rounded-md"
+        style={{ width: timelineWidth, minWidth: timelineWidth, height: totalHeight }}
       >
         {children}
       </div>
@@ -888,193 +935,257 @@ export function TimelineRubans() {
         )}
 
         {/* Piste Vidéo/Images */}
-        <TrackRowScrollable
-          label="Médias"
-          icon={<Video className="w-3.5 h-3.5" />}
-          color="bg-blue-500/30 text-blue-300"
-          buttonColor="bg-blue-500/50 hover:bg-blue-500 text-blue-200"
-          timelineWidth={timelineWidth}
-          onAdd={() => openAddModal('media')}
-        >
-          {(scene.mediaTracks || []).map((track) => (
-            <Ruban
-              key={track.id}
-              id={track.id}
-              label={track.name}
-              icon={track.type === 'video' ? <Video className="w-3 h-3" /> : <Image className="w-3 h-3" />}
-              color="bg-blue-500"
-              timeRange={track.timeRange}
-              duration={duration}
-              pixelsPerSecond={pixelsPerSecond}
-              isSelected={selectedTrackId === track.id && selectedTrackType === 'media'}
-              onSelect={() => setSelectedTrack(track.id, 'media')}
-              onTimeRangeChange={(tr) => updateMediaTrack(track.id, { timeRange: tr })}
-              onDelete={() => deleteMediaTrack(track.id)}
-            />
-          ))}
-        </TrackRowScrollable>
+        {(() => {
+          const tracks = scene.mediaTracks || []
+          const lanes = calculateLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          const laneCount = countLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          return (
+            <TrackRowScrollable
+              label="Médias"
+              icon={<Video className="w-3.5 h-3.5" />}
+              color="bg-blue-500/30 text-blue-300"
+              buttonColor="bg-blue-500/50 hover:bg-blue-500 text-blue-200"
+              timelineWidth={timelineWidth}
+              laneCount={laneCount}
+              onAdd={() => openAddModal('media')}
+            >
+              {tracks.map((track) => (
+                <Ruban
+                  key={track.id}
+                  id={track.id}
+                  label={track.name}
+                  icon={track.type === 'video' ? <Video className="w-3 h-3" /> : <Image className="w-3 h-3" />}
+                  color="bg-blue-500"
+                  timeRange={track.timeRange}
+                  duration={duration}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={selectedTrackId === track.id && selectedTrackType === 'media'}
+                  lane={lanes.get(track.id) || 0}
+                  onSelect={() => setSelectedTrack(track.id, 'media')}
+                  onTimeRangeChange={(tr) => updateMediaTrack(track.id, { timeRange: tr })}
+                  onDelete={() => deleteMediaTrack(track.id)}
+                />
+              ))}
+            </TrackRowScrollable>
+          )
+        })()}
 
         {/* Piste Musique */}
-        <TrackRowScrollable
-          label="Musique"
-          icon={<Music className="w-3.5 h-3.5" />}
-          color="bg-emerald-500/30 text-emerald-300"
-          buttonColor="bg-emerald-500/50 hover:bg-emerald-500 text-emerald-200"
-          timelineWidth={timelineWidth}
-          onAdd={() => openAddModal('music')}
-        >
-          {((scene as any).musicTracks || []).map((track: MusicTrack) => (
-            <Ruban
-              key={track.id}
-              id={track.id}
-              label={track.name}
+        {(() => {
+          const tracks = (scene as any).musicTracks || []
+          const lanes = calculateLanes(tracks.map((t: MusicTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          const laneCount = countLanes(tracks.map((t: MusicTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          return (
+            <TrackRowScrollable
+              label="Musique"
               icon={<Music className="w-3.5 h-3.5" />}
-              color="bg-emerald-500"
-              timeRange={track.timeRange}
-              duration={duration}
-              pixelsPerSecond={pixelsPerSecond}
-              isSelected={selectedTrackId === track.id && selectedTrackType === 'music'}
-              onSelect={() => setSelectedTrack(track.id, 'music')}
-              onTimeRangeChange={(tr) => updateMusicTrack(track.id, { timeRange: tr })}
-              onDelete={() => deleteMusicTrack(track.id)}
-            />
-          ))}
-        </TrackRowScrollable>
+              color="bg-emerald-500/30 text-emerald-300"
+              buttonColor="bg-emerald-500/50 hover:bg-emerald-500 text-emerald-200"
+              timelineWidth={timelineWidth}
+              laneCount={laneCount}
+              onAdd={() => openAddModal('music')}
+            >
+              {tracks.map((track: MusicTrack) => (
+                <Ruban
+                  key={track.id}
+                  id={track.id}
+                  label={track.name}
+                  icon={<Music className="w-3 h-3" />}
+                  color="bg-emerald-500"
+                  timeRange={track.timeRange}
+                  duration={duration}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={selectedTrackId === track.id && selectedTrackType === 'music'}
+                  lane={lanes.get(track.id) || 0}
+                  onSelect={() => setSelectedTrack(track.id, 'music')}
+                  onTimeRangeChange={(tr) => updateMusicTrack(track.id, { timeRange: tr })}
+                  onDelete={() => deleteMusicTrack(track.id)}
+                />
+              ))}
+            </TrackRowScrollable>
+          )
+        })()}
 
         {/* Piste Sons (effets sonores) */}
-        <TrackRowScrollable
-          label="Sons"
-          icon={<Volume2 className="w-3.5 h-3.5" />}
-          color="bg-pink-500/30 text-pink-300"
-          buttonColor="bg-pink-500/50 hover:bg-pink-500 text-pink-200"
-          timelineWidth={timelineWidth}
-          onAdd={() => openAddModal('sound')}
-        >
-          {(scene.soundTracks || []).map((track) => (
-            <Ruban
-              key={track.id}
-              id={track.id}
-              label={track.name}
+        {/* Piste Sons */}
+        {(() => {
+          const tracks = scene.soundTracks || []
+          const lanes = calculateLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          const laneCount = countLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          return (
+            <TrackRowScrollable
+              label="Sons"
               icon={<Volume2 className="w-3.5 h-3.5" />}
-              color="bg-pink-500"
-              timeRange={track.timeRange}
-              duration={duration}
-              pixelsPerSecond={pixelsPerSecond}
-              isSelected={selectedTrackId === track.id && selectedTrackType === 'sound'}
-              onSelect={() => setSelectedTrack(track.id, 'sound')}
-              onTimeRangeChange={(tr) => updateSoundTrack(track.id, { timeRange: tr })}
-              onDelete={() => deleteSoundTrack(track.id)}
-            />
-          ))}
-        </TrackRowScrollable>
+              color="bg-pink-500/30 text-pink-300"
+              buttonColor="bg-pink-500/50 hover:bg-pink-500 text-pink-200"
+              timelineWidth={timelineWidth}
+              laneCount={laneCount}
+              onAdd={() => openAddModal('sound')}
+            >
+              {tracks.map((track) => (
+                <Ruban
+                  key={track.id}
+                  id={track.id}
+                  label={track.name}
+                  icon={<Volume2 className="w-3 h-3" />}
+                  color="bg-pink-500"
+                  timeRange={track.timeRange}
+                  duration={duration}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={selectedTrackId === track.id && selectedTrackType === 'sound'}
+                  lane={lanes.get(track.id) || 0}
+                  onSelect={() => setSelectedTrack(track.id, 'sound')}
+                  onTimeRangeChange={(tr) => updateSoundTrack(track.id, { timeRange: tr })}
+                  onDelete={() => deleteSoundTrack(track.id)}
+                />
+              ))}
+            </TrackRowScrollable>
+          )
+        })()}
 
         {/* Piste Lumières */}
-        <TrackRowScrollable
-          label="Lumières"
-          icon={<Lightbulb className="w-3.5 h-3.5" />}
-          color="bg-yellow-500/30 text-yellow-300"
-          buttonColor="bg-yellow-500/50 hover:bg-yellow-500 text-yellow-200"
-          timelineWidth={timelineWidth}
-          onAdd={() => openAddModal('light')}
-        >
-          {(scene.lightTracks || []).map((track) => (
-            <Ruban
-              key={track.id}
-              id={track.id}
-              label={`${getColorName(track.color)} ${track.intensity}%`}
-              icon={<Lightbulb className="w-3 h-3" />}
-              color="bg-yellow-500"
-              timeRange={track.timeRange}
-              duration={duration}
-              pixelsPerSecond={pixelsPerSecond}
-              isSelected={selectedTrackId === track.id && selectedTrackType === 'light'}
-              onSelect={() => setSelectedTrack(track.id, 'light')}
-              onTimeRangeChange={(tr) => updateLightTrack(track.id, { timeRange: tr })}
-              onDelete={() => deleteLightTrack(track.id)}
-            />
-          ))}
-        </TrackRowScrollable>
+        {(() => {
+          const tracks = scene.lightTracks || []
+          const lanes = calculateLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          const laneCount = countLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          return (
+            <TrackRowScrollable
+              label="Lumières"
+              icon={<Lightbulb className="w-3.5 h-3.5" />}
+              color="bg-yellow-500/30 text-yellow-300"
+              buttonColor="bg-yellow-500/50 hover:bg-yellow-500 text-yellow-200"
+              timelineWidth={timelineWidth}
+              laneCount={laneCount}
+              onAdd={() => openAddModal('light')}
+            >
+              {tracks.map((track) => (
+                <Ruban
+                  key={track.id}
+                  id={track.id}
+                  label={`${getColorName(track.color)} ${track.intensity}%`}
+                  icon={<Lightbulb className="w-3 h-3" />}
+                  color="bg-yellow-500"
+                  timeRange={track.timeRange}
+                  duration={duration}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={selectedTrackId === track.id && selectedTrackType === 'light'}
+                  lane={lanes.get(track.id) || 0}
+                  onSelect={() => setSelectedTrack(track.id, 'light')}
+                  onTimeRangeChange={(tr) => updateLightTrack(track.id, { timeRange: tr })}
+                  onDelete={() => deleteLightTrack(track.id)}
+                />
+              ))}
+            </TrackRowScrollable>
+          )
+        })()}
 
         {/* Piste Décorations */}
-        <TrackRowScrollable
-          label="Déco"
-          icon={<Sparkles className="w-3.5 h-3.5" />}
-          color="bg-orange-500/30 text-orange-300"
-          buttonColor="bg-orange-500/50 hover:bg-orange-500 text-orange-200"
-          timelineWidth={timelineWidth}
-          onAdd={() => openAddModal('decoration')}
-        >
-          {((scene as any).decorationTracks || []).map((track: DecorationTrack) => (
-            <Ruban
-              key={track.id}
-              id={track.id}
-              label={track.name}
-              icon={<Sparkles className="w-3 h-3" />}
-              color="bg-orange-500"
-              timeRange={track.timeRange}
-              duration={duration}
-              pixelsPerSecond={pixelsPerSecond}
-              isSelected={selectedTrackId === track.id && selectedTrackType === 'decoration'}
-              onSelect={() => setSelectedTrack(track.id, 'decoration')}
-              onTimeRangeChange={(tr) => updateDecorationTrack(track.id, { timeRange: tr })}
-              onDelete={() => deleteDecorationTrack(track.id)}
-            />
-          ))}
-        </TrackRowScrollable>
+        {(() => {
+          const tracks = (scene as any).decorationTracks || []
+          const lanes = calculateLanes(tracks.map((t: DecorationTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          const laneCount = countLanes(tracks.map((t: DecorationTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          return (
+            <TrackRowScrollable
+              label="Déco"
+              icon={<Sparkles className="w-3.5 h-3.5" />}
+              color="bg-orange-500/30 text-orange-300"
+              buttonColor="bg-orange-500/50 hover:bg-orange-500 text-orange-200"
+              timelineWidth={timelineWidth}
+              laneCount={laneCount}
+              onAdd={() => openAddModal('decoration')}
+            >
+              {tracks.map((track: DecorationTrack) => (
+                <Ruban
+                  key={track.id}
+                  id={track.id}
+                  label={track.name}
+                  icon={<Sparkles className="w-3 h-3" />}
+                  color="bg-orange-500"
+                  timeRange={track.timeRange}
+                  duration={duration}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={selectedTrackId === track.id && selectedTrackType === 'decoration'}
+                  lane={lanes.get(track.id) || 0}
+                  onSelect={() => setSelectedTrack(track.id, 'decoration')}
+                  onTimeRangeChange={(tr) => updateDecorationTrack(track.id, { timeRange: tr })}
+                  onDelete={() => deleteDecorationTrack(track.id)}
+                />
+              ))}
+            </TrackRowScrollable>
+          )
+        })()}
 
         {/* Piste Animations */}
-        <TrackRowScrollable
-          label="Anim"
-          icon={<Wind className="w-3.5 h-3.5" />}
-          color="bg-cyan-500/30 text-cyan-300"
-          buttonColor="bg-cyan-500/50 hover:bg-cyan-500 text-cyan-200"
-          timelineWidth={timelineWidth}
-          onAdd={() => openAddModal('animation')}
-        >
-          {((scene as any).animationTracks || []).map((track: AnimationTrack) => (
-            <Ruban
-              key={track.id}
-              id={track.id}
-              label={track.name}
-              icon={<Wind className="w-3 h-3" />}
-              color="bg-cyan-500"
-              timeRange={track.timeRange}
-              duration={duration}
-              pixelsPerSecond={pixelsPerSecond}
-              isSelected={selectedTrackId === track.id && selectedTrackType === 'animation'}
-              onSelect={() => setSelectedTrack(track.id, 'animation')}
-              onTimeRangeChange={(tr) => updateAnimationTrack(track.id, { timeRange: tr })}
-              onDelete={() => deleteAnimationTrack(track.id)}
-            />
-          ))}
-        </TrackRowScrollable>
+        {(() => {
+          const tracks = (scene as any).animationTracks || []
+          const lanes = calculateLanes(tracks.map((t: AnimationTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          const laneCount = countLanes(tracks.map((t: AnimationTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          return (
+            <TrackRowScrollable
+              label="Anim"
+              icon={<Wind className="w-3.5 h-3.5" />}
+              color="bg-cyan-500/30 text-cyan-300"
+              buttonColor="bg-cyan-500/50 hover:bg-cyan-500 text-cyan-200"
+              timelineWidth={timelineWidth}
+              laneCount={laneCount}
+              onAdd={() => openAddModal('animation')}
+            >
+              {tracks.map((track: AnimationTrack) => (
+                <Ruban
+                  key={track.id}
+                  id={track.id}
+                  label={track.name}
+                  icon={<Wind className="w-3 h-3" />}
+                  color="bg-cyan-500"
+                  timeRange={track.timeRange}
+                  duration={duration}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={selectedTrackId === track.id && selectedTrackType === 'animation'}
+                  lane={lanes.get(track.id) || 0}
+                  onSelect={() => setSelectedTrack(track.id, 'animation')}
+                  onTimeRangeChange={(tr) => updateAnimationTrack(track.id, { timeRange: tr })}
+                  onDelete={() => deleteAnimationTrack(track.id)}
+                />
+              ))}
+            </TrackRowScrollable>
+          )
+        })()}
 
         {/* Piste Effets texte */}
-        <TrackRowScrollable
-          label="Effets"
-          icon={<Type className="w-3.5 h-3.5" />}
-          color="bg-purple-500/30 text-purple-300"
-          buttonColor="bg-purple-500/50 hover:bg-purple-500 text-purple-200"
-          timelineWidth={timelineWidth}
-          onAdd={() => openAddModal('effect')}
-        >
-          {(scene.textEffectTracks || []).map((effect) => (
-            <Ruban
-              key={effect.id}
-              id={effect.id}
-              label={effect.type}
-              icon={<Type className="w-3 h-3" />}
-              color="bg-purple-500"
-              timeRange={effect.timeRange}
-              duration={duration}
-              pixelsPerSecond={pixelsPerSecond}
-              isSelected={selectedTrackId === effect.id && selectedTrackType === 'effect'}
-              onSelect={() => setSelectedTrack(effect.id, 'effect')}
-              onTimeRangeChange={(tr) => updateTextEffect(effect.id, { timeRange: tr })}
-              onDelete={() => deleteTextEffect(effect.id)}
-            />
-          ))}
-        </TrackRowScrollable>
+        {(() => {
+          const tracks = scene.textEffectTracks || []
+          const lanes = calculateLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          const laneCount = countLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
+          return (
+            <TrackRowScrollable
+              label="Effets"
+              icon={<Type className="w-3.5 h-3.5" />}
+              color="bg-purple-500/30 text-purple-300"
+              buttonColor="bg-purple-500/50 hover:bg-purple-500 text-purple-200"
+              timelineWidth={timelineWidth}
+              laneCount={laneCount}
+              onAdd={() => openAddModal('effect')}
+            >
+              {tracks.map((effect) => (
+                <Ruban
+                  key={effect.id}
+                  id={effect.id}
+                  label={effect.type}
+                  icon={<Type className="w-3 h-3" />}
+                  color="bg-purple-500"
+                  timeRange={effect.timeRange}
+                  duration={duration}
+                  pixelsPerSecond={pixelsPerSecond}
+                  isSelected={selectedTrackId === effect.id && selectedTrackType === 'effect'}
+                  lane={lanes.get(effect.id) || 0}
+                  onSelect={() => setSelectedTrack(effect.id, 'effect')}
+                  onTimeRangeChange={(tr) => updateTextEffect(effect.id, { timeRange: tr })}
+                  onDelete={() => deleteTextEffect(effect.id)}
+                />
+              ))}
+            </TrackRowScrollable>
+          )
+        })()}
       </div>
 
       {/* Info */}
