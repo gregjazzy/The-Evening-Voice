@@ -2,9 +2,9 @@
 
 > Document de passation complet pour la prochaine session de développement
 
-**Date** : 14 janvier 2026  
-**Version** : 2.0.0  
-**État** : Mode Montage en cours - Architecture posée, fonctionnalités de base OK
+**Date** : 16 janvier 2026  
+**Version** : 3.0.0  
+**État** : Mode Montage v2 - Timeline "Rubans Magiques" ✅ Fonctionnel
 
 ---
 
@@ -22,256 +22,275 @@ Application pour enfants permettant de créer des **livres-disques numériques 2
 |------|----------|------|
 | 📔 **Journal** | Journal intime avec Luna (IA) | ✅ Fonctionnel |
 | ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Fonctionnel |
-| 🎨 **Studio** | Génération d'assets IA (images, voix, vidéos) | ✅ Existe (intégrations à vérifier) |
-| 🎬 **Montage** | Création du LIVRE-DISQUE (audio + timing) | 🔧 **EN COURS** |
+| 🎨 **Studio** | Génération d'assets IA (images, voix, vidéos) | ✅ Existe |
+| 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ **FONCTIONNEL** |
 | 🎭 **Théâtre** | Lecteur immersif avec projection + lumières | 🔧 À développer |
 
 ---
 
-## 🎬 MODE MONTAGE - Ce qui a été fait
+## 🎬 MODE MONTAGE v2 - Système "Rubans Magiques"
 
-### Philosophie : Timeline basée sur le TEXTE
+### Philosophie : Timeline basée sur le TEMPS
 
-> **IMPORTANT** : Contrairement à un éditeur vidéo classique (timeline en secondes), le Montage utilise le **texte comme timeline**.
+> **CHANGEMENT MAJEUR** : La v2 utilise une timeline temporelle classique (en secondes) avec des "rubans" visuels pour chaque élément.
 
 ```
-CLASSIQUE (Filmora, Premiere) :
-[0s]────[5s]────[10s]────[15s]────[20s]────[25s]
-
-LA VOIX DU SOIR :
-[Il][était][une][fois][un][petit][dragon][qui][vivait][...]
- ↑    ↑                    ↑
- │    └─ Musique change    └─ Image apparaît
- └─ Bruitage "vent"
+Timeline v2 "Rubans Magiques" :
+┌─────────────────────────────────────────────────────────────────────┐
+│ Structure  │🎬 Intro 3s│  📖 Narration (16.9s)           │🎬 Outro│
+├─────────────────────────────────────────────────────────────────────┤
+│ Phrases    │           │ Phrase 1 │ Phrase 2 │ Phrase 3 │          │
+├─────────────────────────────────────────────────────────────────────┤
+│ Médias     │     [▶ Video d'intro           ]                      │
+├─────────────────────────────────────────────────────────────────────┤
+│ Musique    │[♫ Musique de fond                                     ]│
+├─────────────────────────────────────────────────────────────────────┤
+│ Sons       │                    [🔔 Carillon]                       │
+├─────────────────────────────────────────────────────────────────────┤
+│ Lumières   │        [💡 Magique 60%                                ]│
+├─────────────────────────────────────────────────────────────────────┤
+│ Anim       │    [✨ Étoiles]          [💖 Cœurs qui s'envolent]     │
+└─────────────────────────────────────────────────────────────────────┘
+        0s        3s        6s        9s       12s       15s      19s
 ```
 
-**Pourquoi ?**
-- Plus intuitif pour un enfant
-- Le rythme suit la voix, pas un chronomètre
-- Permet de synchroniser après l'enregistrement (RhythmGame)
+**Avantages :**
+- Plus flexible pour ajouter intro/outro
+- Permet le drag & drop des éléments
+- Positionnement précis en pixels
+- Sous-lignes automatiques pour éléments superposés
 
-### Architecture des fichiers créés
+---
+
+## 🏗️ Architecture Montage v2
+
+### Structure des données
+
+```typescript
+// Une scène (anciennement "page")
+interface MontageScene {
+  id: string
+  bookPageId: string       // Lien vers la page du livre
+  title: string
+  text: string
+  phrases: string[]        // Texte splitté en phrases
+  duration: number         // Durée narration (secondes)
+  introDuration: number    // 🆕 Zone intro (secondes)
+  outroDuration: number    // 🆕 Zone outro (secondes)
+  
+  // Pistes (rubans)
+  narration: NarrationTrack      // Voix + timings phrases
+  mediaTracks: MediaTrack[]      // Vidéos et images
+  musicTracks: MusicTrack[]      // Musique de fond
+  soundTracks: SoundTrack[]      // Effets sonores
+  lightTracks: LightTrack[]      // Lumières HomeKit
+  decorationTracks: DecorationTrack[]  // Stickers et décorations
+  animationTracks: AnimationTrack[]    // 🆕 Animations de fond
+  textEffectTracks: TextEffectTrack[]  // Effets sur le texte
+}
+
+// TimeRange commun à toutes les pistes
+interface TimeRange {
+  startTime: number  // En secondes
+  endTime: number    // En secondes
+}
+
+// Exemple : MediaTrack
+interface MediaTrack {
+  id: string
+  url: string
+  name: string
+  type: 'image' | 'video'
+  timeRange: TimeRange
+  position: { x: number; y: number; width: number; height: number }
+  opacity?: number
+  fadeIn?: number
+  fadeOut?: number
+  zIndex?: number
+}
+```
+
+### Fichiers du Montage v2
 
 ```
 src/
 ├── store/
-│   └── useMontageStore.ts      # Store Zustand dédié au montage
+│   └── useMontageStore.ts      # Store Zustand complet (~1000 lignes)
+│
+├── hooks/
+│   └── useMontageSync.ts       # 🆕 Synchronisation avec Supabase
 │
 ├── components/
 │   └── montage/
-│       ├── index.ts            # Exports
-│       ├── MontageEditor.tsx   # Éditeur principal
-│       ├── TextTimeline.tsx    # Timeline textuelle (les mots cliquables)
-│       ├── EffectsPanel.tsx    # Panneau d'effets (texte, médias, sons)
-│       └── AudioMontagePanel.tsx # Panneau audio (musique, bruitages, ambiance)
+│       ├── MontageEditor.tsx   # Éditeur principal (2 vues)
+│       ├── TimelineRubans.tsx  # 🆕 Timeline "Rubans Magiques"
+│       ├── PreviewCanvas.tsx   # 🆕 Prévisualisation temps réel
+│       ├── RhythmGame.tsx      # Jeu de sync phrase par phrase
+│       ├── KaraokePlayer.tsx   # Affichage karaoké des phrases
+│       ├── AddElementModal.tsx # Modal d'ajout d'éléments
+│       ├── TrackPropertiesPanel.tsx # 🆕 Panneau propriétés (draggable)
+│       ├── AnimationEffects.tsx    # 🆕 Rendu des animations
+│       └── NarrationPanel.tsx  # Enregistrement/TTS
+│
+├── lib/
+│   └── audio/
+│       └── synth-sounds.ts     # 🆕 Sons synthétiques (Web Audio API)
 ```
-
-### Le Store (`useMontageStore.ts`)
-
-Types principaux :
-
-```typescript
-// Un projet de montage
-interface MontageProject {
-  id: string
-  storyId: string          // Lien vers l'histoire (mode Écriture)
-  title: string
-  pages: MontagePage[]
-  createdAt: Date
-  updatedAt: Date
-}
-
-// Une page de montage
-interface MontagePage {
-  id: string
-  text: string             // Texte nettoyé (sans HTML)
-  words: string[]          // Texte splitté en mots
-  narration: NarrationTrack
-  textEffects: TextEffect[]
-  mediaTriggers: MediaTrigger[]
-  soundTriggers: SoundTrigger[]
-  musicTrack?: MusicTrack
-  lightTriggers: LightTrigger[]
-}
-
-// Ancrage sur les mots
-interface MediaTrigger {
-  appearAtWord: number     // -1 = avant le texte
-  disappearAtWord?: number // undefined = reste jusqu'à la fin
-  // ...
-}
-```
-
-**Fonctionnalités clés du store :**
-- ✅ `stripHtml()` : Nettoie le HTML importé de l'Écriture
-- ✅ Migration automatique des anciens projets (au chargement)
-- ✅ Sélection multi-mots (`selectedWordIndex` + `selectedWordEndIndex`)
-- ✅ CRUD pour tous les types (effets, médias, sons, lumières)
-
-### Fonctionnalités implémentées
-
-#### 1. TextTimeline ✅
-- Affiche le texte mot par mot
-- Chaque mot est cliquable
-- **Shift+Clic** pour sélectionner une plage de mots
-- Indicateurs visuels des ancres (points colorés sous les mots)
-- Marqueurs "Avant" et "Après" le texte
-
-#### 2. Sélection de projet ✅
-- Liste des projets de montage existants
-- Création depuis une histoire existante (mode Écriture)
-- Suppression de projets
-
-#### 3. Effets sur le texte ✅
-- 8 types : highlight, glow, fadeIn, fadeOut, scale, shake, colorChange, typewriter
-- Application sur un mot OU une plage de mots
-- Interface avec emojis pour les enfants
-
-#### 4. Images & Vidéos ✅
-- Upload de fichiers
-- Ancrage sur les mots (apparaît au mot X, disparaît au mot Y)
-- Opacité réglable
-- Options vidéo : loop, muted
-
-#### 5. Panneau Audio ✅
-- **Musique** : Upload + segments avec changement à certains mots
-- **Bruitages** : Sons ponctuels ancrés sur des mots
-- **Ambiance** : Sons continus (forêt, pluie, mer...)
-- Pour chaque son : volume, fade in/out, loop, début/fin
-
-#### 6. Enregistrement vocal ✅
-- Utilise MediaRecorder API
-- Timer pendant l'enregistrement
-- Lecture de l'enregistrement
-- Suppression pour recommencer
-- Message d'erreur si micro bloqué
 
 ---
 
-## 🔧 CE QUI RESTE À FAIRE (Montage)
+## ✅ Fonctionnalités implémentées
 
-### Priorité 1 : Synchronisation voix/texte
+### 1. Vue "Cartes" (préparation)
+- Liste des scènes avec aperçu
+- Texte découpé en phrases numérotées
+- Panel narration : enregistrement micro ou TTS
+- Indicateurs d'état (voix, sync, médias)
 
-Le bouton **"Synchroniser avec le texte"** n'est pas fonctionnel.
+### 2. Vue "Timeline" (montage)
 
-#### Option A : RhythmGame (synchronisation manuelle)
-Pour les voix enregistrées (enfant, parent).
+#### Timeline "Rubans Magiques"
+- **Règle temporelle** avec zoom (60-200 px/seconde)
+- **Scroll horizontal** synchronisé (règle + pistes)
+- **Tête de lecture** verticale traversant toutes les pistes
+- **Clic pour repositionner** la tête de lecture
+- **Sous-lignes automatiques** pour éléments superposés
+- **Plein écran** via portail React
 
+#### Pistes disponibles
+| Piste | Icône | Description |
+|-------|-------|-------------|
+| Structure | ▶ | Intro / Narration / Outro |
+| Phrases | T | Affichage karaoké synchronisé |
+| Médias | 🖼 | Images et vidéos positionnables |
+| Musique | 🎵 | Musique de fond avec fade |
+| Sons | 🔊 | 120+ effets sonores catégorisés |
+| Lumières | 💡 | Couleurs HomeKit avec noms |
+| Déco | ✨ | Stickers et décorations SVG |
+| Anim | 🌟 | Animations (15 localisées + 15 ambiance) |
+| Effets | T | Effets texte (glow, shake, etc.) |
+
+#### Rubans interactifs
+- **Drag** : Déplacer dans le temps
+- **Resize** : Tirer les bords pour ajuster la durée
+- **Sélection** : Clic pour voir les propriétés
+- **Suppression** : Bouton ❌
+
+### 3. Zones Intro/Outro 🆕
+- **Ajout** : Boutons `+` dans le label Structure
+- **Durée par défaut** : 3 secondes
+- **Redimensionnement** : Drag du bord
+- **Suppression** : Bouton ❌
+- Les phrases sont décalées automatiquement
+
+### 4. PreviewCanvas 🆕
+- **Prévisualisation temps réel** de la scène
+- **Drag & Drop** pour positionner les éléments
+- **Resize** des médias et décorations
+- **Animations visuelles** (étoiles, cœurs, etc.)
+- **Karaoké** : phrase active en surbrillance
+- **Grille optionnelle** pour alignement
+- **Plein écran** via portail React
+
+### 5. Panneau de propriétés 🆕
+- **Apparaît** quand un élément est sélectionné
+- **Draggable** sur l'écran
+- **Propriétés par type** :
+  - Médias : position, taille, opacité, fade, z-index
+  - Sons/Musique : volume, fade, loop
+  - Lumières : couleur, intensité, pulse
+  - Animations : position, intensité, vitesse, opacité
+
+### 6. RhythmGame (synchronisation)
+- **Phrase par phrase** (plus intuitif que mot par mot)
+- L'audio joue, l'enfant tape à la fin de chaque phrase
+- Enregistre les `PhraseTiming` avec startTime/endTime
+- Possibilité de recommencer
+
+### 7. Bibliothèque de sons
+- **7 catégories** : Animaux, Humains, Météo, Nature, Magie, Ambiance, Actions
+- **121 sons** organisés en sous-catégories
+- **Sons synthétiques** via Web Audio API (fallback)
+
+### 8. Animations
+- **15 Effets Localisés** (position XY) :
+  - Baguette magique, Explosion de cœurs, Étoiles, Traînée d'étincelles...
+- **15 Effets Ambiance** (plein écran) :
+  - Étoiles filantes, Cœurs flottants, Neige, Lucioles, Confettis...
+
+### 9. Synchronisation Supabase
+- **Chargement** automatique des projets au démarrage
+- **Sauvegarde** debounced (500ms) à chaque modification
+- **Normalisation** des données anciennes (migration auto)
+- **Table** : `montage_projects` avec colonne `scenes` (JSONB)
+
+---
+
+## 📁 Structure de la base de données
+
+### Table `montage_projects`
+
+```sql
+CREATE TABLE montage_projects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  story_id UUID REFERENCES stories(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  scenes JSONB NOT NULL DEFAULT '[]'::jsonb,  -- Données complètes
+  is_complete BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 ```
-┌─────────────────────────────────────────────────────────┐
-│  🎮 Jeu de Rythme - Clique sur chaque mot !             │
-│                                                         │
-│        Il  était  une  fois  un  petit  dragon          │
-│        ──                                               │
-│        ↑                                                │
-│   [ En attente... ]                                     │
-│                                                         │
-│   🔊 Audio: ▶ ─────●────────────────────────── 0:03     │
-│                                                         │
-│   Clique sur le mot quand tu l'entends !                │
-└─────────────────────────────────────────────────────────┘
-```
 
-**À implémenter :**
-1. Lecture de l'audio enregistré
-2. L'enfant clique sur chaque mot quand il l'entend
-3. Enregistrement des `wordTimings` (startTime, endTime)
-4. Possibilité de recommencer si erreur
+### Stockage des médias
 
-#### Option B : TTS avec timings (synchronisation auto)
-Pour les voix IA (Luna, ElevenLabs).
+| Type | Stockage | Raison |
+|------|----------|--------|
+| Images | Supabase Storage | Taille modérée |
+| Audio | Supabase Storage | Taille modérée |
+| Vidéos | Cloudflare R2 | Gros fichiers, egress gratuit |
 
-**À implémenter :**
-1. Appeler ElevenLabs avec l'option `with_timestamps`
-2. Parser la réponse pour extraire les timings par mot
-3. Stocker dans `wordTimings`
+---
 
-### Priorité 2 : SyncPlayer (Lecteur synchronisé)
+## 🎨 UI/UX
 
-Le lecteur qui joue le livre-disque avec tous les éléments synchronisés.
+### Design
+- **Thème** : Nuit étoilée (midnight-900, auroras)
+- **Police** : Space Grotesk
+- **Animations** : Framer Motion
+- **Icônes** : Lucide React
 
-**À implémenter :**
-1. Lecture de l'audio de narration
-2. Mise à jour du `currentPlaybackTime`
-3. Affichage du mot courant (highlight)
-4. Déclenchement des effets texte au bon moment
-5. Apparition/disparition des médias
-6. Play/pause des sons et musique
-7. (Optionnel) Envoi des commandes HomeKit
+### Accessibilité enfant
+- **Emojis** pour identifier les pistes
+- **Couleurs vives** par type d'élément
+- **Boutons larges** pour les actions principales
+- **Feedback visuel** immédiat
 
-### Priorité 3 : Améliorations UX
+---
 
+## 🔧 Ce qui reste à faire
+
+### Priorité 1 : Mode Théâtre
+- Lecteur plein écran immersif
+- Projection (via AirPlay/HDMI)
+- Contrôle HomeKit des lumières
+- Télécommande depuis autre appareil
+
+### Priorité 2 : Améliorations Montage
 | Tâche | Description |
 |-------|-------------|
-| **Preview Canvas amélioré** | Afficher les médias avec leurs effets réels |
-| **Drag & Drop** | Glisser des fichiers sur les mots |
-| **Position des médias** | Interface pour positionner images/vidéos sur le canvas |
-| **Export** | Sauvegarder le projet finalisé |
+| Export MP4 | Exporter le livre-disque en vidéo |
+| Copier/Coller rubans | Faciliter la réutilisation |
+| Templates d'effets | Packs d'effets prédéfinis |
+| Undo/Redo | Historique des modifications |
 
-### Priorité 4 : Intégration TTS
-
-| Source | État | Notes |
-|--------|------|-------|
-| Luna (macOS TTS) | 🔧 | Utiliser `useTTS.ts` existant |
-| ElevenLabs | 🔧 | Intégration existante dans `elevenlabs.ts` |
-| Web Speech API | 🔧 | Fallback navigateur |
-
----
-
-## 📁 Fichiers clés du projet
-
-### Stores
-| Fichier | Rôle |
-|---------|------|
-| `src/store/useAppStore.ts` | État global (stories, diary, chat...) |
-| `src/store/useMontageStore.ts` | **État mode Montage** |
-| `src/store/useLayoutStore.ts` | Ancien store Layout (plus utilisé pour le montage) |
-| `src/store/useStudioStore.ts` | État mode Studio |
-
-### Mode Montage
-| Fichier | Rôle |
-|---------|------|
-| `src/components/montage/MontageEditor.tsx` | Composant principal |
-| `src/components/montage/TextTimeline.tsx` | Timeline textuelle |
-| `src/components/montage/EffectsPanel.tsx` | Effets texte + médias |
-| `src/components/montage/AudioMontagePanel.tsx` | Musique + bruitages + ambiance |
-| `src/components/modes/LayoutMode.tsx` | Wrapper qui affiche MontageEditor |
-
-### Hooks utiles
-| Fichier | Rôle |
-|---------|------|
-| `src/hooks/useMediaUpload.ts` | Upload médias (Supabase + R2) |
-| `src/hooks/useTTS.ts` | Text-to-Speech |
-| `src/hooks/useAI.ts` | Interactions avec Luna/Gemini |
-
-### API Routes
-| Route | Fonction |
-|-------|----------|
-| `src/app/api/ai/voice/route.ts` | Génération voix IA |
-| `src/app/api/upload/video/route.ts` | Upload vidéo vers R2 |
-
----
-
-## 💡 Points d'attention
-
-### 1. Nettoyage HTML
-Le texte importé de l'Écriture peut contenir des balises HTML (`<p>`, `<br>`, etc.).
-La fonction `stripHtml()` dans `useMontageStore.ts` nettoie automatiquement.
-Une migration automatique nettoie les anciens projets au chargement.
-
-### 2. Sélection multi-mots
-Pour appliquer un effet sur plusieurs mots :
-1. Clic sur le premier mot
-2. Shift+Clic sur le dernier mot
-3. L'effet s'applique à toute la plage
-
-### 3. Ancrage "Avant le texte"
-Index `-1` = l'élément démarre avant que la narration commence.
-Utile pour : musique d'intro, ambiance qui s'installe.
-
-### 4. Persistance
-Le store utilise `zustand/persist` avec localStorage.
-Seuls les `projects` sont persistés, pas l'état UI.
+### Priorité 3 : Intégrations
+| Service | État | Notes |
+|---------|------|-------|
+| ElevenLabs TTS | 🔧 | Timings automatiques |
+| HomeKit | 🔧 | Envoi commandes lumières |
+| WebRTC | ✅ | Mode Collab existe |
 
 ---
 
@@ -292,10 +311,12 @@ npm run dev:electron
 ### Tester le mode Montage
 
 1. Aller sur l'app → Mode **Écriture**
-2. Créer une histoire avec du texte
+2. Créer une histoire avec du texte (2-3 phrases par page)
 3. Passer en mode **Montage**
 4. Créer un nouveau projet depuis l'histoire
-5. Tester : sélection de mots, ajout d'effets, enregistrement vocal
+5. Vue **Cartes** : Enregistrer la voix, faire le jeu de rythme
+6. Vue **Timeline** : Ajouter intro/outro, médias, sons, animations
+7. Prévisualiser avec le bouton **Lire**
 
 ---
 
@@ -309,7 +330,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
 SUPABASE_SERVICE_ROLE_KEY=xxx
 
-# Google AI
+# Google AI (Luna)
 GOOGLE_GEMINI_API_KEY=xxx
 
 # Cloudflare R2 (vidéos)
@@ -325,11 +346,30 @@ ELEVENLABS_API_KEY=xxx
 
 ---
 
+## 📊 Récapitulatif de l'état
+
+| Composant | État | Notes |
+|-----------|------|-------|
+| Store Montage v2 | ✅ | Scènes, pistes, actions complètes |
+| Timeline Rubans | ✅ | Zoom, scroll, sous-lignes |
+| PreviewCanvas | ✅ | Drag & drop, animations |
+| RhythmGame | ✅ | Phrase par phrase |
+| KaraokePlayer | ✅ | Affichage synchronisé |
+| Zones Intro/Outro | ✅ | Redimensionnables |
+| Panneau propriétés | ✅ | Draggable |
+| Bibliothèque sons | ✅ | 121 sons catégorisés |
+| Animations | ✅ | 30 types (localisés + ambiance) |
+| Sync Supabase | ✅ | Debounced, normalisation |
+| Mode Théâtre | 🔧 | **À faire** |
+| Export MP4 | 🔧 | **À faire** |
+
+---
+
 ## 📚 Documentation
 
 | Fichier | Contenu |
 |---------|---------|
-| `docs/CONCEPT.md` | Vision produit (les 5 modes, livre-disque, projection) |
+| `docs/CONCEPT.md` | Vision produit |
 | `docs/ARCHITECTURE.md` | Architecture technique |
 | `docs/QUICK_START.md` | Guide de démarrage |
 | `docs/API.md` | Documentation API |
@@ -337,52 +377,4 @@ ELEVENLABS_API_KEY=xxx
 
 ---
 
-## 🎯 Pour le prochain chat
-
-### Objectif immédiat : RhythmGame
-
-Créer le jeu de synchronisation pour permettre à l'enfant de cliquer sur les mots pendant que l'audio joue.
-
-**Fichier à créer** : `src/components/montage/RhythmGame.tsx`
-
-**Specs** :
-1. Modal plein écran
-2. Affiche les mots en gros
-3. Highlight le mot actuel pendant la sync
-4. Bouton pour démarrer l'audio
-5. Détection des clics et enregistrement des timings
-6. Possibilité de recommencer
-7. Validation et sauvegarde
-
-### Après le RhythmGame : SyncPlayer
-
-**Fichier à créer** : `src/components/montage/SyncPlayer.tsx`
-
-Le lecteur qui orchestre tout :
-- Audio
-- Mots qui s'illuminent
-- Médias qui apparaissent/disparaissent
-- Sons qui se déclenchent
-- (Plus tard) Lumières HomeKit
-
----
-
-## 📊 Récapitulatif de l'état
-
-| Composant | État | Notes |
-|-----------|------|-------|
-| Store Montage | ✅ | Complet avec types et actions |
-| TextTimeline | ✅ | Multi-select, ancres visuelles |
-| EffectsPanel | ✅ | Texte, médias, sons |
-| AudioMontagePanel | ✅ | Musique, bruitages, ambiance |
-| Enregistrement vocal | ✅ | MediaRecorder API |
-| Sélection projet | ✅ | Création, chargement, suppression |
-| RhythmGame | 🔧 | **À faire** |
-| SyncPlayer | 🔧 | **À faire** |
-| TTS avec timings | 🔧 | À intégrer |
-| HomeKit | 🔧 | À intégrer |
-
----
-
 **Bon courage pour la suite !** 🌙✨
-
