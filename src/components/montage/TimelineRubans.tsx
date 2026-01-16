@@ -852,7 +852,7 @@ export function TimelineRubans() {
       {/* Pistes avec scroll horizontal synchronisé */}
       <div 
         ref={scrollContainerRef}
-        className="p-3 space-y-1 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-midnight-600 relative"
+        className="flex-1 min-h-0 p-3 space-y-1 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-midnight-600 relative"
         onClick={(e) => {
           // Repositionner la tête de lecture si on clique sur le fond (pas sur un élément)
           if (e.target === e.currentTarget || (e.target as HTMLElement).closest('[data-track-background]')) {
