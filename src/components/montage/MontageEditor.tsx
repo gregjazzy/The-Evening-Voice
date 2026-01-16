@@ -9,6 +9,7 @@ import { TimelineRubans } from './TimelineRubans'
 import { RhythmGame } from './RhythmGame'
 import { KaraokePlayer } from './KaraokePlayer'
 import { PreviewCanvas } from './PreviewCanvas'
+import { TrackPropertiesPanel } from './TrackPropertiesPanel'
 import { cn } from '@/lib/utils'
 import {
   Film,
@@ -959,8 +960,13 @@ export function MontageEditor() {
                 )}
               </AnimatePresence>
               
-              {/* Timeline des rubans - prend toute la hauteur disponible */}
+              {/* Timeline des rubans */}
               <TimelineRubans />
+            </div>
+            
+            {/* Panneau de propriétés (quand un élément est sélectionné) */}
+            <div className="absolute top-4 right-4 z-20">
+              <TrackPropertiesPanel />
             </div>
           </div>
         )}
