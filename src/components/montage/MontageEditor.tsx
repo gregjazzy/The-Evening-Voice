@@ -959,23 +959,8 @@ export function MontageEditor() {
                 )}
               </AnimatePresence>
               
-              {/* Timeline des rubans */}
+              {/* Timeline des rubans - prend toute la hauteur disponible */}
               <TimelineRubans />
-            </div>
-
-            {/* Panneau d'édition rapide */}
-            <div className="grid grid-cols-3 gap-4">
-              <NarrationPanel />
-              <MediaPanel />
-              <div className="glass rounded-xl p-4">
-                <h3 className="font-medium flex items-center gap-2 mb-3">
-                  <Volume2 className="w-5 h-5 text-pink-400" />
-                  Sons
-                </h3>
-                <p className="text-xs text-midnight-500 text-center py-4">
-                  Bientôt disponible
-                </p>
-              </div>
             </div>
           </div>
         )}

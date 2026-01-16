@@ -373,7 +373,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
     addTextEffect,
   } = useMontageStore()
   
-  const { uploadImage, uploadVideo, isUploading } = useMediaUpload()
+  const { upload, isUploading } = useMediaUpload()
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [soundCategory, setSoundCategory] = useState<SoundCategory>('animaux')
@@ -395,7 +395,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
     if (!scene) return
     
     const isVideo = file.type.startsWith('video/')
-    const result = isVideo ? await uploadVideo(file) : await uploadImage(file)
+    const result = await upload(file, { type: isVideo ? 'video' : 'image' })
     
     if (result?.url) {
       addMediaTrack({

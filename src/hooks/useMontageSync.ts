@@ -80,6 +80,7 @@ export function useMontageSync() {
           soundTracks: scene.soundTracks || [],
           lightTracks: scene.lightTracks || [],
           decorationTracks: (scene as any).decorationTracks || [],
+          animationTracks: (scene as any).animationTracks || [],
           textEffectTracks: scene.textEffectTracks || (scene as any).textEffects || [],
         })
         

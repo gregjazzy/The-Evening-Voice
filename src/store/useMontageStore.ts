@@ -211,25 +211,25 @@ export type AnimationType =
   | 'clouds'             // Nuages qui passent
   | 'magic-dust'         // Poussière magique
   | 'butterflies'        // Papillons volants
-  | 'petals'             // Pétales de fleurs
+  | 'flower-petals'      // Pétales de fleurs
   | 'feathers'           // Plumes qui tombent
   | 'fairy-dust'         // Poussière de fée (dorée)
-  // === EFFETS LOCALISÉS (point d'origine) ===
-  | 'magic-wand'         // Étoiles sortant d'une baguette
-  | 'heart-burst'        // Explosion de cœurs
-  | 'star-burst'         // Explosion d'étoiles
-  | 'sparkle-trail'      // Traînée d'étincelles
-  | 'love-float'         // Cœurs qui s'envolent d'un point
-  | 'magic-swirl'        // Tourbillon magique
-  | 'pixie-dust'         // Poussière de fée localisée
-  | 'golden-sparkle'     // Étincelles dorées
-  | 'rainbow-burst'      // Arc-en-ciel qui explose
-  | 'fairy-circle'       // Cercle de fées
-  | 'wish-stars'         // Étoiles de vœux (montent)
-  | 'kiss-hearts'        // Bisous/cœurs qui partent
-  | 'magic-portal'       // Portail magique tournant
-  | 'enchanted-glow'     // Lueur enchantée
-  | 'twinkle-cluster'    // Groupe de scintillements
+  // === EFFETS LOCALISÉS (avec préfixe localized-) ===
+  | 'localized-sparkle'          // Étoiles baguette magique
+  | 'localized-heart-explosion'  // Explosion de cœurs
+  | 'localized-star-burst'       // Explosion d'étoiles
+  | 'localized-magic-trail'      // Traînée d'étincelles
+  | 'localized-floating-hearts'  // Cœurs qui s'envolent
+  | 'localized-magic-swirl'      // Tourbillon magique
+  | 'localized-pixie-dust'       // Poussière de fée
+  | 'localized-golden-sparkles'  // Étincelles dorées
+  | 'localized-rainbow-burst'    // Arc-en-ciel
+  | 'localized-fairy-circle'     // Cercle de fées
+  | 'localized-wishing-stars'    // Étoiles de vœux
+  | 'localized-kiss-hearts'      // Bisous/cœurs
+  | 'localized-magic-portal'     // Portail magique
+  | 'localized-enchanted-glow'   // Lueur enchantée
+  | 'localized-shimmer'          // Scintillements
 
 /**
  * Catégorie d'animation pour l'UI
@@ -385,7 +385,7 @@ interface MontageState {
   
   // État de l'éditeur
   selectedTrackId: string | null
-  selectedTrackType: 'media' | 'music' | 'sound' | 'light' | 'decoration' | 'effect' | null
+  selectedTrackType: 'media' | 'music' | 'sound' | 'light' | 'decoration' | 'animation' | 'effect' | null
   isPlaying: boolean
   currentPlaybackTime: number
   
@@ -511,6 +511,7 @@ export const useMontageStore = create<MontageState>()(
             soundTracks: [],
             lightTracks: [],
             decorationTracks: [],
+            animationTracks: [],
             textEffectTracks: [],
           }
         })
