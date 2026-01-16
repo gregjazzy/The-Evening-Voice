@@ -330,7 +330,7 @@ function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, on
       {/* Label de la piste + bouton add */}
       <div className="shrink-0 flex items-center gap-1" style={{ width: LABEL_WIDTH }}>
         <div className={cn(
-          'flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium flex-1',
+          'flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium flex-1 min-w-0',
           color
         )}>
           {icon}
@@ -370,7 +370,7 @@ function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, on
 // RULER SCROLLABLE (RÈGLE TEMPORELLE AVEC SCROLL)
 // =============================================================================
 
-const LABEL_WIDTH = 100 // Largeur fixe des labels de piste
+const LABEL_WIDTH = 110 // Largeur fixe des labels de piste (pour "Lumières")
 
 interface TimeRulerScrollableProps {
   duration: number
@@ -928,7 +928,7 @@ export function TimelineRubans() {
               key={track.id}
               id={track.id}
               label={track.name}
-              icon={<Music className="w-3 h-3" />}
+              icon={<Music className="w-3.5 h-3.5" />}
               color="bg-emerald-500"
               timeRange={track.timeRange}
               duration={duration}
@@ -955,7 +955,7 @@ export function TimelineRubans() {
               key={track.id}
               id={track.id}
               label={track.name}
-              icon={<Volume2 className="w-3 h-3" />}
+              icon={<Volume2 className="w-3.5 h-3.5" />}
               color="bg-pink-500"
               timeRange={track.timeRange}
               duration={duration}
