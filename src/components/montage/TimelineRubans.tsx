@@ -626,7 +626,160 @@ function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScro
 }
 
 // =============================================================================
-// PISTE DES PHRASES (VERSION PIXELS)
+// RUBAN DE PHRASE (DRAGGABLE)
+// =============================================================================
+
+interface PhraseRubanProps {
+  phrase: PhraseTiming
+  pixelsPerSecond: number
+  duration: number
+  introOffset: number
+  isActive: boolean
+  onTimeRangeChange: (timeRange: TimeRange) => void
+}
+
+function PhraseRuban({
+  phrase,
+  pixelsPerSecond,
+  duration,
+  introOffset,
+  isActive,
+  onTimeRangeChange,
+}: PhraseRubanProps) {
+  const rubanRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizingLeft, setIsResizingLeft] = useState(false)
+  const [isResizingRight, setIsResizingRight] = useState(false)
+  const dragStartX = useRef(0)
+  const originalTimeRange = useRef(phrase.timeRange)
+
+  // Position en pixels (avec offset intro)
+  const leftPx = (phrase.timeRange.startTime + introOffset) * pixelsPerSecond
+  const widthPx = (phrase.timeRange.endTime - phrase.timeRange.startTime) * pixelsPerSecond
+
+  // Gestion du drag principal (déplacement)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isResizingLeft || isResizingRight) return
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+    dragStartX.current = e.clientX
+    originalTimeRange.current = phrase.timeRange
+  }
+
+  // Gestion du resize gauche
+  const handleResizeLeftStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizingLeft(true)
+    dragStartX.current = e.clientX
+    originalTimeRange.current = phrase.timeRange
+  }
+
+  // Gestion du resize droit
+  const handleResizeRightStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizingRight(true)
+    dragStartX.current = e.clientX
+    originalTimeRange.current = phrase.timeRange
+  }
+
+  // Mouse move handler
+  useEffect(() => {
+    if (!isDragging && !isResizingLeft && !isResizingRight) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - dragStartX.current
+      const deltaTime = deltaX / pixelsPerSecond
+
+      if (isDragging) {
+        // Déplacement du ruban entier
+        const segmentDuration = originalTimeRange.current.endTime - originalTimeRange.current.startTime
+        const newStartTime = Math.max(0, Math.min(
+          duration - segmentDuration,
+          originalTimeRange.current.startTime + deltaTime
+        ))
+        onTimeRangeChange({
+          startTime: newStartTime,
+          endTime: newStartTime + segmentDuration,
+        })
+      } else if (isResizingLeft) {
+        // Resize côté gauche (minimum 0.3s de durée)
+        const newStartTime = Math.max(0, Math.min(
+          phrase.timeRange.endTime - 0.3,
+          originalTimeRange.current.startTime + deltaTime
+        ))
+        onTimeRangeChange({
+          startTime: newStartTime,
+          endTime: phrase.timeRange.endTime,
+        })
+      } else if (isResizingRight) {
+        // Resize côté droit (minimum 0.3s de durée)
+        const newEndTime = Math.max(
+          phrase.timeRange.startTime + 0.3,
+          Math.min(duration, originalTimeRange.current.endTime + deltaTime)
+        )
+        onTimeRangeChange({
+          startTime: phrase.timeRange.startTime,
+          endTime: newEndTime,
+        })
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      setIsResizingLeft(false)
+      setIsResizingRight(false)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, isResizingLeft, isResizingRight, pixelsPerSecond, duration, phrase.timeRange, onTimeRangeChange])
+
+  return (
+    <div
+      ref={rubanRef}
+      className={cn(
+        'absolute h-full flex items-center px-2 rounded-md text-xs cursor-grab transition-shadow group',
+        isActive 
+          ? 'bg-amber-500/60 text-white font-medium ring-2 ring-amber-400' 
+          : 'bg-amber-500/30 text-amber-200 hover:bg-amber-500/40',
+        isDragging && 'cursor-grabbing opacity-80 ring-2 ring-white'
+      )}
+      style={{
+        left: leftPx,
+        width: Math.max(40, widthPx),
+        minWidth: 40,
+      }}
+      onMouseDown={handleMouseDown}
+      title={`${phrase.text}\n⏱ ${phrase.timeRange.startTime.toFixed(1)}s → ${phrase.timeRange.endTime.toFixed(1)}s`}
+    >
+      {/* Handle resize gauche */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-l-md"
+        onMouseDown={handleResizeLeftStart}
+      />
+      
+      {/* Contenu */}
+      <span className="truncate flex-1 select-none">{phrase.text}</span>
+      
+      {/* Handle resize droit */}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-r-md"
+        onMouseDown={handleResizeRightStart}
+      />
+    </div>
+  )
+}
+
+// =============================================================================
+// PISTE DES PHRASES (VERSION PIXELS - DRAGGABLE)
 // =============================================================================
 
 function PhrasesTrackScrollable({ 
@@ -634,13 +787,17 @@ function PhrasesTrackScrollable({
   pixelsPerSecond,
   timelineWidth,
   activePhraseIndex,
-  introOffset = 0,  // Décalage dû à l'intro
+  introOffset = 0,
+  narrationDuration,
+  onPhraseTimeRangeChange,
 }: { 
   phrases: PhraseTiming[]
   pixelsPerSecond: number
   timelineWidth: number
   activePhraseIndex: number
   introOffset?: number
+  narrationDuration: number
+  onPhraseTimeRangeChange: (phraseId: string, timeRange: TimeRange) => void
 }) {
   return (
     <div className="flex items-center h-8">
@@ -655,31 +812,17 @@ function PhrasesTrackScrollable({
       
       {/* Zone des rubans (scrollable via le container parent) */}
       <div className="flex-1 h-full relative" style={{ minWidth: timelineWidth }}>
-        {phrases.map((phrase, index) => {
-          // Décaler les phrases par la durée de l'intro
-          const leftPx = (phrase.timeRange.startTime + introOffset) * pixelsPerSecond
-          const widthPx = (phrase.timeRange.endTime - phrase.timeRange.startTime) * pixelsPerSecond
-
-          return (
-            <div
-              key={phrase.id}
-              className={cn(
-                'absolute h-full flex items-center px-2 rounded-md text-xs truncate border-r border-midnight-700',
-                index === activePhraseIndex 
-                  ? 'bg-amber-500/50 text-white font-medium' 
-                  : 'bg-amber-500/20 text-amber-200'
-              )}
-              style={{
-                left: leftPx,
-                width: widthPx,
-                minWidth: 40,
-              }}
-              title={phrase.text}
-            >
-              <span className="truncate">{phrase.text}</span>
-            </div>
-          )
-        })}
+        {phrases.map((phrase, index) => (
+          <PhraseRuban
+            key={phrase.id}
+            phrase={phrase}
+            pixelsPerSecond={pixelsPerSecond}
+            duration={narrationDuration}
+            introOffset={introOffset}
+            isActive={index === activePhraseIndex}
+            onTimeRangeChange={(timeRange) => onPhraseTimeRangeChange(phrase.id, timeRange)}
+          />
+        ))}
       </div>
     </div>
   )
@@ -725,6 +868,7 @@ export function TimelineRubans() {
     getActivePhrase,
     setIntroDuration,
     setOutroDuration,
+    updatePhraseTiming,
   } = useMontageStore()
 
   const scene = getCurrentScene()
@@ -1125,7 +1269,7 @@ export function TimelineRubans() {
           </div>
         </div>
 
-        {/* Piste des phrases (non éditable, affiche le sync) */}
+        {/* Piste des phrases (draggable pour ajouter des espaces) */}
         {scene.narration?.isSynced && (scene.narration?.phrases?.length || 0) > 0 && (
           <PhrasesTrackScrollable
             phrases={scene.narration?.phrases || []}
@@ -1133,6 +1277,10 @@ export function TimelineRubans() {
             timelineWidth={timelineWidth}
             activePhraseIndex={activePhraseIndex}
             introOffset={introDuration}
+            narrationDuration={narrationDuration}
+            onPhraseTimeRangeChange={(phraseId, timeRange) => 
+              updatePhraseTiming(phraseId, { timeRange })
+            }
           />
         )}
 

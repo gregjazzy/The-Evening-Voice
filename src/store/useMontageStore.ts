@@ -421,6 +421,7 @@ interface MontageState {
   markPhraseStart: (currentAudioTime: number) => void
   stopPhraseSync: () => void
   setPhraseTimings: (timings: PhraseTiming[]) => void
+  updatePhraseTiming: (phraseId: string, updates: Partial<PhraseTiming>) => void
   
   // === ACTIONS MÉDIAS ===
   addMediaTrack: (track: Omit<MediaTrack, 'id'>) => void
@@ -731,6 +732,24 @@ export const useMontageStore = create<MontageState>()(
             ...scene.narration,
             phrases: timings,
             isSynced: true,
+          },
+        })
+      },
+
+      updatePhraseTiming: (phraseId, updates) => {
+        const scene = get().getCurrentScene()
+        if (!scene) return
+        
+        const updatedPhrases = scene.narration.phrases.map((phrase) => 
+          phrase.id === phraseId 
+            ? { ...phrase, ...updates }
+            : phrase
+        )
+        
+        get().updateCurrentScene({
+          narration: {
+            ...scene.narration,
+            phrases: updatedPhrases,
           },
         })
       },
