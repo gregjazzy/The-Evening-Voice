@@ -3,8 +3,8 @@
 > Document de passation complet pour la prochaine session de développement
 
 **Date** : 16 janvier 2026  
-**Version** : 3.0.0  
-**État** : Mode Montage v2 - Timeline "Rubans Magiques" ✅ Fonctionnel
+**Version** : 3.1.0  
+**État** : Mode Montage v2 - UX améliorée ✅ Fonctionnel
 
 ---
 
@@ -25,6 +25,27 @@ Application pour enfants permettant de créer des **livres-disques numériques 2
 | 🎨 **Studio** | Génération d'assets IA (images, voix, vidéos) | ✅ Existe |
 | 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ **FONCTIONNEL** |
 | 🎭 **Théâtre** | Lecteur immersif avec projection + lumières | 🔧 À développer |
+
+---
+
+## 🆕 Dernières modifications (Session actuelle)
+
+### UX / Navigation
+- **Bouton "← Retour"** en mode Timeline pour revenir aux Cartes
+- **Bouton "🏠 Home"** en mode Cartes pour fermer le projet
+- **Action `closeProject()`** ajoutée au store
+
+### Vue Cartes
+- **Remplacement du panneau "Médias"** (inutile) par "📊 État de la scène" :
+  - Badge de statut global (✅ Prêt / En cours)
+  - État de la voix (durée enregistrée)
+  - État de la synchronisation (phrases sync)
+  - Compteur d'éléments dans la timeline
+  - Bouton rapide vers la Timeline
+
+### Corrections
+- Phrases extensibles jusqu'à la zone Outro (plus de limite à la narration)
+- Plein écran fonctionne correctement avec `createPortal`
 
 ---
 
@@ -115,26 +136,30 @@ interface MediaTrack {
 ```
 src/
 ├── store/
-│   └── useMontageStore.ts      # Store Zustand complet (~1000 lignes)
+│   └── useMontageStore.ts      # Store Zustand (~1100 lignes)
+│                               # Actions : createProject, loadProject,
+│                               # closeProject, setIntroDuration, etc.
 │
 ├── hooks/
-│   └── useMontageSync.ts       # 🆕 Synchronisation avec Supabase
+│   └── useMontageSync.ts       # Synchronisation avec Supabase
 │
 ├── components/
 │   └── montage/
 │       ├── MontageEditor.tsx   # Éditeur principal (2 vues)
-│       ├── TimelineRubans.tsx  # 🆕 Timeline "Rubans Magiques"
-│       ├── PreviewCanvas.tsx   # 🆕 Prévisualisation temps réel
+│       │                       # + SceneStatusPanel (état de la scène)
+│       │                       # + Boutons Retour/Home
+│       ├── TimelineRubans.tsx  # Timeline "Rubans Magiques"
+│       ├── PreviewCanvas.tsx   # Prévisualisation temps réel
 │       ├── RhythmGame.tsx      # Jeu de sync phrase par phrase
 │       ├── KaraokePlayer.tsx   # Affichage karaoké des phrases
 │       ├── AddElementModal.tsx # Modal d'ajout d'éléments
-│       ├── TrackPropertiesPanel.tsx # 🆕 Panneau propriétés (draggable)
-│       ├── AnimationEffects.tsx    # 🆕 Rendu des animations
+│       ├── TrackPropertiesPanel.tsx # Panneau propriétés (draggable)
+│       ├── AnimationEffects.tsx    # Rendu des animations
 │       └── NarrationPanel.tsx  # Enregistrement/TTS
 │
 ├── lib/
 │   └── audio/
-│       └── synth-sounds.ts     # 🆕 Sons synthétiques (Web Audio API)
+│       └── synth-sounds.ts     # Sons synthétiques (Web Audio API)
 ```
 
 ---
@@ -145,9 +170,17 @@ src/
 - Liste des scènes avec aperçu
 - Texte découpé en phrases numérotées
 - Panel narration : enregistrement micro ou TTS
-- Indicateurs d'état (voix, sync, médias)
+- **Panneau "État de la scène"** 🆕 :
+  - Badge de statut (✅ Prêt / En cours)
+  - Indicateur voix (durée enregistrée)
+  - Indicateur synchronisation (nombre de phrases)
+  - Compteur d'éléments (médias, sons, lumières, animations...)
+  - Bouton rapide "Aller à la Timeline →"
+- **Bouton Home** 🆕 : Fermer le projet et revenir à la sélection
 
 ### 2. Vue "Timeline" (montage)
+
+- **Bouton "← Retour"** 🆕 : Revenir à la vue Cartes
 
 #### Timeline "Rubans Magiques"
 - **Règle temporelle** avec zoom (60-200 px/seconde)
@@ -223,6 +256,18 @@ src/
 - **Sauvegarde** debounced (500ms) à chaque modification
 - **Normalisation** des données anciennes (migration auto)
 - **Table** : `montage_projects` avec colonne `scenes` (JSONB)
+
+### 10. Navigation améliorée 🆕
+
+| Vue | Bouton | Action |
+|-----|--------|--------|
+| **Sélection** | Clic projet | Ouvrir le projet |
+| **Cartes** | 🏠 Home | Fermer projet → Sélection |
+| **Cartes** | Timeline | Passer en vue Timeline |
+| **Timeline** | ← Retour | Revenir aux Cartes |
+| **Timeline** | Cartes | Revenir aux Cartes |
+
+**Sauvegarde** : 100% automatique (pas de bouton "Sauvegarder")
 
 ---
 
@@ -350,7 +395,7 @@ ELEVENLABS_API_KEY=xxx
 
 | Composant | État | Notes |
 |-----------|------|-------|
-| Store Montage v2 | ✅ | Scènes, pistes, actions complètes |
+| Store Montage v2 | ✅ | Scènes, pistes, closeProject() |
 | Timeline Rubans | ✅ | Zoom, scroll, sous-lignes |
 | PreviewCanvas | ✅ | Drag & drop, animations |
 | RhythmGame | ✅ | Phrase par phrase |
@@ -360,6 +405,8 @@ ELEVENLABS_API_KEY=xxx
 | Bibliothèque sons | ✅ | 121 sons catégorisés |
 | Animations | ✅ | 30 types (localisés + ambiance) |
 | Sync Supabase | ✅ | Debounced, normalisation |
+| Panneau État scène | ✅ | 🆕 Remplace le panneau Médias |
+| Navigation | ✅ | 🆕 Boutons Retour/Home |
 | Mode Théâtre | 🔧 | **À faire** |
 | Export MP4 | 🔧 | **À faire** |
 
