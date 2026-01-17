@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Upload,
@@ -37,7 +37,9 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [removingBgId, setRemovingBgId] = useState<string | null>(null)
   const [bgRemovalProgress, setBgRemovalProgress] = useState(0)
-  const canRemoveBackground = isBackgroundRemovalSupported()
+  
+  // Mémoriser le support WebGL (calculé une seule fois)
+  const canRemoveBackground = useMemo(() => isBackgroundRemovalSupported(), [])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()

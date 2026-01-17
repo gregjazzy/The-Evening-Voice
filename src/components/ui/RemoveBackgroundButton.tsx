@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Eraser, Loader2 } from 'lucide-react'
 import { removeBackground, isBackgroundRemovalSupported } from '@/lib/background-removal'
@@ -32,7 +32,8 @@ export function RemoveBackgroundButton({
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   
-  const isSupported = isBackgroundRemovalSupported()
+  // Mémoriser le support WebGL (calculé une seule fois)
+  const isSupported = useMemo(() => isBackgroundRemovalSupported(), [])
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation()

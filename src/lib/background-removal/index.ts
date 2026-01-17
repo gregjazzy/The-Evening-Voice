@@ -98,18 +98,39 @@ export async function removeBackground(
   }
 }
 
+// Cache du support WebGL (calculé une seule fois)
+let _isSupported: boolean | null = null
+
 /**
  * Vérifie si le navigateur supporte le détourage
  * (nécessite WebGL2 pour le modèle ML)
+ * Le résultat est mis en cache pour éviter de créer des contextes WebGL à chaque appel
  */
 export function isBackgroundRemovalSupported(): boolean {
-  if (typeof window === 'undefined') return false
+  // Retourner le cache si disponible
+  if (_isSupported !== null) return _isSupported
+  
+  if (typeof window === 'undefined') {
+    _isSupported = false
+    return false
+  }
   
   try {
     const canvas = document.createElement('canvas')
     const gl = canvas.getContext('webgl2')
-    return gl !== null
+    _isSupported = gl !== null
+    
+    // Nettoyer le contexte WebGL après vérification
+    if (gl) {
+      const loseContext = gl.getExtension('WEBGL_lose_context')
+      if (loseContext) {
+        loseContext.loseContext()
+      }
+    }
+    
+    return _isSupported
   } catch {
+    _isSupported = false
     return false
   }
 }
