@@ -29,27 +29,27 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     id: 'book',
-    icon: <Feather className="w-6 h-6" />,
+    icon: <Feather className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'book'
   },
   {
     id: 'studio',
-    icon: <Palette className="w-6 h-6" />,
+    icon: <Palette className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'studio'
   },
   {
     id: 'layout',
-    icon: <LayoutGrid className="w-6 h-6" />,
+    icon: <LayoutGrid className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'layout'
   },
   {
     id: 'theater',
-    icon: <Theater className="w-6 h-6" />,
+    icon: <Theater className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'theater'
   },
   {
     id: 'publish',
-    icon: <Printer className="w-6 h-6" />,
+    icon: <Printer className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'publish'
   },
 ]
@@ -65,26 +65,26 @@ export function Sidebar() {
   return (
     <>
       <motion.aside
-        className="fixed left-0 top-0 h-full w-24 glass flex flex-col items-center py-8 z-50"
+        className="fixed left-0 top-0 h-full w-20 lg:w-24 glass flex flex-col items-center py-4 lg:py-8 z-50"
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         {/* Logo / Titre */}
         <motion.div 
-          className="mb-8 flex flex-col items-center"
+          className="mb-4 lg:mb-8 flex flex-col items-center"
           whileHover={{ scale: 1.05 }}
         >
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-aurora-500 to-aurora-700 flex items-center justify-center magic-glow">
-            <Sparkles className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-aurora-500 to-aurora-700 flex items-center justify-center magic-glow">
+            <Sparkles className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
           </div>
-          <span className="mt-2 text-xs font-display text-aurora-300 tracking-wider">
+          <span className="mt-1 lg:mt-2 text-[10px] lg:text-xs font-display text-aurora-300 tracking-wider hidden lg:block">
             La Voix
           </span>
         </motion.div>
 
         {/* Navigation */}
-        <nav className="flex-1 flex flex-col gap-2 w-full px-3">
+        <nav className="flex-1 flex flex-col gap-1 lg:gap-2 w-full px-2 lg:px-3">
           {navItems.map((item, index) => (
             <motion.button
               key={item.id}
@@ -109,7 +109,7 @@ export function Sidebar() {
               >
                 {item.icon}
               </motion.div>
-              <span className="mode-label">{t(item.labelKey)}</span>
+              <span className="mode-label hidden lg:block">{t(item.labelKey)}</span>
               
               {/* Indicateur de mode actif */}
               {currentMode === item.id && (
@@ -132,7 +132,7 @@ export function Sidebar() {
               <motion.button
                 onClick={() => setCurrentMode('mentor' as AppMode)}
                 className={cn(
-                  'nav-item w-full mt-4 border-t border-white/5 pt-4',
+                  'nav-item w-full mt-2 lg:mt-4 border-t border-white/5 pt-2 lg:pt-4',
                   currentMode === 'mentor' && 'active'
                 )}
                 initial={{ opacity: 0, y: 20 }}
@@ -142,8 +142,8 @@ export function Sidebar() {
                 whileTap={{ scale: 0.95 }}
                 title="Dashboard Mentor"
               >
-                <Monitor className="w-6 h-6" />
-                <span className="mode-label">Mentor</span>
+                <Monitor className="w-5 h-5 lg:w-6 lg:h-6" />
+                <span className="mode-label hidden lg:block">Mentor</span>
                 {childrenCount > 0 && (
                   <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-dream-500 text-white text-xs flex items-center justify-center">
                     {childrenCount}
@@ -155,11 +155,11 @@ export function Sidebar() {
         </nav>
 
         {/* Connexion collaborative */}
-        <div className="mt-auto pt-4 w-full px-3">
+        <div className="mt-auto pt-2 lg:pt-4 w-full px-2 lg:px-3">
           <motion.button
             onClick={() => isConnected ? disconnect() : setShowConnectionModal(true)}
             className={cn(
-              'w-full p-3 rounded-xl flex flex-col items-center gap-1 transition-all',
+              'w-full p-2 lg:p-3 rounded-xl flex flex-col items-center gap-1 transition-all',
               isConnected 
                 ? 'bg-dream-600/20 text-dream-300 border border-dream-500/30' 
                 : 'bg-midnight-800/50 text-midnight-400 hover:text-white hover:bg-midnight-700/50'
@@ -173,21 +173,21 @@ export function Sidebar() {
                 <div className="flex items-center gap-1">
                   <Wifi className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] uppercase tracking-wide">
+                <span className="text-[8px] lg:text-[10px] uppercase tracking-wide hidden lg:block">
                   {role === 'mentor' ? 'Mentor' : 'Connecté'}
                 </span>
               </>
             ) : (
               <>
-                <Link2 className="w-5 h-5" />
-                <span className="text-[10px] uppercase tracking-wide">Collab</span>
+                <Link2 className="w-4 h-4 lg:w-5 lg:h-5" />
+                <span className="text-[8px] lg:text-[10px] uppercase tracking-wide hidden lg:block">Collab</span>
               </>
             )}
           </motion.button>
 
           {/* Indicateur visuel */}
           <motion.div 
-            className="mt-4 flex justify-center"
+            className="mt-2 lg:mt-4 flex justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -199,7 +199,7 @@ export function Sidebar() {
           </motion.div>
 
           {/* Menu utilisateur */}
-          <div className="mt-4 w-full">
+          <div className="mt-2 lg:mt-4 w-full">
             <UserMenu />
           </div>
         </div>

@@ -19,7 +19,7 @@ export default function HomePage() {
       
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <main className="flex-1 flex flex-col ml-24 p-8 overflow-auto relative z-10">
+        <main className="flex-1 flex flex-col ml-20 lg:ml-24 p-4 lg:p-8 overflow-auto relative z-10">
           <MainContent />
         </main>
       </div>

@@ -314,12 +314,21 @@ textarea::placeholder, input[type="text"]::placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 16px;
+  gap: 4px;
+  padding: 10px 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
   color: rgba(240, 241, 248, 0.6);
+}
+
+/* iPad et plus grand */
+@media (min-width: 1024px) {
+  .nav-item {
+    gap: 8px;
+    padding: 16px;
+    border-radius: 16px;
+  }
 }
 
 .nav-item:hover {
@@ -364,5 +373,65 @@ textarea::placeholder, input[type="text"]::placeholder {
 
 .animate-pulse-subtle {
   animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* ============================================
+   RESPONSIVE IPAD (768px - 1024px)
+   ============================================ */
+
+/* Variable CSS pour la hauteur du livre selon l'écran */
+:root {
+  --book-height-offset: 220px;
+}
+
+@media (max-width: 1024px) and (min-width: 768px) {
+  :root {
+    --book-height-offset: 160px;
+  }
+
+  /* Réduire les gaps et paddings sur iPad */
+  .glass {
+    padding: 12px !important;
+  }
+
+  /* Réduire la taille des textes header */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  /* Ajuster les modals pour iPad */
+  .fixed.inset-0 > div {
+    max-width: 90vw !important;
+    max-height: 85vh !important;
+  }
+
+  /* Réduire les boutons magiques */
+  .btn-magic {
+    padding: 10px 18px;
+    font-size: 0.9rem;
+  }
+
+  /* Chat messages plus compacts */
+  .chat-message {
+    padding: 12px 16px;
+    max-width: 90%;
+  }
+
+  /* Input fields plus compacts */
+  .input-field {
+    padding: 10px 12px;
+    min-height: 44px;
+  }
+}
+
+/* Portrait iPad spécifique */
+@media (max-width: 834px) and (orientation: portrait) {
+  :root {
+    --book-height-offset: 140px;
+  }
 }
 

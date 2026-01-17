@@ -7,6 +7,15 @@ const config: Config = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    screens: {
+      // Breakpoints personnalisés pour iPad
+      'sm': '640px',
+      'md': '768px',      // iPad Mini portrait
+      'tablet': '834px',  // iPad Air/Pro portrait  
+      'lg': '1024px',     // iPad landscape / Desktop
+      'xl': '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
         // Palette Luxe & Magie - Nuit étoilée

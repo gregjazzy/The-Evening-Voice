@@ -4368,8 +4368,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         <div 
           className="relative flex shadow-2xl"
           style={{
-            height: 'calc(100vh - 220px)', // Hauteur fixe pour éviter le redimensionnement
-            maxHeight: 'calc(100vh - 220px)',
+            height: 'calc(100vh - var(--book-height-offset, 220px))', // Hauteur responsive via CSS variable
+            maxHeight: 'calc(100vh - var(--book-height-offset, 220px))',
             perspective: '2000px',
           }}
         >
