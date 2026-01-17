@@ -311,6 +311,35 @@ CREATE INDEX idx_montage_projects_profile_id ON montage_projects(profile_id);
 CREATE INDEX idx_montage_projects_story_id ON montage_projects(story_id);
 
 -- ===========================================
+-- TABLE: studio_progress (Progression pédagogique)
+-- ===========================================
+CREATE TABLE studio_progress (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
+  
+  -- Progression Images (Midjourney)
+  image_level INTEGER DEFAULT 1 CHECK (image_level BETWEEN 1 AND 5),
+  image_creations_in_level INTEGER DEFAULT 0,
+  image_total_creations INTEGER DEFAULT 0,
+  
+  -- Progression Vidéos (Runway)
+  video_level INTEGER DEFAULT 1 CHECK (video_level BETWEEN 1 AND 5),
+  video_creations_in_level INTEGER DEFAULT 0,
+  video_total_creations INTEGER DEFAULT 0,
+  
+  -- Historique des créations (JSON array)
+  creations JSONB DEFAULT '[]'::jsonb,
+  
+  -- Badges obtenus (JSON array)
+  badges JSONB DEFAULT '[]'::jsonb,
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_studio_progress_profile_id ON studio_progress(profile_id);
+
+-- ===========================================
 -- TRIGGERS pour updated_at automatique
 -- ===========================================
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -341,6 +370,10 @@ CREATE TRIGGER montage_projects_updated_at
   BEFORE UPDATE ON montage_projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+CREATE TRIGGER studio_progress_updated_at
+  BEFORE UPDATE ON studio_progress
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ===========================================
 -- ROW LEVEL SECURITY (RLS)
 -- ===========================================
@@ -353,6 +386,7 @@ ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE generation_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mentor_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE montage_projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE studio_progress ENABLE ROW LEVEL SECURITY;
 
 -- Policies pour profiles
 CREATE POLICY "Users can view own profile"
@@ -380,6 +414,11 @@ CREATE POLICY "Users can manage own diary"
 -- Policies pour montage_projects
 CREATE POLICY "Users can manage own montage projects"
   ON montage_projects FOR ALL
+  USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
+
+-- Policies pour studio_progress
+CREATE POLICY "Users can manage own studio progress"
+  ON studio_progress FOR ALL
   USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
 
 -- ===========================================

@@ -1,6 +1,7 @@
 -- ===========================================
 -- Migration: Ajouter table studio_progress
 -- ===========================================
+-- IDEMPOTENT: Peut être relancée sans erreur
 
 -- Table pour stocker la progression pédagogique du Studio
 CREATE TABLE IF NOT EXISTS studio_progress (
@@ -27,18 +28,20 @@ CREATE TABLE IF NOT EXISTS studio_progress (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Index
+-- Index (idempotent)
 CREATE INDEX IF NOT EXISTS idx_studio_progress_profile_id ON studio_progress(profile_id);
 
--- RLS
+-- RLS (idempotent - ALTER TABLE ne crée pas d'erreur si déjà activé)
 ALTER TABLE studio_progress ENABLE ROW LEVEL SECURITY;
 
--- Policy
+-- Policy (idempotent avec DROP IF EXISTS)
+DROP POLICY IF EXISTS "Users can manage own studio progress" ON studio_progress;
 CREATE POLICY "Users can manage own studio progress"
   ON studio_progress FOR ALL
   USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
 
--- Trigger pour updated_at
+-- Trigger (idempotent avec DROP IF EXISTS)
+DROP TRIGGER IF EXISTS studio_progress_updated_at ON studio_progress;
 CREATE TRIGGER studio_progress_updated_at
   BEFORE UPDATE ON studio_progress
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
