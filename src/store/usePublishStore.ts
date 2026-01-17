@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Story } from './useAppStore'
+import { exportToPDF } from '@/lib/export/pdf'
 
 // ============================================================================
 // FORMATS DE LIVRE DISPONIBLES
@@ -490,17 +491,16 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     set({ isExporting: true, exportProgress: 0 })
     
     try {
-      // Simulation de l'export (sera remplacé par le vrai export)
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(r => setTimeout(r, 200))
-        set({ exportProgress: i })
-      }
+      const result = await exportToPDF(story, format, cover, {
+        onProgress: (progress) => {
+          set({ exportProgress: progress })
+        },
+        includeBleed: false, // Pour impression maison
+      })
       
-      // TODO: Implémenter le vrai export PDF avec jsPDF ou react-pdf
-      const mockPdfUrl = '#'
-      
-      set({ pdfUrl: mockPdfUrl, isExporting: false, exportProgress: 100 })
-      return mockPdfUrl
+      set({ pdfUrl: result.url, isExporting: false, exportProgress: 100 })
+      console.log(`✅ PDF généré: ${result.pageCount} pages, ${Math.round(result.fileSize / 1024)}KB`)
+      return result.url
     } catch (error) {
       console.error('Erreur export PDF:', error)
       set({ isExporting: false, exportProgress: 0 })
