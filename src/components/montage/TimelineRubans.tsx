@@ -556,11 +556,13 @@ interface TimeRulerScrollableProps {
   currentTime: number
   pixelsPerSecond: number
   rulerScrollRef: React.RefObject<HTMLDivElement>
+  playheadRef?: React.RefObject<HTMLDivElement>
+  isPlaying?: boolean
   onScroll: (e: React.UIEvent<HTMLDivElement>) => void
   onSeek: (time: number) => void
 }
 
-function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScrollRef, onScroll, onSeek }: TimeRulerScrollableProps) {
+function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScrollRef, playheadRef, isPlaying, onScroll, onSeek }: TimeRulerScrollableProps) {
   // Handler pour cliquer sur la règle et repositionner la tête de lecture
   const handleRulerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -621,10 +623,14 @@ function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScro
             </div>
           ))}
 
-          {/* Playhead */}
+          {/* Playhead - mis à jour via DOM direct pendant la lecture */}
           <div
+            ref={playheadRef}
             className="absolute top-0 bottom-0 w-0.5 bg-aurora-400 z-10"
-            style={{ left: playheadPosition }}
+            style={{ 
+              left: playheadPosition,
+              transition: isPlaying ? 'none' : 'left 0.15s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
           >
             <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-aurora-400 rounded-full" />
           </div>
@@ -885,6 +891,11 @@ export function TimelineRubans() {
   const animationRef = useRef<number | null>(null)
   const playedSoundsRef = useRef<Set<string>>(new Set()) // Sons déjà joués
   const lastTimeRef = useRef<number>(0)
+  const lastStateUpdateRef = useRef<number>(0) // Pour throttle les updates du state
+  
+  // Refs pour les playheads (mise à jour DOM directe pour fluidité)
+  const playheadMainRef = useRef<HTMLDivElement>(null)
+  const playheadRulerRef = useRef<HTMLDivElement>(null)
   
   // État du modal d'ajout
   const [modalOpen, setModalOpen] = useState(false)
@@ -1046,6 +1057,10 @@ export function TimelineRubans() {
     if (isPlaying) {
       audioRef.current?.pause()
       setIsPlaying(false)
+      // Synchroniser le state final avec la position actuelle de l'audio
+      if (audioRef.current) {
+        setPlaybackTime(audioRef.current.currentTime)
+      }
       // Arrêter tous les sons actifs
       activeSoundRefs.current.forEach((audio) => {
         audio.pause()
@@ -1074,6 +1089,7 @@ export function TimelineRubans() {
       setIsPlaying(true)
 
       // Mettre à jour le temps de lecture et vérifier les sons
+      // OPTIMISATION: Mise à jour DOM directe pour fluidité du playhead
       const updateTime = () => {
         if (audioRef.current) {
           const newTime = audioRef.current.currentTime
@@ -1082,7 +1098,25 @@ export function TimelineRubans() {
           checkAndPlaySounds(newTime, lastTimeRef.current)
           lastTimeRef.current = newTime
           
-          setPlaybackTime(newTime)
+          // Mise à jour DIRECTE du DOM pour le playhead (fluide, pas de re-render)
+          const scrollOffset = scrollContainerRef.current?.scrollLeft || 0
+          const playheadLeft = LABEL_WIDTH + (newTime * pixelsPerSecond) - scrollOffset
+          
+          if (playheadMainRef.current) {
+            playheadMainRef.current.style.left = `${playheadLeft}px`
+          }
+          if (playheadRulerRef.current) {
+            playheadRulerRef.current.style.left = `${newTime * pixelsPerSecond}px`
+          }
+          
+          // Throttle: mettre à jour le state React seulement toutes les 100ms
+          // (pour synchroniser les autres composants sans trop de re-renders)
+          const now = performance.now()
+          if (now - lastStateUpdateRef.current > 100) {
+            lastStateUpdateRef.current = now
+            setPlaybackTime(newTime)
+          }
+          
           animationRef.current = requestAnimationFrame(updateTime)
         }
       }
@@ -1222,6 +1256,8 @@ export function TimelineRubans() {
         currentTime={currentPlaybackTime} 
         pixelsPerSecond={pixelsPerSecond}
         rulerScrollRef={rulerScrollRef}
+        playheadRef={playheadRulerRef}
+        isPlaying={isPlaying}
         onScroll={handleRulerScroll}
         onSeek={handleSeek}
       />
@@ -1246,10 +1282,11 @@ export function TimelineRubans() {
       >
         {/* Playhead vertical qui traverse toutes les pistes */}
         <div 
+          ref={playheadMainRef}
           className="absolute top-0 bottom-0 w-0.5 bg-aurora-400 z-50 pointer-events-none shadow-lg shadow-aurora-400/50"
           style={{ 
             left: LABEL_WIDTH + (currentPlaybackTime * pixelsPerSecond) - (scrollContainerRef.current?.scrollLeft || 0),
-            transition: isPlaying ? 'none' : 'left 0.1s ease-out'
+            transition: isPlaying ? 'none' : 'left 0.15s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
           <div className="absolute top-0 -left-1.5 w-3 h-3 bg-aurora-400 rounded-full shadow-lg shadow-aurora-400/50" />
