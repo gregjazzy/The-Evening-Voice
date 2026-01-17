@@ -13,8 +13,25 @@ import {
   type StoryStructure 
 } from './prompting-pedagogy'
 
-// Configuration Gemini
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '')
+// Configuration Gemini - Client par défaut (env var)
+const defaultGenAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '')
+
+// Cache pour les clients avec des clés personnalisées
+const clientCache = new Map<string, GoogleGenerativeAI>()
+
+// Obtient le client Gemini approprié (clé fournie ou par défaut)
+function getGeminiClient(apiKey?: string): GoogleGenerativeAI {
+  if (!apiKey) {
+    return defaultGenAI
+  }
+  
+  // Utiliser le cache pour éviter de recréer des clients
+  if (!clientCache.has(apiKey)) {
+    clientCache.set(apiKey, new GoogleGenerativeAI(apiKey))
+  }
+  
+  return clientCache.get(apiKey)!
+}
 
 // Configuration de sécurité adaptée aux enfants
 const safetySettings = [
@@ -838,6 +855,7 @@ export interface LunaContext {
   mode: 'diary' | 'book' | 'studio' | 'general'
   locale: 'fr' | 'en' | 'ru'
   aiName?: string // Nom personnalisé de l'IA (choisi par l'enfant)
+  apiKey?: string // Clé API Gemini optionnelle (priorité sur env var)
   promptingProgress?: PromptingProgress
   writingProgress?: WritingPromptingProgress
   storyStructure?: StoryStructure
@@ -881,6 +899,9 @@ export async function generateLunaResponse(
   chatHistory: ChatMessage[] = []
 ): Promise<GeminiResponse> {
   try {
+    // Utiliser le client approprié (clé fournie ou par défaut)
+    const genAI = getGeminiClient(context.apiKey)
+    
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash',
       safetySettings,

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateLunaResponse, type ChatMessage, type LunaContext } from '@/lib/ai/gemini'
 import type { PromptingProgress, StoryStructure, WritingPromptingProgress } from '@/lib/ai/prompting-pedagogy'
 import { parseHighlightCommands, generateInterfaceKnowledge, type HighlightConfig } from '@/store/useHighlightStore'
+import { getApiKeyForRequest } from '@/lib/config/server-config'
 
 interface ChatRequestBody {
   message: string
@@ -75,11 +76,15 @@ export async function POST(request: NextRequest) {
     const interfaceMode = currentMode || context || 'general'
     const interfaceKnowledge = generateInterfaceKnowledge(interfaceMode)
 
+    // Récupérer la clé API depuis la config famille (priorité) ou env var
+    const apiKey = await getApiKeyForRequest('gemini')
+
     // Construire le contexte de l'IA-Amie
     const aiContext: LunaContext = {
       mode: context,
       locale,
       aiName, // Nom personnalisé transmis au prompt
+      apiKey: apiKey || undefined, // Clé API dynamique
       promptingProgress,
       writingProgress,
       storyStructure,

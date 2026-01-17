@@ -6,6 +6,7 @@ import { ToastProvider } from './ui/Toast'
 import { AIWelcomeSequence } from './ui/AIWelcomeSequence'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useAppConfig } from '@/hooks/useAppConfig'
 
 interface ClientLayoutProps {
   children: ReactNode
@@ -16,6 +17,9 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   const { isInitialized } = useAuthStore()
   const [showWelcomeSequence, setShowWelcomeSequence] = useState(false)
   const hasTriggeredRef = useRef(false)
+  
+  // Charger la configuration (clés API, famille) au démarrage
+  useAppConfig()
 
   // Afficher la séquence d'accueil si pas de nom d'IA
   // Fonctionne avec ou sans authentification

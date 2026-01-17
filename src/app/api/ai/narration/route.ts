@@ -14,6 +14,7 @@ import {
   getNarrationVoices,
   type VoiceType,
 } from '@/lib/ai/elevenlabs'
+import { getApiKeyForRequest, getDefaultNarrationVoice } from '@/lib/config/server-config'
 
 interface NarrationRequestBody {
   text: string
@@ -41,8 +42,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Récupérer la clé API depuis la config famille (priorité) ou env var
+    const apiKey = await getApiKeyForRequest('elevenlabs')
+
     // Générer la narration avec fallback automatique
-    const result = await generateNarrationWithFallback(text, voiceType)
+    const result = await generateNarrationWithFallback(text, voiceType, apiKey || undefined)
 
     // Si ElevenLabs a généré un audio, on doit le convertir en base64
     // car on ne peut pas retourner un Blob directement

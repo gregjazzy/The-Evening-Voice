@@ -13,13 +13,17 @@ import {
   Wifi,
   Monitor,
   Printer,
+  Shield,
+  Users,
 } from 'lucide-react'
 import { useAppStore, type AppMode } from '@/store/useAppStore'
 import { useMentorStore } from '@/store/useMentorStore'
+import { useAdminStore } from '@/store/useAdminStore'
 import { ConnectionModal } from '@/components/mentor/ConnectionModal'
 import { UserMenu } from '@/components/ui/UserMenu'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { type HighlightableElement } from '@/store/useHighlightStore'
+import { SuperAdminPanel, ParentAdminPanel } from '@/components/admin'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -66,9 +70,13 @@ export function Sidebar() {
   const t = useTranslations('nav')
   const { currentMode, setCurrentMode } = useAppStore()
   const { isConnected, role, connectedUsers, disconnect } = useMentorStore()
+  const { isSuperAdmin, userFamilyInfo } = useAdminStore()
   const [showConnectionModal, setShowConnectionModal] = useState(false)
+  const [showAdminPanel, setShowAdminPanel] = useState(false)
 
   const childrenCount = connectedUsers.filter(u => u.role === 'child').length
+  const isParent = userFamilyInfo?.user_role === 'parent'
+  const canAccessAdmin = isSuperAdmin || isParent
 
   return (
     <>
@@ -163,8 +171,38 @@ export function Sidebar() {
           </AnimatePresence>
         </nav>
 
+        {/* Bouton Admin (Super Admin ou Parent) */}
+        {canAccessAdmin && (
+          <div className="mt-auto pt-2 lg:pt-4 w-full px-2 lg:px-3">
+            <motion.button
+              onClick={() => setShowAdminPanel(true)}
+              className={cn(
+                'w-full p-2 lg:p-3 rounded-xl flex flex-col items-center gap-1 transition-all',
+                isSuperAdmin
+                  ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30 hover:bg-purple-600/30'
+                  : 'bg-pink-600/20 text-pink-300 border border-pink-500/30 hover:bg-pink-600/30'
+              )}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              title={isSuperAdmin ? 'Super Admin' : 'Gestion famille'}
+            >
+              {isSuperAdmin ? (
+                <>
+                  <Shield className="w-4 h-4 lg:w-5 lg:h-5" />
+                  <span className="text-[8px] lg:text-[10px] uppercase tracking-wide hidden lg:block">Admin</span>
+                </>
+              ) : (
+                <>
+                  <Users className="w-4 h-4 lg:w-5 lg:h-5" />
+                  <span className="text-[8px] lg:text-[10px] uppercase tracking-wide hidden lg:block">Famille</span>
+                </>
+              )}
+            </motion.button>
+          </div>
+        )}
+
         {/* Connexion collaborative */}
-        <div className="mt-auto pt-2 lg:pt-4 w-full px-2 lg:px-3">
+        <div className={cn("w-full px-2 lg:px-3", !canAccessAdmin && "mt-auto pt-2 lg:pt-4")}>
           <motion.button
             onClick={() => isConnected ? disconnect() : setShowConnectionModal(true)}
             className={cn(
@@ -219,6 +257,17 @@ export function Sidebar() {
         isOpen={showConnectionModal} 
         onClose={() => setShowConnectionModal(false)} 
       />
+
+      {/* Panel Admin */}
+      <AnimatePresence>
+        {showAdminPanel && (
+          isSuperAdmin ? (
+            <SuperAdminPanel onClose={() => setShowAdminPanel(false)} />
+          ) : (
+            <ParentAdminPanel onClose={() => setShowAdminPanel(false)} />
+          )
+        )}
+      </AnimatePresence>
     </>
   )
 }

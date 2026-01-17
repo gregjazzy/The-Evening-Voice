@@ -280,6 +280,7 @@ interface GenerateVoiceParams {
   similarityBoost?: number
   style?: number
   speakerBoost?: boolean
+  apiKey?: string // Clé API optionnelle (priorité sur env var)
 }
 
 interface GenerateVoiceResponse {
@@ -302,9 +303,10 @@ export async function generateVoice(params: GenerateVoiceParams): Promise<Genera
     similarityBoost = 0.75,
     style = 0.5,
     speakerBoost = true,
+    apiKey: providedApiKey,
   } = params
 
-  const apiKey = process.env.ELEVENLABS_API_KEY
+  const apiKey = providedApiKey || process.env.ELEVENLABS_API_KEY
   if (!apiKey) {
     throw new Error('Clé API ElevenLabs non configurée')
   }
@@ -362,7 +364,8 @@ export function isElevenLabsAvailable(): boolean {
  */
 export async function generatePageNarration(
   pageText: string,
-  voiceType: VoiceType = 'narrator'
+  voiceType: VoiceType = 'narrator',
+  apiKey?: string
 ): Promise<GenerateVoiceResponse> {
   // Nettoyer le texte pour la lecture
   const cleanedText = pageText
@@ -376,6 +379,7 @@ export async function generatePageNarration(
     stability: 0.6, // Plus stable pour la narration
     similarityBoost: 0.8,
     style: 0.4, // Style modéré pour le conte
+    apiKey,
   })
 }
 
@@ -476,7 +480,8 @@ export interface NarrationResult {
  */
 export async function generateNarrationWithFallback(
   text: string,
-  voiceType: VoiceType = 'narrator'
+  voiceType: VoiceType = 'narrator',
+  apiKey?: string
 ): Promise<NarrationResult> {
   // Nettoyer le texte
   const cleanedText = text
@@ -486,10 +491,11 @@ export async function generateNarrationWithFallback(
 
   const estimatedDuration = estimateAudioDuration(cleanedText)
 
-  // Essayer ElevenLabs si disponible
-  if (isElevenLabsAvailable()) {
+  // Essayer ElevenLabs si disponible (avec clé fournie ou env var)
+  const hasApiKey = apiKey || process.env.ELEVENLABS_API_KEY
+  if (hasApiKey) {
     try {
-      const result = await generatePageNarration(cleanedText, voiceType)
+      const result = await generatePageNarration(cleanedText, voiceType, apiKey)
       return {
         audioUrl: result.audioUrl,
         audioBlob: result.audioBlob,
