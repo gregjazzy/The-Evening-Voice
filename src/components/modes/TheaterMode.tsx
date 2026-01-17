@@ -20,7 +20,11 @@ import {
   Sparkles,
   Home,
   Film,
-  X
+  X,
+  Download,
+  Loader2,
+  CheckCircle2,
+  Video
 } from 'lucide-react'
 import { useMontageStore, type MontageProject, type MontageScene } from '@/store/useMontageStore'
 import { useMentorStore } from '@/store/useMentorStore'
@@ -50,6 +54,16 @@ export function TheaterMode() {
   const [showSettings, setShowSettings] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(true)
   const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0)
+  
+  // États pour l'export vidéo
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportingProjectId, setExportingProjectId] = useState<string | null>(null)
+  const [exportProgress, setExportProgress] = useState(0)
+  const [exportResult, setExportResult] = useState<{
+    mp4Url: string
+    playbackId: string
+  } | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null)
@@ -290,6 +304,114 @@ export function TheaterMode() {
     )
   }
 
+  // Export vidéo HD/4K via Mux
+  const handleExportVideo = async (project: MontageProject, e: React.MouseEvent) => {
+    e.stopPropagation() // Empêcher de lancer le spectacle
+    
+    setIsExporting(true)
+    setExportingProjectId(project.id)
+    setExportProgress(10)
+    setExportError(null)
+    setExportResult(null)
+    
+    try {
+      // Préparer les scènes pour l'export
+      const scenes = project.scenes.map((scene) => {
+        // Trouver le premier média de la scène
+        const firstMedia = scene.mediaTracks?.[0]
+        return {
+          mediaUrl: firstMedia?.url || '',
+          duration: scene.duration || 10,
+          text: scene.text,
+        }
+      }).filter(s => s.mediaUrl) // Filtrer les scènes sans média
+      
+      if (scenes.length === 0) {
+        throw new Error('Aucune scène avec média trouvée')
+      }
+      
+      // Récupérer l'URL de narration (première scène avec narration)
+      const narrationUrl = project.scenes.find(s => s.narration?.audioUrl)?.narration?.audioUrl
+      
+      setExportProgress(30)
+      
+      // Appeler l'API d'export
+      const response = await fetch('/api/export/video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: project.title,
+          scenes,
+          narrationUrl,
+          resolution: '1080p',
+        }),
+      })
+      
+      setExportProgress(60)
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Erreur export')
+      }
+      
+      const result = await response.json()
+      setExportProgress(80)
+      
+      // Polling pour vérifier quand la vidéo est prête
+      if (result.status === 'preparing') {
+        let attempts = 0
+        const maxAttempts = 60 // 5 minutes max
+        
+        const checkStatus = async () => {
+          const statusResponse = await fetch(`/api/export/video?assetId=${result.assetId}`)
+          const statusData = await statusResponse.json()
+          
+          if (statusData.status === 'ready') {
+            setExportProgress(100)
+            setExportResult({
+              mp4Url: statusData.mp4Url,
+              playbackId: result.playbackId,
+            })
+            setIsExporting(false)
+          } else if (statusData.status === 'errored') {
+            throw new Error('Erreur lors de l\'encodage')
+          } else if (attempts < maxAttempts) {
+            attempts++
+            setExportProgress(80 + Math.min(attempts, 18))
+            setTimeout(checkStatus, 5000)
+          } else {
+            throw new Error('Timeout - la vidéo prend trop de temps')
+          }
+        }
+        
+        checkStatus()
+      } else {
+        setExportProgress(100)
+        setExportResult({
+          mp4Url: result.mp4Url,
+          playbackId: result.playbackId,
+        })
+        setIsExporting(false)
+      }
+      
+    } catch (error) {
+      console.error('Erreur export vidéo:', error)
+      setExportError(error instanceof Error ? error.message : 'Erreur inconnue')
+      setIsExporting(false)
+      setExportProgress(0)
+    }
+  }
+  
+  // Télécharger la vidéo
+  const handleDownloadVideo = () => {
+    if (exportResult?.mp4Url) {
+      const link = document.createElement('a')
+      link.href = exportResult.mp4Url
+      link.download = 'mon-livre-disque.mp4'
+      link.click()
+    }
+  }
+
   // Vue Bibliothèque
   if (!selectedProject) {
     return (
@@ -378,6 +500,25 @@ export function TheaterMode() {
                       </div>
                     )}
 
+                    {/* Bouton Export Vidéo */}
+                    <button
+                      onClick={(e) => handleExportVideo(project, e)}
+                      disabled={isExporting && exportingProjectId === project.id}
+                      className={cn(
+                        'absolute top-3 left-3 p-2 rounded-full transition-all',
+                        'bg-black/50 hover:bg-aurora-500 text-white/70 hover:text-white',
+                        'opacity-0 group-hover:opacity-100',
+                        isExporting && exportingProjectId === project.id && 'opacity-100 bg-aurora-500'
+                      )}
+                      title="Exporter en vidéo HD"
+                    >
+                      {isExporting && exportingProjectId === project.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Video className="w-4 h-4" />
+                      )}
+                    </button>
+
                     {/* Infos */}
                     <div className="absolute bottom-0 left-0 right-0 p-4">
                       <h3 className="font-display text-lg text-white mb-1">
@@ -411,6 +552,116 @@ export function TheaterMode() {
             </div>
           )}
         </div>
+        
+        {/* Modal Export Vidéo */}
+        <AnimatePresence>
+          {(isExporting || exportResult || exportError) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+              onClick={() => {
+                if (!isExporting) {
+                  setExportResult(null)
+                  setExportError(null)
+                }
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="glass-card p-8 max-w-md w-full mx-4"
+              >
+                {/* En cours d'export */}
+                {isExporting && (
+                  <div className="text-center">
+                    <div className="w-20 h-20 rounded-full bg-aurora-500/20 flex items-center justify-center mx-auto mb-6">
+                      <Loader2 className="w-10 h-10 text-aurora-400 animate-spin" />
+                    </div>
+                    <h3 className="text-xl font-display text-white mb-2">
+                      Export en cours...
+                    </h3>
+                    <p className="text-midnight-400 mb-6">
+                      Création de ta vidéo HD 🎬
+                    </p>
+                    <div className="h-2 bg-midnight-800 rounded-full overflow-hidden mb-2">
+                      <motion.div
+                        className="h-full bg-gradient-to-r from-aurora-500 to-dream-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${exportProgress}%` }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    <p className="text-sm text-midnight-400">{exportProgress}%</p>
+                  </div>
+                )}
+                
+                {/* Export réussi */}
+                {exportResult && !isExporting && (
+                  <div className="text-center">
+                    <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+                    </div>
+                    <h3 className="text-xl font-display text-white mb-2">
+                      Vidéo prête ! 🎉
+                    </h3>
+                    <p className="text-midnight-400 mb-6">
+                      Ta vidéo HD est prête à être téléchargée
+                    </p>
+                    <div className="space-y-3">
+                      <button
+                        onClick={handleDownloadVideo}
+                        className="w-full py-3 px-4 bg-aurora-600 hover:bg-aurora-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Download className="w-5 h-5" />
+                        Télécharger MP4
+                      </button>
+                      <button
+                        onClick={() => {
+                          setExportResult(null)
+                          setExportingProjectId(null)
+                        }}
+                        className="w-full py-3 px-4 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
+                      >
+                        Fermer
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Erreur */}
+                {exportError && !isExporting && (
+                  <div className="text-center">
+                    <div className="w-20 h-20 rounded-full bg-rose-500/20 flex items-center justify-center mx-auto mb-6">
+                      <X className="w-10 h-10 text-rose-400" />
+                    </div>
+                    <h3 className="text-xl font-display text-white mb-2">
+                      Oups ! 😕
+                    </h3>
+                    <p className="text-midnight-400 mb-2">
+                      Une erreur s'est produite
+                    </p>
+                    <p className="text-sm text-rose-400 mb-6">
+                      {exportError}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setExportError(null)
+                        setExportingProjectId(null)
+                      }}
+                      className="w-full py-3 px-4 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     )
   }
