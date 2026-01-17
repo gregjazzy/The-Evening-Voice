@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMontageStore, type TimeRange } from '@/store/useMontageStore'
+import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { cn } from '@/lib/utils'
 import {
@@ -373,6 +374,14 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
     addTextEffect,
   } = useMontageStore()
   
+  // 🎨 Récupérer les assets importés depuis le Studio
+  const { importedAssets } = useStudioStore()
+  
+  // Filtrer pour n'avoir que les images et vidéos du Studio
+  const studioMediaAssets = importedAssets.filter(
+    (asset) => asset.type === 'image' || asset.type === 'video'
+  )
+  
   const { upload, isUploading } = useMediaUpload()
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -390,7 +399,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
     fadeOut: 0.3,
   })
 
-  // Ajouter un média (image/vidéo)
+  // Ajouter un média (image/vidéo) depuis un fichier uploadé
   const handleAddMedia = async (file: File) => {
     if (!scene) return
     
@@ -410,6 +419,25 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
       })
       onClose()
     }
+  }
+
+  // 🎨 Ajouter un asset depuis le Studio
+  const handleAddStudioAsset = (asset: ImportedAsset) => {
+    if (!scene) return
+    
+    const isVideo = asset.type === 'video'
+    
+    addMediaTrack({
+      type: isVideo ? 'video' : 'image',
+      url: asset.url,
+      name: asset.name,
+      timeRange: createTimeRange(0, 50),
+      position: { x: 50, y: 50, width: 80, height: 60 },
+      zIndex: (scene.mediaTracks?.length || 0) + 1,
+      loop: isVideo,
+      muted: false,
+    })
+    onClose()
   }
 
   // Ajouter une musique
@@ -623,9 +651,84 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
 
           {/* Contenu */}
           <div className="p-6 overflow-y-auto max-h-[60vh]">
-            {/* Média (upload) */}
+            {/* Média (Studio + upload) */}
             {elementType === 'media' && (
-              <div className="space-y-4">
+              <div className="space-y-6">
+                {/* 🎨 Section Assets du Studio */}
+                {studioMediaAssets.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-aurora-400" />
+                      <h3 className="text-sm font-medium text-aurora-300">
+                        Assets du Studio ({studioMediaAssets.length})
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 max-h-[200px] overflow-y-auto pr-2">
+                      {studioMediaAssets.map((asset) => (
+                        <motion.button
+                          key={asset.id}
+                          onClick={() => handleAddStudioAsset(asset)}
+                          className="group relative aspect-video rounded-lg overflow-hidden border-2 border-midnight-700 hover:border-aurora-500 transition-all bg-midnight-800"
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                        >
+                          {asset.type === 'video' ? (
+                            <video
+                              src={asset.url}
+                              className="absolute inset-0 w-full h-full object-cover"
+                              muted
+                            />
+                          ) : (
+                            <img
+                              src={asset.url}
+                              alt={asset.name}
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          )}
+                          {/* Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                          {/* Badge type */}
+                          <div className="absolute top-1 right-1">
+                            {asset.type === 'video' ? (
+                              <Video className="w-4 h-4 text-blue-400 drop-shadow" />
+                            ) : (
+                              <Image className="w-4 h-4 text-green-400 drop-shadow" />
+                            )}
+                          </div>
+                          {/* Nom */}
+                          <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <p className="text-xs text-white truncate font-medium">
+                              {asset.name}
+                            </p>
+                            <p className="text-[10px] text-aurora-300 capitalize">
+                              {asset.source}
+                            </p>
+                          </div>
+                          {/* Icône + au survol */}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-8 h-8 rounded-full bg-aurora-500/80 flex items-center justify-center">
+                              <Plus className="w-5 h-5 text-white" />
+                            </div>
+                          </div>
+                        </motion.button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-midnight-500 text-center">
+                      Clique sur un asset pour l'ajouter à la scène
+                    </p>
+                  </div>
+                )}
+
+                {/* Séparateur si des assets Studio existent */}
+                {studioMediaAssets.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-midnight-700" />
+                    <span className="text-xs text-midnight-500">ou</span>
+                    <div className="flex-1 h-px bg-midnight-700" />
+                  </div>
+                )}
+
+                {/* Upload nouveau fichier */}
                 <label className="block">
                   <div className="border-2 border-dashed border-midnight-600 rounded-xl p-8 text-center hover:border-blue-500/50 transition-colors cursor-pointer">
                     <input
