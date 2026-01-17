@@ -5,37 +5,266 @@
  * IMPORTANT: 
  * - Les Voice IDs sont configurables via variables d'environnement
  * - Si ElevenLabs échoue, fallback sur Apple Voice (TTS système)
+ * - 7 voix par langue (FR, EN, RU) pour la narration des histoires
  */
 
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1'
 
-// Voix disponibles pour la narration des histoires
-// Les IDs sont lus depuis les variables d'environnement pour faciliter les changements
-export const AVAILABLE_VOICES = {
-  narrator: {
-    id: process.env.ELEVENLABS_VOICE_NARRATOR || 'EXAVITQu4vr4xnSDxMaL',
-    name: 'Conteur',
-    description: 'Voix de conte de fées',
-    emoji: '📖',
+// ============================================
+// VOIX ELEVENLABS PAR LANGUE (7 par langue)
+// ============================================
+
+export interface ElevenLabsVoice {
+  id: string
+  name: string
+  description: string
+  emoji: string
+  gender: 'female' | 'male'
+  age: 'young' | 'adult' | 'elderly'
+  style: 'warm' | 'dramatic' | 'gentle' | 'playful' | 'mysterious'
+}
+
+// 🇫🇷 VOIX FRANÇAISES (7)
+export const FRENCH_VOICES: Record<string, ElevenLabsVoice> = {
+  // Voix féminines
+  amelie: {
+    id: process.env.ELEVENLABS_FR_AMELIE || 'XrExE9yKIg1WjnnlVkGX',
+    name: 'Amélie',
+    description: 'Voix douce et chaleureuse, parfaite pour les contes',
+    emoji: '🌸',
+    gender: 'female',
+    age: 'adult',
+    style: 'warm',
   },
-  fairy: {
-    id: process.env.ELEVENLABS_VOICE_FAIRY || 'MF3mGyEYCl7XYWbV9V6O',
-    name: 'Fée',
-    description: 'Voix légère et féerique',
+  fee: {
+    id: process.env.ELEVENLABS_FR_FEE || 'MF3mGyEYCl7XYWbV9V6O',
+    name: 'Fée Clochette',
+    description: 'Voix légère et féerique, pleine de magie',
     emoji: '🧚',
+    gender: 'female',
+    age: 'young',
+    style: 'playful',
+  },
+  mamie: {
+    id: process.env.ELEVENLABS_FR_MAMIE || 'jsCqWAovK2LkecY7zXl4',
+    name: 'Mamie Rose',
+    description: 'Voix bienveillante de grand-mère',
+    emoji: '👵',
+    gender: 'female',
+    age: 'elderly',
+    style: 'gentle',
+  },
+  // Voix masculines
+  conteur: {
+    id: process.env.ELEVENLABS_FR_CONTEUR || 'EXAVITQu4vr4xnSDxMaL',
+    name: 'Le Conteur',
+    description: 'Voix narrative classique, captivante',
+    emoji: '📖',
+    gender: 'male',
+    age: 'adult',
+    style: 'dramatic',
+  },
+  magicien: {
+    id: process.env.ELEVENLABS_FR_MAGICIEN || 'VR6AewLTigWG4xSOukaG',
+    name: 'Le Magicien',
+    description: 'Voix mystérieuse et envoûtante',
+    emoji: '🧙',
+    gender: 'male',
+    age: 'adult',
+    style: 'mysterious',
   },
   dragon: {
-    id: process.env.ELEVENLABS_VOICE_DRAGON || 'TxGEqnHWrfWFTfGW9XjX',
-    name: 'Dragon',
-    description: 'Voix grave et amicale',
+    id: process.env.ELEVENLABS_FR_DRAGON || 'TxGEqnHWrfWFTfGW9XjX',
+    name: 'Dragon Gentil',
+    description: 'Voix grave mais amicale',
     emoji: '🐉',
+    gender: 'male',
+    age: 'adult',
+    style: 'warm',
   },
-  default: {
-    id: process.env.ELEVENLABS_VOICE_DEFAULT || 'pNInz6obpgDQGcFmaJgB',
-    name: 'Narrateur par défaut',
-    description: 'Voix douce et engageante',
-    emoji: '✨',
+  papy: {
+    id: process.env.ELEVENLABS_FR_PAPY || 'pNInz6obpgDQGcFmaJgB',
+    name: 'Papy Marcel',
+    description: 'Voix sage et rassurante de grand-père',
+    emoji: '👴',
+    gender: 'male',
+    age: 'elderly',
+    style: 'gentle',
   },
+}
+
+// 🇬🇧 VOIX ANGLAISES (7)
+export const ENGLISH_VOICES: Record<string, ElevenLabsVoice> = {
+  // Female voices
+  aria: {
+    id: process.env.ELEVENLABS_EN_ARIA || 'XB0fDUnXU5powFXDhCwa',
+    name: 'Aria',
+    description: 'Warm and expressive storyteller',
+    emoji: '🌟',
+    gender: 'female',
+    age: 'adult',
+    style: 'warm',
+  },
+  fairy: {
+    id: process.env.ELEVENLABS_EN_FAIRY || 'jBpfuIE2acCO8z3wKNLl',
+    name: 'Fairy Bell',
+    description: 'Light and magical fairy voice',
+    emoji: '🧚',
+    gender: 'female',
+    age: 'young',
+    style: 'playful',
+  },
+  grandma: {
+    id: process.env.ELEVENLABS_EN_GRANDMA || 'ThT5KcBeYPX3keUQqHPh',
+    name: 'Grandma Pearl',
+    description: 'Kind and gentle grandmother voice',
+    emoji: '👵',
+    gender: 'female',
+    age: 'elderly',
+    style: 'gentle',
+  },
+  // Male voices
+  storyteller: {
+    id: process.env.ELEVENLABS_EN_STORYTELLER || 'N2lVS1w4EtoT3dr4eOWO',
+    name: 'The Storyteller',
+    description: 'Classic narrative voice, captivating',
+    emoji: '📖',
+    gender: 'male',
+    age: 'adult',
+    style: 'dramatic',
+  },
+  wizard: {
+    id: process.env.ELEVENLABS_EN_WIZARD || 'CYw3kZ02Hs0563khs1Fj',
+    name: 'The Wizard',
+    description: 'Mysterious and enchanting voice',
+    emoji: '🧙',
+    gender: 'male',
+    age: 'adult',
+    style: 'mysterious',
+  },
+  dragon: {
+    id: process.env.ELEVENLABS_EN_DRAGON || 'IKne3meq5aSn9XLyUdCD',
+    name: 'Friendly Dragon',
+    description: 'Deep but friendly voice',
+    emoji: '🐉',
+    gender: 'male',
+    age: 'adult',
+    style: 'warm',
+  },
+  grandpa: {
+    id: process.env.ELEVENLABS_EN_GRANDPA || 'GBv7mTt0atIp3Br8iCZE',
+    name: 'Grandpa Joe',
+    description: 'Wise and reassuring grandfather voice',
+    emoji: '👴',
+    gender: 'male',
+    age: 'elderly',
+    style: 'gentle',
+  },
+}
+
+// 🇷🇺 VOIX RUSSES (7)
+export const RUSSIAN_VOICES: Record<string, ElevenLabsVoice> = {
+  // Женские голоса
+  natasha: {
+    id: process.env.ELEVENLABS_RU_NATASHA || 'XrExE9yKIg1WjnnlVkGX',
+    name: 'Наташа',
+    description: 'Тёплый и душевный голос',
+    emoji: '🌸',
+    gender: 'female',
+    age: 'adult',
+    style: 'warm',
+  },
+  feya: {
+    id: process.env.ELEVENLABS_RU_FEYA || 'MF3mGyEYCl7XYWbV9V6O',
+    name: 'Фея',
+    description: 'Лёгкий и волшебный голос',
+    emoji: '🧚',
+    gender: 'female',
+    age: 'young',
+    style: 'playful',
+  },
+  babushka: {
+    id: process.env.ELEVENLABS_RU_BABUSHKA || 'jsCqWAovK2LkecY7zXl4',
+    name: 'Бабушка',
+    description: 'Добрый голос бабушки',
+    emoji: '👵',
+    gender: 'female',
+    age: 'elderly',
+    style: 'gentle',
+  },
+  // Мужские голоса
+  skazochnik: {
+    id: process.env.ELEVENLABS_RU_SKAZOCHNIK || 'EXAVITQu4vr4xnSDxMaL',
+    name: 'Сказочник',
+    description: 'Классический голос рассказчика',
+    emoji: '📖',
+    gender: 'male',
+    age: 'adult',
+    style: 'dramatic',
+  },
+  koldun: {
+    id: process.env.ELEVENLABS_RU_KOLDUN || 'VR6AewLTigWG4xSOukaG',
+    name: 'Колдун',
+    description: 'Таинственный и завораживающий',
+    emoji: '🧙',
+    gender: 'male',
+    age: 'adult',
+    style: 'mysterious',
+  },
+  drakon: {
+    id: process.env.ELEVENLABS_RU_DRAKON || 'TxGEqnHWrfWFTfGW9XjX',
+    name: 'Дракон',
+    description: 'Глубокий, но дружелюбный голос',
+    emoji: '🐉',
+    gender: 'male',
+    age: 'adult',
+    style: 'warm',
+  },
+  dedushka: {
+    id: process.env.ELEVENLABS_RU_DEDUSHKA || 'pNInz6obpgDQGcFmaJgB',
+    name: 'Дедушка',
+    description: 'Мудрый и успокаивающий голос',
+    emoji: '👴',
+    gender: 'male',
+    age: 'elderly',
+    style: 'gentle',
+  },
+}
+
+// Mapping par locale
+export const VOICES_BY_LOCALE: Record<string, Record<string, ElevenLabsVoice>> = {
+  fr: FRENCH_VOICES,
+  en: ENGLISH_VOICES,
+  ru: RUSSIAN_VOICES,
+}
+
+// Obtenir les voix pour une langue
+export function getVoicesForLocale(locale: 'fr' | 'en' | 'ru'): ElevenLabsVoice[] {
+  const voices = VOICES_BY_LOCALE[locale] || FRENCH_VOICES
+  return Object.values(voices)
+}
+
+// Obtenir une voix par ID
+export function getVoiceById(voiceId: string, locale: 'fr' | 'en' | 'ru' = 'fr'): ElevenLabsVoice | null {
+  const voices = VOICES_BY_LOCALE[locale] || FRENCH_VOICES
+  return Object.values(voices).find(v => v.id === voiceId) || null
+}
+
+// Obtenir une voix par clé
+export function getVoiceByKey(key: string, locale: 'fr' | 'en' | 'ru' = 'fr'): ElevenLabsVoice | null {
+  const voices = VOICES_BY_LOCALE[locale] || FRENCH_VOICES
+  return voices[key] || null
+}
+
+// ============================================
+// LEGACY: Ancien format (compatibilité)
+// ============================================
+
+export const AVAILABLE_VOICES = {
+  narrator: FRENCH_VOICES.conteur,
+  fairy: FRENCH_VOICES.fee,
+  dragon: FRENCH_VOICES.dragon,
+  default: FRENCH_VOICES.amelie,
 }
 
 // Legacy: Garder ai_friend comme alias de default

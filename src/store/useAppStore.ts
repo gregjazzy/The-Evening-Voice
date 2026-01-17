@@ -224,6 +224,10 @@ interface AppState {
   aiVoice: string // Nom de la voix (ex: "Audrey", "Thomas")
   setAiVoice: (voiceName: string) => void
   
+  // Voix ElevenLabs pour la narration des histoires
+  narrationVoiceId: string // ID de la voix ElevenLabs
+  setNarrationVoiceId: (voiceId: string) => void
+  
   // Contexte émotionnel (pour que l'IA se souvienne)
   emotionalContext: string[]
   addEmotionalContext: (context: string) => void
@@ -607,6 +611,10 @@ export const useAppStore = create<AppState>()(
       // Voix de l'IA (mémorisée, vide = auto-détection de la meilleure voix)
       aiVoice: '',
       setAiVoice: (voiceName) => set({ aiVoice: voiceName }),
+      
+      // Voix ElevenLabs pour la narration (vide = voix par défaut selon la langue)
+      narrationVoiceId: '',
+      setNarrationVoiceId: (voiceId) => set({ narrationVoiceId: voiceId }),
 
       // Contexte émotionnel
       emotionalContext: [],
@@ -687,6 +695,7 @@ export const useAppStore = create<AppState>()(
         userName: state.userName,
         aiName: state.aiName, // Nom personnalisé de l'IA - persisté pour chaque utilisateur
         aiVoice: state.aiVoice, // Voix de l'IA - persistée pour chaque utilisateur
+        narrationVoiceId: state.narrationVoiceId, // Voix ElevenLabs pour narration
         emotionalContext: state.emotionalContext,
         promptingProgress: state.promptingProgress,
         writingProgress: state.writingProgress,
