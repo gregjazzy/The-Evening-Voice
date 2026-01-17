@@ -2,6 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react'
 import { MentorProvider } from './mentor/MentorProvider'
+import { ToastProvider } from './ui/Toast'
 import { AINameModal } from './ui/AINameModal'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -28,16 +29,18 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   }, [isInitialized, user, aiName])
 
   return (
-    <MentorProvider>
-      {children}
-      
-      {/* Modal pour choisir le nom de l'IA à la première connexion */}
-      <AINameModal
-        isOpen={showNameModal}
-        onClose={() => setShowNameModal(false)}
-        isFirstTime={true}
-      />
-    </MentorProvider>
+    <ToastProvider>
+      <MentorProvider>
+        {children}
+        
+        {/* Modal pour choisir le nom de l'IA à la première connexion */}
+        <AINameModal
+          isOpen={showNameModal}
+          onClose={() => setShowNameModal(false)}
+          isFirstTime={true}
+        />
+      </MentorProvider>
+    </ToastProvider>
   )
 }
 

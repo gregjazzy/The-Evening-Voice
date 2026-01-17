@@ -435,3 +435,394 @@ textarea::placeholder, input[type="text"]::placeholder {
   }
 }
 
+/* ============================================
+   POLISH - ANIMATIONS & MICRO-INTERACTIONS
+   ============================================ */
+
+/* Animation de succès (checkmark) */
+@keyframes success-pop {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.animate-success {
+  animation: success-pop 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* Animation de chargement magique */
+@keyframes magic-loading {
+  0% { 
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+  50% { 
+    background-position: 100% 50%;
+    filter: hue-rotate(30deg);
+  }
+  100% { 
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+}
+
+.animate-magic-loading {
+  background: linear-gradient(
+    90deg,
+    #e879f9 0%,
+    #fde047 25%,
+    #5eead4 50%,
+    #fde047 75%,
+    #e879f9 100%
+  );
+  background-size: 200% 100%;
+  animation: magic-loading 2s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Animation de rebond subtil */
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+/* Animation d'entrée en fondu avec slide */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.5s ease-out forwards;
+}
+
+.animate-fade-in-left {
+  animation: fade-in-left 0.5s ease-out forwards;
+}
+
+.animate-fade-in-right {
+  animation: fade-in-right 0.5s ease-out forwards;
+}
+
+/* Animation d'apparition avec zoom */
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-zoom-in {
+  animation: zoom-in 0.3s ease-out forwards;
+}
+
+/* Effet de brillance sur hover (pour les cartes) */
+.shine-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-effect::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(30deg) translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.shine-effect:hover::after {
+  transform: rotate(30deg) translateX(100%);
+}
+
+/* Effet de halo sur focus */
+.halo-focus:focus-within {
+  box-shadow: 
+    0 0 0 2px rgba(233, 121, 249, 0.3),
+    0 0 20px rgba(233, 121, 249, 0.2),
+    0 0 40px rgba(233, 121, 249, 0.1);
+}
+
+/* Bouton avec effet de particules au clic */
+.btn-sparkle {
+  position: relative;
+  overflow: visible;
+}
+
+.btn-sparkle::before,
+.btn-sparkle::after {
+  content: '✨';
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  font-size: 12px;
+}
+
+.btn-sparkle:active::before {
+  animation: sparkle-left 0.5s ease-out forwards;
+}
+
+.btn-sparkle:active::after {
+  animation: sparkle-right 0.5s ease-out forwards;
+}
+
+@keyframes sparkle-left {
+  0% { opacity: 1; transform: translate(-10px, 0) scale(0.5); }
+  100% { opacity: 0; transform: translate(-30px, -20px) scale(1.2); }
+}
+
+@keyframes sparkle-right {
+  0% { opacity: 1; transform: translate(10px, 0) scale(0.5); }
+  100% { opacity: 0; transform: translate(30px, -20px) scale(1.2); }
+}
+
+/* Animation de typing pour l'IA */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-5px); }
+}
+
+.typing-indicator span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #e879f9, #a21caf);
+  border-radius: 50%;
+  margin: 0 2px;
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Effet de verre dépoli amélioré */
+.glass-premium {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 24, 50, 0.7) 0%,
+    rgba(42, 31, 78, 0.5) 100%
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Card avec effet 3D au hover */
+.card-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  transition: transform 0.3s ease;
+}
+
+.card-3d:hover {
+  transform: rotateX(2deg) rotateY(-2deg) translateY(-5px);
+}
+
+/* Animation de notification badge */
+@keyframes badge-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(233, 121, 249, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(233, 121, 249, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(233, 121, 249, 0); }
+}
+
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* Progress bar animée */
+.progress-magic {
+  background: linear-gradient(
+    90deg,
+    #a21caf 0%,
+    #e879f9 50%,
+    #a21caf 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Effet de texte qui apparaît lettre par lettre */
+@keyframes reveal-text {
+  from { max-width: 0; }
+  to { max-width: 100%; }
+}
+
+.text-reveal {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: reveal-text 1s steps(40) forwards;
+}
+
+/* Effet ondulation (ripple) */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.ripple:active::before {
+  width: 300%;
+  height: 300%;
+}
+
+/* Indicateur de mode sombre/clair (pour futures versions) */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Animation de confetti simple */
+@keyframes confetti-fall {
+  0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  animation: confetti-fall 3s ease-in-out forwards;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Tooltip amélioré */
+.tooltip-magic {
+  position: relative;
+}
+
+.tooltip-magic::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #1a1832, #2a1f4e);
+  border: 1px solid rgba(233, 121, 249, 0.3);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: #f0f1f8;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.tooltip-magic:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(26, 24, 50, 0.6) 0%,
+    rgba(42, 31, 78, 0.6) 50%,
+    rgba(26, 24, 50, 0.6) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Stagger animation pour les listes */
+.stagger-item {
+  opacity: 0;
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.stagger-item:nth-child(2) { animation-delay: 0.1s; }
+.stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.stagger-item:nth-child(4) { animation-delay: 0.2s; }
+.stagger-item:nth-child(5) { animation-delay: 0.25s; }
+.stagger-item:nth-child(6) { animation-delay: 0.3s; }
+.stagger-item:nth-child(7) { animation-delay: 0.35s; }
+.stagger-item:nth-child(8) { animation-delay: 0.4s; }
+.stagger-item:nth-child(9) { animation-delay: 0.45s; }
+.stagger-item:nth-child(10) { animation-delay: 0.5s; }
+
