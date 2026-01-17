@@ -24,6 +24,7 @@ import { SafariBridge } from '@/components/studio/SafariBridge'
 import { AssetDropzone } from '@/components/studio/AssetDropzone'
 import { StudioGuide, StudioLevelBadge } from '@/components/studio/StudioGuide'
 import { StudioAIChat } from '@/components/studio/StudioAIChat'
+import { TutorialGuide, TutorialButton } from '@/components/studio/TutorialGuide'
 import { cn } from '@/lib/utils'
 
 // Types de création disponibles (sans Voix - intégré directement)
@@ -78,6 +79,8 @@ export function StudioMode() {
   
   const [view, setView] = useState<ViewType>('select')
   const [selectedType, setSelectedType] = useState<CreationType | null>(null)
+  const [tutorialOpen, setTutorialOpen] = useState(false)
+  const [tutorialType, setTutorialType] = useState<'midjourney' | 'runway'>('midjourney')
 
   // Changer de vue quand un kit est créé
   useEffect(() => {
@@ -113,6 +116,18 @@ export function StudioMode() {
     // Mettre à jour le kit avec la suggestion de l'enfant
     if (currentKit) {
       useStudioStore.getState().updateKit({ subject: suggestion })
+    }
+  }
+
+  const openTutorial = (type: 'midjourney' | 'runway') => {
+    setTutorialType(type)
+    setTutorialOpen(true)
+  }
+
+  const handleCopyPrompt = () => {
+    // Copier le prompt actuel dans le presse-papier
+    if (currentKit?.finalPrompt) {
+      navigator.clipboard.writeText(currentKit.finalPrompt)
     }
   }
 
@@ -256,10 +271,21 @@ export function StudioMode() {
                         </div>
                       </div>
 
-                      {/* CTA */}
-                      <div className="flex items-center gap-2 text-aurora-300 text-sm mt-4">
-                        <BookOpen className="w-4 h-4" />
-                        <span>Commencer à apprendre</span>
+                      {/* CTA et Tutoriel */}
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center gap-2 text-aurora-300 text-sm">
+                          <BookOpen className="w-4 h-4" />
+                          <span>Commencer à apprendre</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openTutorial(type.id === 'image' ? 'midjourney' : 'runway')
+                          }}
+                          className="text-xs text-midnight-400 hover:text-aurora-300 transition-colors"
+                        >
+                          Comment utiliser {type.tool} ?
+                        </button>
                       </div>
                     </motion.button>
                   )
@@ -334,11 +360,22 @@ export function StudioMode() {
               </div>
 
               {/* Panneau droit : Guide */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex flex-col gap-3">
                 <StudioGuide 
                   type={selectedType} 
                   onHelpRequest={handleHelpRequest}
                 />
+                
+                {/* Bouton tutoriel */}
+                <motion.button
+                  onClick={() => openTutorial(selectedType === 'image' ? 'midjourney' : 'runway')}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 text-midnight-300 hover:text-white transition-colors text-sm"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Comment utiliser {selectedType === 'image' ? 'Midjourney' : 'Runway'} ?
+                </motion.button>
               </div>
             </motion.div>
           )}
@@ -413,6 +450,14 @@ export function StudioMode() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Modal Tutoriel */}
+      <TutorialGuide
+        type={tutorialType}
+        isOpen={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        onCopyPrompt={handleCopyPrompt}
+      />
     </div>
   )
 }
