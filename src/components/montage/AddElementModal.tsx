@@ -557,22 +557,6 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
     onClose()
   }
 
-  // Ajouter un son
-  const handleAddSound = (soundId: string) => {
-    const sound = ALL_SOUNDS.find(s => s.id === soundId)
-    if (!sound) return
-    
-    addSoundTrack({
-      url: `/audio/sfx/${soundId}.mp3`, // URL placeholder
-      name: sound.name,
-      type: sound.type as any,
-      timeRange: createTimeRange(10, 20),
-      volume: 0.7,
-      loop: sound.type === 'ambiance' || sound.type === 'loop',
-    })
-    onClose()
-  }
-
   // Ajouter une lumière
   const handleAddLight = (presetId: string) => {
     const preset = LIGHT_PRESETS.find(p => p.id === presetId)

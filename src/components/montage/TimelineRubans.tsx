@@ -978,6 +978,9 @@ export function TimelineRubans() {
   const activePhrase = scene ? getActivePhrase(currentPlaybackTime) : null
   const activePhraseIndex = activePhrase ? activePhrase.index : -1
 
+  // Refs pour les sons actifs (pour pouvoir les arrêter)
+  const activeSoundRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+
   // Vérifier et jouer les sons qui doivent démarrer
   const checkAndPlaySounds = useCallback((currentTime: number, previousTime: number) => {
     if (!scene?.soundTracks) return
@@ -994,13 +997,43 @@ export function TimelineRubans() {
         // Marquer comme joué
         playedSoundsRef.current.add(soundKey)
         
-        // Essayer de jouer le son synthétique
-        // Extraire l'ID du son depuis l'URL (ex: /audio/sfx/chime.mp3 -> chime)
-        const soundId = sound.url.split('/').pop()?.replace('.mp3', '') || ''
-        const played = playSynthSound(soundId, sound.volume)
-        
-        if (played) {
-          console.log('🔊 Son joué:', sound.name, 'à', currentTime.toFixed(2) + 's')
+        // Jouer le vrai fichier audio MP3
+        try {
+          const audio = new Audio(sound.url)
+          audio.volume = sound.volume ?? 0.7
+          
+          // Si c'est en boucle
+          if (sound.loop) {
+            audio.loop = true
+          }
+          
+          // Stocker la référence pour pouvoir l'arrêter plus tard
+          activeSoundRefs.current.set(soundKey, audio)
+          
+          // Nettoyer quand le son est terminé
+          audio.onended = () => {
+            activeSoundRefs.current.delete(soundKey)
+          }
+          
+          audio.play().then(() => {
+            console.log('🔊 Son joué:', sound.name, 'à', currentTime.toFixed(2) + 's')
+          }).catch((err) => {
+            console.warn('⚠️ Erreur lecture son:', sound.name, err)
+            // Fallback: essayer le son synthétique
+            const soundId = sound.url.split('/').pop()?.replace('.mp3', '') || ''
+            playSynthSound(soundId, sound.volume ?? 0.7)
+          })
+        } catch (err) {
+          console.warn('⚠️ Erreur création audio:', sound.name, err)
+        }
+      }
+      
+      // Arrêter le son si on a dépassé son endTime
+      if (currentTime >= sound.timeRange.endTime) {
+        const activeAudio = activeSoundRefs.current.get(soundKey)
+        if (activeAudio && !activeAudio.paused) {
+          activeAudio.pause()
+          activeSoundRefs.current.delete(soundKey)
         }
       }
     })
@@ -1013,6 +1046,11 @@ export function TimelineRubans() {
     if (isPlaying) {
       audioRef.current?.pause()
       setIsPlaying(false)
+      // Arrêter tous les sons actifs
+      activeSoundRefs.current.forEach((audio) => {
+        audio.pause()
+      })
+      activeSoundRefs.current.clear()
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
@@ -1055,10 +1093,16 @@ export function TimelineRubans() {
   // Cleanup
   useEffect(() => {
     return () => {
+      // Arrêter la narration
       if (audioRef.current) {
         audioRef.current.pause()
         audioRef.current = null
       }
+      // Arrêter tous les sons actifs
+      activeSoundRefs.current.forEach((audio) => {
+        audio.pause()
+      })
+      activeSoundRefs.current.clear()
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
