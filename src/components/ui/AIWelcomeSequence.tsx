@@ -38,7 +38,7 @@ const CONVERSATION_STEPS = [
     type: 'input',
     prompt: "Comment veux-tu m'appeler ?",
     placeholder: "Entre mon nouveau prénom...",
-    suggestions: ['Étoile', 'Luna', 'Féerie', 'Céleste', 'Aurore', 'Iris'],
+    suggestions: ['Étoile', 'Lune', 'Féerie', 'Céleste', 'Aurore', 'Iris'],
   },
   {
     type: 'ai',

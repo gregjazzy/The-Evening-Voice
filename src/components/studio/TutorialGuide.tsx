@@ -103,7 +103,7 @@ const TUTORIALS: Tutorial[] = [
         id: 'mj-4',
         title: 'Colle ton prompt',
         description: 'Maintenant, colle le texte magique que tu as copié (Cmd+V sur Mac).',
-        tip: '💡 C\'est le prompt que Luna t\'a aidé à créer !',
+        tip: '💡 C\'est le prompt que ton amie IA t\'a aidé à créer !',
         imageUrl: '/tutorials/midjourney-04-prompt.png',
         imagePlaceholder: 'Screenshot montrant le prompt collé après /imagine prompt:',
       },
@@ -143,7 +143,7 @@ const TUTORIALS: Tutorial[] = [
       {
         id: 'rw-3',
         title: 'Colle ton prompt',
-        description: 'Dans la grande zone de texte, colle le texte que Luna t\'a aidé à créer.',
+        description: 'Dans la grande zone de texte, colle le texte que ton amie IA t\'a aidé à créer.',
         tip: '💡 Tu peux aussi ajouter une image de départ pour guider Runway !',
         imageUrl: '/tutorials/runway-03-prompt.png',
         imagePlaceholder: 'Screenshot de la zone de prompt avec du texte',
