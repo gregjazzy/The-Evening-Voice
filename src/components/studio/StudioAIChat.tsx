@@ -12,8 +12,10 @@ import {
   Lightbulb,
   ThumbsUp,
   HelpCircle,
+  Loader2,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
+import { useStudioStore } from '@/store/useStudioStore'
 import { 
   useStudioProgressStore,
   type CreationType,
@@ -23,6 +25,49 @@ import {
 } from '@/store/useStudioProgressStore'
 import { useTTS } from '@/hooks/useTTS'
 import { cn } from '@/lib/utils'
+
+// Mots-clés pour détection (copie de PromptBuilder pour cohérence)
+const STYLE_KEYWORDS = ['dessin', 'photo', 'magique', 'anime', 'aquarelle', 'pixel', 'réaliste', 'cartoon', '3d']
+const AMBIANCE_KEYWORDS = ['jour', 'nuit', 'orage', 'brume', 'féérique', 'mystère', 'sombre', 'lumineux', 'matin', 'soir']
+const DETAIL_KEYWORDS = ['rouge', 'bleu', 'vert', 'doré', 'brillant', 'grand', 'petit', 'géant']
+// Mots-clés spécifiques aux vidéos
+const VIDEO_MOVEMENT_KEYWORDS = ['bouge', 'anime', 'danse', 'court', 'vole', 'tombe', 'saute', 'marche', 'tourne']
+const VIDEO_RHYTHM_KEYWORDS = ['lent', 'rapide', 'doucement', 'vite', 'dynamique', 'calme', 'fluide']
+
+function detectMissingElements(
+  text: string, 
+  hasStyleButton: boolean, 
+  hasAmbianceButton: boolean,
+  creationType: 'image' | 'video' = 'image'
+): string[] {
+  const lowerText = text.toLowerCase()
+  const missing: string[] = []
+  
+  // Si pas de boutons (niveau 3+), on détecte dans le texte
+  if (!hasStyleButton) {
+    const hasStyle = STYLE_KEYWORDS.some(kw => lowerText.includes(kw))
+    if (!hasStyle) missing.push('style (dessin, photo, magique...)')
+  }
+  
+  if (!hasAmbianceButton) {
+    const hasAmbiance = AMBIANCE_KEYWORDS.some(kw => lowerText.includes(kw))
+    if (!hasAmbiance) missing.push('ambiance (jour, nuit, orage...)')
+  }
+  
+  const hasDetails = DETAIL_KEYWORDS.some(kw => lowerText.includes(kw))
+  if (!hasDetails && text.length > 20) missing.push('détails (couleurs, tailles...)')
+  
+  // Spécifique aux vidéos
+  if (creationType === 'video') {
+    const hasMovement = VIDEO_MOVEMENT_KEYWORDS.some(kw => lowerText.includes(kw))
+    if (!hasMovement && text.length > 10) missing.push('mouvement (ce qui bouge, comment ça bouge)')
+    
+    const hasRhythm = VIDEO_RHYTHM_KEYWORDS.some(kw => lowerText.includes(kw))
+    if (!hasRhythm && text.length > 30) missing.push('rythme (lent, rapide, fluide...)')
+  }
+  
+  return missing
+}
 
 interface Message {
   id: string
@@ -163,30 +208,53 @@ const HELP_MESSAGES = [
 
 export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProps) {
   const { aiName } = useAppStore()
+  const { currentKit } = useStudioStore()
   const { 
     currentStep, 
     getLevel, 
     needsHelp,
     requestHelp,
+    completedSteps,
   } = useStudioProgressStore()
   
   const level = getLevel(type)
   const tts = useTTS('fr')
+  
+  // Détecter ce qui manque pour guider l'enfant
+  const showStyleButtons = level < 3
+  const showAmbianceButtons = level < 3
   
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [voiceEnabled, setVoiceEnabled] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const lastStepRef = useRef<string | null>(null)
 
   // Nom de l'IA (ou défaut)
   const friendName = aiName || 'Mon amie'
 
+  // Réinitialiser les messages quand le type change
+  useEffect(() => {
+    setMessages([])
+    lastStepRef.current = null
+  }, [type])
+
   // Ajouter un message de l'IA quand l'étape change
   useEffect(() => {
+    // Créer une clé unique pour éviter les doublons
+    const stepKey = `${type}-${currentStep}-${level}`
+    
+    // Éviter de réajouter le même message
+    if (lastStepRef.current === stepKey) {
+      return
+    }
+    lastStepRef.current = stepKey
+    
     const aiMessage = getAIMessage(currentStep, type, level, friendName)
     
     const newMessage: Message = {
@@ -229,40 +297,109 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
     }
   }, [needsHelp])
 
-  const handleSend = () => {
-    if (!inputValue.trim()) return
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading) return
+
+    const userMessage = inputValue.trim()
+    setInputValue('')
 
     // Ajouter le message de l'enfant
     const childMessage: Message = {
       id: Date.now().toString(),
       role: 'child',
-      content: inputValue,
+      content: userMessage,
       timestamp: new Date(),
     }
     setMessages(prev => [...prev, childMessage])
     
-    // Transmettre la suggestion au parent
-    onSuggestion?.(inputValue)
+    // Transmettre la suggestion au parent (pour le prompt builder)
+    onSuggestion?.(userMessage)
     
-    // Réponse encourageante de l'IA
-    setTimeout(() => {
-      const encouragement = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]
+    // Appeler l'API de chat pour une vraie réponse
+    setIsLoading(true)
+    
+    try {
+      // Construire l'historique pour l'API
+      const chatHistory = messages.slice(-10).map(m => ({
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: m.content,
+      }))
+      
+      // Calculer les éléments manquants pour guider l'IA
+      const kitText = (currentKit?.subject || '') + ' ' + (currentKit?.subjectDetails || '')
+      const missingElements = detectMissingElements(kitText, showStyleButtons, showAmbianceButtons, type)
+      
+      // Ajouter les éléments manquants selon les boutons (niveau 1-2)
+      if (showStyleButtons && !currentKit?.style && !missingElements.includes('style')) {
+        missingElements.push('style')
+      }
+      if (showAmbianceButtons && !currentKit?.ambiance && !missingElements.includes('ambiance')) {
+        missingElements.push('ambiance')
+      }
+      
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          context: 'studio',
+          chatHistory,
+          aiName: friendName,
+          studioContext: {
+            type,
+            currentStep,
+            level,
+            // NOUVEAU : état du kit pour que l'IA sache ce qui manque
+            kit: currentKit ? {
+              subject: currentKit.subject,
+              subjectDetails: currentKit.subjectDetails,
+              style: currentKit.style,
+              ambiance: currentKit.ambiance,
+              light: currentKit.light,
+            } : null,
+            missingElements,
+            completedSteps,
+          },
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Erreur API')
+      }
+      
+      const data = await response.json()
+      
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'ai',
-        content: encouragement,
+        content: data.text || data.response || "Je n'ai pas compris, tu peux répéter ? 💜",
         timestamp: new Date(),
-        type: 'encouragement',
+        type: 'question',
       }
       setMessages(prev => [...prev, aiResponse])
       
       if (voiceEnabled && tts.isAvailable) {
-        tts.speak(encouragement)
+        tts.speak(aiResponse.content)
       }
-    }, 500)
-
-    setInputValue('')
-    inputRef.current?.focus()
+    } catch (error) {
+      console.error('Erreur chat IA:', error)
+      // Fallback avec un message d'encouragement si l'API échoue
+      const fallbackMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: `Oups, j'ai eu un petit souci ! 😅 Mais je t'ai bien entendu dire "${userMessage}". C'est une super idée ! Continue ! ✨`,
+        timestamp: new Date(),
+        type: 'encouragement',
+      }
+      setMessages(prev => [...prev, fallbackMessage])
+      
+      if (voiceEnabled && tts.isAvailable) {
+        tts.speak(fallbackMessage.content)
+      }
+    } finally {
+      setIsLoading(false)
+      inputRef.current?.focus()
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -350,6 +487,22 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
               </div>
             </motion.div>
           ))}
+          
+          {/* Indicateur de chargement */}
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-3"
+            >
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-aurora-500/30">
+                <Loader2 className="w-4 h-4 text-aurora-400 animate-spin" />
+              </div>
+              <div className="bg-midnight-800/70 rounded-2xl px-4 py-3">
+                <p className="text-sm text-midnight-300">Je réfléchis... ✨</p>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
         <div ref={messagesEndRef} />
       </div>
@@ -382,17 +535,21 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
           
           <motion.button
             onClick={handleSend}
-            disabled={!inputValue.trim()}
+            disabled={!inputValue.trim() || isLoading}
             className={cn(
               'p-3 rounded-xl transition-colors',
-              inputValue.trim()
+              inputValue.trim() && !isLoading
                 ? 'bg-aurora-500 text-white hover:bg-aurora-600'
                 : 'bg-midnight-800/50 text-midnight-600 cursor-not-allowed'
             )}
-            whileHover={inputValue.trim() ? { scale: 1.05 } : {}}
-            whileTap={inputValue.trim() ? { scale: 0.95 } : {}}
+            whileHover={inputValue.trim() && !isLoading ? { scale: 1.05 } : {}}
+            whileTap={inputValue.trim() && !isLoading ? { scale: 0.95 } : {}}
           >
-            <Send className="w-5 h-5" />
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
           </motion.button>
         </div>
       </div>

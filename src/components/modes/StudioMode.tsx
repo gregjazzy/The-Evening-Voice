@@ -22,7 +22,6 @@ import {
 import { PromptBuilder } from '@/components/studio/PromptBuilder'
 import { SafariBridge } from '@/components/studio/SafariBridge'
 import { AssetDropzone } from '@/components/studio/AssetDropzone'
-import { StudioMissionFlash } from '@/components/studio/StudioMissionFlash'
 import { StudioGuide, StudioLevelBadge } from '@/components/studio/StudioGuide'
 import { StudioAIChat } from '@/components/studio/StudioAIChat'
 import { cn } from '@/lib/utils'
@@ -327,13 +326,8 @@ export function StudioMode() {
               {/* Panneau central : Formulaire de prompt */}
               <div className="flex-1 overflow-y-auto px-2">
                 <PromptBuilder />
-                
-                {/* Safari Bridge */}
-                <div className="mt-6 glass rounded-2xl p-6">
-                  <SafariBridge />
-                </div>
 
-                {/* Zone d'import */}
+                {/* Zone d'import - les boutons Copier/Midjourney sont déjà dans PromptBuilder */}
                 <div className="mt-6 glass rounded-2xl p-6">
                   <AssetDropzone />
                 </div>
@@ -419,9 +413,6 @@ export function StudioMode() {
           )}
         </AnimatePresence>
       </div>
-
-      {/* Mission Flash overlay */}
-      <StudioMissionFlash />
     </div>
   )
 }

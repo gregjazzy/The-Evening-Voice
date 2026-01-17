@@ -2,9 +2,9 @@
 
 > Document de passation complet pour la prochaine session de développement
 
-**Date** : 16 janvier 2026  
-**Version** : 3.3.0  
-**État** : Studio Pédagogique ✅ + Voix configurées ✅
+**Date** : 17 janvier 2026  
+**Version** : 3.4.0  
+**État** : Studio UX Refonte ✅ + IA Guidée ✅ + Détection Mots-clés ✅
 
 ---
 
@@ -37,9 +37,75 @@ Application pour **filles de 8 ans** permettant de créer des **livres-disques n
 
 ---
 
-## 🆕 Dernières modifications (Session 16 janvier)
+## 🆕 Dernières modifications (Session 17 janvier)
 
-### 🎨 Studio Pédagogique (NOUVEAU)
+### 🎨 Studio UX Refonte Complète
+
+#### Problèmes corrigés
+- ✅ **Messages IA dupliqués** : Ajout de `lastStepRef` pour éviter les doublons
+- ✅ **URLs incorrectes** : Midjourney → `midjourney.com/app/`, Runway → `app.runwayml.com/`
+- ✅ **Passerelles Safari** : Supprimées (faisaient doublon avec les boutons)
+- ✅ **Import audio** : Retiré (Studio = images/vidéos seulement)
+- ✅ **Mission Flash popup** : Supprimées → remplacées par surbrillance
+
+#### Nouvelles fonctionnalités
+
+##### 1. Sections progressives
+- Les sections (Style, Ambiance, Détails) apparaissent **une par une**
+- **Délai de 800ms** avant apparition (pour ne pas interrompre l'écriture)
+- **10 caractères minimum** pour déclencher la suite
+
+##### 2. Boutons conditionnels au niveau
+| Niveau | Boutons visibles |
+|--------|------------------|
+| 1-2 | Style, Ambiance, Lumière (tout visible) |
+| 3+ | **Aucun** → l'enfant décrit tout dans son texte |
+
+##### 3. Système de surbrillance
+- La section active **pulse** avec un anneau coloré
+- L'icône **pulse** aussi
+- Le titre change : "👆 Choisis un style !"
+
+##### 4. Détection par mots-clés (niveau 3+)
+```typescript
+// Images
+STYLE: dessin, photo, magique, anime, pixel...
+AMBIANCE: jour, nuit, orage, féérique, mystère...
+DETAILS: couleurs, tailles, éléments visuels...
+
+// Vidéos (en plus)
+MOUVEMENT: bouge, danse, vole, saute, tourne...
+RYTHME: lent, rapide, fluide, dynamique...
+```
+→ Les étapes du guide se cochent automatiquement si les mots-clés sont détectés
+
+##### 5. IA connectée au guide
+L'IA reçoit maintenant :
+- L'état du kit (subject, style, ambiance...)
+- Les éléments **manquants** selon la détection
+- Le niveau de l'enfant
+
+**Comportement** : L'IA pose UNE question à la fois pour guider naturellement :
+> "C'est une super idée ! Tu vois ça comment ? Plutôt comme un dessin, une photo, ou quelque chose de magique ?"
+
+##### 6. Étapes du guide auto-cochées
+| Étape | Se coche quand |
+|-------|----------------|
+| Décrire mon idée | 10+ caractères |
+| Choisir le style | Bouton cliqué OU mot-clé détecté |
+| Choisir l'ambiance | Bouton cliqué OU mot-clé détecté |
+| Ajouter des détails | Champ rempli OU mot-clé détecté |
+| Voir mon prompt | Bouton "Copier" cliqué |
+| Aller sur Safari | Bouton "Aller sur Midjourney/Runway" cliqué |
+| Coller le prompt | Auto (3s après ouverture Safari) |
+| Créer l'image/vidéo | Bouton "J'ai lancé la création !" cliqué |
+| Importer | Fichier droppé dans la zone |
+
+---
+
+## 📜 Session précédente (16 janvier)
+
+### 🎨 Studio Pédagogique
 
 **Objectif** : Apprendre aux filles à prompter ET à utiliser les outils seules, progressivement.
 
@@ -263,14 +329,21 @@ src/app/api/
 | **Montage → Théâtre** | Projets terminés → lisibles dans Théâtre | 2h |
 | **Supprimer useLayoutStore** | Code mort | 30min |
 
-### Priorité 2 : Exports
+### Priorité 2 : Upload assets vers cloud
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Upload Supabase Storage** | Les assets importés sont en blob: temporaire ! | 2h |
+| **Persister les URLs** | Stocker les URLs cloud permanentes | 1h |
+
+### Priorité 3 : Exports
 
 | Tâche | Description | Effort |
 |-------|-------------|--------|
 | **Export PDF** | Pour l'impression (300 DPI) | 4h |
 | **Export MP4** | Le livre-disque en vidéo | 6h |
 
-### Priorité 3 : Finitions Studio
+### Priorité 4 : Finitions Studio
 
 | Tâche | Description | Effort |
 |-------|-------------|--------|
@@ -341,14 +414,16 @@ CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
 | Composant | État | Notes |
 |-----------|------|-------|
 | Mode Écriture | ✅ | Complet |
-| Mode Studio | ✅ | Pédagogique avec 5 niveaux |
+| Mode Studio | ✅ | UX refonte + IA guidée + détection mots-clés |
 | Mode Montage | ✅ | Timeline v2 complète |
 | Mode Théâtre | ⚠️ | Lit le mauvais store (vide) |
 | Mode Publier | ✅ | Gelato intégré |
 | IA personnalisable | ✅ | Nom choisi par l'enfant |
+| IA connectée guide | ✅ | Suggère ce qui manque naturellement |
 | Voix IA-Amie | ✅ | Apple Voice (0 délai) |
 | Voix narration | ✅ | ElevenLabs + fallback Apple |
 | Sync Supabase | ✅ | Debounced |
+| Assets cloud | ⚠️ | Blob temporaire, pas uploadé |
 | Export PDF | 🔧 | À faire |
 | Export MP4 | 🔧 | À faire |
 
@@ -375,6 +450,22 @@ CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
 4. **ElevenLabs pour les histoires** → Qualité premium
 5. **Progression séparée** → L'enfant apprend Images ET Vidéos indépendamment
 6. **useLayoutStore à supprimer** → Ne sert plus à rien
+7. **Niveau 3+ = pas de boutons** → L'enfant décrit tout dans son texte, la détection mots-clés valide
+8. **IA guidée** → Ne jamais lister tout ce qui manque d'un coup, guider progressivement
+9. **Assets temporaires** → Les fichiers importés sont en blob:, pas persistés au cloud
+
+---
+
+## 🗂️ Fichiers modifiés (Session 17 janvier)
+
+```
+src/components/studio/PromptBuilder.tsx     # Sections progressives, détection, surbrillance
+src/components/studio/StudioAIChat.tsx      # IA connectée au guide
+src/components/studio/AssetDropzone.tsx     # Retire audio, ajoute completeStep
+src/components/modes/StudioMode.tsx         # Retire SafariBridge (doublon)
+src/app/api/ai/chat/route.ts                # Reçoit studioKit + missingElements
+src/lib/ai/gemini.ts                        # Prompt enrichi avec état du kit
+```
 
 ---
 

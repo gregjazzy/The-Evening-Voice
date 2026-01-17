@@ -5,18 +5,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Upload,
   Image,
-  Music,
   Video,
   X,
   Check,
   FileImage,
-  FileAudio,
   FileVideo,
   Trash2,
   Download,
   Sparkles
 } from 'lucide-react'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
+import { useStudioProgressStore } from '@/store/useStudioProgressStore'
 import { cn } from '@/lib/utils'
 
 interface AssetDropzoneProps {
@@ -25,6 +24,7 @@ interface AssetDropzoneProps {
 
 export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
   const { importedAssets, addImportedAsset, removeImportedAsset, currentKit } = useStudioStore()
+  const { completeStep, completedSteps } = useStudioProgressStore()
   
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -102,13 +102,18 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
 
     addImportedAsset(asset)
     onAssetImported?.(asset as ImportedAsset)
+    
+    // Marquer l'étape "Importer" comme complétée
+    if (!completedSteps.includes('import')) {
+      completeStep('import')
+    }
   }
 
   const getAssetIcon = (type: ImportedAsset['type']) => {
     switch (type) {
       case 'image': return FileImage
-      case 'audio': return FileAudio
       case 'video': return FileVideo
+      default: return FileImage
     }
   }
 
@@ -146,7 +151,7 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
       >
         <input
           type="file"
-          accept="image/*,audio/*,video/*"
+          accept="image/*,video/*"
           multiple
           onChange={handleFileSelect}
           className="absolute inset-0 opacity-0 cursor-pointer"
@@ -194,9 +199,6 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
                 <div className="w-12 h-12 rounded-xl bg-aurora-500/20 flex items-center justify-center">
                   <Image className="w-6 h-6 text-aurora-400" />
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-dream-500/20 flex items-center justify-center">
-                  <Music className="w-6 h-6 text-dream-400" />
-                </div>
                 <div className="w-12 h-12 rounded-xl bg-stardust-500/20 flex items-center justify-center">
                   <Video className="w-6 h-6 text-stardust-400" />
                 </div>
@@ -206,7 +208,7 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
                 Glisse tes fichiers ici
               </p>
               <p className="text-sm text-midnight-400">
-                Images, sons ou vidéos créés sur Safari
+                Images ou vidéos créées sur Midjourney / Runway
               </p>
             </motion.div>
           )}

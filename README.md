@@ -2,7 +2,7 @@
 
 > Une application magique de création de livres-disques numériques pour enfants, avec une IA-Amie personnalisable.
 
-![Version](https://img.shields.io/badge/version-3.2.0-purple)
+![Version](https://img.shields.io/badge/version-3.4.0-purple)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)
 ![Supabase](https://img.shields.io/badge/Supabase-Database-green)
@@ -251,22 +251,50 @@ src/
 
 ## 🎨 Mode Studio
 
-### ⚠️ Fonctionnement actuel
+### ✅ Système Pédagogique Complet (v3.4)
 
-Le mode Studio est un **assistant de prompts** qui aide à créer du contenu via des outils externes :
+Le mode Studio est un **parcours d'apprentissage progressif** pour apprendre à créer des prompts et utiliser des outils IA.
 
-| Outil | Usage | Intégration |
-|-------|-------|-------------|
-| **Midjourney** | Images | Copie prompt → ouvre Discord |
-| **ElevenLabs** | Voix | Copie prompt → ouvre le site |
-| **Runway** | Vidéos | Copie prompt → ouvre le site |
+#### Parcours Séparés (Images / Vidéos)
+
+| Parcours | Outil | Niveaux |
+|----------|-------|---------|
+| 🖼️ **Images** | Midjourney | 5 niveaux |
+| 🎬 **Vidéos** | Runway | 5 niveaux |
+
+#### Les 5 Niveaux (comme les petites roues d'un vélo)
+
+| Niveau | Nom | Ce que l'enfant fait |
+|--------|-----|---------------------|
+| 1 🌱 | Je découvre | Décrit son idée (boutons style/ambiance visibles) |
+| 2 🌿 | Je participe | + Choisit style et ambiance |
+| 3 ⭐ | Je m'entraîne | Décrit TOUT dans son texte (boutons masqués) |
+| 4 🌟 | Je sais faire | + Ouvre Safari seule |
+| 5 👑 | Experte | Autonomie totale |
+
+#### Interface Guidée
+
+- **Surbrillance** des sections à compléter (plus de popup intrusif)
+- **Guide à droite** avec étapes qui se cochent automatiquement
+- **IA-Amie** connectée au guide qui suggère ce qui manque
+- **Détection par mots-clés** (niveau 3+) pour valider automatiquement
+
+#### Mots-clés Détectés
+
+| Type | Exemples |
+|------|----------|
+| **Style** | dessin, photo, magique, anime, pixel... |
+| **Ambiance** | jour, nuit, orage, féérique, mystère... |
+| **Détails** | couleurs, tailles, éléments visuels... |
+| **Mouvement** (vidéos) | bouge, danse, vole, saute... |
+| **Rythme** (vidéos) | lent, rapide, fluide, dynamique... |
 
 **Workflow** :
-1. L'enfant construit son prompt (style, ambiance, sujet)
-2. Le prompt est copié dans le presse-papier
-3. Safari s'ouvre sur l'outil choisi
-4. L'enfant colle et génère
-5. Il importe l'asset créé via le dropzone
+1. L'enfant décrit son idée (les sections apparaissent progressivement)
+2. Le guide se coche automatiquement
+3. Le prompt est copié dans le presse-papier
+4. Safari s'ouvre sur Midjourney/Runway
+5. L'enfant colle, génère, et importe via le dropzone
 
 ---
 
@@ -434,17 +462,38 @@ npm run lint          # Vérifier le code
 
 ## 🔮 Changelog récent
 
-### v3.2.0 (Janvier 2026)
+### v3.4.0 (17 janvier 2026)
+- ✅ **Studio UX refonte complète**
+  - Sections apparaissent progressivement (avec délai 800ms)
+  - Boutons style/ambiance masqués niveau 3+ (l'enfant décrit tout)
+  - Système de surbrillance (remplace les Mission Flash popup)
+  - Guide qui se coche automatiquement selon les actions
+- ✅ **Détection par mots-clés**
+  - Style, ambiance, détails détectés dans le texte
+  - Mots-clés vidéo : mouvement, rythme
+  - Auto-complétion des étapes niveau 3+
+- ✅ **IA connectée au guide**
+  - L'IA sait ce qui manque et guide naturellement
+  - Suggestions contextuelles (pas de liste exhaustive)
+- ✅ **Corrections**
+  - URLs Midjourney/Runway corrigées
+  - Messages IA dupliqués corrigés
+  - Passerelles Safari supprimées (doublon)
+  - Import audio retiré (images/vidéos seulement)
+
+### v3.3.0 (16 janvier 2026)
+- ✅ Studio pédagogique avec 5 niveaux
+- ✅ Stratégie voix (Apple TTS + ElevenLabs)
+- ✅ IA personnalisable (nom choisi par l'enfant)
+
+### v3.2.0
 - ✅ Mode Publication avec Gelato
-- ✅ Nom de l'IA personnalisable (plus de "Luna" en dur)
-- ✅ Modal de choix du nom à la première connexion
-- ❌ Suppression du mode Journal (demande cliente)
+- ❌ Suppression du mode Journal
 
 ### v3.1.0
 - ✅ Mode Montage v2 "Rubans Magiques"
 - ✅ Zones Intro/Outro
 - ✅ PreviewCanvas avec animations
-- ✅ RhythmGame phrase par phrase
 
 ### v3.0.0
 - ✅ Vue livre ouvert (2 pages)

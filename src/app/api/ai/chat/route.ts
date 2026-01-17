@@ -18,6 +18,24 @@ interface ChatRequestBody {
   writingProgress?: WritingPromptingProgress
   storyStructure?: StoryStructure
   storyStep?: number
+  // Contexte spécifique au Studio
+  studioContext?: {
+    type: 'image' | 'video'
+    currentStep?: string
+    level?: number
+    // État du kit de création
+    kit?: {
+      subject?: string
+      subjectDetails?: string
+      style?: string | null
+      ambiance?: string | null
+      light?: string | null
+    } | null
+    // Éléments manquants détectés
+    missingElements?: string[]
+    // Étapes complétées
+    completedSteps?: string[]
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -33,7 +51,8 @@ export async function POST(request: NextRequest) {
       promptingProgress,
       writingProgress,
       storyStructure,
-      storyStep
+      storyStep,
+      studioContext
     } = body
 
     if (!message) {
@@ -53,6 +72,11 @@ export async function POST(request: NextRequest) {
       storyStructure,
       storyStep,
       emotionalContext,
+      studioType: studioContext?.type, // Type de création studio (image/video)
+      // Nouveau : contexte enrichi pour le Studio
+      studioKit: studioContext?.kit,
+      studioMissingElements: studioContext?.missingElements,
+      studioLevel: studioContext?.level,
     }
 
     // Générer la réponse de l'IA-Amie
