@@ -1,8 +1,8 @@
 # 🌙 La Voix du Soir
 
-> Une application magique de création de livres-disques numériques pour enfants, avec une IA-Amie personnalisable.
+> Application magique de création de livres-disques numériques pour enfants, avec une IA-Amie personnalisable.
 
-![Version](https://img.shields.io/badge/version-3.4.0-purple)
+![Version](https://img.shields.io/badge/version-4.0.0-purple)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)
 ![Supabase](https://img.shields.io/badge/Supabase-Database-green)
@@ -16,10 +16,10 @@
 **La Voix du Soir** est une application iPad/Desktop conçue pour les enfants. Elle offre un espace créatif où ils peuvent :
 
 - ✍️ Écrire des histoires magiques avec structures narratives
-- 🎨 Créer des assets (images, voix, vidéos) au Studio
+- 🎨 Apprendre à créer des prompts IA (Midjourney/Runway) progressivement
 - 🎬 Assembler des livres-disques interactifs avec timeline
-- 🎭 Présenter leurs créations en mode Théâtre immersif
-- 📖 Publier un vrai livre imprimé (via Gelato)
+- 🎭 Présenter leurs créations en mode Théâtre immersif + export vidéo HD
+- 📖 Publier un vrai livre imprimé (via Gelato) ou PDF
 
 Le tout accompagné par une **IA-Amie** dont l'enfant choisit le nom lors de sa première connexion ! 🌟
 
@@ -32,22 +32,31 @@ Le tout accompagné par une **IA-Amie** dont l'enfant choisit le nom lors de sa 
 | Mode | État | Description |
 |------|------|-------------|
 | ✍️ **Écriture** | ✅ Complet | Création de livres avec chapitres, décorations, fonds |
-| 🎨 **Studio** | ⚠️ Partiel | Assistant de prompts (pont vers outils externes) |
-| 🎬 **Montage** | ✅ Complet | Timeline "Rubans Magiques" avec effets |
-| 🎭 **Théâtre** | ⚠️ Partiel | Lecteur basique (données non connectées) |
-| 📖 **Publier** | ✅ Complet | Publication via Gelato (print-on-demand) |
+| 🎨 **Studio** | ✅ Complet | Apprentissage progressif du prompting (5 niveaux) |
+| 🎬 **Montage** | ✅ Complet | Timeline "Rubans Magiques" + 98 sons |
+| 🎭 **Théâtre** | ✅ Complet | Lecteur immersif + export MP4 HD |
+| 📖 **Publier** | ✅ Complet | Publication via Gelato + export PDF |
 | 🤝 **Collab** | ✅ Complet | Création à distance parent/enfant (WebRTC) |
 
 ### Fonctionnalités Clés
 
 | Fonctionnalité | État | Notes |
 |----------------|------|-------|
-| IA-Amie personnalisable | ✅ | L'enfant choisit le nom de son IA |
+| IA-Amie personnalisable | ✅ | Nom choisi via dialogue interactif |
+| Guidage visuel IA | ✅ | L'IA peut faire clignoter des boutons |
 | Éditeur livre ouvert | ✅ | 2 pages côte à côte |
 | Décorations premium | ✅ | 60+ ornements SVG |
 | Timeline Montage v2 | ✅ | Drag & drop, zoom, effets |
+| Bibliothèque sons | ✅ | 98 fichiers (ambiances, effets, musiques) |
+| Background removal | ✅ | Supprimer les fonds d'images |
 | Synchronisation Supabase | ✅ | Auto-save debounced |
-| Intégration Gelato | ✅ | Devis + commande |
+| Export PDF | ✅ | 300 DPI, qualité impression |
+| Export MP4 | ✅ | Via Mux, qualité 4K |
+| Administration multi-famille | ✅ | Gestion des clients + clés API |
+| Sélecteur voix IA | ✅ | Choix parmi voix système |
+| Sélecteur voix narration | ✅ | 21 voix ElevenLabs |
+| Mode hors-ligne | ✅ | Fallbacks intelligents |
+| Responsive iPad | ✅ | Interface adaptative |
 | Mode multi-langue | ✅ | FR, EN, RU |
 
 ---
@@ -58,162 +67,36 @@ Le tout accompagné par une **IA-Amie** dont l'enfant choisit le nom lors de sa 
 📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
    (texte)    (assets)    (assemblage)  (lecture)
                               ↓
-                         📖 Publier
-                       (livre imprimé)
-```
-
-### Détail du flux
-
-| Étape | Mode | Ce qu'on fait |
-|-------|------|---------------|
-| 1 | **Écriture** | Écrire l'histoire, les chapitres, ajouter les décos |
-| 2 | **Studio** | Créer les illustrations, voix, vidéos (via outils externes) |
-| 3 | **Montage** | Assembler texte + assets + effets sonores + timeline |
-| 4 | **Théâtre** | Regarder/écouter le résultat final avec lumières |
-| 5 | **Publier** | Commander un vrai livre imprimé |
-
----
-
-## 🔧 Ce qui reste à faire
-
-### Priorité 1 - Connexion des données
-
-| Tâche | Description | Effort |
-|-------|-------------|--------|
-| **Studio → Montage** | Les assets créés doivent être utilisables dans le Montage | 1h |
-| **Montage → Théâtre** | Le Théâtre doit lire les projets terminés du Montage | 2h |
-
-### Priorité 2 - Améliorations
-
-| Tâche | Description | Effort |
-|-------|-------------|--------|
-| **Export PDF** | Générer un PDF haute qualité pour l'impression | 4h |
-| **Export MP4** | Exporter le livre-disque en vidéo | 6h |
-| **HomeKit réel** | Contrôler les vraies lumières Hue | 3h |
-| **Projection AirPlay** | Envoyer vers TV/écran externe | 2h |
-
-### Priorité 3 - Optionnel
-
-| Tâche | Description | Effort |
-|-------|-------------|--------|
-| **ElevenLabs intégré** | Générer les voix directement (API payante) | 2h |
-| **Undo/Redo** | Historique des modifications | 3h |
-
----
-
-## 🏗️ Architecture
-
-### Stores (Zustand)
-
-| Store | Usage |
-|-------|-------|
-| `useAppStore` | État global, projets d'écriture, chapitres |
-| `useMontageStore` | Projets de montage, scènes, timeline |
-| `usePublishStore` | État de publication, Gelato |
-| `useStudioStore` | Kits de création, prompts |
-| `useAuthStore` | Authentification, profils |
-| `useMentorStore` | Mode collaboration |
-
-### Structure des fichiers
-
-```
-src/
-├── app/                    # Pages Next.js (App Router)
-│   ├── [locale]/          # Pages localisées
-│   └── api/               # Routes API
-│       ├── ai/            # Chat, image, voice, video
-│       ├── gelato/        # Quote, order
-│       └── upload/        # Upload vidéos
-├── components/
-│   ├── modes/             # BookMode, StudioMode, MontageEditor, TheaterMode, PublishMode
-│   ├── montage/           # Timeline, Preview, RhythmGame...
-│   ├── studio/            # PromptBuilder, SafariBridge...
-│   └── ui/                # Composants réutilisables
-├── hooks/                 # useAI, useSupabaseSync, useMontageSync...
-├── lib/
-│   ├── ai/                # Gemini, ElevenLabs, prompts
-│   ├── gelato/            # Client API Gelato
-│   └── supabase/          # Client, types
-├── store/                 # Zustand stores
-└── messages/              # Traductions (fr, en, ru)
+                     📖 Publier / Export
+                   (livre imprimé / PDF / MP4)
 ```
 
 ---
 
-## 🤖 IA-Amie Personnalisable
+## 🎨 Mode Studio - Apprentissage Progressif
 
-### Fonctionnement
+Le Studio est un **parcours pédagogique** pour apprendre à créer des prompts IA.
 
-1. **Première connexion** : Modal pour choisir le nom de l'IA
-2. **Modification** : Menu utilisateur → "Mon amie IA"
-3. **Persistance** : Sauvegardé dans Supabase (`profiles.ai_name`)
+### Les 5 Niveaux
 
-### Personnalité de l'IA
+| Niveau | Nom | Ce que l'enfant fait |
+|--------|-----|---------------------|
+| 1 🌱 | Je découvre | Décrit son idée (boutons visibles) |
+| 2 🌿 | Je participe | + Choisit style et ambiance |
+| 3 ⭐ | Je m'entraîne | Décrit TOUT dans son texte (boutons masqués) |
+| 4 🌟 | Je sais faire | + Ouvre Safari seule |
+| 5 👑 | Experte | Autonomie totale |
 
-- 💜 Enthousiaste et encourageante
-- 🎨 Passionnée par les histoires et l'imagination
-- 🌟 Patiente et bienveillante
-- 🚫 Ne fait JAMAIS le travail à la place de l'enfant
+### Guidage Intelligent
 
-### Modes de communication
-
-| Mode | Comportement |
-|------|--------------|
-| **Écrit** | L'IA répond en texte uniquement |
-| **Oral** | L'IA répond ET parle automatiquement (TTS) |
-
----
-
-## ✍️ Mode Écriture
-
-### Interface Livre Ouvert
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ [< Retour]  Titre histoire...        [FormatBar complète]         [≡] [⊞]   │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│      ┌─────────────────┬────┬─────────────────┐                             │
-│   <  │ PAGE GAUCHE     │ || │ PAGE DROITE     │  >                          │
-│      │ ╔═════════════╗ │ || │ ┌─────┐         │                             │
-│      │ ║ 🖼️ FOND    ║ │ || │ │ 👑  │         │                             │
-│      │ ║ (image/    ║ │ || │ │DÉCOR│         │                             │
-│      │ ║  vidéo)    ║ │ || │ └─────┘         │                             │
-│      │ ╚═════════════╝ │ || │                 │                             │
-│      │ Il était une    │ || │ La suite de     │                             │
-│      │ fois...         │ || │ l'histoire...   │                             │
-│      │     — 1 —       │ || │     — 2 —       │                             │
-│      └─────────────────┴────┴─────────────────┘                             │
-│              [•1] [•2] [•3] [•4] [+]                                         │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Fonctionnalités
-
-| Fonctionnalité | Description |
-|----------------|-------------|
-| **Vue livre ouvert** | 2 pages éditables côte à côte |
-| **Mode zoom** | Agrandir page gauche ou droite |
-| **Texte sur lignes** | Écriture alignée sur les lignes |
-| **Fond de page** | Image/vidéo avec opacité/zoom |
-| **Décorations** | 60+ ornements premium déplaçables |
-| **Images flottantes** | Photos avec rotation et effets |
-
-### 🎨 Décorations Premium
-
-| Catégorie | Exemples |
-|-----------|----------|
-| ✨ **Ornements Dorés** | Coins baroques, volutes, séparateurs |
-| 🌸 **Floraux** | Roses, sakura, guirlandes |
-| 👑 **Royaux** | Couronnes, blasons, sceptres |
-| ⭐ **Célestes** | Lunes, étoiles, constellations |
-| 🦋 **Artistiques** | Papillons, plumes, cœurs |
+- **IA-Amie** connectée au guide, suggère ce qui manque
+- **Détection par mots-clés** (niveau 3+) pour validation automatique
+- **Surbrillance** des éléments à compléter
+- **Guide à droite** avec étapes qui se cochent automatiquement
 
 ---
 
-## 🎬 Mode Montage
-
-### Timeline "Rubans Magiques"
+## 🎬 Mode Montage - Timeline "Rubans Magiques"
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -231,103 +114,31 @@ src/
 ├─────────────────────────────────────────────────────────────────────┤
 │ Anim       │    [✨ Étoiles]          [💖 Cœurs qui s'envolent]     │
 └─────────────────────────────────────────────────────────────────────┘
-        0s        3s        6s        9s       12s       15s      19s
 ```
 
-### Pistes disponibles
+### Bibliothèque Sonore Intégrée
 
-| Piste | Icône | Description |
-|-------|-------|-------------|
-| Structure | ▶ | Intro / Narration / Outro |
-| Phrases | T | Affichage karaoké synchronisé |
-| Médias | 🖼 | Images et vidéos positionnables |
-| Musique | 🎵 | Musique de fond avec fade |
-| Sons | 🔊 | 120+ effets sonores catégorisés |
-| Lumières | 💡 | Couleurs HomeKit |
-| Déco | ✨ | Stickers et décorations |
-| Anim | 🌟 | 30 animations (localisées + ambiance) |
+| Type | Nombre | Exemples |
+|------|--------|----------|
+| **Ambiances** | 16 | Forêt, pluie, plage, fête foraine... |
+| **Effets** | 70 | Super-héros, animaux, magie, combat... |
+| **Musiques** | 12 | Classique, aventure, mystère, féérique... |
 
 ---
 
-## 🎨 Mode Studio
+## 👥 Administration Multi-Famille
 
-### ✅ Système Pédagogique Complet (v3.4)
+### Pour le développeur (Super Admin)
 
-Le mode Studio est un **parcours d'apprentissage progressif** pour apprendre à créer des prompts et utiliser des outils IA.
+- Gérer **toutes** les familles clientes
+- Configurer les **clés API** (ElevenLabs, Gemini, Midjourney, Runway)
+- Voir les **statistiques** et créations
 
-#### Parcours Séparés (Images / Vidéos)
+### Pour les parents (dans l'app)
 
-| Parcours | Outil | Niveaux |
-|----------|-------|---------|
-| 🖼️ **Images** | Midjourney | 5 niveaux |
-| 🎬 **Vidéos** | Runway | 5 niveaux |
-
-#### Les 5 Niveaux (comme les petites roues d'un vélo)
-
-| Niveau | Nom | Ce que l'enfant fait |
-|--------|-----|---------------------|
-| 1 🌱 | Je découvre | Décrit son idée (boutons style/ambiance visibles) |
-| 2 🌿 | Je participe | + Choisit style et ambiance |
-| 3 ⭐ | Je m'entraîne | Décrit TOUT dans son texte (boutons masqués) |
-| 4 🌟 | Je sais faire | + Ouvre Safari seule |
-| 5 👑 | Experte | Autonomie totale |
-
-#### Interface Guidée
-
-- **Surbrillance** des sections à compléter (plus de popup intrusif)
-- **Guide à droite** avec étapes qui se cochent automatiquement
-- **IA-Amie** connectée au guide qui suggère ce qui manque
-- **Détection par mots-clés** (niveau 3+) pour valider automatiquement
-
-#### Mots-clés Détectés
-
-| Type | Exemples |
-|------|----------|
-| **Style** | dessin, photo, magique, anime, pixel... |
-| **Ambiance** | jour, nuit, orage, féérique, mystère... |
-| **Détails** | couleurs, tailles, éléments visuels... |
-| **Mouvement** (vidéos) | bouge, danse, vole, saute... |
-| **Rythme** (vidéos) | lent, rapide, fluide, dynamique... |
-
-**Workflow** :
-1. L'enfant décrit son idée (les sections apparaissent progressivement)
-2. Le guide se coche automatiquement
-3. Le prompt est copié dans le presse-papier
-4. Safari s'ouvre sur Midjourney/Runway
-5. L'enfant colle, génère, et importe via le dropzone
-
----
-
-## 📖 Mode Publier
-
-### Intégration Gelato (Print-on-Demand)
-
-| Étape | Description |
-|-------|-------------|
-| 1. **Sélection** | Choisir l'histoire à publier |
-| 2. **Format** | Carré, A5 ou A4 |
-| 3. **Couverture** | Titre, auteur, couleur, image |
-| 4. **Aperçu** | Prévisualisation du livre |
-| 5. **Qualité** | Vérification automatique |
-| 6. **Commande** | Devis Gelato + paiement |
-
-### Formats disponibles
-
-| Format | Dimensions | Prix indicatif |
-|--------|------------|----------------|
-| Carré | 21×21 cm | ~15€ |
-| A5 | 14.8×21 cm | ~12€ |
-| A4 | 21×29.7 cm | ~18€ |
-
----
-
-## 🌍 Internationalisation
-
-| Langue | Code | État |
-|--------|------|------|
-| 🇫🇷 Français | `fr` | ✅ Complet |
-| 🇬🇧 English | `en` | ✅ Complet |
-| 🇷🇺 Русский | `ru` | ✅ Complet |
+- **Membres** : Ajouter/supprimer enfants, invitations par email
+- **Créations** : Voir les histoires et montages des enfants
+- **Configuration** : Modifier les clés API (avec garde-fous)
 
 ---
 
@@ -340,10 +151,13 @@ Le mode Studio est un **parcours d'apprentissage progressif** pour apprendre à 
 | **Tailwind CSS** | Styles |
 | **Framer Motion** | Animations |
 | **Zustand** | State management |
-| **Supabase** | Base de données + Auth + Realtime |
+| **Supabase** | Base de données + Auth + Storage |
 | **Gemini 2.0 Flash** | IA conversationnelle |
+| **ElevenLabs** | Voix narration premium |
+| **Mux** | Export vidéo HD |
 | **Gelato API** | Print-on-demand |
-| **Web Speech API** | TTS & STT navigateur |
+| **Cloudflare R2** | Stockage vidéos |
+| **Web Speech API** | TTS voix IA |
 | **Electron** | Application desktop Mac |
 | **WebRTC** | Communication peer-to-peer |
 
@@ -354,10 +168,9 @@ Le mode Studio est un **parcours d'apprentissage progressif** pour apprendre à 
 ### Prérequis
 
 - Node.js 18+
-- npm ou yarn
+- npm
 - Compte Supabase
-- Clé API Google Gemini
-- (Optionnel) Clé API Gelato
+- Clés API (voir ci-dessous)
 
 ### 1. Cloner le projet
 
@@ -380,13 +193,28 @@ Créer un fichier `.env.local` à la racine :
 # SUPABASE
 NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-clé-anon
+SUPABASE_SERVICE_ROLE_KEY=xxx
 
 # GEMINI (obligatoire)
 GOOGLE_GEMINI_API_KEY=votre-clé-gemini
 
-# GELATO (optionnel - pour publication)
-GELATO_API_KEY=votre-clé-gelato
+# ELEVENLABS (narration)
+ELEVENLABS_API_KEY=xxx
+
+# GELATO (publication)
+GELATO_API_KEY=xxx
 GELATO_TEST_MODE=true
+
+# CLOUDFLARE R2 (vidéos)
+R2_ACCOUNT_ID=xxx
+R2_ACCESS_KEY_ID=xxx
+R2_SECRET_ACCESS_KEY=xxx
+R2_BUCKET_NAME=lavoixdusoir-videos
+CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
+
+# MUX (export vidéo)
+MUX_TOKEN_ID=xxx
+MUX_TOKEN_SECRET=xxx
 
 # CONFIG
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -419,12 +247,17 @@ npm run lint          # Vérifier le code
 
 ---
 
-## 🔑 Identifiants Admin
+## 🔑 Configuration Super Admin
 
-| | |
-|---|---|
-| **Email** | `admin@admin.com` |
-| **Mot de passe** | `admin123` |
+Pour vous configurer en tant que Super Admin :
+
+1. Créer un compte sur l'app
+2. Dans Supabase SQL Editor :
+```sql
+INSERT INTO super_admins (user_id, name)
+VALUES ('VOTRE_USER_ID', 'Admin');
+```
+3. Rafraîchir l'app → Bouton "Admin" apparaît dans la sidebar
 
 ---
 
@@ -437,14 +270,11 @@ npm run lint          # Vérifier le code
 | `profiles` | Utilisateurs (enfants, mentors, parents) |
 | `stories` | Histoires créées (mode Écriture) |
 | `montage_projects` | Projets de montage (timeline) |
-
-### Colonnes `profiles` importantes
-
-| Colonne | Type | Description |
-|---------|------|-------------|
-| `ai_name` | TEXT | Nom personnalisé de l'IA |
-| `emotional_context` | JSONB | Contexte émotionnel pour l'IA |
-| `role` | TEXT | `child`, `mentor`, `parent` |
+| `studio_progress` | Progression pédagogique Studio |
+| `families` | Familles clientes |
+| `family_config` | Clés API et voix par famille |
+| `family_members` | Membres (parent/enfant) + invitations |
+| `super_admins` | Administrateurs système |
 
 ---
 
@@ -456,49 +286,56 @@ npm run lint          # Vérifier le code
 | `docs/ARCHITECTURE.md` | Architecture technique |
 | `docs/QUICK_START.md` | Guide de démarrage |
 | `docs/API.md` | Documentation API |
-| `docs/HANDOVER.md` | Document de passation |
+| `docs/HANDOVER.md` | Document de passation complet |
 
 ---
 
 ## 🔮 Changelog récent
 
+### v4.0.0 (17 janvier 2026)
+
+**Administration Multi-Famille**
+- ✅ Super Admin Panel (gestion de toutes les familles)
+- ✅ Parent Panel (membres, créations, configuration)
+- ✅ Invitations par email
+- ✅ Clés API dynamiques par famille
+
+**Voix & Audio**
+- ✅ 21 voix ElevenLabs (7 par langue)
+- ✅ Sélecteur voix IA avec test
+- ✅ Sélecteur voix narration avec aperçu
+- ✅ Bibliothèque 98 sons intégrée
+- ✅ Mode hors-ligne avec fallbacks
+
+**Exports**
+- ✅ Export PDF 300 DPI
+- ✅ Export MP4 via Mux (4K)
+
+**UX/UI**
+- ✅ Welcome sequence interactive pour nom IA
+- ✅ Guidage visuel (highlight boutons)
+- ✅ Timeline playhead fluide
+- ✅ Responsive iPad
+- ✅ Animations polish (20+ nouvelles)
+- ✅ Composants UI premium (8 nouveaux)
+
+**Technique**
+- ✅ Connexion Studio → Montage → Théâtre
+- ✅ Upload cloud (Supabase + R2)
+- ✅ Sync Supabase (montages, progression)
+- ✅ Background removal (client-side)
+- ✅ Sécurité Electron renforcée
+- ✅ Suppression useLayoutStore (code mort)
+
 ### v3.4.0 (17 janvier 2026)
-- ✅ **Studio UX refonte complète**
-  - Sections apparaissent progressivement (avec délai 800ms)
-  - Boutons style/ambiance masqués niveau 3+ (l'enfant décrit tout)
-  - Système de surbrillance (remplace les Mission Flash popup)
-  - Guide qui se coche automatiquement selon les actions
-- ✅ **Détection par mots-clés**
-  - Style, ambiance, détails détectés dans le texte
-  - Mots-clés vidéo : mouvement, rythme
-  - Auto-complétion des étapes niveau 3+
-- ✅ **IA connectée au guide**
-  - L'IA sait ce qui manque et guide naturellement
-  - Suggestions contextuelles (pas de liste exhaustive)
-- ✅ **Corrections**
-  - URLs Midjourney/Runway corrigées
-  - Messages IA dupliqués corrigés
-  - Passerelles Safari supprimées (doublon)
-  - Import audio retiré (images/vidéos seulement)
+- ✅ Studio UX refonte complète
+- ✅ Détection par mots-clés
+- ✅ IA connectée au guide
 
 ### v3.3.0 (16 janvier 2026)
 - ✅ Studio pédagogique avec 5 niveaux
 - ✅ Stratégie voix (Apple TTS + ElevenLabs)
-- ✅ IA personnalisable (nom choisi par l'enfant)
-
-### v3.2.0
-- ✅ Mode Publication avec Gelato
-- ❌ Suppression du mode Journal
-
-### v3.1.0
-- ✅ Mode Montage v2 "Rubans Magiques"
-- ✅ Zones Intro/Outro
-- ✅ PreviewCanvas avec animations
-
-### v3.0.0
-- ✅ Vue livre ouvert (2 pages)
-- ✅ Décorations premium (60+)
-- ✅ Fond de page (image/vidéo)
+- ✅ IA personnalisable
 
 ---
 

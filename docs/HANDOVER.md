@@ -3,16 +3,16 @@
 > Document de passation complet pour la prochaine session de développement
 
 **Date** : 17 janvier 2026  
-**Version** : 3.4.0  
-**État** : Studio UX Refonte ✅ + IA Guidée ✅ + Détection Mots-clés ✅
+**Version** : 4.0.0  
+**État** : Production-Ready ✅
 
 ---
 
-## 🎯 Vision Produit (IMPORTANT)
+## 🎯 Vision Produit
 
 > **Lire `docs/CONCEPT.md` pour la vision complète**
 
-### Résumé : C'est quoi l'app ?
+### Résumé
 
 Application pour **filles de 8 ans** permettant de créer des **livres-disques numériques 2.0** - inspirés des livres-disques d'antan (Marlène Jobert, Disney) mais augmentés avec IA et domotique.
 
@@ -23,359 +23,288 @@ Application pour **filles de 8 ans** permettant de créer des **livres-disques n
 | Mode | Fonction | État |
 |------|----------|------|
 | ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Complet |
-| 🎨 **Studio** | Apprentissage progressif du prompting (Midjourney/Runway) | ✅ Pédagogique |
+| 🎨 **Studio** | Apprentissage progressif du prompting (Midjourney/Runway) | ✅ Complet |
 | 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ Complet |
-| 🎭 **Théâtre** | Lecteur immersif avec projection + lumières | ⚠️ Données non connectées |
-| 📖 **Publier** | Publication livre imprimé via Gelato | ✅ Complet |
+| 🎭 **Théâtre** | Lecteur immersif + export vidéo HD | ✅ Complet |
+| 📖 **Publier** | Publication livre imprimé via Gelato + PDF | ✅ Complet |
 
 ### Flux Logique
 
 ```
 📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
    (texte)    (assets)    (assemblage)  (lecture)
+                              ↓
+                         📖 Publier + Export MP4/PDF
 ```
 
 ---
 
-## 🆕 Dernières modifications (Session 17 janvier)
+## ✅ Ce qui est FAIT (Session 17 janvier)
 
-### 🎨 Studio UX Refonte Complète
+### 1. 🔗 Connexion des Modes
 
-#### Problèmes corrigés
-- ✅ **Messages IA dupliqués** : Ajout de `lastStepRef` pour éviter les doublons
-- ✅ **URLs incorrectes** : Midjourney → `midjourney.com/app/`, Runway → `app.runwayml.com/`
-- ✅ **Passerelles Safari** : Supprimées (faisaient doublon avec les boutons)
-- ✅ **Import audio** : Retiré (Studio = images/vidéos seulement)
-- ✅ **Mission Flash popup** : Supprimées → remplacées par surbrillance
+| Connexion | État | Description |
+|-----------|------|-------------|
+| **Studio → Montage** | ✅ | Assets créés dans Studio visibles dans Montage |
+| **Montage → Théâtre** | ✅ | Projets terminés lisibles dans Théâtre |
+| **useLayoutStore** | ✅ | Supprimé (code mort) |
 
-#### Nouvelles fonctionnalités
+### 2. ☁️ Upload vers Cloud
 
-##### 1. Sections progressives
-- Les sections (Style, Ambiance, Détails) apparaissent **une par une**
-- **Délai de 800ms** avant apparition (pour ne pas interrompre l'écriture)
-- **10 caractères minimum** pour déclencher la suite
+| Type | Service | État |
+|------|---------|------|
+| **Images** | Supabase Storage | ✅ |
+| **Audio** | Supabase Storage | ✅ |
+| **Vidéos** | Cloudflare R2 | ✅ |
 
-##### 2. Boutons conditionnels au niveau
-| Niveau | Boutons visibles |
-|--------|------------------|
-| 1-2 | Style, Ambiance, Lumière (tout visible) |
-| 3+ | **Aucun** → l'enfant décrit tout dans son texte |
+### 3. 📤 Exports
 
-##### 3. Système de surbrillance
-- La section active **pulse** avec un anneau coloré
-- L'icône **pulse** aussi
-- Le titre change : "👆 Choisis un style !"
+| Export | Service | Qualité |
+|--------|---------|---------|
+| **PDF** | jspdf + html2canvas | 300 DPI, impression pro |
+| **MP4** | Mux | 4K, H.264, compatible tout |
 
-##### 4. Détection par mots-clés (niveau 3+)
-```typescript
-// Images
-STYLE: dessin, photo, magique, anime, pixel...
-AMBIANCE: jour, nuit, orage, féérique, mystère...
-DETAILS: couleurs, tailles, éléments visuels...
-
-// Vidéos (en plus)
-MOUVEMENT: bouge, danse, vole, saute, tourne...
-RYTHME: lent, rapide, fluide, dynamique...
-```
-→ Les étapes du guide se cochent automatiquement si les mots-clés sont détectés
-
-##### 5. IA connectée au guide
-L'IA reçoit maintenant :
-- L'état du kit (subject, style, ambiance...)
-- Les éléments **manquants** selon la détection
-- Le niveau de l'enfant
-
-**Comportement** : L'IA pose UNE question à la fois pour guider naturellement :
-> "C'est une super idée ! Tu vois ça comment ? Plutôt comme un dessin, une photo, ou quelque chose de magique ?"
-
-##### 6. Étapes du guide auto-cochées
-| Étape | Se coche quand |
-|-------|----------------|
-| Décrire mon idée | 10+ caractères |
-| Choisir le style | Bouton cliqué OU mot-clé détecté |
-| Choisir l'ambiance | Bouton cliqué OU mot-clé détecté |
-| Ajouter des détails | Champ rempli OU mot-clé détecté |
-| Voir mon prompt | Bouton "Copier" cliqué |
-| Aller sur Safari | Bouton "Aller sur Midjourney/Runway" cliqué |
-| Coller le prompt | Auto (3s après ouverture Safari) |
-| Créer l'image/vidéo | Bouton "J'ai lancé la création !" cliqué |
-| Importer | Fichier droppé dans la zone |
-
----
-
-## 📜 Session précédente (16 janvier)
-
-### 🎨 Studio Pédagogique
-
-**Objectif** : Apprendre aux filles à prompter ET à utiliser les outils seules, progressivement.
-
-#### Progressions SÉPARÉES
-
-| Parcours | Outil | Niveaux | Créations pour finir |
-|----------|-------|---------|---------------------|
-| 🖼️ **Images** | Midjourney | 5 | 3+5+7+10 = 25 |
-| 🎬 **Vidéos** | Runway | 5 | 3+5+7+10 = 25 |
-
-#### Les 5 Niveaux
-
-| Niveau | Nom | Ce que fait l'enfant |
-|--------|-----|---------------------|
-| 1 🌱 | Je découvre | Décrit son idée + importe |
-| 2 🌿 | Je participe | + Choisit style et ambiance |
-| 3 ⭐ | Je m'entraîne | + Voit le prompt, colle dans Safari |
-| 4 🌟 | Je sais faire | + Ouvre Safari seule, génère |
-| 5 👑 | Experte | Tout seule ! |
-
-#### Composants créés
+### 4. 🔐 Administration Multi-Famille
 
 ```
-src/
-├── store/
-│   └── useStudioProgressStore.ts    # Progressions, badges, niveaux
-│
-├── components/studio/
-│   ├── StudioGuide.tsx              # Guide visuel étape par étape
-│   ├── StudioAIChat.tsx             # IA-Amie qui guide
-│   ├── StudioMagicKeys.tsx          # Les 5 Clés Magiques
-│   └── StudioTutorial.tsx           # Tutoriels Midjourney/Runway
+┌─────────────────────────────────────────────────────────────┐
+│                    SUPER ADMIN PANEL                         │
+│  (Pour vous - gère TOUTES les familles)                     │
+├─────────────────────────────────────────────────────────────┤
+│  🏠 Familles                                                │
+│  ├── 👨‍👩‍👧‍👦 Famille Rothschild                                │
+│  │   ├── 🔑 Clés API (ElevenLabs, Gemini, etc.)            │
+│  │   ├── 👥 Membres (parents + enfants)                     │
+│  │   └── 🎤 Voix par défaut                                 │
+│  └── 👨‍👩‍👧 Famille [Autre Client]                             │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                    PARENT PANEL                              │
+│  (Dans l'app - gère SA famille)                             │
+├─────────────────────────────────────────────────────────────┤
+│  [Membres] [✨ Créations] [Configuration]                   │
+│                                                              │
+│  Membres : Ajouter/supprimer enfants + invitations          │
+│  Créations : Voir histoires et montages des enfants         │
+│  Configuration : Modifier les clés API (avec garde-fous)    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-#### Interface à 3 panneaux
+**Tables Supabase ajoutées :**
+- `families` - Liste des familles clientes
+- `family_config` - Clés API et voix par famille
+- `family_members` - Membres (parent/enfant) + invitations
+- `super_admins` - Vous (gestionnaire)
 
+### 5. 🎵 Bibliothèque Sonore
+
+| Type | Nombre | Taille |
+|------|--------|--------|
+| **Ambiances** | 16 | Nature, ville, féérie... |
+| **Effets** | 70 | Super-héros, animaux, magie... |
+| **Musiques** | 12 | Classique, aventure, mystère... |
+| **Total** | 98 | ~143 MB (compressés MP3) |
+
+**Organisation :**
 ```
-┌──────────────┬─────────────────────┬──────────────┐
-│  IA-Amie     │   PromptBuilder     │   Guide      │
-│  Chat 💬     │   + 5 Clés          │   Étapes 📋  │
-│              │   + Safari Bridge   │   0/3 créa   │
-│              │   + Import          │   [Aide]     │
-└──────────────┴─────────────────────┴──────────────┘
-```
+public/sound/
+├── ambiances/     # 16 fichiers
+├── effects/       # 70 fichiers (catégorisés par thème)
+└── music/         # 12 fichiers
 
-#### Les 5 Clés Magiques
-
-**Pour Images** :
-- 🎨 Style (40%) : Dessin, photo, magique...
-- 🦸 Héros (25%) : Qui ou quoi
-- 💫 Ambiance (15%) : Émotion, lumière
-- 🌍 Monde (10%) : Où ça se passe
-- ✨ Magie (10%) : Détail unique
-
-**Pour Vidéos** :
-- 🎨 Style (30%) : Réaliste, animé...
-- 🎬 Action (30%) : Qu'est-ce qui bouge
-- 💫 Ambiance (15%) : Émotion
-- ⏱️ Rythme (15%) : Lent, rapide
-- ✨ Effet (10%) : Effet spécial
-
-#### Système d'aide
-
-- Bouton "J'ai besoin d'aide" à tout moment
-- IA-Amie reformule les étapes difficiles
-- Messages d'encouragement
-- Pas de pénalité, progression bienveillante
-
----
-
-### 🎙️ Stratégie Voix (CONFIGURÉE)
-
-| Contexte | Service | Pourquoi |
-|----------|---------|----------|
-| **IA-Amie chat** | Apple Voice (TTS système) | 0 délai, instantané |
-| **Narration histoires** | ElevenLabs | Qualité premium |
-| **Fallback** | Apple Voice | Si ElevenLabs indisponible |
-
-#### Configuration ElevenLabs
-
-```bash
-# Dans .env.local
-ELEVENLABS_API_KEY=xxx
-
-# Voice IDs (créer des voix personnalisées sur le compte client)
-ELEVENLABS_VOICE_NARRATOR=xxx   # Voix principale conte
-ELEVENLABS_VOICE_FAIRY=xxx      # Voix fée
-ELEVENLABS_VOICE_DRAGON=xxx     # Voix dragon
-ELEVENLABS_VOICE_DEFAULT=xxx    # Voix par défaut
+src/lib/sounds/
+├── catalog.ts     # Métadonnées complètes
+└── index.ts       # Export + helpers
 ```
 
-#### Fichiers voix
+### 6. 🖼️ Background Removal
 
-```
-src/
-├── lib/
-│   ├── ai/
-│   │   └── elevenlabs.ts            # Service ElevenLabs + fallback
-│   └── tts/
-│       └── macos-tts.ts             # Apple Voice (système)
-│
-├── hooks/
-│   └── useNarration.ts              # Hook unifié narration
-│
-├── app/api/ai/
-│   └── narration/route.ts           # API narration avec fallback
-```
+- **Bibliothèque** : `@imgly/background-removal`
+- **Avantages** : Client-side, gratuit, privé
+- **Intégré** : Studio (assets importés)
 
-#### Fonction de fallback
+### 7. ✨ Guidage IA Visuel
 
 ```typescript
-// Dans elevenlabs.ts
-export async function generateNarrationWithFallback(
-  text: string,
-  voiceType: VoiceType = 'narrator',
-  locale: 'fr' | 'en' | 'ru' = 'fr'
-): Promise<{ audioUrl: string; audioBlob: Blob; source: 'elevenlabs' | 'apple' }>
+// L'IA peut maintenant guider visuellement !
+// Dans sa réponse :
+"Clique sur le bouton qui clignote ! [HIGHLIGHT:nav-montage]"
+
+// → Le bouton "Montage" dans la sidebar va clignoter en doré
+```
+
+**Éléments highlightables :**
+- `nav-book`, `nav-studio`, `nav-montage`, `nav-theater`, `nav-publish`
+- `montage-add-media`, `montage-add-music`, `montage-add-sound`
+
+### 8. 🎤 Voix Améliorées
+
+#### IA-Amie (Chat)
+- **Service** : Apple Voice (Web Speech API)
+- **Avantage** : Instantané, hors-ligne, gratuit
+- **Sélecteur** : L'enfant peut choisir la voix
+- **Fallback** : 10 messages variés si IA indisponible
+
+#### Narration (Histoires)
+- **Service** : ElevenLabs
+- **21 voix** : 7 par langue (FR, EN, RU)
+- **Sélecteur** : Avec aperçu audio
+- **Fallback** : Apple Voice si ElevenLabs KO
+
+### 9. 🌐 Mode Hors-Ligne
+
+```
+┌─────────────────────────────────────────┐
+│ 📵 Pas de connexion ?                   │
+│                                         │
+│ ✅ TTS fonctionne (Apple Voice)         │
+│ ✅ Écriture fonctionne (local)          │
+│ ✅ Montage fonctionne (si assets OK)    │
+│                                         │
+│ ⚠️ IA-Amie : Messages fallback variés   │
+│ ⚠️ Génération : Impossible              │
+│ ⚠️ Sync : En attente de reconnexion     │
+└─────────────────────────────────────────┘
+```
+
+### 10. 🔒 Sécurité Electron
+
+| Vulnérabilité | Correction |
+|---------------|------------|
+| Shell injection (exec) | → execFile/spawn |
+| Clics arbitraires | → Validation x,y (0-10000) |
+| Touches arbitraires | → Whitelist (flèches, entrée, espace) |
+| TTS injection | → Échappement shell |
+| Session mentor | → ID + expiration 1h |
+
+### 11. 📱 Responsive iPad
+
+- Sidebar compacte (w-20 au lieu de w-24)
+- Icônes réduites
+- Livre adaptatif (overflow caché, max-width)
+- Breakpoint `tablet` (834px)
+
+### 12. ✨ UI Polish
+
+**Animations CSS :**
+- `fade-in-up/down/left/right`
+- `zoom-in`, `magic-loading`, `typing-dot`
+- `success-pop`, `shine-effect`, `card-3d`
+- `glass-premium`, `halo-focus`, `btn-sparkle`
+
+**Composants UI :**
+- `LoadingSpinner` (4 variantes)
+- `LoadingScreen` (splash animé)
+- `TypingIndicator`
+- `Toast` (5 types + provider)
+- `Button` (6 variantes)
+- `Card` (6 variantes + effets)
+- `Modal` (avec ConfirmModal)
+- `VoiceSelector`
+- `NarrationVoiceSelector`
+- `AIWelcomeSequence`
+
+### 13. 🎬 Timeline Fluide
+
+- Tête de lecture smooth (DOM direct)
+- Throttle 100ms sur state React
+- Plus de saccades !
+
+### 14. 🌟 Welcome Sequence
+
+```
+┌─────────────────────────────────────────┐
+│ ✨ Bonjour !                            │
+│                                         │
+│ Je suis ton amie magique...             │
+│ Comment veux-tu m'appeler ?             │
+│                                         │
+│ [Étoile] [Lune] [Fée] [Magie]          │
+│                                         │
+│ Ou écris le prénom que tu veux : [___]  │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-### 👤 IA Personnalisable
+## 📁 Structure des Fichiers Clés
 
-- **Nom choisi par l'enfant** à la première connexion
-- **Modal `AINameModal`** avec suggestions de prénoms
-- **Persistance** dans Supabase (`profiles.ai_name`)
-- **Modification** possible via menu utilisateur
-- **Toutes les références "Luna"** remplacées
-
----
-
-### 📖 Mode Publication (Gelato)
-
-- **6 étapes** : Sélection → Format → Couverture → Aperçu → Qualité → Commande
-- **Formats** : Carré (21×21), A5, A4
-- **API Gelato** : Devis en temps réel + passage de commande
-
----
-
-### 🗑️ Supprimé
-
-- ❌ **Mode Journal** (DiaryMode) retiré de l'UI
-- ❌ **Référence "Luna"** supprimée partout
-
----
-
-## 🔴 PROBLÈME MAJEUR : Données non connectées
-
-### 3 systèmes de données séparés
-
-```
-Mode Écriture   →   useAppStore     →   stories[] + pages[]
-Mode Montage    →   useMontageStore →   projects[] + scenes[]
-Mode Théâtre    →   useLayoutStore  →   books[] + pages[]    ← VIDE !
-```
-
-### Corrections nécessaires
-
-| Tâche | Description | Effort |
-|-------|-------------|--------|
-| **Studio → Montage** | Assets créés utilisables dans Montage | 1h |
-| **Montage → Théâtre** | Théâtre lit `useMontageStore.projects` | 2h |
-| **Supprimer useLayoutStore** | N'est plus utile | 30min |
-
----
-
-## 📁 Structure des fichiers clés
-
-### Store
+### Stores
 
 ```
 src/store/
-├── useAppStore.ts            # État global + histoires + aiName
-├── useStudioStore.ts         # Kits de création (ancien)
-├── useStudioProgressStore.ts # Progression pédagogique (nouveau)
-├── useMontageStore.ts        # Projets montage
+├── useAppStore.ts            # État global, histoires, préférences
+├── useStudioStore.ts         # Kits de création, assets importés
+├── useStudioProgressStore.ts # Progression pédagogique
+├── useMontageStore.ts        # Projets montage (sync Supabase)
 ├── usePublishStore.ts        # Publication Gelato
-├── useLayoutStore.ts         # ⚠️ À SUPPRIMER (vide)
 ├── useMentorStore.ts         # Session mentor
-└── useAuthStore.ts           # Authentification
+├── useAuthStore.ts           # Authentification
+├── useHighlightStore.ts      # Guidage visuel IA ✨
+└── useAdminStore.ts          # Administration multi-famille ✨
 ```
 
-### Composants Studio
+### Administration
 
 ```
-src/components/studio/
-├── PromptBuilder.tsx         # Construction du prompt
-├── SafariBridge.tsx          # Passerelles vers outils externes
-├── AssetDropzone.tsx         # Import des créations
-├── StudioMissionFlash.tsx    # Missions flash
-├── StudioGuide.tsx           # Guide étape par étape ✨
-├── StudioAIChat.tsx          # Chat IA-Amie ✨
-├── StudioMagicKeys.tsx       # Les 5 Clés Magiques ✨
-├── StudioTutorial.tsx        # Tutoriels Midjourney/Runway ✨
-└── index.ts
+src/
+├── components/admin/
+│   ├── SuperAdminPanel.tsx   # Panel super admin (vous)
+│   ├── ParentAdminPanel.tsx  # Panel parent (dans l'app)
+│   └── index.ts
+│
+├── app/api/admin/
+│   └── families/
+│       ├── route.ts                    # GET/POST familles
+│       └── [familyId]/
+│           ├── route.ts                # GET/PATCH/DELETE famille
+│           ├── config/route.ts         # Clés API
+│           ├── members/route.ts        # Membres
+│           ├── members/[memberId]/...  # Membre spécifique
+│           └── creations/route.ts      # Créations enfants
+│
+├── hooks/useAppConfig.ts     # Récupère config famille active
+└── lib/config/
+    ├── api-keys.ts           # Helpers clés API (client)
+    └── server-config.ts      # Helpers clés API (serveur)
 ```
 
-### API
+### Sons
 
 ```
-src/app/api/
-├── ai/
-│   ├── chat/route.ts         # Chat IA (reçoit aiName)
-│   ├── voice/route.ts        # Génération voix
-│   └── narration/route.ts    # Narration avec fallback ✨
-├── gelato/
-│   ├── quote/route.ts        # Devis Gelato
-│   └── order/route.ts        # Commande Gelato
-└── upload/route.ts           # Upload fichiers
+src/lib/sounds/
+├── catalog.ts    # 98 entrées avec métadonnées complètes
+└── index.ts      # Exports + getSoundById/getMusicById
+
+public/sound/
+├── ambiances/    # 16 fichiers MP3
+├── effects/      # 70 fichiers MP3 (catégorisés)
+└── music/        # 12 fichiers MP3
+```
+
+### UI
+
+```
+src/components/ui/
+├── LoadingSpinner.tsx
+├── LoadingScreen.tsx
+├── TypingIndicator.tsx
+├── Toast.tsx
+├── Button.tsx
+├── Card.tsx
+├── Modal.tsx
+├── VoiceSelector.tsx
+├── NarrationVoiceSelector.tsx
+├── AIWelcomeSequence.tsx
+├── Highlightable.tsx
+├── RemoveBackgroundButton.tsx
+└── ...
 ```
 
 ---
 
-## 🔧 Ce qui reste à faire
-
-### Priorité 1 : Connecter les modes
-
-| Tâche | Description | Effort |
-|-------|-------------|--------|
-| **Studio → Montage** | Assets importés → utilisables dans scènes | 1h |
-| **Montage → Théâtre** | Projets terminés → lisibles dans Théâtre | 2h |
-| **Supprimer useLayoutStore** | Code mort | 30min |
-
-### Priorité 2 : Upload assets vers cloud
-
-| Tâche | Description | Effort |
-|-------|-------------|--------|
-| **Upload Supabase Storage** | Les assets importés sont en blob: temporaire ! | 2h |
-| **Persister les URLs** | Stocker les URLs cloud permanentes | 1h |
-
-### Priorité 3 : Exports
-
-| Tâche | Description | Effort |
-|-------|-------------|--------|
-| **Export PDF** | Pour l'impression (300 DPI) | 4h |
-| **Export MP4** | Le livre-disque en vidéo | 6h |
-
-### Priorité 4 : Finitions Studio
-
-| Tâche | Description | Effort |
-|-------|-------------|--------|
-| **Screenshots tutoriels** | Images/GIFs pour Midjourney et Runway | 2h |
-| **Tests progression** | Vérifier les passages de niveaux | 1h |
-
----
-
-## 🚀 Pour démarrer
-
-```bash
-# Installer
-npm install
-
-# Dev (web + signaling)
-npm run dev
-# → http://localhost:3000 (ou 3004 si port occupé)
-
-# Dev Electron
-npm run dev:electron
-```
-
-### Tester l'app
-
-1. **Écriture** : Créer une histoire avec du texte
-2. **Studio** : Voir la progression à 0, cliquer sur Images/Vidéos
-3. **Montage** : Créer un projet depuis une histoire
-4. **Publier** : Sélectionner histoire, voir devis Gelato
-
----
-
-## 🔑 Configuration
+## 🔧 Configuration
 
 ### Variables d'environnement (`.env.local`)
 
@@ -388,12 +317,8 @@ SUPABASE_SERVICE_ROLE_KEY=xxx
 # Google AI
 GOOGLE_GEMINI_API_KEY=xxx
 
-# ElevenLabs (voix premium - optionnel)
+# ElevenLabs (voix premium)
 ELEVENLABS_API_KEY=xxx
-ELEVENLABS_VOICE_NARRATOR=xxx
-ELEVENLABS_VOICE_FAIRY=xxx
-ELEVENLABS_VOICE_DRAGON=xxx
-ELEVENLABS_VOICE_DEFAULT=xxx
 
 # Gelato (publication)
 GELATO_API_KEY=xxx
@@ -405,27 +330,113 @@ R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
 R2_BUCKET_NAME=lavoixdusoir-videos
 CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
+
+# Mux (export vidéo)
+MUX_TOKEN_ID=xxx
+MUX_TOKEN_SECRET=xxx
+
+# ImagineAPI (Midjourney)
+IMAGINEAPI_API_KEY=xxx
+
+# Runway (vidéos IA)
+RUNWAY_API_KEY=xxx
+
+# Luma (vidéos IA alternative)
+LUMA_API_KEY=xxx
 ```
+
+> ⚠️ **Note** : Ces clés sont les valeurs par défaut. En production, chaque famille peut avoir ses propres clés via l'Admin Panel.
 
 ---
 
-## 📊 Récapitulatif de l'état
+## 🚀 Pour Démarrer
+
+```bash
+# Installer
+npm install
+
+# Dev (web + signaling)
+npm run dev
+# → http://localhost:3000
+
+# Dev Electron
+npm run dev:electron
+```
+
+### Se configurer en Super Admin
+
+1. Créer un compte sur l'app
+2. Dans Supabase SQL Editor :
+```sql
+INSERT INTO super_admins (user_id, name)
+VALUES ('VOTRE_USER_ID', 'Admin');
+```
+3. Rafraîchir l'app → Bouton "Admin" apparaît dans la sidebar
+
+---
+
+## 📊 Récapitulatif de l'État
 
 | Composant | État | Notes |
 |-----------|------|-------|
 | Mode Écriture | ✅ | Complet |
-| Mode Studio | ✅ | UX refonte + IA guidée + détection mots-clés |
-| Mode Montage | ✅ | Timeline v2 complète |
-| Mode Théâtre | ⚠️ | Lit le mauvais store (vide) |
-| Mode Publier | ✅ | Gelato intégré |
-| IA personnalisable | ✅ | Nom choisi par l'enfant |
-| IA connectée guide | ✅ | Suggère ce qui manque naturellement |
-| Voix IA-Amie | ✅ | Apple Voice (0 délai) |
-| Voix narration | ✅ | ElevenLabs + fallback Apple |
-| Sync Supabase | ✅ | Debounced |
-| Assets cloud | ⚠️ | Blob temporaire, pas uploadé |
-| Export PDF | 🔧 | À faire |
-| Export MP4 | 🔧 | À faire |
+| Mode Studio | ✅ | Pédagogie + guidage IA |
+| Mode Montage | ✅ | Timeline fluide + sons |
+| Mode Théâtre | ✅ | Lecture + export MP4 |
+| Mode Publier | ✅ | Gelato + PDF |
+| IA personnalisable | ✅ | Welcome sequence interactive |
+| Guidage visuel IA | ✅ | Highlight UI |
+| Voix IA-Amie | ✅ | Sélecteur + fallback |
+| Voix narration | ✅ | 21 voix ElevenLabs |
+| Sync Supabase | ✅ | Histoires, montages, progression |
+| Assets cloud | ✅ | Supabase + R2 |
+| Export PDF | ✅ | 300 DPI |
+| Export MP4 | ✅ | Via Mux |
+| Admin multi-famille | ✅ | Super Admin + Parent |
+| Bibliothèque sons | ✅ | 98 fichiers |
+| Background removal | ✅ | Client-side |
+| Sécurité Electron | ✅ | Shell injection fixé |
+| Responsive iPad | ✅ | Adaptatif |
+| Mode hors-ligne | ✅ | Fallbacks |
+
+---
+
+## 🔧 Ce qui Reste à Faire
+
+### Priorité 1 - Assets
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Screenshots tutoriels** | 10 images pour Midjourney/Runway | 1h (manuel) |
+| **Samples ElevenLabs** | 21 fichiers audio pour sélecteur voix | 1h (manuel) |
+
+### Priorité 2 - Tests
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Tests E2E** | Flux complet Écriture → Théâtre | 4h |
+| **Tests Admin** | Création famille, invitation, config | 2h |
+
+### Priorité 3 - Optionnel
+
+| Tâche | Description | Effort |
+|-------|-------------|--------|
+| **Runway Gen-4** | Mettre à jour vers la dernière version | 1h |
+| **HomeKit réel** | Contrôler les vraies lumières Hue | 3h |
+| **Corriger TypeScript** | Quelques erreurs préexistantes | 2h |
+
+---
+
+## 💡 Notes pour le Prochain Dev
+
+1. **L'enfant cible a 8 ans** → Tout doit être simple et encourageant
+2. **Budget illimité** → Pas d'hésitation sur les services payants
+3. **Clés API dynamiques** → Utiliser `useAppConfig()` + `getXxxApiKey(config)`
+4. **Pas de "Luna"** → Le nom est choisi par l'enfant, jamais hardcodé
+5. **Sons catégorisés** → Filtres par thème dans AddElementModal
+6. **Highlights IA** → L'IA peut faire clignoter des boutons avec `[HIGHLIGHT:id]`
+7. **Parents autonomes** → Ils peuvent modifier leurs clés API
+8. **Super Admin à distance** → Vous pouvez tout configurer depuis n'importe où
 
 ---
 
@@ -439,33 +450,6 @@ CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
 | `docs/API.md` | Documentation API |
 | `docs/HANDOVER.md` | Ce document |
 | `README.md` | Documentation générale |
-
----
-
-## 💡 Notes importantes pour le prochain dev
-
-1. **L'enfant cible a 8 ans** → Tout doit être simple et encourageant
-2. **Budget illimité** → Pas d'hésitation sur les services payants
-3. **Apple Voice pour le chat** → Impératif pour le 0 délai
-4. **ElevenLabs pour les histoires** → Qualité premium
-5. **Progression séparée** → L'enfant apprend Images ET Vidéos indépendamment
-6. **useLayoutStore à supprimer** → Ne sert plus à rien
-7. **Niveau 3+ = pas de boutons** → L'enfant décrit tout dans son texte, la détection mots-clés valide
-8. **IA guidée** → Ne jamais lister tout ce qui manque d'un coup, guider progressivement
-9. **Assets temporaires** → Les fichiers importés sont en blob:, pas persistés au cloud
-
----
-
-## 🗂️ Fichiers modifiés (Session 17 janvier)
-
-```
-src/components/studio/PromptBuilder.tsx     # Sections progressives, détection, surbrillance
-src/components/studio/StudioAIChat.tsx      # IA connectée au guide
-src/components/studio/AssetDropzone.tsx     # Retire audio, ajoute completeStep
-src/components/modes/StudioMode.tsx         # Retire SafariBridge (doublon)
-src/app/api/ai/chat/route.ts                # Reçoit studioKit + missingElements
-src/lib/ai/gemini.ts                        # Prompt enrichi avec état du kit
-```
 
 ---
 
