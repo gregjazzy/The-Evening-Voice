@@ -270,9 +270,6 @@ const SOUND_CATEGORIES: Record<SoundCategory, { label: string; emoji: string; so
   },
 }
 
-// Liste plate pour la recherche (compatibilité)
-const ALL_SOUNDS = Object.values(SOUND_CATEGORIES).flatMap(cat => cat.sounds)
-
 // =============================================================================
 // MUSIQUES
 // =============================================================================
