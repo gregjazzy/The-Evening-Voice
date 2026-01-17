@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Theater, 
@@ -18,7 +19,8 @@ import {
   Book,
   Sparkles,
   Home,
-  Film
+  Film,
+  X
 } from 'lucide-react'
 import { useMontageStore, type MontageProject, type MontageScene } from '@/store/useMontageStore'
 import { useMentorStore } from '@/store/useMentorStore'
@@ -26,6 +28,12 @@ import { useHomeKit } from '@/hooks/useHomeKit'
 import { cn } from '@/lib/utils'
 
 export function TheaterMode() {
+  // Pour le portal - s'assurer que le DOM est monté
+  const [isMounted, setIsMounted] = useState(false)
+  
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
   // ✅ Utilise maintenant useMontageStore au lieu de useLayoutStore
   const { projects } = useMontageStore()
   const { isConnected: mentorConnected, controlActive } = useMentorStore()
@@ -222,7 +230,13 @@ export function TheaterMode() {
     setSelectedProject(null)
     setIsFullscreen(false)
     setCurrentPlaybackTime(0)
-    document.exitFullscreen?.()
+    
+    // Sortir du plein écran seulement si on est en plein écran
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {
+        // Ignorer l'erreur si le document n'est pas actif
+      })
+    }
     
     // Arrêter tous les audios
     narrationRef.current?.pause()
@@ -401,19 +415,29 @@ export function TheaterMode() {
     )
   }
 
-  // Vue Spectacle (Plein écran)
+  // Vue Spectacle (Plein écran) - rendu via Portal pour passer au-dessus de tout
   const activePhrase = getActivePhrase()
   const sceneDuration = currentScene ? getSceneDuration(currentScene) : 10
 
-  return (
+  // Rendu via Portal pour s'assurer que le spectacle est au-dessus de tout (y compris la sidebar)
+  const spectacleContent = (
     <div
       ref={containerRef}
-      className="fixed inset-0 bg-black z-50"
+      className="fixed inset-0 bg-black z-[9999]"
       onMouseMove={() => {
         setShowControls(true)
         clearTimeout(hideControlsTimer.current)
       }}
     >
+      {/* Bouton fermer toujours visible (X en haut à droite) */}
+      <button
+        onClick={handleExitShow}
+        className="absolute top-4 right-4 z-[10000] w-12 h-12 rounded-full bg-black/60 hover:bg-red-600/80 text-white/80 hover:text-white flex items-center justify-center transition-all backdrop-blur-sm border border-white/20 hover:border-red-500/50 shadow-lg"
+        title="Réduire le spectacle"
+      >
+        <X className="w-6 h-6" />
+      </button>
+
       {/* Scène en cours */}
       <AnimatePresence mode="wait">
         {currentScene && (
@@ -745,4 +769,9 @@ export function TheaterMode() {
       )}
     </div>
   )
+
+  // Utiliser un Portal pour rendre au niveau du body (au-dessus de la sidebar)
+  if (!isMounted) return null
+  
+  return createPortal(spectacleContent, document.body)
 }
