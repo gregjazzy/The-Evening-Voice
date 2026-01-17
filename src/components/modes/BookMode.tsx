@@ -4387,7 +4387,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               background: getPageColorStyles(bookColor).background,
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
-              overflow: 'visible',
+              overflow: 'hidden',
             }}
           >
             {/* Clip pour le contenu interne */}
@@ -4577,7 +4577,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Lignes de cahier (conditionnelles) */}
             {showLines && (
-              <div className="absolute inset-x-10 top-[32px] bottom-12" style={{
+              <div className="absolute inset-x-4 lg:inset-x-10 top-[32px] bottom-12" style={{
                 backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
                 backgroundSize: '100% 32px',
               }} />
@@ -4585,7 +4585,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Marge rouge (à droite pour page gauche, conditionnelle) */}
             {showLines && (
-              <div className="absolute right-10 top-[32px] bottom-12 w-px bg-red-300/40" />
+              <div className="absolute right-4 lg:right-10 top-[32px] bottom-12 w-px bg-red-300/40" />
             )}
             
             {/* Zone d'écriture - page gauche TipTap */}
@@ -4603,7 +4603,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   lineHeight: '32px',
                 }}
                 className={cn(
-                  'flex-1 px-10 pt-0 pb-12 overflow-y-auto relative z-10',
+                  'flex-1 px-4 lg:px-10 pt-0 pb-12 overflow-y-auto relative z-10',
                   'font-serif',
                   'focus:outline-none',
                   'empty:before:content-[attr(data-placeholder)] empty:before:text-amber-500/40 empty:before:pointer-events-none'
@@ -4729,7 +4729,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               background: getPageColorStyles(bookColor).background,
               borderRadius: '0 8px 8px 0',
               boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
-              overflow: 'visible',
+              overflow: 'hidden',
             }}
           >
             {/* Clip pour le contenu interne */}
@@ -4919,7 +4919,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Lignes de cahier - conditionnelles */}
             {showLines && (
-              <div className="absolute inset-x-10 top-[32px] bottom-12" style={{
+              <div className="absolute inset-x-4 lg:inset-x-10 top-[32px] bottom-12" style={{
               backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
               backgroundSize: '100% 32px', // Même hauteur que lineHeight
             }} />
@@ -4927,7 +4927,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Marge rouge (conditionnelle) */}
             {showLines && (
-              <div className="absolute left-10 top-[32px] bottom-12 w-px bg-red-300/40" />
+              <div className="absolute left-4 lg:left-10 top-[32px] bottom-12 w-px bg-red-300/40" />
             )}
             
             {/* Zone d'écriture - page droite TipTap */}
@@ -4945,7 +4945,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 lineHeight: '32px',
               }}
           className={cn(
-                'flex-1 px-10 pt-0 pb-12 overflow-y-auto relative z-10',
+                'flex-1 px-4 lg:px-10 pt-0 pb-12 overflow-y-auto relative z-10',
                   'font-serif',
                 'focus:outline-none',
                 'empty:before:content-[attr(data-placeholder)] empty:before:text-amber-500/40 empty:before:pointer-events-none'
