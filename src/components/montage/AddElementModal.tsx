@@ -427,9 +427,12 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
     
     const isVideo = asset.type === 'video'
     
+    // Utiliser l'URL cloud si disponible (permanente), sinon l'URL locale (temporaire)
+    const mediaUrl = asset.cloudUrl || asset.url
+    
     addMediaTrack({
       type: isVideo ? 'video' : 'image',
-      url: asset.url,
+      url: mediaUrl,
       name: asset.name,
       timeRange: createTimeRange(0, 50),
       position: { x: 50, y: 50, width: 80, height: 60 },

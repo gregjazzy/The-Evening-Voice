@@ -12,10 +12,14 @@ import {
   FileVideo,
   Trash2,
   Download,
-  Sparkles
+  Sparkles,
+  Cloud,
+  CloudOff,
+  Loader2
 } from 'lucide-react'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import { useStudioProgressStore } from '@/store/useStudioProgressStore'
+import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { cn } from '@/lib/utils'
 
 interface AssetDropzoneProps {
@@ -23,8 +27,9 @@ interface AssetDropzoneProps {
 }
 
 export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
-  const { importedAssets, addImportedAsset, removeImportedAsset, currentKit } = useStudioStore()
+  const { importedAssets, addImportedAsset, updateAsset, removeImportedAsset, currentKit } = useStudioStore()
   const { completeStep, completedSteps } = useStudioProgressStore()
+  const { upload, isUploading } = useMediaUpload()
   
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -77,8 +82,8 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
     else if (file.type.startsWith('video/')) type = 'video'
     else if (!file.type.startsWith('image/')) return // Ignorer les autres types
 
-    // Créer l'URL de prévisualisation
-    const url = URL.createObjectURL(file)
+    // Créer l'URL de prévisualisation (temporaire pour affichage immédiat)
+    const previewUrl = URL.createObjectURL(file)
 
     // Détecter la source (heuristique basée sur le nom du fichier)
     let source: ImportedAsset['source'] = 'upload'
@@ -91,16 +96,50 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
       source = 'runway'
     }
 
+    // Ajouter immédiatement avec URL temporaire (pour preview)
     const asset: Omit<ImportedAsset, 'id' | 'importedAt'> = {
       type,
       file,
-      url,
+      url: previewUrl,
       name: file.name,
       source,
       promptUsed: currentKit?.generatedPrompt,
+      isUploading: true,
     }
 
-    addImportedAsset(asset)
+    const assetId = addImportedAsset(asset)
+    
+    // Upload vers le cloud en arrière-plan
+    try {
+      const result = await upload(file, {
+        type,
+        source,
+      })
+
+      if (result) {
+        // Mise à jour avec l'URL cloud permanente
+        updateAsset(assetId, {
+          cloudUrl: result.url,
+          assetId: result.assetId,
+          isUploading: false,
+        })
+        console.log(`✅ Asset uploadé: ${result.url}`)
+      } else {
+        // Erreur d'upload (garde l'URL temporaire)
+        updateAsset(assetId, {
+          isUploading: false,
+          uploadError: 'Échec upload - utilisez en local',
+        })
+        console.warn(`⚠️ Upload échoué pour ${file.name}, URL temporaire conservée`)
+      }
+    } catch (err) {
+      updateAsset(assetId, {
+        isUploading: false,
+        uploadError: err instanceof Error ? err.message : 'Erreur inconnue',
+      })
+      console.error('Erreur upload:', err)
+    }
+    
     onAssetImported?.(asset as ImportedAsset)
     
     // Marquer l'étape "Importer" comme complétée
@@ -255,19 +294,38 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
                       <p className="font-medium text-white truncate">
                         {asset.name}
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className={cn(
                           'px-2 py-0.5 rounded-full text-xs text-white',
                           sourceBadge.color
                         )}>
                           {sourceBadge.label}
                         </span>
-                        <span className="text-xs text-midnight-400">
-                          {new Date(asset.importedAt).toLocaleTimeString('fr-FR', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
+                        
+                        {/* Indicateur de statut cloud */}
+                        {asset.isUploading ? (
+                          <span className="flex items-center gap-1 text-xs text-aurora-400">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Upload...
+                          </span>
+                        ) : asset.cloudUrl ? (
+                          <span className="flex items-center gap-1 text-xs text-emerald-400" title="Sauvegardé dans le cloud">
+                            <Cloud className="w-3 h-3" />
+                            Cloud
+                          </span>
+                        ) : asset.uploadError ? (
+                          <span className="flex items-center gap-1 text-xs text-amber-400" title={asset.uploadError}>
+                            <CloudOff className="w-3 h-3" />
+                            Local
+                          </span>
+                        ) : (
+                          <span className="text-xs text-midnight-400">
+                            {new Date(asset.importedAt).toLocaleTimeString('fr-FR', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        )}
                       </div>
                     </div>
 

@@ -27,11 +27,15 @@ export interface ImportedAsset {
   id: string
   type: 'image' | 'audio' | 'video'
   file: File | null
-  url: string
+  url: string                    // URL temporaire (blob:) pour preview local
+  cloudUrl?: string              // URL cloud permanente (Supabase/R2)
+  assetId?: string               // ID dans la table assets
   name: string
   source: 'midjourney' | 'elevenlabs' | 'runway' | 'gemini' | 'upload'
   promptUsed?: string
   importedAt: Date
+  isUploading?: boolean
+  uploadError?: string
 }
 
 export interface SafariBridge {
@@ -68,6 +72,7 @@ interface StudioState {
   
   // Actions Assets
   addImportedAsset: (asset: Omit<ImportedAsset, 'id' | 'importedAt'>) => void
+  updateAsset: (id: string, updates: Partial<ImportedAsset>) => void
   removeImportedAsset: (id: string) => void
   
   // Actions Bridge
@@ -237,6 +242,15 @@ export const useStudioStore = create<StudioState>()(
         }
         set((state) => ({
           importedAssets: [...state.importedAssets, newAsset],
+        }))
+        return newAsset.id
+      },
+
+      updateAsset: (id, updates) => {
+        set((state) => ({
+          importedAssets: state.importedAssets.map((a) =>
+            a.id === id ? { ...a, ...updates } : a
+          ),
         }))
       },
 
