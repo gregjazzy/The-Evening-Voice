@@ -14,27 +14,26 @@ import {
   Minimize,
   Settings,
   Lightbulb,
-  Wifi,
   WifiOff,
   Book,
   Sparkles,
-  ChevronLeft,
-  ChevronRight,
-  Home
+  Home,
+  Film
 } from 'lucide-react'
-import { useLayoutStore, type BookPage } from '@/store/useLayoutStore'
+import { useMontageStore, type MontageProject, type MontageScene } from '@/store/useMontageStore'
 import { useMentorStore } from '@/store/useMentorStore'
 import { useHomeKit } from '@/hooks/useHomeKit'
 import { cn } from '@/lib/utils'
 
 export function TheaterMode() {
-  const { books, currentBook } = useLayoutStore()
+  // ✅ Utilise maintenant useMontageStore au lieu de useLayoutStore
+  const { projects } = useMontageStore()
   const { isConnected: mentorConnected, controlActive } = useMentorStore()
   const homeKit = useHomeKit()
 
   // États du théâtre
-  const [selectedBook, setSelectedBook] = useState<typeof books[0] | null>(null)
-  const [currentPageIndex, setCurrentPageIndex] = useState(0)
+  const [selectedProject, setSelectedProject] = useState<MontageProject | null>(null)
+  const [currentSceneIndex, setCurrentSceneIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
@@ -42,15 +41,23 @@ export function TheaterMode() {
   const [isMuted, setIsMuted] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(true)
-  const [transitionDuration, setTransitionDuration] = useState(5)
+  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0)
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null)
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({})
+  const narrationRef = useRef<HTMLAudioElement | null>(null)
   const hideControlsTimer = useRef<NodeJS.Timeout>()
+  const playbackTimer = useRef<NodeJS.Timeout>()
 
-  const completedBooks = books.filter((b) => b.isComplete)
-  const currentPage = selectedBook?.pages[currentPageIndex]
+  // Projets terminés (ou tous pour le moment, on peut filtrer par isComplete)
+  const completedProjects = projects.filter((p) => p.scenes.length > 0)
+  const currentScene = selectedProject?.scenes[currentSceneIndex]
+
+  // Calculer la durée totale de la scène (intro + narration + outro)
+  const getSceneDuration = (scene: MontageScene) => {
+    return (scene.introDuration || 0) + (scene.narration?.duration || scene.duration || 10) + (scene.outroDuration || 0)
+  }
 
   // Auto-hide des contrôles
   useEffect(() => {
@@ -62,19 +69,36 @@ export function TheaterMode() {
     return () => clearTimeout(hideControlsTimer.current)
   }, [isFullscreen, showControls])
 
-  // Synchroniser HomeKit avec la page
+  // Synchroniser HomeKit avec la scène
   useEffect(() => {
-    if (currentPage && homeKit.isConnected) {
-      homeKit.syncWithAmbiance(currentPage.ambiance, currentPage.lightIntensity)
+    if (currentScene && homeKit.isConnected) {
+      // Utiliser les lightTracks si disponibles
+      const lightTrack = currentScene.lightTracks?.[0]
+      if (lightTrack) {
+        homeKit.setLightColor('all', lightTrack.color)
+        homeKit.setLightBrightness('all', lightTrack.intensity)
+      } else {
+        // Fallback : ambiance par défaut
+        homeKit.syncWithAmbiance('jour', 80)
+      }
     }
-  }, [currentPage?.id, homeKit.isConnected])
+  }, [currentScene?.id, homeKit.isConnected])
 
-  // Gérer la lecture audio
+  // Gérer la lecture audio (narration + musique + sons)
   useEffect(() => {
-    if (!currentPage || !isPlaying) return
+    if (!currentScene || !isPlaying) return
 
-    // Jouer les pistes audio
-    currentPage.audioTracks.forEach((track) => {
+    // Jouer la narration
+    if (currentScene.narration?.audioUrl) {
+      if (!narrationRef.current) {
+        narrationRef.current = new Audio(currentScene.narration.audioUrl)
+      }
+      narrationRef.current.volume = isMuted ? 0 : volume / 100
+      narrationRef.current.play().catch(console.error)
+    }
+
+    // Jouer les pistes musique
+    currentScene.musicTracks?.forEach((track) => {
       if (!audioRefs.current[track.id]) {
         const audio = new Audio(track.url)
         audio.volume = (track.volume * volume) / 100
@@ -84,31 +108,70 @@ export function TheaterMode() {
       
       const audio = audioRefs.current[track.id]
       audio.volume = isMuted ? 0 : (track.volume * volume) / 100
-      audio.play()
+      audio.play().catch(console.error)
+    })
+
+    // Jouer les effets sonores
+    currentScene.soundTracks?.forEach((track) => {
+      if (!audioRefs.current[track.id]) {
+        const audio = new Audio(track.url)
+        audio.volume = (track.volume * volume) / 100
+        audio.loop = track.loop
+        audioRefs.current[track.id] = audio
+      }
+      
+      const audio = audioRefs.current[track.id]
+      audio.volume = isMuted ? 0 : (track.volume * volume) / 100
+      audio.play().catch(console.error)
     })
 
     return () => {
-      // Arrêter les audios de cette page
-      currentPage.audioTracks.forEach((track) => {
+      // Arrêter les audios de cette scène
+      narrationRef.current?.pause()
+      currentScene.musicTracks?.forEach((track) => {
+        audioRefs.current[track.id]?.pause()
+      })
+      currentScene.soundTracks?.forEach((track) => {
         audioRefs.current[track.id]?.pause()
       })
     }
-  }, [currentPage?.id, isPlaying, volume, isMuted])
+  }, [currentScene?.id, isPlaying, volume, isMuted])
 
-  // Auto-avance
+  // Auto-avance et playback timer
   useEffect(() => {
-    if (!isPlaying || !autoAdvance || !selectedBook) return
+    if (!isPlaying || !autoAdvance || !selectedProject || !currentScene) return
 
-    const timer = setTimeout(() => {
-      if (currentPageIndex < selectedBook.pages.length - 1) {
-        setCurrentPageIndex((prev) => prev + 1)
-      } else {
-        setIsPlaying(false)
+    const sceneDuration = getSceneDuration(currentScene)
+
+    // Timer pour le temps de lecture
+    playbackTimer.current = setInterval(() => {
+      setCurrentPlaybackTime((prev) => {
+        if (prev >= sceneDuration) {
+          // Passer à la scène suivante
+          if (currentSceneIndex < selectedProject.scenes.length - 1) {
+            setCurrentSceneIndex((i) => i + 1)
+            return 0
+          } else {
+            // Fin du spectacle
+            setIsPlaying(false)
+            return prev
+          }
+        }
+        return prev + 0.1
+      })
+    }, 100)
+
+    return () => {
+      if (playbackTimer.current) {
+        clearInterval(playbackTimer.current)
       }
-    }, transitionDuration * 1000)
+    }
+  }, [isPlaying, autoAdvance, currentSceneIndex, selectedProject, currentScene])
 
-    return () => clearTimeout(timer)
-  }, [isPlaying, autoAdvance, currentPageIndex, selectedBook, transitionDuration])
+  // Reset playback time quand on change de scène
+  useEffect(() => {
+    setCurrentPlaybackTime(0)
+  }, [currentSceneIndex])
 
   // Plein écran
   const toggleFullscreen = useCallback(async () => {
@@ -128,21 +191,22 @@ export function TheaterMode() {
   }, [])
 
   // Navigation
-  const goToPreviousPage = () => {
-    if (currentPageIndex > 0) {
-      setCurrentPageIndex((prev) => prev - 1)
+  const goToPreviousScene = () => {
+    if (currentSceneIndex > 0) {
+      setCurrentSceneIndex((prev) => prev - 1)
     }
   }
 
-  const goToNextPage = () => {
-    if (selectedBook && currentPageIndex < selectedBook.pages.length - 1) {
-      setCurrentPageIndex((prev) => prev + 1)
+  const goToNextScene = () => {
+    if (selectedProject && currentSceneIndex < selectedProject.scenes.length - 1) {
+      setCurrentSceneIndex((prev) => prev + 1)
     }
   }
 
-  const handleStartShow = (book: typeof books[0]) => {
-    setSelectedBook(book)
-    setCurrentPageIndex(0)
+  const handleStartShow = (project: MontageProject) => {
+    setSelectedProject(project)
+    setCurrentSceneIndex(0)
+    setCurrentPlaybackTime(0)
     setIsPlaying(true)
     setIsFullscreen(true)
     toggleFullscreen()
@@ -155,9 +219,16 @@ export function TheaterMode() {
 
   const handleExitShow = () => {
     setIsPlaying(false)
-    setSelectedBook(null)
+    setSelectedProject(null)
     setIsFullscreen(false)
+    setCurrentPlaybackTime(0)
     document.exitFullscreen?.()
+    
+    // Arrêter tous les audios
+    narrationRef.current?.pause()
+    narrationRef.current = null
+    Object.values(audioRefs.current).forEach(audio => audio.pause())
+    audioRefs.current = {}
     
     // Remettre les lumières à la normale
     if (homeKit.isConnected) {
@@ -167,25 +238,46 @@ export function TheaterMode() {
 
   // Préchargement des assets
   useEffect(() => {
-    if (!selectedBook) return
+    if (!selectedProject) return
 
-    selectedBook.pages.forEach((page) => {
-      // Précharger les images
-      if (page.backgroundImage) {
-        const img = new Image()
-        img.src = page.backgroundImage
-      }
-      // Précharger les vidéos
-      if (page.backgroundVideo) {
-        const video = document.createElement('video')
-        video.preload = 'auto'
-        video.src = page.backgroundVideo
+    selectedProject.scenes.forEach((scene) => {
+      // Précharger les médias
+      scene.mediaTracks?.forEach((media) => {
+        if (media.type === 'image') {
+          const img = new Image()
+          img.src = media.url
+        } else if (media.type === 'video') {
+          const video = document.createElement('video')
+          video.preload = 'auto'
+          video.src = media.url
+        }
+      })
+      
+      // Précharger l'audio de narration
+      if (scene.narration?.audioUrl) {
+        const audio = new Audio()
+        audio.preload = 'auto'
+        audio.src = scene.narration.audioUrl
       }
     })
-  }, [selectedBook?.id])
+  }, [selectedProject?.id])
+
+  // Trouver la phrase active selon le temps de lecture
+  const getActivePhrase = () => {
+    if (!currentScene?.narration?.isSynced) return null
+    
+    const introDuration = currentScene.introDuration || 0
+    const relativeTime = currentPlaybackTime - introDuration
+    
+    if (relativeTime < 0) return null
+    
+    return currentScene.narration.phrases.find(
+      (phrase) => relativeTime >= phrase.timeRange.startTime && relativeTime < phrase.timeRange.endTime
+    )
+  }
 
   // Vue Bibliothèque
-  if (!selectedBook) {
+  if (!selectedProject) {
     return (
       <div className="h-full flex flex-col">
         {/* En-tête */}
@@ -200,7 +292,7 @@ export function TheaterMode() {
               Le Théâtre des Merveilles
             </h1>
             <p className="text-midnight-300 mt-1">
-              Tes histoires prêtes pour le spectacle ✨
+              Tes livres-disques prêts pour le spectacle ✨
             </p>
           </div>
 
@@ -230,52 +322,67 @@ export function TheaterMode() {
           </div>
         </motion.header>
 
-        {/* Bibliothèque */}
+        {/* Bibliothèque des projets */}
         <div className="flex-1">
-          {completedBooks.length > 0 ? (
+          {completedProjects.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {completedBooks.map((book, index) => (
-                <motion.button
-                  key={book.id}
-                  onClick={() => handleStartShow(book)}
-                  className="group relative aspect-[3/4] rounded-2xl overflow-hidden glass hover:ring-2 hover:ring-aurora-500 transition-all"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                >
-                  {/* Couverture */}
-                  {book.coverImage || book.pages[0]?.backgroundImage ? (
-                    <img
-                      src={book.coverImage || book.pages[0]?.backgroundImage}
-                      alt={book.title}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-aurora-600 to-dream-700" />
-                  )}
+              {completedProjects.map((project, index) => {
+                // Trouver une image de couverture (premier média de la première scène)
+                const firstMedia = project.scenes[0]?.mediaTracks?.[0]
+                const coverImage = firstMedia?.type === 'image' ? firstMedia.url : undefined
+                
+                return (
+                  <motion.button
+                    key={project.id}
+                    onClick={() => handleStartShow(project)}
+                    className="group relative aspect-[3/4] rounded-2xl overflow-hidden glass hover:ring-2 hover:ring-aurora-500 transition-all"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ scale: 1.02, y: -5 }}
+                  >
+                    {/* Couverture */}
+                    {coverImage ? (
+                      <img
+                        src={coverImage}
+                        alt={project.title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-aurora-600 to-dream-700 flex items-center justify-center">
+                        <Film className="w-16 h-16 text-white/30" />
+                      </div>
+                    )}
 
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    {/* Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                  {/* Infos */}
-                  <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <h3 className="font-display text-lg text-white mb-1">
-                      {book.title}
-                    </h3>
-                    <p className="text-sm text-midnight-300">
-                      {book.pages.length} pages • {book.author}
-                    </p>
-                  </div>
+                    {/* Badge "Complet" si terminé */}
+                    {project.isComplete && (
+                      <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-dream-500/80 text-white text-xs font-medium">
+                        ✓ Complet
+                      </div>
+                    )}
 
-                  {/* Play overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-16 h-16 rounded-full bg-aurora-500/90 flex items-center justify-center">
-                      <Play className="w-8 h-8 text-white ml-1" />
+                    {/* Infos */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <h3 className="font-display text-lg text-white mb-1">
+                        {project.title}
+                      </h3>
+                      <p className="text-sm text-midnight-300">
+                        {project.scenes.length} scène{project.scenes.length > 1 ? 's' : ''}
+                      </p>
                     </div>
-                  </div>
-                </motion.button>
-              ))}
+
+                    {/* Play overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="w-16 h-16 rounded-full bg-aurora-500/90 flex items-center justify-center">
+                        <Play className="w-8 h-8 text-white ml-1" />
+                      </div>
+                    </div>
+                  </motion.button>
+                )
+              })}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -284,8 +391,8 @@ export function TheaterMode() {
                 La bibliothèque est vide
               </h2>
               <p className="text-midnight-400 max-w-md">
-                Termine un livre dans le mode Montage pour le retrouver ici.
-                Chaque livre terminé devient un spectacle magique ! ✨
+                Crée un projet dans le mode <strong>Montage</strong> pour le retrouver ici.
+                Chaque livre-disque terminé devient un spectacle magique ! ✨
               </p>
             </div>
           )}
@@ -295,6 +402,9 @@ export function TheaterMode() {
   }
 
   // Vue Spectacle (Plein écran)
+  const activePhrase = getActivePhrase()
+  const sceneDuration = currentScene ? getSceneDuration(currentScene) : 10
+
   return (
     <div
       ref={containerRef}
@@ -304,68 +414,101 @@ export function TheaterMode() {
         clearTimeout(hideControlsTimer.current)
       }}
     >
-      {/* Page en cours */}
+      {/* Scène en cours */}
       <AnimatePresence mode="wait">
-        {currentPage && (
+        {currentScene && (
           <motion.div
-            key={currentPage.id}
+            key={currentScene.id}
             className="absolute inset-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1 }}
           >
-            {/* Background Video */}
-            {currentPage.backgroundVideo && (
-              <video
-                src={currentPage.backgroundVideo}
-                className="absolute inset-0 w-full h-full object-cover"
-                autoPlay
-                loop
-                muted
-              />
-            )}
+            {/* Médias de fond (images/vidéos) */}
+            {currentScene.mediaTracks?.map((media) => (
+              <div key={media.id} className="absolute inset-0">
+                {media.type === 'video' ? (
+                  <video
+                    src={media.url}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    autoPlay
+                    loop={media.loop}
+                    muted={media.muted !== false}
+                    style={{ opacity: media.opacity ?? 1 }}
+                  />
+                ) : (
+                  <img
+                    src={media.url}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                    style={{ opacity: media.opacity ?? 1 }}
+                  />
+                )}
+              </div>
+            ))}
 
-            {/* Background Image */}
-            {currentPage.backgroundImage && !currentPage.backgroundVideo && (
-              <img
-                src={currentPage.backgroundImage}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-              />
+            {/* Si pas de média, afficher un fond par défaut */}
+            {(!currentScene.mediaTracks || currentScene.mediaTracks.length === 0) && (
+              <div className="absolute inset-0 bg-gradient-to-br from-midnight-900 to-aurora-900" />
             )}
 
             {/* Overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
 
-            {/* Textes */}
-            {currentPage.textBlocks.map((block) => (
-              <motion.div
-                key={block.id}
-                className="absolute"
+            {/* Texte de la scène - Mode Karaoké si synchronisé */}
+            <div className="absolute inset-0 flex items-center justify-center p-8">
+              <div className="max-w-4xl text-center">
+                {currentScene.narration?.isSynced ? (
+                  // Mode karaoké : affiche la phrase active
+                  <motion.div
+                    key={activePhrase?.id || 'intro'}
+                    className="text-4xl md:text-5xl lg:text-6xl font-display text-white leading-relaxed"
+                    style={{ textShadow: '2px 2px 20px rgba(0,0,0,0.8)' }}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 1.05 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    {activePhrase?.text || (currentPlaybackTime < (currentScene.introDuration || 0) ? currentScene.title : '')}
+                  </motion.div>
+                ) : (
+                  // Mode normal : affiche tout le texte
+                  <motion.div
+                    className="text-2xl md:text-3xl lg:text-4xl font-display text-white leading-relaxed"
+                    style={{ textShadow: '2px 2px 20px rgba(0,0,0,0.8)' }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    {currentScene.text}
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            {/* Animations (si présentes) */}
+            {currentScene.animationTracks?.map((animation) => (
+              <div 
+                key={animation.id}
+                className="absolute inset-0 pointer-events-none"
                 style={{
-                  left: block.x,
-                  top: block.y,
-                  width: block.width,
-                  fontFamily: block.fontFamily,
-                  fontSize: block.fontSize,
-                  color: block.color,
-                  textAlign: block.textAlign,
-                  opacity: block.opacity,
-                  transform: `rotate(${block.rotation}deg)`,
-                  textShadow: block.shadow ? '2px 2px 8px rgba(0,0,0,0.7)' : 'none',
+                  opacity: animation.opacity ?? 0.7,
                 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: block.opacity, y: 0 }}
-                transition={{ delay: 0.5 }}
               >
-                {block.content}
-              </motion.div>
+                {/* Les animations seraient rendues ici via un composant dédié */}
+                {/* Pour l'instant, on affiche un placeholder */}
+              </div>
             ))}
 
-            {/* Numéro de page */}
+            {/* Numéro de scène */}
             <div className="absolute bottom-8 right-8 text-white/50 font-display text-lg">
-              {currentPage.pageNumber} / {selectedBook.pages.length}
+              {currentSceneIndex + 1} / {selectedProject.scenes.length}
+            </div>
+
+            {/* Titre de la scène (en haut) */}
+            <div className="absolute top-8 left-8 text-white/70 font-display text-xl">
+              {currentScene.title}
             </div>
           </motion.div>
         )}
@@ -380,16 +523,41 @@ export function TheaterMode() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
           >
-            {/* Barre de progression */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
+            {/* Barre de progression de la scène */}
+            <div className="flex items-center gap-4 mb-4">
+              <span className="text-white/50 text-sm w-12 text-right">
+                {Math.floor(currentPlaybackTime / 60)}:{String(Math.floor(currentPlaybackTime % 60)).padStart(2, '0')}
+              </span>
+              <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-aurora-500"
                   animate={{
-                    width: `${((currentPageIndex + 1) / selectedBook.pages.length) * 100}%`,
+                    width: `${(currentPlaybackTime / sceneDuration) * 100}%`,
                   }}
+                  transition={{ duration: 0.1 }}
                 />
               </div>
+              <span className="text-white/50 text-sm w-12">
+                {Math.floor(sceneDuration / 60)}:{String(Math.floor(sceneDuration % 60)).padStart(2, '0')}
+              </span>
+            </div>
+
+            {/* Barre de progression globale (scènes) */}
+            <div className="flex items-center gap-2 mb-6">
+              {selectedProject.scenes.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentSceneIndex(index)}
+                  className={cn(
+                    'flex-1 h-1 rounded-full transition-colors',
+                    index === currentSceneIndex
+                      ? 'bg-aurora-500'
+                      : index < currentSceneIndex
+                      ? 'bg-aurora-500/50'
+                      : 'bg-white/20'
+                  )}
+                />
+              ))}
             </div>
 
             {/* Contrôles principaux */}
@@ -406,11 +574,11 @@ export function TheaterMode() {
               {/* Centre - Navigation */}
               <div className="flex items-center gap-4">
                 <button
-                  onClick={goToPreviousPage}
-                  disabled={currentPageIndex === 0}
+                  onClick={goToPreviousScene}
+                  disabled={currentSceneIndex === 0}
                   className={cn(
                     'p-3 rounded-full transition-colors',
-                    currentPageIndex === 0
+                    currentSceneIndex === 0
                       ? 'text-white/30 cursor-not-allowed'
                       : 'text-white hover:bg-white/10'
                   )}
@@ -430,11 +598,11 @@ export function TheaterMode() {
                 </button>
 
                 <button
-                  onClick={goToNextPage}
-                  disabled={currentPageIndex === selectedBook.pages.length - 1}
+                  onClick={goToNextScene}
+                  disabled={currentSceneIndex === selectedProject.scenes.length - 1}
                   className={cn(
                     'p-3 rounded-full transition-colors',
-                    currentPageIndex === selectedBook.pages.length - 1
+                    currentSceneIndex === selectedProject.scenes.length - 1
                       ? 'text-white/30 cursor-not-allowed'
                       : 'text-white hover:bg-white/10'
                   )}
@@ -531,25 +699,8 @@ export function TheaterMode() {
                 </button>
               </div>
 
-              {/* Durée transition */}
-              {autoAdvance && (
-                <div>
-                  <label className="text-sm text-midnight-300 mb-1 block">
-                    Durée par page : {transitionDuration}s
-                  </label>
-                  <input
-                    type="range"
-                    min="3"
-                    max="15"
-                    value={transitionDuration}
-                    onChange={(e) => setTransitionDuration(parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              )}
-
               {/* Contrôle des lumières */}
-              {homeKit.isConnected && (
+              {homeKit.isConnected && currentScene && (
                 <div>
                   <label className="text-sm text-midnight-300 mb-2 block">
                     Intensité lumineuse
@@ -558,12 +709,26 @@ export function TheaterMode() {
                     type="range"
                     min="0"
                     max="100"
-                    value={currentPage?.lightIntensity || 80}
+                    value={currentScene.lightTracks?.[0]?.intensity || 80}
                     onChange={(e) => {
                       homeKit.setLightBrightness('all', parseInt(e.target.value))
                     }}
                     className="w-full"
                   />
+                </div>
+              )}
+
+              {/* Infos sur la scène */}
+              {currentScene && (
+                <div className="pt-4 border-t border-white/10">
+                  <p className="text-xs text-midnight-400">
+                    Scène {currentSceneIndex + 1} sur {selectedProject.scenes.length}
+                  </p>
+                  {currentScene.narration?.isSynced && (
+                    <p className="text-xs text-dream-300 mt-1">
+                      ✓ Karaoké synchronisé
+                    </p>
+                  )}
                 </div>
               )}
             </div>
