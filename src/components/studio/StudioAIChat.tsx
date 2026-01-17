@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Mic, 
@@ -13,6 +13,11 @@ import {
   ThumbsUp,
   HelpCircle,
   Loader2,
+  WifiOff,
+  Wand2,
+  Palette,
+  Sun,
+  Zap,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useStudioStore } from '@/store/useStudioStore'
@@ -206,6 +211,64 @@ const HELP_MESSAGES = [
   "Prends ton temps, il n'y a pas de pression ! 🌈",
 ]
 
+// ============================================
+// FALLBACKS HORS-LIGNE / ERREUR IA
+// ============================================
+
+// Messages de fallback variés quand l'IA ne répond pas
+const FALLBACK_MESSAGES = [
+  (msg: string) => `Oh, j'ai eu un petit bug ! 😅 Mais "${msg}" ça sonne super bien ! Continue ! ✨`,
+  (msg: string) => `Hmm, ma magie a fait une pause ! 🔮 Mais ton idée "${msg}" est géniale, je suis sûre ! 🌟`,
+  (msg: string) => `Oups, petite déconnexion magique ! ✨ Mais je vois que tu parles de "${msg}", c'est super créatif ! 💜`,
+  (msg: string) => `Ma baguette magique a glitché ! 🪄 Pas grave, ton idée est sûrement super ! Continue d'imaginer ! 🌈`,
+  (msg: string) => `Attends, je me reconnecte... Ah zut ! 😊 En attendant, fais-moi confiance : "${msg}" c'est une chouette idée !`,
+  (msg: string) => `Les étoiles sont un peu fatiguées ! ⭐ Mais je suis sûre que ce que tu imagines est magnifique ! 💫`,
+  (msg: string) => `Oh là là, j'ai perdu le fil une seconde ! 🧵 Mais continue, tu fais du super travail avec "${msg}" ! 🎨`,
+  (msg: string) => `Petit moment de rêverie de ma part ! 💭 Mais ton idée m'a l'air géniale, continue ! ✨`,
+  (msg: string) => `Hop, petit souci technique ! 🔧 Mais ça ne m'empêche pas de t'encourager : tu as de super idées ! 🌟`,
+  (msg: string) => `Ma connexion magique fait des siennes ! 🌙 Mais je sens que "${msg}" va donner quelque chose de beau ! 💜`,
+]
+
+// Messages spécifiques pour le mode hors-ligne
+const OFFLINE_MESSAGES = {
+  greeting: `Je suis en mode hors-ligne ! 🌙 Mais pas de souci, tu peux continuer à créer, je t'aide avec ce que je sais ! ✨`,
+  help: `Même sans internet, je peux te guider ! Utilise les boutons magiques en dessous pour avancer. 🪄`,
+  encouragement: [
+    "Tu te débrouilles super bien même hors-ligne ! 🌟",
+    "Pas besoin d'internet pour avoir de bonnes idées ! 💡",
+    "Ta créativité n'a pas besoin de wifi ! 🎨",
+    "Continue d'imaginer, c'est ça le plus important ! ✨",
+  ],
+}
+
+// Aide prédéfinie pour le mode hors-ligne (boutons rapides)
+const OFFLINE_QUICK_HELP = {
+  image: [
+    { id: 'subject', label: 'Quoi dessiner ?', icon: Wand2, response: "Commence par décrire CE QUE tu veux voir : un personnage, un animal, un lieu... Par exemple : 'Un dragon', 'Une princesse', 'Une forêt magique' 🎨" },
+    { id: 'style', label: 'Quel style ?', icon: Palette, response: "Le style, c'est comment ça va ressembler ! Tu peux choisir : dessin animé, photo réaliste, aquarelle, pixel art, ou magique/féérique ✨" },
+    { id: 'mood', label: "Quelle ambiance ?", icon: Sun, response: "L'ambiance donne l'émotion ! Est-ce que c'est : le jour/la nuit, joyeux/mystérieux, lumineux/sombre ? 🌈" },
+    { id: 'details', label: 'Des détails ?', icon: Zap, response: "Les détails rendent tout unique ! Pense aux couleurs (doré, bleu), à la taille (géant, minuscule), à des éléments spéciaux (brillant, arc-en-ciel) 💎" },
+  ],
+  video: [
+    { id: 'subject', label: 'Quoi animer ?', icon: Wand2, response: "Décris ce qui va bouger ! Un personnage qui danse, un objet qui vole, un paysage qui change... 🎬" },
+    { id: 'style', label: 'Quel style ?', icon: Palette, response: "Pour une vidéo, le style peut être : réaliste, dessin animé, magique, ou même abstrait ! ✨" },
+    { id: 'movement', label: 'Comment ça bouge ?', icon: Zap, response: "Décris le mouvement : est-ce que ça court, ça vole, ça tourne ? Est-ce lent et doux ou rapide et dynamique ? 🏃‍♀️" },
+    { id: 'mood', label: 'Quelle ambiance ?', icon: Sun, response: "L'ambiance de ta vidéo : joyeuse, mystérieuse, épique, calme... Ça change tout ! 🌟" },
+  ],
+}
+
+// Fonction pour obtenir un message de fallback aléatoire
+function getRandomFallbackMessage(userMessage: string): string {
+  const index = Math.floor(Math.random() * FALLBACK_MESSAGES.length)
+  return FALLBACK_MESSAGES[index](userMessage.slice(0, 30))
+}
+
+// Fonction pour obtenir un encouragement offline aléatoire  
+function getOfflineEncouragement(): string {
+  const index = Math.floor(Math.random() * OFFLINE_MESSAGES.encouragement.length)
+  return OFFLINE_MESSAGES.encouragement[index]
+}
+
 export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProps) {
   const { aiName } = useAppStore()
   const { currentKit } = useStudioStore()
@@ -230,6 +293,8 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
+  const [isOffline, setIsOffline] = useState(false)
+  const [showQuickHelp, setShowQuickHelp] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -237,6 +302,88 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
 
   // Nom de l'IA (ou défaut)
   const friendName = aiName || 'Mon amie'
+
+  // ============================================
+  // DÉTECTION DU MODE HORS-LIGNE
+  // ============================================
+  useEffect(() => {
+    // Check initial state
+    setIsOffline(!navigator.onLine)
+
+    const handleOnline = () => {
+      setIsOffline(false)
+      // Message de retour en ligne
+      const onlineMessage: Message = {
+        id: Date.now().toString(),
+        role: 'ai',
+        content: `Je suis de retour ! 🎉 La connexion est revenue, on peut continuer ensemble ! ✨`,
+        timestamp: new Date(),
+        type: 'celebration',
+      }
+      setMessages(prev => [...prev, onlineMessage])
+      if (voiceEnabled && tts.isAvailable) {
+        tts.speak(onlineMessage.content)
+      }
+    }
+
+    const handleOffline = () => {
+      setIsOffline(true)
+      // Message de passage en mode hors-ligne
+      const offlineMessage: Message = {
+        id: Date.now().toString(),
+        role: 'ai',
+        content: OFFLINE_MESSAGES.greeting,
+        timestamp: new Date(),
+        type: 'help',
+      }
+      setMessages(prev => [...prev, offlineMessage])
+      setShowQuickHelp(true) // Afficher les boutons d'aide
+      if (voiceEnabled && tts.isAvailable) {
+        tts.speak(offlineMessage.content)
+      }
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [voiceEnabled, tts])
+
+  // ============================================
+  // AIDE RAPIDE HORS-LIGNE
+  // ============================================
+  const handleQuickHelp = useCallback((helpId: string) => {
+    const quickHelp = OFFLINE_QUICK_HELP[type].find(h => h.id === helpId)
+    if (!quickHelp) return
+
+    // Message de l'utilisateur (la question)
+    const userQuestion: Message = {
+      id: Date.now().toString(),
+      role: 'child',
+      content: quickHelp.label,
+      timestamp: new Date(),
+    }
+    setMessages(prev => [...prev, userQuestion])
+
+    // Réponse prédéfinie
+    setTimeout(() => {
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: quickHelp.response,
+        timestamp: new Date(),
+        type: 'help',
+      }
+      setMessages(prev => [...prev, aiResponse])
+      
+      if (voiceEnabled && tts.isAvailable) {
+        tts.speak(quickHelp.response)
+      }
+    }, 500)
+  }, [type, voiceEnabled, tts])
 
   // Réinitialiser les messages quand le type change
   useEffect(() => {
@@ -383,15 +530,25 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       }
     } catch (error) {
       console.error('Erreur chat IA:', error)
-      // Fallback avec un message d'encouragement si l'API échoue
+      
+      // Utiliser des messages de fallback VARIÉS pour que l'enfant ne remarque pas
+      const fallbackContent = isOffline 
+        ? getOfflineEncouragement()
+        : getRandomFallbackMessage(userMessage)
+      
       const fallbackMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'ai',
-        content: `Oups, j'ai eu un petit souci ! 😅 Mais je t'ai bien entendu dire "${userMessage}". C'est une super idée ! Continue ! ✨`,
+        content: fallbackContent,
         timestamp: new Date(),
         type: 'encouragement',
       }
       setMessages(prev => [...prev, fallbackMessage])
+      
+      // Afficher les boutons d'aide rapide en cas d'erreur
+      if (!showQuickHelp) {
+        setShowQuickHelp(true)
+      }
       
       if (voiceEnabled && tts.isAvailable) {
         tts.speak(fallbackMessage.content)
@@ -427,12 +584,26 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
     >
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-midnight-700/50">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-aurora-500 to-dream-500 flex items-center justify-center">
-          <Sparkles className="w-5 h-5 text-white" />
+        <div className={cn(
+          "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+          isOffline 
+            ? "bg-gradient-to-br from-amber-500 to-orange-500"
+            : "bg-gradient-to-br from-aurora-500 to-dream-500"
+        )}>
+          {isOffline ? (
+            <WifiOff className="w-5 h-5 text-white" />
+          ) : (
+            <Sparkles className="w-5 h-5 text-white" />
+          )}
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-white">{friendName}</h3>
-          <p className="text-xs text-aurora-300">Ton amie créative ✨</p>
+          <p className={cn(
+            "text-xs",
+            isOffline ? "text-amber-300" : "text-aurora-300"
+          )}>
+            {isOffline ? "Mode hors-ligne 🌙" : "Ton amie créative ✨"}
+          </p>
         </div>
         <button
           onClick={toggleVoice}
@@ -447,6 +618,22 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
           {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
         </button>
       </div>
+
+      {/* Bannière mode hors-ligne */}
+      <AnimatePresence>
+        {isOffline && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-b border-amber-500/30 px-4 py-2"
+          >
+            <p className="text-xs text-amber-200 text-center">
+              📡 Pas de connexion internet • Utilise les boutons d'aide magique ci-dessous !
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -507,8 +694,61 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Boutons d'aide rapide (mode hors-ligne ou erreur IA) */}
+      <AnimatePresence>
+        {showQuickHelp && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-t border-midnight-700/50"
+          >
+            <div className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-aurora-300 font-medium">
+                  ✨ Aide magique
+                </p>
+                <button
+                  onClick={() => setShowQuickHelp(false)}
+                  className="text-xs text-midnight-500 hover:text-midnight-300"
+                >
+                  Masquer
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {OFFLINE_QUICK_HELP[type].map((help) => {
+                  const IconComponent = help.icon
+                  return (
+                    <motion.button
+                      key={help.id}
+                      onClick={() => handleQuickHelp(help.id)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-midnight-800/50 hover:bg-aurora-500/20 text-midnight-300 hover:text-white transition-colors text-left"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <IconComponent className="w-4 h-4 text-aurora-400 flex-shrink-0" />
+                      <span className="text-xs">{help.label}</span>
+                    </motion.button>
+                  )
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Input */}
       <div className="p-4 border-t border-midnight-700/50">
+        {/* Bouton pour afficher l'aide si masquée */}
+        {!showQuickHelp && (isOffline || messages.some(m => m.type === 'encouragement' && m.content.includes('souci'))) && (
+          <button
+            onClick={() => setShowQuickHelp(true)}
+            className="w-full mb-2 py-1.5 text-xs text-aurora-400 hover:text-aurora-300 transition-colors"
+          >
+            ✨ Afficher l'aide magique
+          </button>
+        )}
+        
         <div className="flex gap-2">
           <button
             onClick={() => setIsListening(!isListening)}
@@ -529,7 +769,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Écris ta réponse..."
+            placeholder={isOffline ? "Écris ou utilise l'aide magique..." : "Écris ta réponse..."}
             className="flex-1 bg-midnight-800/50 rounded-xl px-4 py-3 text-white placeholder:text-midnight-500 text-sm focus:ring-2 focus:ring-aurora-500/30 focus:outline-none"
           />
           
