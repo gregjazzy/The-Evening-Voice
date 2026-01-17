@@ -1,8 +1,75 @@
 const { app, BrowserWindow, ipcMain, desktopCapturer, screen, systemPreferences, session } = require('electron')
 const path = require('path')
-const { exec } = require('child_process')
+const { execFile, spawn } = require('child_process')
 
-// Garder une référence globale de la fenêtre
+// ============================================
+// SÉCURITÉ - Constantes et validation
+// ============================================
+
+// Session de contrôle active (pour valider les commandes)
+let activeControlSession = null
+
+// Whitelist des touches autorisées
+const ALLOWED_KEYS = new Set([
+  // Lettres
+  ...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
+  // Chiffres
+  ...'0123456789'.split(''),
+  // Ponctuation basique (safe)
+  '.', ',', '!', '?', '-', '_', ' ',
+  // Touches spéciales
+  'Enter', 'Backspace', 'Tab', 'Escape',
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'Delete', 'Home', 'End', 'PageUp', 'PageDown',
+])
+
+// Whitelist des modificateurs autorisés
+const ALLOWED_MODIFIERS = new Set(['cmd', 'shift', 'alt', 'ctrl'])
+
+// Validation stricte d'un nombre (coordonnées)
+function isValidCoordinate(value) {
+  return typeof value === 'number' && 
+         Number.isFinite(value) && 
+         value >= 0 && 
+         value <= 10000 // Max raisonnable pour un écran
+}
+
+// Validation stricte d'une touche
+function isValidKey(key) {
+  if (typeof key !== 'string') return false
+  if (key.length === 0 || key.length > 20) return false
+  return ALLOWED_KEYS.has(key)
+}
+
+// Validation des modificateurs
+function validateModifiers(modifiers) {
+  if (!Array.isArray(modifiers)) return []
+  return modifiers.filter(m => typeof m === 'string' && ALLOWED_MODIFIERS.has(m))
+}
+
+// Échappement strict pour AppleScript (éviter injection)
+function escapeForAppleScript(str) {
+  if (typeof str !== 'string') return ''
+  // N'autoriser que les caractères alphanumériques de base
+  return str.replace(/[^a-zA-Z0-9 ]/g, '')
+}
+
+// Échappement strict pour le shell (TTS)
+function escapeForShell(str) {
+  if (typeof str !== 'string') return ''
+  // Supprimer tout ce qui n'est pas alphanumeric, espace, ponctuation basique
+  return str
+    .replace(/[^\w\s.,!?àâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ'-]/g, ' ')
+    .replace(/'/g, "'\\''") // Échapper les apostrophes pour shell
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 1000) // Limite de longueur
+}
+
+// ============================================
+// FENÊTRE PRINCIPALE
+// ============================================
+
 let mainWindow = null
 
 function createWindow() {
@@ -18,7 +85,6 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      // Permissions pour WebRTC
       webSecurity: true,
     },
   })
@@ -26,11 +92,7 @@ function createWindow() {
   // Gérer les permissions (caméra, micro, écran)
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const allowedPermissions = ['media', 'mediaKeySystem', 'geolocation', 'notifications', 'fullscreen']
-    if (allowedPermissions.includes(permission)) {
-      callback(true)
-    } else {
-      callback(false)
-    }
+    callback(allowedPermissions.includes(permission))
   })
 
   // Gérer la permission de capture d'écran
@@ -44,14 +106,12 @@ function createWindow() {
     })
   })
 
-  // En dev, charger localhost
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
   
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000')
     mainWindow.webContents.openDevTools()
   } else {
-    // En production, charger le build Next.js
     mainWindow.loadFile(path.join(__dirname, '../out/index.html'))
   }
 
@@ -60,12 +120,14 @@ function createWindow() {
   })
 }
 
-// Vérifier les permissions d'accessibilité (nécessaire pour le contrôle)
+// ============================================
+// PERMISSIONS
+// ============================================
+
 async function checkAccessibilityPermissions() {
   if (process.platform === 'darwin') {
     const trusted = systemPreferences.isTrustedAccessibilityClient(false)
     if (!trusted) {
-      // Demander la permission
       systemPreferences.isTrustedAccessibilityClient(true)
       return false
     }
@@ -74,7 +136,6 @@ async function checkAccessibilityPermissions() {
   return true
 }
 
-// Vérifier les permissions de capture d'écran
 async function checkScreenCapturePermissions() {
   if (process.platform === 'darwin') {
     const status = systemPreferences.getMediaAccessStatus('screen')
@@ -83,7 +144,6 @@ async function checkScreenCapturePermissions() {
   return true
 }
 
-// Capturer l'écran (méthode alternative pour le contrôle)
 async function captureScreen() {
   const sources = await desktopCapturer.getSources({
     types: ['screen'],
@@ -96,90 +156,212 @@ async function captureScreen() {
   return null
 }
 
-// Simuler un clic souris via AppleScript
-function simulateClick(x, y) {
-  // Utiliser cliclick si disponible, sinon AppleScript
-  exec(`cliclick c:${Math.round(x)},${Math.round(y)}`, (error) => {
+// ============================================
+// CONTRÔLE À DISTANCE SÉCURISÉ
+// ============================================
+
+// Simuler un clic souris - VERSION SÉCURISÉE
+function simulateClickSecure(x, y) {
+  // Validation stricte
+  if (!isValidCoordinate(x) || !isValidCoordinate(y)) {
+    console.error('❌ Coordonnées invalides rejetées:', { x, y })
+    return false
+  }
+
+  // Arrondir pour éviter les flottants
+  const safeX = Math.round(x)
+  const safeY = Math.round(y)
+
+  // Utiliser execFile au lieu de exec (plus sûr - pas d'interprétation shell)
+  // Essayer cliclick d'abord
+  execFile('cliclick', ['c:' + safeX + ',' + safeY], (error) => {
     if (error) {
-      // Fallback: AppleScript via Python
-      const pythonScript = `
-from Quartz.CoreGraphics import *
-import time
-
-def click(x, y):
-    event = CGEventCreateMouseEvent(None, kCGEventLeftMouseDown, (x, y), kCGMouseButtonLeft)
-    CGEventPost(kCGHIDEventTap, event)
-    time.sleep(0.05)
-    event = CGEventCreateMouseEvent(None, kCGEventLeftMouseUp, (x, y), kCGMouseButtonLeft)
-    CGEventPost(kCGHIDEventTap, event)
-
-click(${Math.round(x)}, ${Math.round(y)})
-`
-      exec(`python3 -c "${pythonScript}"`, (err) => {
-        if (err) console.error('Click error:', err)
-      })
+      // Fallback : utiliser osascript avec des arguments séparés (pas de concaténation de commande)
+      const appleScript = `
+        tell application "System Events"
+          click at {${safeX}, ${safeY}}
+        end tell
+      `
+      // Utiliser spawn avec arguments séparés pour éviter l'injection
+      const child = spawn('osascript', ['-e', appleScript])
+      child.on('error', (err) => console.error('Click error:', err))
     }
   })
+
+  return true
 }
 
-// Simuler une frappe clavier via AppleScript
-function simulateKeypress(key, modifiers = []) {
+// Simuler une frappe clavier - VERSION SÉCURISÉE
+function simulateKeypressSecure(key, modifiers = []) {
+  // Validation stricte de la touche
+  if (!isValidKey(key)) {
+    console.error('❌ Touche non autorisée rejetée:', key)
+    return false
+  }
+
+  // Valider et filtrer les modificateurs
+  const safeModifiers = validateModifiers(modifiers)
+  
+  // Construire la commande de modificateurs
   let modifierStr = ''
-  if (modifiers.includes('cmd')) modifierStr += 'command down, '
-  if (modifiers.includes('shift')) modifierStr += 'shift down, '
-  if (modifiers.includes('alt')) modifierStr += 'option down, '
-  if (modifiers.includes('ctrl')) modifierStr += 'control down, '
+  if (safeModifiers.includes('cmd')) modifierStr += 'command down, '
+  if (safeModifiers.includes('shift')) modifierStr += 'shift down, '
+  if (safeModifiers.includes('alt')) modifierStr += 'option down, '
+  if (safeModifiers.includes('ctrl')) modifierStr += 'control down, '
+  modifierStr = modifierStr.slice(0, -2)
   
-  modifierStr = modifierStr.slice(0, -2) // Enlever la dernière virgule
-  
-  // Caractères spéciaux
-  const specialKeys = {
-    'Enter': 'return',
-    'Backspace': 'delete',
-    'Tab': 'tab',
-    'Escape': 'escape',
-    'ArrowUp': 'up arrow',
-    'ArrowDown': 'down arrow',
-    'ArrowLeft': 'left arrow',
-    'ArrowRight': 'right arrow',
-    ' ': 'space',
+  // Mapping des touches spéciales vers les codes
+  const KEY_CODES = {
+    'Enter': 36, 'Backspace': 51, 'Tab': 48, 'Escape': 53,
+    'ArrowUp': 126, 'ArrowDown': 125, 'ArrowLeft': 123, 'ArrowRight': 124,
+    'Delete': 117, 'Home': 115, 'End': 119, 'PageUp': 116, 'PageDown': 121,
+    ' ': 49,
   }
   
-  const keyToPress = specialKeys[key] || key
+  let appleScript
+  const keyCode = KEY_CODES[key]
   
-  let script
-  if (specialKeys[key]) {
-    script = modifierStr 
-      ? `tell application "System Events" to key code ${getKeyCode(keyToPress)} using {${modifierStr}}`
-      : `tell application "System Events" to key code ${getKeyCode(keyToPress)}`
+  if (keyCode !== undefined) {
+    // Touche spéciale avec code
+    appleScript = modifierStr 
+      ? `tell application "System Events" to key code ${keyCode} using {${modifierStr}}`
+      : `tell application "System Events" to key code ${keyCode}`
   } else {
-    script = modifierStr 
-      ? `tell application "System Events" to keystroke "${key}" using {${modifierStr}}`
-      : `tell application "System Events" to keystroke "${key}"`
+    // Caractère simple - échapper
+    const safeKey = escapeForAppleScript(key)
+    if (!safeKey) {
+      console.error('❌ Caractère non autorisé après échappement:', key)
+      return false
+    }
+    appleScript = modifierStr 
+      ? `tell application "System Events" to keystroke "${safeKey}" using {${modifierStr}}`
+      : `tell application "System Events" to keystroke "${safeKey}"`
   }
+
+  // Utiliser spawn avec argument séparé (pas de concaténation shell)
+  const child = spawn('osascript', ['-e', appleScript])
+  child.on('error', (err) => console.error('Keypress error:', err))
   
-  exec(`osascript -e '${script}'`, (error) => {
-    if (error) console.error('Keypress error:', error)
+  return true
+}
+
+// ============================================
+// TTS SÉCURISÉ
+// ============================================
+
+const TTS_VOICES = {
+  fr: { voice: 'Audrey (Enhanced)', rate: 200 },
+  en: { voice: 'Samantha', rate: 185 },
+  ru: { voice: 'Milena (Enhanced)', rate: 175 },
+}
+
+// Liste blanche des voix autorisées
+const ALLOWED_VOICES = new Set(Object.values(TTS_VOICES).map(v => v.voice))
+
+async function speakSecure(text, locale) {
+  const config = TTS_VOICES[locale] || TTS_VOICES.fr
+  
+  // Échapper et nettoyer le texte
+  const safeText = escapeForShell(text)
+  if (!safeText) {
+    return true // Texte vide après nettoyage
+  }
+
+  // Vérifier que la voix est dans la whitelist
+  if (!ALLOWED_VOICES.has(config.voice)) {
+    console.error('❌ Voix non autorisée:', config.voice)
+    return false
+  }
+
+  // Valider le rate (nombre entre 1 et 500)
+  const safeRate = Math.min(500, Math.max(1, Math.round(config.rate)))
+
+  return new Promise((resolve, reject) => {
+    // Utiliser spawn avec arguments séparés (pas de concaténation shell)
+    const child = spawn('say', [
+      '-v', config.voice,
+      '-r', String(safeRate),
+      safeText
+    ])
+    
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve(true)
+      } else {
+        reject(new Error(`TTS exited with code ${code}`))
+      }
+    })
+    
+    child.on('error', (err) => {
+      console.error('TTS Error:', err)
+      reject(err)
+    })
   })
 }
 
-// Codes des touches spéciales
-function getKeyCode(key) {
-  const codes = {
-    'return': 36,
-    'delete': 51,
-    'tab': 48,
-    'escape': 53,
-    'up arrow': 126,
-    'down arrow': 125,
-    'left arrow': 123,
-    'right arrow': 124,
-    'space': 49,
-  }
-  return codes[key] || 0
+async function stopTTS() {
+  return new Promise((resolve) => {
+    // Utiliser spawn sans shell
+    const child = spawn('killall', ['say'])
+    child.on('close', () => resolve(true))
+    child.on('error', () => resolve(true)) // Ignorer les erreurs (processus non trouvé)
+  })
 }
 
-// IPC Handlers
+// ============================================
+// SESSION DE CONTRÔLE
+// ============================================
+
+// Démarrer une session de contrôle (appelé par le renderer quand un mentor se connecte)
+ipcMain.handle('start-control-session', (event, { sessionId, mentorId }) => {
+  if (typeof sessionId !== 'string' || typeof mentorId !== 'string') {
+    return { success: false, error: 'Invalid session data' }
+  }
+  
+  activeControlSession = {
+    sessionId: sessionId.slice(0, 100), // Limite de longueur
+    mentorId: mentorId.slice(0, 100),
+    startedAt: Date.now(),
+  }
+  
+  console.log('✅ Session de contrôle démarrée:', activeControlSession.sessionId)
+  return { success: true }
+})
+
+// Arrêter la session de contrôle
+ipcMain.handle('stop-control-session', () => {
+  console.log('🛑 Session de contrôle arrêtée')
+  activeControlSession = null
+  return { success: true }
+})
+
+// Vérifier si une commande de contrôle est autorisée
+function isControlAllowed(sessionId) {
+  if (!activeControlSession) {
+    console.error('❌ Commande rejetée: pas de session active')
+    return false
+  }
+  
+  if (activeControlSession.sessionId !== sessionId) {
+    console.error('❌ Commande rejetée: session ID invalide')
+    return false
+  }
+  
+  // Session expire après 1 heure
+  const ONE_HOUR = 60 * 60 * 1000
+  if (Date.now() - activeControlSession.startedAt > ONE_HOUR) {
+    console.error('❌ Commande rejetée: session expirée')
+    activeControlSession = null
+    return false
+  }
+  
+  return true
+}
+
+// ============================================
+// IPC HANDLERS
+// ============================================
+
 ipcMain.handle('check-permissions', async () => {
   const accessibility = await checkAccessibilityPermissions()
   const screenCapture = await checkScreenCapturePermissions()
@@ -205,90 +387,51 @@ ipcMain.handle('get-screen-sources', async () => {
   }))
 })
 
-ipcMain.on('simulate-click', (event, { x, y }) => {
-  simulateClick(x, y)
+// Clic sécurisé avec validation de session
+ipcMain.on('simulate-click', (event, { x, y, sessionId }) => {
+  if (!isControlAllowed(sessionId)) return
+  simulateClickSecure(x, y)
 })
 
-ipcMain.on('simulate-key', (event, { key, modifiers }) => {
-  simulateKeypress(key, modifiers)
+// Touche sécurisée avec validation de session
+ipcMain.on('simulate-key', (event, { key, modifiers, sessionId }) => {
+  if (!isControlAllowed(sessionId)) return
+  simulateKeypressSecure(key, modifiers)
 })
 
-// ============================================
-// TTS - Text to Speech macOS natif
-// ============================================
-
-const TTS_VOICES = {
-  fr: { voice: 'Audrey (Enhanced)', pitch: '', rate: 200 },  // Plus rapide
-  en: { voice: 'Samantha', pitch: '[[pbas 50]]', rate: 185 },
-  ru: { voice: 'Milena (Enhanced)', pitch: '', rate: 175 },
-}
-
-// Parler avec la voix Luna
+// TTS sécurisé
 ipcMain.handle('tts-speak', async (event, { text, locale }) => {
-  const config = TTS_VOICES[locale] || TTS_VOICES.fr
-  
-  // Nettoyer les emojis et caractères spéciaux
-  const cleanText = text
-    // Supprimer les emojis
-    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
-    .replace(/[\u{2600}-\u{26FF}]/gu, '')
-    .replace(/[\u{2700}-\u{27BF}]/gu, '')
-    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
-    .replace(/[\u{1F000}-\u{1F02F}]/gu, '')
-    .replace(/[\u{1F0A0}-\u{1F0FF}]/gu, '')
-    // Échapper les caractères spéciaux pour shell
-    .replace(/'/g, "'\\''")
-    .replace(/\n/g, ' ')
-    // Nettoyer les espaces multiples
-    .replace(/\s+/g, ' ')
-    .trim()
-  
-  if (!cleanText) return true // Ne rien lire si vide
-  
-  const escapedText = cleanText
-  
-  // Ajouter le pitch si configuré
-  const textWithPitch = config.pitch 
-    ? `${config.pitch} ${escapedText}`
-    : escapedText
-  
-  const command = `say -v '${config.voice}' -r ${config.rate} '${textWithPitch}'`
-  
-  return new Promise((resolve, reject) => {
-    exec(command, (error) => {
-      if (error) {
-        console.error('TTS Error:', error)
-        reject(error)
-      } else {
-        resolve(true)
-      }
-    })
-  })
+  return await speakSecure(text, locale)
 })
 
-// Arrêter la lecture en cours
-ipcMain.handle('tts-stop', async () => {
-  return new Promise((resolve) => {
-    exec('killall say 2>/dev/null || true', () => {
-      resolve(true)
-    })
-  })
-})
+ipcMain.handle('tts-stop', stopTTS)
 
-// Vérifier si une voix est disponible
 ipcMain.handle('tts-check-voice', async (event, voiceName) => {
+  // Validation : voiceName doit être dans la whitelist
+  if (!ALLOWED_VOICES.has(voiceName)) {
+    return false
+  }
+  
   return new Promise((resolve) => {
-    exec("say -v '?'", (error, stdout) => {
-      if (error) {
-        resolve(false)
-      } else {
-        resolve(stdout.includes(voiceName))
-      }
+    const child = spawn('say', ['-v', '?'])
+    let output = ''
+    
+    child.stdout.on('data', (data) => {
+      output += data.toString()
     })
+    
+    child.on('close', () => {
+      resolve(output.includes(voiceName))
+    })
+    
+    child.on('error', () => resolve(false))
   })
 })
 
-// App lifecycle
+// ============================================
+// APP LIFECYCLE
+// ============================================
+
 app.whenReady().then(async () => {
   await checkAccessibilityPermissions()
   createWindow()
@@ -306,7 +449,6 @@ app.on('window-all-closed', () => {
   }
 })
 
-// Gérer les événements de certificat pour le développement local
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
   if (url.startsWith('https://localhost')) {
     event.preventDefault()
@@ -315,3 +457,5 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
     callback(false)
   }
 })
+
+console.log('🔒 La Voix du Soir - Electron Main (SÉCURISÉ)')

@@ -55,7 +55,7 @@ export function ChildConnector({ mentorServerUrl = 'ws://192.168.1.1:3002' }: Ch
         }))
       }
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         const data = JSON.parse(event.data)
         
         switch (data.type) {
@@ -66,26 +66,41 @@ export function ChildConnector({ mentorServerUrl = 'ws://192.168.1.1:3002' }: Ch
             break
 
           case 'remote_click':
-            // Le mentor clique
-            if (window.electronAPI) {
+            // 🔒 Le mentor clique (vérifie la session active)
+            if (window.electronAPI?.hasActiveControlSession?.()) {
               window.electronAPI.simulateClick(data.x, data.y)
+            } else {
+              console.warn('⚠️ Clic rejeté: pas de session de contrôle active')
             }
             break
 
           case 'remote_key':
-            // Le mentor tape
-            if (window.electronAPI) {
+            // 🔒 Le mentor tape (vérifie la session active)
+            if (window.electronAPI?.hasActiveControlSession?.()) {
               window.electronAPI.simulateKey(data.key, data.modifiers)
+            } else {
+              console.warn('⚠️ Touche rejetée: pas de session de contrôle active')
             }
             break
 
           case 'mentor_connected':
             setMentorName(data.name)
+            // 🔒 SÉCURITÉ: Démarrer une session de contrôle
+            if (window.electronAPI?.startControlSession && data.mentorId) {
+              const sessionId = `ws-session-${Date.now()}`
+              await window.electronAPI.startControlSession(sessionId, data.mentorId)
+              console.log('🔒 Session de contrôle démarrée pour:', data.name)
+            }
             break
 
           case 'mentor_disconnected':
             setMentorName(null)
             setSharing(false)
+            // 🔒 SÉCURITÉ: Arrêter la session de contrôle
+            if (window.electronAPI?.stopControlSession) {
+              await window.electronAPI.stopControlSession()
+              console.log('🔒 Session de contrôle arrêtée')
+            }
             break
         }
       }
@@ -108,6 +123,9 @@ export function ChildConnector({ mentorServerUrl = 'ws://192.168.1.1:3002' }: Ch
 
     // Nettoyer à la déconnexion
     return () => {
+      // 🔒 Arrêter la session de contrôle
+      window.electronAPI?.stopControlSession?.()
+      
       if (wsRef.current) {
         wsRef.current.close()
       }

@@ -4,21 +4,28 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-// Types pour l'API Electron
+// Types pour l'API Electron (SÉCURISÉE)
 interface ElectronAPI {
   checkPermissions: () => Promise<boolean>
   captureScreen: () => Promise<string | null>
   getScreenSize: () => Promise<{ width: number; height: number }>
-  setAppMode: (mode: 'mentor' | 'child') => void
+  getScreenSources: () => Promise<Array<{ id: string; name: string; thumbnail: string }>>
+  
+  // Contrôle à distance SÉCURISÉ (requiert session active)
+  startControlSession: (sessionId: string, mentorId: string) => Promise<{ success: boolean }>
+  stopControlSession: () => Promise<{ success: boolean }>
+  hasActiveControlSession: () => boolean
   simulateClick: (x: number, y: number) => void
   simulateKey: (key: string, modifiers?: string[]) => void
-  onScreenRequest: (callback: () => void) => void
+  
   isElectron: boolean
   platform: string
+  
   // TTS natif macOS
   tts?: {
     speak: (text: string, locale: string) => Promise<void>
     stop: () => Promise<void>
+    checkVoice: (voiceName: string) => Promise<boolean>
   }
 }
 

@@ -98,13 +98,26 @@ export function useRemoteSession() {
           const newPc = new PeerConnection(signalingRef.current, message.from)
           peerConnectionRef.current = newPc
 
+          // 🔒 SÉCURITÉ: Démarrer une session de contrôle avec l'ID du mentor
+          if (window.electronAPI?.startControlSession) {
+            const sessionId = `session-${clientIdRef.current}-${message.from}`
+            await window.electronAPI.startControlSession(sessionId, message.from)
+            console.log('🔒 Session de contrôle démarrée pour le mentor:', message.from)
+          }
+
           await newPc.init({
             onRemoteVideo: (stream) => {
               setState((prev) => ({ ...prev, remoteVideoStream: stream }))
             },
             onControlEvent: handleControlEvent,
-            onConnectionStateChange: (state) => {
-              setState((prev) => ({ ...prev, connectionState: state }))
+            onConnectionStateChange: (connectionState) => {
+              setState((prev) => ({ ...prev, connectionState }))
+              
+              // 🔒 Arrêter la session si la connexion est perdue
+              if (connectionState === 'disconnected' || connectionState === 'failed') {
+                window.electronAPI?.stopControlSession?.()
+                console.log('🔒 Session de contrôle arrêtée (connexion perdue)')
+              }
             },
           })
 
@@ -135,9 +148,16 @@ export function useRemoteSession() {
 
   /**
    * Gérer les événements de contrôle (côté enfant)
+   * NOTE: Les commandes ne fonctionnent que si une session de contrôle est active
    */
   const handleControlEvent = useCallback((event: RemoteControlEvent) => {
     if (!window.electronAPI) return
+
+    // Vérifier qu'une session de contrôle est active
+    if (!window.electronAPI.hasActiveControlSession?.()) {
+      console.warn('⚠️ Événement de contrôle ignoré: pas de session active')
+      return
+    }
 
     switch (event.type) {
       case 'click':
@@ -263,6 +283,12 @@ export function useRemoteSession() {
    * Déconnecter
    */
   const disconnect = useCallback(async () => {
+    // 🔒 SÉCURITÉ: Arrêter la session de contrôle
+    if (window.electronAPI?.stopControlSession) {
+      await window.electronAPI.stopControlSession()
+      console.log('🔒 Session de contrôle arrêtée')
+    }
+
     // Arrêter les streams locaux
     state.localVideoStream?.getTracks().forEach((t) => t.stop())
 
