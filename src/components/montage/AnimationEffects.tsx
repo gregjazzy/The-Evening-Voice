@@ -162,11 +162,14 @@ function FallingAnimation({
   // Filtrer les particules selon l'intensité
   const visibleParticles = particles.filter((_, i) => i < particles.length * intensityFactor)
 
+  // Arrondir speedFactor pour éviter trop de re-renders
+  const speedKey = Math.round(speedFactor * 10)
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {visibleParticles.map((p) => (
         <motion.div
-          key={p.id}
+          key={`${p.id}-${speedKey}`}
           className="absolute"
           style={{ left: `${p.x}%`, top: -20 }}
           animate={{
@@ -208,11 +211,14 @@ function FloatingAnimation({
   // Filtrer les particules selon l'intensité
   const visibleParticles = particles.filter((_, i) => i < particles.length * intensityFactor)
 
+  // Arrondir speedFactor pour éviter trop de re-renders
+  const speedKey = Math.round(speedFactor * 10)
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {visibleParticles.map((p) => (
         <motion.div
-          key={p.id}
+          key={`${p.id}-${speedKey}`}
           className="absolute"
           style={{ left: `${p.x}%`, bottom: -20 }}
           animate={{
@@ -253,11 +259,14 @@ function SparklesAnimation({
   // Filtrer les particules selon l'intensité
   const visibleParticles = particles.filter((_, i) => i < particles.length * intensityFactor)
 
+  // Arrondir speedFactor pour éviter trop de re-renders (par paliers de 0.1)
+  const speedKey = Math.round(speedFactor * 10)
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {visibleParticles.map((p) => (
         <motion.div
-          key={p.id}
+          key={`${p.id}-${speedKey}`} // Force re-render quand vitesse change
           className="absolute"
           style={{ left: `${p.x}%`, top: `${p.y}%` }}
           animate={{
