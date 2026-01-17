@@ -80,7 +80,22 @@ const DECORATIONS = [
 ]
 
 // =============================================================================
-// EFFETS SONORES PAR CATÉGORIE
+// FILTRES PAR THÈME POUR EFFETS SONORES
+// =============================================================================
+
+const EFFECT_THEME_FILTERS = [
+  { id: null, label: 'Tous', emoji: '🎵', count: 70 },
+  { id: 'superheros', label: 'Super-Héros', emoji: '🦸', count: 36 },
+  { id: 'animaux', label: 'Animaux', emoji: '🐾', count: 18 },
+  { id: 'nature', label: 'Nature', emoji: '🌿', count: 15 },
+  { id: 'combat', label: 'Combat', emoji: '⚔️', count: 14 },
+  { id: 'humain', label: 'Humain', emoji: '👤', count: 9 },
+  { id: 'objets', label: 'Objets', emoji: '📦', count: 6 },
+  { id: 'feerique', label: 'Féerique', emoji: '✨', count: 5 },
+]
+
+// =============================================================================
+// EFFETS SONORES PAR CATÉGORIE (ANCIEN)
 // =============================================================================
 
 type SoundCategory = 'animaux' | 'humains' | 'meteo' | 'nature' | 'magie' | 'ambiance' | 'actions'
@@ -403,6 +418,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
   // 🎵 État pour la bibliothèque de sons réels
   const [realSoundCategory, setRealSoundCategory] = useState<RealSoundCategory>('music')
   const [soundMoodFilter, setSoundMoodFilter] = useState<SoundMood | null>(null)
+  const [effectThemeFilter, setEffectThemeFilter] = useState<string | null>(null) // Filtre par thème
   const [playingSound, setPlayingSound] = useState<string | null>(null)
   const [audioRef, setAudioRef] = useState<HTMLAudioElement | null>(null)
   
@@ -981,6 +997,26 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                   </button>
                 </div>
 
+                {/* Filtres par thème pour Effets Sonores */}
+                {realSoundCategory === 'effect' && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {EFFECT_THEME_FILTERS.map((filter) => (
+                      <button
+                        key={filter.id || 'all'}
+                        onClick={() => setEffectThemeFilter(filter.id)}
+                        className={cn(
+                          'px-2 py-1 rounded-md text-xs font-medium transition-all',
+                          effectThemeFilter === filter.id
+                            ? 'bg-pink-500 text-white'
+                            : 'bg-midnight-700/50 text-midnight-300 hover:bg-midnight-600'
+                        )}
+                      >
+                        {filter.emoji} {filter.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Barre de recherche */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-500" />
@@ -999,9 +1035,10 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                 </p>
 
                 {/* Grille de sons */}
-                <div className="grid grid-cols-1 gap-2 max-h-[45vh] overflow-y-auto pr-2">
+                <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto pr-2">
                   {(realSoundCategory === 'ambiance' ? AMBIANCE_SOUNDS : EFFECT_SOUNDS)
                     .filter(s => searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .filter(s => realSoundCategory !== 'effect' || !effectThemeFilter || s.themes.includes(effectThemeFilter as any))
                     .map((sound) => (
                     <motion.div
                       key={sound.id}
