@@ -148,17 +148,23 @@ function FallingAnimation({
   color, 
   renderParticle,
   speed = 50,
+  intensity = 50,
 }: { 
   particles: Particle[]
   color: string
   renderParticle: (size: number, color: string) => React.ReactNode
   speed?: number
+  intensity?: number
 }) {
-  const speedFactor = speed / 50 // 1 = normal, <1 = plus lent, >1 = plus rapide
+  const speedFactor = Math.max(0.2, speed / 50) // 1 = normal, <1 = plus lent, >1 = plus rapide
+  const intensityFactor = intensity / 50
+
+  // Filtrer les particules selon l'intensité
+  const visibleParticles = particles.filter((_, i) => i < particles.length * intensityFactor)
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((p) => (
+      {visibleParticles.map((p) => (
         <motion.div
           key={p.id}
           className="absolute"
@@ -171,7 +177,7 @@ function FallingAnimation({
           }}
           transition={{
             duration: p.duration / speedFactor,
-            delay: p.delay,
+            delay: p.delay / speedFactor,
             repeat: Infinity,
             ease: 'linear',
           }}
@@ -188,17 +194,23 @@ function FloatingAnimation({
   color, 
   renderParticle,
   speed = 50,
+  intensity = 50,
 }: { 
   particles: Particle[]
   color: string
   renderParticle: (size: number, color: string) => React.ReactNode
   speed?: number
+  intensity?: number
 }) {
-  const speedFactor = speed / 50
+  const speedFactor = Math.max(0.2, speed / 50)
+  const intensityFactor = intensity / 50
+
+  // Filtrer les particules selon l'intensité
+  const visibleParticles = particles.filter((_, i) => i < particles.length * intensityFactor)
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((p) => (
+      {visibleParticles.map((p) => (
         <motion.div
           key={p.id}
           className="absolute"
@@ -212,7 +224,7 @@ function FloatingAnimation({
           }}
           transition={{
             duration: (p.duration + 1) / speedFactor,
-            delay: p.delay,
+            delay: p.delay / speedFactor,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
@@ -228,16 +240,22 @@ function SparklesAnimation({
   particles, 
   color,
   speed = 50,
+  intensity = 50,
 }: { 
   particles: Particle[]
   color: string
   speed?: number
+  intensity?: number
 }) {
-  const speedFactor = speed / 50
+  const speedFactor = Math.max(0.2, speed / 50) // Éviter division par 0
+  const intensityFactor = intensity / 50 // 1 = normal, <1 = moins, >1 = plus
+
+  // Filtrer les particules selon l'intensité
+  const visibleParticles = particles.filter((_, i) => i < particles.length * intensityFactor)
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((p) => (
+      {visibleParticles.map((p) => (
         <motion.div
           key={p.id}
           className="absolute"
@@ -249,7 +267,7 @@ function SparklesAnimation({
           }}
           transition={{
             duration: 1.5 / speedFactor,
-            delay: p.delay,
+            delay: p.delay / speedFactor,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
@@ -533,6 +551,7 @@ export function AnimationEffect({
           particles={particles} 
           color={color} 
           speed={speed}
+          intensity={intensity}
           renderParticle={(s, c) => <Star size={s} color={c} />} 
         />
       )
@@ -543,12 +562,13 @@ export function AnimationEffect({
           particles={particles} 
           color={color}
           speed={speed}
+          intensity={intensity}
           renderParticle={(s, c) => <Heart size={s} color={c} />} 
         />
       )
     
     case 'sparkles':
-      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color} speed={speed} />)
+      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color} speed={speed} intensity={intensity} />)
     
     case 'bubbles':
       return wrapWithOpacity(
@@ -556,6 +576,7 @@ export function AnimationEffect({
           particles={particles} 
           color={color}
           speed={speed}
+          intensity={intensity}
           renderParticle={(s, c) => <Bubble size={s} color={c} />} 
         />
       )
@@ -566,6 +587,7 @@ export function AnimationEffect({
           particles={particles} 
           color={color || '#FFFFFF'}
           speed={speed}
+          intensity={intensity}
           renderParticle={(s, c) => <Snowflake size={s} color={c} />} 
         />
       )
@@ -576,6 +598,7 @@ export function AnimationEffect({
           particles={particles} 
           color={color}
           speed={speed}
+          intensity={intensity}
           renderParticle={(s) => (
             <div 
               style={{ 
@@ -590,11 +613,11 @@ export function AnimationEffect({
       )
     
     case 'fireflies':
-      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color || '#FFFF00'} speed={speed} />)
+      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color || '#FFFF00'} speed={speed} intensity={intensity} />)
     
     case 'magic-dust':
     case 'fairy-dust':
-      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color || '#FFD700'} speed={speed} />)
+      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color || '#FFD700'} speed={speed} intensity={intensity} />)
 
     // Animations localisées
     case 'localized-sparkle':
@@ -638,7 +661,7 @@ export function AnimationEffect({
 
     default:
       // Animation générique pour les types non implémentés
-      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color} speed={speed} />)
+      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color} speed={speed} intensity={intensity} />)
   }
 }
 
