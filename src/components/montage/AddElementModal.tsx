@@ -467,17 +467,44 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
     if (audioRef) {
       audioRef.pause()
       audioRef.currentTime = 0
+      setAudioRef(null)
     }
     
+    // Si on clique sur le même son, on arrête
     if (playingSound === sound.id) {
       setPlayingSound(null)
       return
     }
     
+    // Créer et jouer l'audio
     const audio = new Audio(sound.file)
     audio.volume = 0.5
-    audio.onended = () => setPlayingSound(null)
-    audio.play()
+    
+    // Gérer les événements
+    audio.onended = () => {
+      setPlayingSound(null)
+      setAudioRef(null)
+    }
+    audio.onerror = (e) => {
+      console.error('❌ Erreur lecture audio:', sound.file, e)
+      setPlayingSound(null)
+      setAudioRef(null)
+    }
+    audio.oncanplaythrough = () => {
+      // Le fichier est prêt à être lu
+      audio.play()
+        .then(() => {
+          console.log('🎵 Lecture:', sound.name)
+        })
+        .catch((err) => {
+          console.error('❌ Erreur play():', err)
+          setPlayingSound(null)
+          setAudioRef(null)
+        })
+    }
+    
+    // Précharger le fichier
+    audio.load()
     setAudioRef(audio)
     setPlayingSound(sound.id)
   }
