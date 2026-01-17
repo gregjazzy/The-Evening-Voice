@@ -854,6 +854,8 @@ export interface LunaContext {
   } | null
   studioMissingElements?: string[] // Ce qui manque dans la description
   studioLevel?: number // Niveau de l'enfant (1-5)
+  // Nouveau : connaissance de l'interface pour le guidage visuel
+  interfaceKnowledge?: string // Éléments que l'IA peut faire briller
 }
 
 export interface GeminiResponse {
@@ -1002,6 +1004,11 @@ TON RÔLE:
     // Ajouter le contexte émotionnel
     if (context.emotionalContext && context.emotionalContext.length > 0) {
       systemPrompt += `\n\nCONTEXTE ÉMOTIONNEL RÉCENT: ${context.emotionalContext.join(', ')}`
+    }
+
+    // Ajouter la connaissance de l'interface pour le guidage visuel
+    if (context.interfaceKnowledge) {
+      systemPrompt += `\n\n${context.interfaceKnowledge}`
     }
 
     // Construire l'historique de chat

@@ -18,10 +18,13 @@ import { useAppStore, type AppMode } from '@/store/useAppStore'
 import { useMentorStore } from '@/store/useMentorStore'
 import { ConnectionModal } from '@/components/mentor/ConnectionModal'
 import { UserMenu } from '@/components/ui/UserMenu'
+import { Highlightable } from '@/components/ui/Highlightable'
+import { type HighlightableElement } from '@/store/useHighlightStore'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
   id: AppMode
+  highlightId: HighlightableElement
   icon: React.ReactNode
   labelKey: string
 }
@@ -29,26 +32,31 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     id: 'book',
+    highlightId: 'nav-ecriture',
     icon: <Feather className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'book'
   },
   {
     id: 'studio',
+    highlightId: 'nav-studio',
     icon: <Palette className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'studio'
   },
   {
     id: 'layout',
+    highlightId: 'nav-montage',
     icon: <LayoutGrid className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'layout'
   },
   {
     id: 'theater',
+    highlightId: 'nav-theatre',
     icon: <Theater className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'theater'
   },
   {
     id: 'publish',
+    highlightId: 'nav-publier',
     icon: <Printer className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'publish'
   },
@@ -86,44 +94,45 @@ export function Sidebar() {
         {/* Navigation */}
         <nav className="flex-1 flex flex-col gap-1 lg:gap-2 w-full px-2 lg:px-3">
           {navItems.map((item, index) => (
-            <motion.button
-              key={item.id}
-              onClick={() => setCurrentMode(item.id)}
-              className={cn(
-                'nav-item w-full',
-                currentMode === item.id && 'active'
-              )}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1, duration: 0.3 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              title={t(item.labelKey)}
-              data-mentor-target={`nav-${item.id}`}
-            >
-              <motion.div
-                animate={currentMode === item.id ? {
-                  scale: [1, 1.2, 1],
-                  transition: { duration: 0.3 }
-                } : {}}
+            <Highlightable key={item.id} id={item.highlightId}>
+              <motion.button
+                onClick={() => setCurrentMode(item.id)}
+                className={cn(
+                  'nav-item w-full',
+                  currentMode === item.id && 'active'
+                )}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.3 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                title={t(item.labelKey)}
+                data-mentor-target={`nav-${item.id}`}
               >
-                {item.icon}
-              </motion.div>
-              <span className="mode-label hidden lg:block">{t(item.labelKey)}</span>
-              
-              {/* Indicateur de mode actif */}
-              {currentMode === item.id && (
                 <motion.div
-                  className="absolute inset-0 rounded-2xl"
-                  layoutId="activeMode"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(233, 121, 249, 0.1) 0%, rgba(99, 102, 170, 0.1) 100%)',
-                    zIndex: -1
-                  }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
-            </motion.button>
+                  animate={currentMode === item.id ? {
+                    scale: [1, 1.2, 1],
+                    transition: { duration: 0.3 }
+                  } : {}}
+                >
+                  {item.icon}
+                </motion.div>
+                <span className="mode-label hidden lg:block">{t(item.labelKey)}</span>
+                
+                {/* Indicateur de mode actif */}
+                {currentMode === item.id && (
+                  <motion.div
+                    className="absolute inset-0 rounded-2xl"
+                    layoutId="activeMode"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(233, 121, 249, 0.1) 0%, rgba(99, 102, 170, 0.1) 100%)',
+                      zIndex: -1
+                    }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+            </Highlightable>
           ))}
 
           {/* Bouton Dashboard Mentor (seulement pour les mentors) */}

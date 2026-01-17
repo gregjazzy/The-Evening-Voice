@@ -1,12 +1,14 @@
 /**
  * Hook React pour interagir avec les services IA
  * Utilise le nouveau système des 5 Clés Magiques
+ * + Système de guidage visuel (highlights)
  */
 
 'use client'
 
 import { useState, useCallback } from 'react'
 import { useAppStore } from '@/store/useAppStore'
+import { useHighlightStore, type HighlightConfig } from '@/store/useHighlightStore'
 import type { PromptingProgress, WritingPromptingProgress } from '@/lib/ai/prompting-pedagogy'
 
 interface ChatMessage {
@@ -15,8 +17,8 @@ interface ChatMessage {
 }
 
 interface UseAIReturn {
-  // Chat avec l'IA-Amie
-  sendMessage: (message: string, context?: 'diary' | 'book' | 'studio' | 'general') => Promise<{ text: string }>
+  // Chat avec l'IA-Amie (+ guidage visuel)
+  sendMessage: (message: string, context?: 'diary' | 'book' | 'studio' | 'general', currentMode?: string) => Promise<{ text: string; highlights?: HighlightConfig[] }>
   isLoadingChat: boolean
   
   // Génération d'images
@@ -52,7 +54,10 @@ export function useAI(): UseAIReturn {
     writingProgress,
     updateWritingProgress,
     currentStory,
+    currentMode,
   } = useAppStore()
+  
+  const { highlightMultiple } = useHighlightStore()
   
   const [isLoadingChat, setIsLoadingChat] = useState(false)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
@@ -67,8 +72,9 @@ export function useAI(): UseAIReturn {
   
   const sendMessage = useCallback(async (
     message: string,
-    context: 'diary' | 'book' | 'studio' | 'general' = 'general'
-  ): Promise<{ text: string }> => {
+    context: 'diary' | 'book' | 'studio' | 'general' = 'general',
+    modeOverride?: string
+  ): Promise<{ text: string; highlights?: HighlightConfig[] }> => {
     setIsLoadingChat(true)
     
     try {
@@ -86,12 +92,16 @@ export function useAI(): UseAIReturn {
         updateWritingProgress(message)
       }
       
+      // Déterminer le mode actuel pour le guidage visuel
+      const interfaceMode = modeOverride || currentMode || context
+      
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message,
           context,
+          currentMode: interfaceMode, // Pour le guidage visuel
           locale: 'fr', // TODO: get from i18n context
           chatHistory: history,
           emotionalContext,
@@ -111,7 +121,12 @@ export function useAI(): UseAIReturn {
       // Ajouter la réponse de l'IA
       addChatMessage({ role: 'assistant', content: data.text })
       
-      return { text: data.text }
+      // Déclencher les highlights si présents
+      if (data.highlights && data.highlights.length > 0) {
+        highlightMultiple(data.highlights)
+      }
+      
+      return { text: data.text, highlights: data.highlights }
     } catch (error) {
       console.error('Erreur chat:', error)
       const errorMessage = "Oups, j'ai eu un petit problème ! ✨ Réessaie ?"
@@ -120,7 +135,7 @@ export function useAI(): UseAIReturn {
     } finally {
       setIsLoadingChat(false)
     }
-  }, [chatHistory, emotionalContext, promptingProgress, currentStory, addChatMessage])
+  }, [chatHistory, emotionalContext, promptingProgress, currentStory, currentMode, addChatMessage, highlightMultiple])
 
   // ============================================
   // GÉNÉRATION D'IMAGES

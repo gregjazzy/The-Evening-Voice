@@ -38,6 +38,8 @@ import {
   Fullscreen
 } from 'lucide-react'
 import { AddElementModal } from './AddElementModal'
+import { Highlightable } from '@/components/ui/Highlightable'
+import { type HighlightableElement } from '@/store/useHighlightStore'
 
 // =============================================================================
 // UTILITAIRES
@@ -489,11 +491,28 @@ interface TrackRowScrollableProps {
   timelineWidth: number
   laneCount?: number // Nombre de sous-lignes (1 par défaut)
   onAdd?: () => void
+  highlightId?: HighlightableElement // ID pour le guidage visuel
   children: React.ReactNode
 }
 
-function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, laneCount = 1, onAdd, children }: TrackRowScrollableProps) {
+function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, laneCount = 1, onAdd, highlightId, children }: TrackRowScrollableProps) {
   const totalHeight = Math.max(1, laneCount) * LANE_HEIGHT + (Math.max(0, laneCount - 1) * LANE_GAP)
+  
+  const addButton = onAdd ? (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        onAdd()
+      }}
+      className={cn(
+        'p-1 rounded-md transition-all hover:scale-110 shrink-0',
+        buttonColor
+      )}
+      title={`Ajouter ${label.toLowerCase()}`}
+    >
+      <Plus className="w-3 h-3" />
+    </button>
+  ) : null
   
   return (
     <div className="flex items-start" style={{ minHeight: totalHeight + 4 }}>
@@ -507,22 +526,12 @@ function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, la
           <span className="truncate">{label}</span>
         </div>
         
-        {/* Bouton + */}
-        {onAdd && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onAdd()
-            }}
-            className={cn(
-              'p-1 rounded-md transition-all hover:scale-110 shrink-0',
-              buttonColor
-            )}
-            title={`Ajouter ${label.toLowerCase()}`}
-          >
-            <Plus className="w-3 h-3" />
-          </button>
-        )}
+        {/* Bouton + (avec ou sans highlight) */}
+        {highlightId && addButton ? (
+          <Highlightable id={highlightId}>
+            {addButton}
+          </Highlightable>
+        ) : addButton}
       </div>
 
       {/* Zone des rubans - hauteur adaptée au nombre de lanes */}
@@ -1298,6 +1307,7 @@ export function TimelineRubans() {
               timelineWidth={timelineWidth}
               laneCount={laneCount}
               onAdd={() => openAddModal('media')}
+              highlightId="montage-add-media"
             >
               {tracks.map((track) => (
                 <Ruban
@@ -1334,6 +1344,7 @@ export function TimelineRubans() {
               timelineWidth={timelineWidth}
               laneCount={laneCount}
               onAdd={() => openAddModal('music')}
+              highlightId="montage-add-music"
             >
               {tracks.map((track: MusicTrack) => (
                 <Ruban
@@ -1371,6 +1382,7 @@ export function TimelineRubans() {
               timelineWidth={timelineWidth}
               laneCount={laneCount}
               onAdd={() => openAddModal('sound')}
+              highlightId="montage-add-sound"
             >
               {tracks.map((track) => (
                 <Ruban
@@ -1407,6 +1419,7 @@ export function TimelineRubans() {
               timelineWidth={timelineWidth}
               laneCount={laneCount}
               onAdd={() => openAddModal('light')}
+              highlightId="montage-add-light"
             >
               {tracks.map((track) => (
                 <Ruban
@@ -1443,6 +1456,7 @@ export function TimelineRubans() {
               timelineWidth={timelineWidth}
               laneCount={laneCount}
               onAdd={() => openAddModal('decoration')}
+              highlightId="montage-add-decoration"
             >
               {tracks.map((track: DecorationTrack) => (
                 <Ruban
@@ -1479,6 +1493,7 @@ export function TimelineRubans() {
               timelineWidth={timelineWidth}
               laneCount={laneCount}
               onAdd={() => openAddModal('animation')}
+              highlightId="montage-add-effect"
             >
               {tracks.map((track: AnimationTrack) => (
                 <Ruban
