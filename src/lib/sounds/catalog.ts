@@ -100,15 +100,7 @@ export const MUSIC_SOUNDS: Sound[] = [
     moods: ['joyeux'],
     themes: [],
   },
-  {
-    id: 'vivaldi-spring',
-    name: 'Vivaldi - Le Printemps',
-    file: '/sound/music/violin-concerto-in-e-major-rv-269-spring-iii-allegro.mp3',
-    category: 'music',
-    emoji: '🌸',
-    moods: ['joyeux', 'calme'],
-    themes: ['classique'],
-  },
+  // Vivaldi supprimé (fichier doublon avec tres-joyeux)
   // Super-héros
   {
     id: 'fight-music',
