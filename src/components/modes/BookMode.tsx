@@ -4370,6 +4370,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           style={{
             height: 'calc(100vh - var(--book-height-offset, 220px))', // Hauteur responsive via CSS variable
             maxHeight: 'calc(100vh - var(--book-height-offset, 220px))',
+            maxWidth: 'calc(100vw - 140px)', // Largeur max = viewport - sidebar - marges
             perspective: '2000px',
           }}
         >
@@ -4379,11 +4380,12 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           {/* PAGE GAUCHE (page d'écriture) */}
           <div 
             ref={leftPageContainerRef}
-            className="relative flex flex-col group"
+            className="relative flex flex-col group flex-shrink"
             onClick={() => setActivePage('left')}
             style={{
               height: '100%',
               aspectRatio: '2 / 3',
+              maxWidth: '50%',
               background: getPageColorStyles(bookColor).background,
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
@@ -4721,11 +4723,12 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           {/* PAGE DROITE (page d'écriture) */}
           <div 
             ref={rightPageContainerRef}
-            className="relative flex flex-col group"
+            className="relative flex flex-col group flex-shrink"
             onClick={() => setActivePage('right')}
             style={{
               height: '100%',
               aspectRatio: '2 / 3', // Ratio livre standard
+              maxWidth: '50%',
               background: getPageColorStyles(bookColor).background,
               borderRadius: '0 8px 8px 0',
               boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
