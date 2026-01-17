@@ -463,20 +463,24 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
 
   // 🎵 Prévisualiser un son réel
   const handlePlaySound = (sound: Sound) => {
-    // Arrêter le son en cours
-    if (audioRef) {
-      audioRef.pause()
-      audioRef.currentTime = 0
-      setAudioRef(null)
-    }
-    
-    // Si on clique sur le même son, on arrête
+    // Si on clique sur le même son qui joue → PAUSE
     if (playingSound === sound.id) {
+      if (audioRef) {
+        audioRef.pause()
+        audioRef.currentTime = 0
+      }
       setPlayingSound(null)
+      setAudioRef(null)
       return
     }
     
-    // Créer et jouer l'audio
+    // Arrêter le son précédent si différent
+    if (audioRef) {
+      audioRef.pause()
+      audioRef.currentTime = 0
+    }
+    
+    // Créer et jouer le nouveau son
     const audio = new Audio(sound.file)
     audio.volume = 0.5
     
@@ -490,21 +494,18 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
       setPlayingSound(null)
       setAudioRef(null)
     }
-    audio.oncanplaythrough = () => {
-      // Le fichier est prêt à être lu
-      audio.play()
-        .then(() => {
-          console.log('🎵 Lecture:', sound.name)
-        })
-        .catch((err) => {
-          console.error('❌ Erreur play():', err)
-          setPlayingSound(null)
-          setAudioRef(null)
-        })
-    }
     
-    // Précharger le fichier
-    audio.load()
+    // Jouer directement
+    audio.play()
+      .then(() => {
+        console.log('🎵 Lecture:', sound.name)
+      })
+      .catch((err) => {
+        console.error('❌ Erreur play():', err)
+        setPlayingSound(null)
+        setAudioRef(null)
+      })
+    
     setAudioRef(audio)
     setPlayingSound(sound.id)
   }
