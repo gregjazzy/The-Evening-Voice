@@ -2,17 +2,29 @@
  * Hook React pour le Text-to-Speech
  * - Electron : utilise le TTS macOS natif (meilleure qualité)
  * - Web : utilise l'API Web Speech Synthesis du navigateur
+ * - Supporte la sélection de voix personnalisée avec mémorisation
  */
 
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
 
+export interface VoiceOption {
+  name: string
+  lang: string
+  isRecommended: boolean
+  quality: 'premium' | 'standard' | 'basic'
+}
+
 interface UseTTSReturn {
   speak: (text: string) => Promise<void>
   stop: () => Promise<void>
   isSpeaking: boolean
   isAvailable: boolean
+  // Nouveau : gestion des voix
+  availableVoices: VoiceOption[]
+  currentVoice: VoiceOption | null
+  setVoice: (voiceName: string) => void
 }
 
 // Vérifier si on est dans Electron
@@ -21,18 +33,34 @@ const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectr
 // Vérifier si Web Speech API est disponible
 const hasWebSpeech = typeof window !== 'undefined' && 'speechSynthesis' in window
 
-// Voix préférées par langue pour Web Speech
-const WEB_VOICES: Record<string, string[]> = {
-  fr: ['Audrey', 'Amélie', 'Thomas', 'Google français'],
-  en: ['Samantha', 'Karen', 'Google US English', 'Google UK English Female'],
+// Voix RECOMMANDÉES par langue (les meilleures en premier)
+const RECOMMENDED_VOICES: Record<string, string[]> = {
+  fr: ['Audrey', 'Amélie', 'Thomas', 'Google français', 'Marie'],
+  en: ['Samantha', 'Karen', 'Google US English', 'Google UK English Female', 'Daniel'],
   ru: ['Milena', 'Yuri', 'Google русский'],
 }
+
+// Voix premium (haute qualité, souvent téléchargées)
+const PREMIUM_VOICES = ['Audrey', 'Amélie', 'Thomas', 'Samantha', 'Karen', 'Daniel', 'Milena']
 
 // Paramètres de voix par langue (rate, pitch)
 const VOICE_SETTINGS: Record<string, { rate: number; pitch: number }> = {
   fr: { rate: 1.15, pitch: 1.1 },   // Français plus rapide
   en: { rate: 1.05, pitch: 1.1 },   // Anglais normal
   ru: { rate: 1.0, pitch: 1.05 },   // Russe normal
+}
+
+// Classifier la qualité d'une voix
+function getVoiceQuality(voiceName: string): 'premium' | 'standard' | 'basic' {
+  if (PREMIUM_VOICES.some(p => voiceName.includes(p))) return 'premium'
+  if (voiceName.includes('Google') || voiceName.includes('Microsoft')) return 'standard'
+  return 'basic'
+}
+
+// Vérifier si une voix est recommandée pour une langue
+function isVoiceRecommended(voiceName: string, locale: string): boolean {
+  const recommended = RECOMMENDED_VOICES[locale] || RECOMMENDED_VOICES.fr
+  return recommended.some(r => voiceName.includes(r))
 }
 
 // Nettoyer le texte pour le TTS (supprimer emojis et caractères spéciaux)
@@ -50,23 +78,29 @@ function cleanTextForTTS(text: string): string {
     .trim()
 }
 
-// Helper pour trouver la meilleure voix
-function findBestVoice(locale: string): SpeechSynthesisVoice | null {
+// Helper pour trouver la meilleure voix (ou une voix spécifique)
+function findBestVoice(locale: string, preferredVoiceName?: string): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
-  const preferredNames = WEB_VOICES[locale] || WEB_VOICES.fr
   
-  // Chercher une voix préférée
+  // 1. Si une voix spécifique est demandée, la chercher
+  if (preferredVoiceName) {
+    const preferred = voices.find(v => v.name === preferredVoiceName)
+    if (preferred) return preferred
+  }
+  
+  // 2. Chercher parmi les voix recommandées pour cette langue
+  const recommendedNames = RECOMMENDED_VOICES[locale] || RECOMMENDED_VOICES.fr
   let selectedVoice = voices.find(v => 
-    preferredNames.some(name => v.name.includes(name))
+    recommendedNames.some(name => v.name.includes(name))
   )
   
-  // Fallback : voix de la langue
+  // 3. Fallback : n'importe quelle voix de la langue
   if (!selectedVoice) {
     const langCode = locale === 'fr' ? 'fr' : locale === 'ru' ? 'ru' : 'en'
     selectedVoice = voices.find(v => v.lang.startsWith(langCode))
   }
   
-  // Fallback ultime : première voix
+  // 4. Fallback ultime : première voix disponible
   if (!selectedVoice && voices.length > 0) {
     selectedVoice = voices[0]
   }
@@ -74,21 +108,51 @@ function findBestVoice(locale: string): SpeechSynthesisVoice | null {
   return selectedVoice || null
 }
 
-export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr'): UseTTSReturn {
+// Obtenir toutes les voix disponibles pour une langue
+function getAvailableVoices(locale: string): VoiceOption[] {
+  const voices = window.speechSynthesis.getVoices()
+  const langCode = locale === 'fr' ? 'fr' : locale === 'ru' ? 'ru' : 'en'
+  
+  return voices
+    .filter(v => v.lang.startsWith(langCode))
+    .map(v => ({
+      name: v.name,
+      lang: v.lang,
+      isRecommended: isVoiceRecommended(v.name, locale),
+      quality: getVoiceQuality(v.name),
+    }))
+    // Trier : recommandées d'abord, puis par qualité
+    .sort((a, b) => {
+      if (a.isRecommended !== b.isRecommended) return a.isRecommended ? -1 : 1
+      const qualityOrder = { premium: 0, standard: 1, basic: 2 }
+      return qualityOrder[a.quality] - qualityOrder[b.quality]
+    })
+}
+
+export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: string): UseTTSReturn {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [webVoice, setWebVoice] = useState<SpeechSynthesisVoice | null>(null)
   const [voicesReady, setVoicesReady] = useState(false)
+  const [availableVoices, setAvailableVoices] = useState<VoiceOption[]>([])
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string | undefined>(preferredVoiceName)
 
   // Charger les voix disponibles pour Web Speech
   useEffect(() => {
     if (!hasWebSpeech || isElectron) return
 
     const loadVoices = () => {
-      const selectedVoice = findBestVoice(locale)
+      // Obtenir toutes les voix disponibles
+      const voices = getAvailableVoices(locale)
+      setAvailableVoices(voices)
+      
+      // Sélectionner la meilleure voix (ou la préférée)
+      const selectedVoice = findBestVoice(locale, selectedVoiceName)
       setWebVoice(selectedVoice)
+      
       if (selectedVoice) {
         setVoicesReady(true)
-        console.log('🎤 Voix TTS chargée:', selectedVoice.name)
+        const isRecommended = isVoiceRecommended(selectedVoice.name, locale)
+        console.log(`🎤 Voix TTS: ${selectedVoice.name} ${isRecommended ? '⭐ (recommandée)' : ''}`)
       }
     }
 
@@ -99,7 +163,25 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr'): UseTTSReturn {
     return () => {
       window.speechSynthesis.onvoiceschanged = null
     }
+  }, [locale, selectedVoiceName])
+
+  // Fonction pour changer de voix
+  const setVoice = useCallback((voiceName: string) => {
+    setSelectedVoiceName(voiceName)
+    const newVoice = findBestVoice(locale, voiceName)
+    if (newVoice) {
+      setWebVoice(newVoice)
+      console.log('🎤 Voix changée:', newVoice.name)
+    }
   }, [locale])
+
+  // Voix actuelle en format VoiceOption
+  const currentVoice: VoiceOption | null = webVoice ? {
+    name: webVoice.name,
+    lang: webVoice.lang,
+    isRecommended: isVoiceRecommended(webVoice.name, locale),
+    quality: getVoiceQuality(webVoice.name),
+  } : null
 
   const speak = useCallback(async (text: string) => {
     // Nettoyer le texte (supprimer emojis)
@@ -206,6 +288,10 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr'): UseTTSReturn {
     stop,
     isSpeaking,
     isAvailable: isElectron || hasWebSpeech,
+    // Gestion des voix
+    availableVoices,
+    currentVoice,
+    setVoice,
   }
 }
 

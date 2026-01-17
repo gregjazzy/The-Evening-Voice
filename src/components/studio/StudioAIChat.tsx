@@ -18,8 +18,10 @@ import {
   Palette,
   Sun,
   Zap,
+  Settings,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
+import { VoiceSelector } from '@/components/ui/VoiceSelector'
 import { useStudioStore } from '@/store/useStudioStore'
 import { 
   useStudioProgressStore,
@@ -281,7 +283,8 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   } = useStudioProgressStore()
   
   const level = getLevel(type)
-  const tts = useTTS('fr')
+  const { aiVoice } = useAppStore()
+  const tts = useTTS('fr', aiVoice || undefined)
   
   // Détecter ce qui manque pour guider l'enfant
   const showStyleButtons = level < 3
@@ -295,6 +298,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const [isLoading, setIsLoading] = useState(false)
   const [isOffline, setIsOffline] = useState(false)
   const [showQuickHelp, setShowQuickHelp] = useState(false)
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -605,6 +609,21 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             {isOffline ? "Mode hors-ligne 🌙" : "Ton amie créative ✨"}
           </p>
         </div>
+        {/* Bouton paramètres voix */}
+        <button
+          onClick={() => setShowVoiceSelector(!showVoiceSelector)}
+          className={cn(
+            'p-2 rounded-lg transition-colors',
+            showVoiceSelector
+              ? 'bg-aurora-500/20 text-aurora-300'
+              : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
+          )}
+          title="Changer la voix"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+        
+        {/* Bouton activer/désactiver voix */}
         <button
           onClick={toggleVoice}
           className={cn(
@@ -618,6 +637,20 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
           {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
         </button>
       </div>
+
+      {/* Panel sélecteur de voix */}
+      <AnimatePresence>
+        {showVoiceSelector && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-b border-midnight-700/50 overflow-hidden"
+          >
+            <VoiceSelector className="rounded-none border-0" />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bannière mode hors-ligne */}
       <AnimatePresence>

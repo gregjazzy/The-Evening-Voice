@@ -220,6 +220,10 @@ interface AppState {
   aiName: string
   setAiName: (name: string) => void
   
+  // Voix de l'IA (mémorisée pour chaque utilisateur)
+  aiVoice: string // Nom de la voix (ex: "Audrey", "Thomas")
+  setAiVoice: (voiceName: string) => void
+  
   // Contexte émotionnel (pour que l'IA se souvienne)
   emotionalContext: string[]
   addEmotionalContext: (context: string) => void
@@ -599,6 +603,10 @@ export const useAppStore = create<AppState>()(
       // Nom de l'IA (personnalisable, vide par défaut = l'enfant choisit à la première connexion)
       aiName: '',
       setAiName: (name) => set({ aiName: name }),
+      
+      // Voix de l'IA (mémorisée, vide = auto-détection de la meilleure voix)
+      aiVoice: '',
+      setAiVoice: (voiceName) => set({ aiVoice: voiceName }),
 
       // Contexte émotionnel
       emotionalContext: [],
@@ -678,6 +686,7 @@ export const useAppStore = create<AppState>()(
         generatedAssets: state.generatedAssets,
         userName: state.userName,
         aiName: state.aiName, // Nom personnalisé de l'IA - persisté pour chaque utilisateur
+        aiVoice: state.aiVoice, // Voix de l'IA - persistée pour chaque utilisateur
         emotionalContext: state.emotionalContext,
         promptingProgress: state.promptingProgress,
         writingProgress: state.writingProgress,
