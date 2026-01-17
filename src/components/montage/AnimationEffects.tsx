@@ -16,6 +16,13 @@ interface AnimationEffectProps {
   size?: 'small' | 'medium' | 'large'
   position?: { x: number; y: number } // Pour les animations localisées (0-100%)
   speed?: number // 0-100
+  opacity?: number // 0-1
+  fadeIn?: number // seconds
+  fadeOut?: number // seconds
+  duration?: number // Total duration for fade calculations
+  currentTime?: number // Current playback time
+  startTime?: number // When the animation starts
+  endTime?: number // When the animation ends
 }
 
 interface Particle {
@@ -480,6 +487,12 @@ export function AnimationEffect({
   size = 'medium',
   position,
   speed = 50,
+  opacity = 1,
+  fadeIn = 0,
+  fadeOut = 0,
+  currentTime = 0,
+  startTime = 0,
+  endTime = Infinity,
 }: AnimationEffectProps) {
   const particles = useMemo(() => {
     const count = PARTICLE_COUNTS[size]
@@ -490,10 +503,32 @@ export function AnimationEffect({
 
   if (!isActive) return null
 
+  // Calculer l'opacité effective avec les fondus
+  let effectiveOpacity = opacity
+  
+  // Fade in
+  if (fadeIn > 0 && currentTime < startTime + fadeIn) {
+    const fadeProgress = (currentTime - startTime) / fadeIn
+    effectiveOpacity *= Math.max(0, Math.min(1, fadeProgress))
+  }
+  
+  // Fade out
+  if (fadeOut > 0 && currentTime > endTime - fadeOut) {
+    const fadeProgress = (endTime - currentTime) / fadeOut
+    effectiveOpacity *= Math.max(0, Math.min(1, fadeProgress))
+  }
+
+  // Wrapper avec l'opacité
+  const wrapWithOpacity = (content: React.ReactNode) => (
+    <div style={{ opacity: effectiveOpacity }} className="absolute inset-0">
+      {content}
+    </div>
+  )
+
   // Animations plein écran
   switch (type) {
     case 'falling-stars':
-      return (
+      return wrapWithOpacity(
         <FallingAnimation 
           particles={particles} 
           color={color} 
@@ -503,7 +538,7 @@ export function AnimationEffect({
       )
     
     case 'floating-hearts':
-      return (
+      return wrapWithOpacity(
         <FloatingAnimation 
           particles={particles} 
           color={color}
@@ -513,10 +548,10 @@ export function AnimationEffect({
       )
     
     case 'sparkles':
-      return <SparklesAnimation particles={particles} color={color} speed={speed} />
+      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color} speed={speed} />)
     
     case 'bubbles':
-      return (
+      return wrapWithOpacity(
         <FloatingAnimation 
           particles={particles} 
           color={color}
@@ -526,7 +561,7 @@ export function AnimationEffect({
       )
     
     case 'snow':
-      return (
+      return wrapWithOpacity(
         <FallingAnimation 
           particles={particles} 
           color={color || '#FFFFFF'}
@@ -536,7 +571,7 @@ export function AnimationEffect({
       )
     
     case 'confetti':
-      return (
+      return wrapWithOpacity(
         <FallingAnimation 
           particles={particles} 
           color={color}
@@ -555,55 +590,55 @@ export function AnimationEffect({
       )
     
     case 'fireflies':
-      return <SparklesAnimation particles={particles} color={color || '#FFFF00'} speed={speed} />
+      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color || '#FFFF00'} speed={speed} />)
     
     case 'magic-dust':
     case 'fairy-dust':
-      return <SparklesAnimation particles={particles} color={color || '#FFD700'} speed={speed} />
+      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color || '#FFD700'} speed={speed} />)
 
     // Animations localisées
     case 'localized-sparkle':
     case 'localized-golden-sparkles':
     case 'localized-pixie-dust':
-      return position ? (
+      return position ? wrapWithOpacity(
         <LocalizedSparkle position={position} color={color} intensity={intensity} size={size} />
       ) : null
     
     case 'localized-heart-explosion':
     case 'localized-floating-hearts':
     case 'localized-kiss-hearts':
-      return position ? (
+      return position ? wrapWithOpacity(
         <LocalizedHearts position={position} color={color} intensity={intensity} size={size} />
       ) : null
     
     case 'localized-star-burst':
     case 'localized-wishing-stars':
-      return position ? (
+      return position ? wrapWithOpacity(
         <LocalizedStarBurst position={position} color={color} intensity={intensity} size={size} />
       ) : null
     
     case 'localized-magic-swirl':
     case 'localized-magic-trail':
     case 'localized-magic-portal':
-      return position ? (
+      return position ? wrapWithOpacity(
         <LocalizedMagicSwirl position={position} color={color} intensity={intensity} size={size} />
       ) : null
     
     case 'localized-rainbow-burst':
-      return position ? (
+      return position ? wrapWithOpacity(
         <LocalizedStarBurst position={position} color="#FF69B4" intensity={intensity} size={size} />
       ) : null
     
     case 'localized-fairy-circle':
     case 'localized-enchanted-glow':
     case 'localized-shimmer':
-      return position ? (
+      return position ? wrapWithOpacity(
         <LocalizedSparkle position={position} color={color} intensity={intensity} size={size} />
       ) : null
 
     default:
       // Animation générique pour les types non implémentés
-      return <SparklesAnimation particles={particles} color={color} speed={speed} />
+      return wrapWithOpacity(<SparklesAnimation particles={particles} color={color} speed={speed} />)
   }
 }
 

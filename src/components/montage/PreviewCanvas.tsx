@@ -426,6 +426,12 @@ export function PreviewCanvas() {
             size={anim.size}
             position={anim.position}
             speed={anim.speed}
+            opacity={anim.opacity}
+            fadeIn={anim.fadeIn}
+            fadeOut={anim.fadeOut}
+            currentTime={currentTime}
+            startTime={anim.timeRange.startTime}
+            endTime={anim.timeRange.endTime}
           />
         ))}
 
