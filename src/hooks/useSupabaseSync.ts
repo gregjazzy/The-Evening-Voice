@@ -13,6 +13,8 @@ import { useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useAppStore, type DiaryEntry, type ChatMessage, type Story, type StoryPage } from '@/store/useAppStore'
+import { useMontageStore, type MontageProject } from '@/store/useMontageStore'
+import { useStudioProgressStore, type StudioBadge, type StudioCreation } from '@/store/useStudioProgressStore'
 import type { StoryStructure } from '@/lib/ai/prompting-pedagogy'
 
 // Types Supabase pour ce fichier (contourner les problèmes de typage)
@@ -47,6 +49,30 @@ type DbStoryPage = {
   text_blocks: unknown
 }
 
+type DbMontageProject = {
+  id: string
+  profile_id: string
+  story_id: string | null
+  title: string
+  scenes: unknown
+  is_complete: boolean
+  created_at: string
+  updated_at: string
+}
+
+type DbStudioProgress = {
+  id: string
+  profile_id: string
+  image_level: number
+  image_creations_in_level: number
+  image_total_creations: number
+  video_level: number
+  video_creations_in_level: number
+  video_total_creations: number
+  creations: unknown
+  badges: unknown
+}
+
 // Debounce pour éviter trop de requêtes
 function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
@@ -65,6 +91,66 @@ function useDebouncedCallback<T extends (...args: any[]) => any>(
     }) as T,
     [callback, delay]
   )
+}
+
+// Fonction utilitaire pour sauvegarder un projet de montage (hors hook)
+async function saveMontageProjectToSupabase(project: MontageProject, profileId: string) {
+  const projectData = {
+    id: project.id,
+    profile_id: profileId,
+    story_id: project.storyId || null,
+    title: project.title,
+    scenes: project.scenes,
+    is_complete: project.isComplete,
+    created_at: project.createdAt.toISOString(),
+    updated_at: project.updatedAt.toISOString(),
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await supabase.from('montage_projects').upsert(projectData as any)
+
+  if (error) {
+    console.error('Erreur sauvegarde montage project:', error)
+    return false
+  }
+  return true
+}
+
+// Fonction utilitaire pour sauvegarder la progression Studio (hors hook)
+async function saveStudioProgressToSupabase(
+  profileId: string,
+  data: {
+    imageLevel: number
+    imageCreationsInLevel: number
+    imageTotalCreations: number
+    videoLevel: number
+    videoCreationsInLevel: number
+    videoTotalCreations: number
+    creations: StudioCreation[]
+    badges: StudioBadge[]
+  }
+) {
+  const progressData = {
+    profile_id: profileId,
+    image_level: data.imageLevel,
+    image_creations_in_level: data.imageCreationsInLevel,
+    image_total_creations: data.imageTotalCreations,
+    video_level: data.videoLevel,
+    video_creations_in_level: data.videoCreationsInLevel,
+    video_total_creations: data.videoTotalCreations,
+    creations: data.creations,
+    badges: data.badges,
+    updated_at: new Date().toISOString(),
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await supabase.from('studio_progress').upsert(progressData as any, {
+    onConflict: 'profile_id',
+  })
+
+  if (error) {
+    console.error('Erreur sauvegarde studio progress:', error)
+    return false
+  }
+  return true
 }
 
 // Fonction utilitaire pour sauvegarder une histoire (hors hook)
@@ -264,6 +350,77 @@ export function useSupabaseSync() {
         useAppStore.setState({ emotionalContext: profile.emotional_context as string[] })
       }
 
+      // Charger les projets de montage
+      const { data: montageData, error: montageError } = await supabase
+        .from('montage_projects')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .order('updated_at', { ascending: false })
+
+      if (!montageError && montageData && montageData.length > 0) {
+        const typedMontageData = montageData as unknown as DbMontageProject[]
+        const loadedProjects = typedMontageData.map((p) => ({
+          id: p.id,
+          storyId: p.story_id || '',
+          title: p.title,
+          scenes: p.scenes as MontageProject['scenes'],
+          isComplete: p.is_complete,
+          createdAt: new Date(p.created_at),
+          updatedAt: new Date(p.updated_at),
+        })) as MontageProject[]
+        useMontageStore.setState({ projects: loadedProjects })
+        console.log(`   ✅ ${loadedProjects.length} projets de montage chargés depuis Supabase`)
+      } else {
+        // Synchroniser les projets locaux vers Supabase si nécessaire
+        const localProjects = useMontageStore.getState().projects
+        if (localProjects.length > 0) {
+          console.log(`   ⬆️ ${localProjects.length} projets de montage locaux à synchroniser...`)
+          for (const project of localProjects) {
+            await saveMontageProjectToSupabase(project, profile.id)
+          }
+          console.log(`   ✅ ${localProjects.length} projets de montage synchronisés vers Supabase`)
+        }
+      }
+
+      // Charger la progression Studio
+      const { data: progressData, error: progressError } = await supabase
+        .from('studio_progress')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .single()
+
+      if (!progressError && progressData) {
+        const typedProgressData = progressData as unknown as DbStudioProgress
+        useStudioProgressStore.setState({
+          imageLevel: typedProgressData.image_level as 1 | 2 | 3 | 4 | 5,
+          imageCreationsInLevel: typedProgressData.image_creations_in_level,
+          imageTotalCreations: typedProgressData.image_total_creations,
+          videoLevel: typedProgressData.video_level as 1 | 2 | 3 | 4 | 5,
+          videoCreationsInLevel: typedProgressData.video_creations_in_level,
+          videoTotalCreations: typedProgressData.video_total_creations,
+          creations: (typedProgressData.creations as StudioCreation[]) || [],
+          badges: (typedProgressData.badges as StudioBadge[]) || [],
+        })
+        console.log(`   ✅ Progression Studio chargée (Image: Niv.${typedProgressData.image_level}, Video: Niv.${typedProgressData.video_level})`)
+      } else {
+        // Synchroniser la progression locale vers Supabase si nécessaire
+        const localProgress = useStudioProgressStore.getState()
+        if (localProgress.imageTotalCreations > 0 || localProgress.videoTotalCreations > 0) {
+          console.log(`   ⬆️ Progression Studio locale à synchroniser...`)
+          await saveStudioProgressToSupabase(profile.id, {
+            imageLevel: localProgress.imageLevel,
+            imageCreationsInLevel: localProgress.imageCreationsInLevel,
+            imageTotalCreations: localProgress.imageTotalCreations,
+            videoLevel: localProgress.videoLevel,
+            videoCreationsInLevel: localProgress.videoCreationsInLevel,
+            videoTotalCreations: localProgress.videoTotalCreations,
+            creations: localProgress.creations,
+            badges: localProgress.badges,
+          })
+          console.log(`   ✅ Progression Studio synchronisée vers Supabase`)
+        }
+      }
+
       hasLoadedRef.current = true
       console.log('📥 Chargement terminé !')
 
@@ -451,6 +608,88 @@ export function useSupabaseSync() {
     }
     prevAiNameRef.current = aiName || ''
   }, [aiName, profile?.id, debouncedSaveAiName])
+
+  // ============================================
+  // SYNCHRONISATION MONTAGE PROJECTS
+  // ============================================
+
+  const saveMontageProject = useCallback(async (project: MontageProject) => {
+    if (!profile?.id) return
+    await saveMontageProjectToSupabase(project, profile.id)
+  }, [profile?.id])
+
+  const debouncedSaveMontageProject = useDebouncedCallback(saveMontageProject, 2000)
+
+  // Écouter les changements dans les projets de montage
+  useEffect(() => {
+    if (!profile?.id || !hasLoadedRef.current) return
+
+    const unsubscribe = useMontageStore.subscribe(
+      (state, prevState) => {
+        // Détecter les projets qui ont changé
+        const currentProjectsJson = JSON.stringify(state.projects.map(p => ({ id: p.id, updatedAt: p.updatedAt })))
+        const prevProjectsJson = JSON.stringify(prevState.projects.map(p => ({ id: p.id, updatedAt: p.updatedAt })))
+        
+        if (currentProjectsJson !== prevProjectsJson) {
+          // Trouver le projet qui a changé
+          for (const project of state.projects) {
+            const prevProject = prevState.projects.find(p => p.id === project.id)
+            if (!prevProject || project.updatedAt.getTime() !== prevProject.updatedAt.getTime()) {
+              debouncedSaveMontageProject(project)
+              console.log(`   📤 Projet montage "${project.title}" en cours de sauvegarde...`)
+            }
+          }
+        }
+      }
+    )
+
+    return () => unsubscribe()
+  }, [profile?.id, debouncedSaveMontageProject])
+
+  // ============================================
+  // SYNCHRONISATION STUDIO PROGRESS
+  // ============================================
+
+  const saveStudioProgress = useCallback(async () => {
+    if (!profile?.id) return
+    const state = useStudioProgressStore.getState()
+    await saveStudioProgressToSupabase(profile.id, {
+      imageLevel: state.imageLevel,
+      imageCreationsInLevel: state.imageCreationsInLevel,
+      imageTotalCreations: state.imageTotalCreations,
+      videoLevel: state.videoLevel,
+      videoCreationsInLevel: state.videoCreationsInLevel,
+      videoTotalCreations: state.videoTotalCreations,
+      creations: state.creations,
+      badges: state.badges,
+    })
+  }, [profile?.id])
+
+  const debouncedSaveStudioProgress = useDebouncedCallback(saveStudioProgress, 2000)
+
+  // Écouter les changements dans la progression Studio
+  useEffect(() => {
+    if (!profile?.id || !hasLoadedRef.current) return
+
+    const unsubscribe = useStudioProgressStore.subscribe(
+      (state, prevState) => {
+        // Détecter les changements significatifs
+        const hasChanged = 
+          state.imageLevel !== prevState.imageLevel ||
+          state.videoLevel !== prevState.videoLevel ||
+          state.imageTotalCreations !== prevState.imageTotalCreations ||
+          state.videoTotalCreations !== prevState.videoTotalCreations ||
+          state.badges.length !== prevState.badges.length
+
+        if (hasChanged) {
+          debouncedSaveStudioProgress()
+          console.log(`   📤 Progression Studio en cours de sauvegarde...`)
+        }
+      }
+    )
+
+    return () => unsubscribe()
+  }, [profile?.id, debouncedSaveStudioProgress])
 
   return {
     isLoading: isLoadingRef.current,
