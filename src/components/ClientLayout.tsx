@@ -1,9 +1,9 @@
 'use client'
 
-import { ReactNode, useState, useEffect } from 'react'
+import { ReactNode, useState, useEffect, useRef } from 'react'
 import { MentorProvider } from './mentor/MentorProvider'
 import { ToastProvider } from './ui/Toast'
-import { AINameModal } from './ui/AINameModal'
+import { AIWelcomeSequence } from './ui/AIWelcomeSequence'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
 
@@ -13,31 +13,40 @@ interface ClientLayoutProps {
 
 export function ClientLayout({ children }: ClientLayoutProps) {
   const { aiName } = useAppStore()
-  const { user, isInitialized } = useAuthStore()
-  const [showNameModal, setShowNameModal] = useState(false)
+  const { isInitialized } = useAuthStore()
+  const [showWelcomeSequence, setShowWelcomeSequence] = useState(false)
+  const hasTriggeredRef = useRef(false)
 
-  // Afficher le modal de choix de nom à la première connexion
+  // Afficher la séquence d'accueil si pas de nom d'IA
+  // Fonctionne avec ou sans authentification
   useEffect(() => {
-    // Attendre que l'auth soit initialisée et que l'utilisateur soit connecté
-    if (isInitialized && user && !aiName) {
-      // Petit délai pour laisser l'app se charger
-      const timer = setTimeout(() => {
-        setShowNameModal(true)
-      }, 1000)
-      return () => clearTimeout(timer)
+    // Ne rien faire si déjà déclenché ou si aiName existe
+    if (hasTriggeredRef.current || aiName) {
+      return
     }
-  }, [isInitialized, user, aiName])
+    
+    // Attendre que l'auth soit initialisée
+    if (!isInitialized) {
+      return
+    }
+    
+    hasTriggeredRef.current = true
+    
+    // Petit délai pour laisser l'app se charger complètement
+    setTimeout(() => {
+      setShowWelcomeSequence(true)
+    }, 1500)
+  }, [isInitialized, aiName])
 
   return (
     <ToastProvider>
       <MentorProvider>
         {children}
         
-        {/* Modal pour choisir le nom de l'IA à la première connexion */}
-        <AINameModal
-          isOpen={showNameModal}
-          onClose={() => setShowNameModal(false)}
-          isFirstTime={true}
+        {/* Séquence d'accueil interactive avec l'IA */}
+        <AIWelcomeSequence
+          isOpen={showWelcomeSequence}
+          onComplete={() => setShowWelcomeSequence(false)}
         />
       </MentorProvider>
     </ToastProvider>

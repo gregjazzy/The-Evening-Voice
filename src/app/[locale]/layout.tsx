@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { I18nProvider, type Locale } from '@/lib/i18n/context'
 import { AuthProvider } from '@/components/auth/AuthProvider'
+import { ClientLayout } from '@/components/ClientLayout'
 import '../globals.css'
 
 // Import statique des messages
@@ -50,7 +51,9 @@ export default async function LocaleLayout({
   return (
     <I18nProvider locale={locale as Locale} messages={messages}>
       <AuthProvider>
-        {children}
+        <ClientLayout>
+          {children}
+        </ClientLayout>
       </AuthProvider>
     </I18nProvider>
   )
