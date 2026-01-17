@@ -20,9 +20,24 @@ import {
   Check,
   Search,
   Loader2,
-  Wind
+  Wind,
+  Play,
+  Pause,
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import { 
+  ALL_SOUNDS, 
+  MUSIC_SOUNDS, 
+  AMBIANCE_SOUNDS, 
+  EFFECT_SOUNDS,
+  CATEGORY_LABELS,
+  MOOD_LABELS,
+  THEME_LABELS,
+  type Sound,
+  type SoundCategory as RealSoundCategory,
+  type SoundMood,
+  type SoundTheme,
+} from '@/lib/sounds'
 
 // =============================================================================
 // TYPES
@@ -388,6 +403,12 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
   const [soundCategory, setSoundCategory] = useState<SoundCategory>('animaux')
   const [animCategory, setAnimCategory] = useState<AnimCategory>('localized') // Par défaut: localisé
   
+  // 🎵 État pour la bibliothèque de sons réels
+  const [realSoundCategory, setRealSoundCategory] = useState<RealSoundCategory>('music')
+  const [soundMoodFilter, setSoundMoodFilter] = useState<SoundMood | null>(null)
+  const [playingSound, setPlayingSound] = useState<string | null>(null)
+  const [audioRef, setAudioRef] = useState<HTMLAudioElement | null>(null)
+  
   const scene = getCurrentScene()
   const duration = getSceneDuration() || 10
 
@@ -443,7 +464,85 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
     onClose()
   }
 
-  // Ajouter une musique
+  // 🎵 Prévisualiser un son réel
+  const handlePlaySound = (sound: Sound) => {
+    // Arrêter le son en cours
+    if (audioRef) {
+      audioRef.pause()
+      audioRef.currentTime = 0
+    }
+    
+    if (playingSound === sound.id) {
+      setPlayingSound(null)
+      return
+    }
+    
+    const audio = new Audio(sound.file)
+    audio.volume = 0.5
+    audio.onended = () => setPlayingSound(null)
+    audio.play()
+    setAudioRef(audio)
+    setPlayingSound(sound.id)
+  }
+
+  // Ajouter une musique (VRAIS FICHIERS)
+  const handleAddRealMusic = (sound: Sound) => {
+    // Arrêter la prévisualisation
+    if (audioRef) {
+      audioRef.pause()
+      setPlayingSound(null)
+    }
+    
+    addMusicTrack({
+      url: sound.file,
+      name: sound.name,
+      type: 'background',
+      timeRange: createTimeRange(0, 100), // Toute la scène par défaut
+      volume: 0.5,
+      loop: true,
+      fadeIn: 1,
+      fadeOut: 1,
+    })
+    onClose()
+  }
+
+  // Ajouter une ambiance (VRAIS FICHIERS)
+  const handleAddRealAmbiance = (sound: Sound) => {
+    if (audioRef) {
+      audioRef.pause()
+      setPlayingSound(null)
+    }
+    
+    addSoundTrack({
+      url: sound.file,
+      name: sound.name,
+      type: 'ambiance',
+      timeRange: createTimeRange(0, 100),
+      volume: 0.4,
+      loop: true,
+    })
+    onClose()
+  }
+
+  // Ajouter un effet sonore (VRAIS FICHIERS)
+  const handleAddRealEffect = (sound: Sound) => {
+    if (audioRef) {
+      audioRef.pause()
+      setPlayingSound(null)
+    }
+    
+    addSoundTrack({
+      url: sound.file,
+      name: sound.name,
+      type: 'sfx',
+      timeRange: createTimeRange(10, 20),
+      volume: 0.7,
+      loop: false,
+    })
+    onClose()
+  }
+
+  // Ajouter une musique (ancien système - placeholder)
   const handleAddMusic = (musicId: string) => {
     const music = MUSIC_TRACKS.find(m => m.id === musicId)
     if (!music) return
@@ -761,90 +860,202 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
               </div>
             )}
 
-            {/* Musique */}
+            {/* Musique - VRAIE BIBLIOTHÈQUE */}
             {elementType === 'music' && (
-              <div className="grid grid-cols-2 gap-3">
-                {MUSIC_TRACKS.map((music) => (
-                  <motion.button
-                    key={music.id}
-                    onClick={() => handleAddMusic(music.id)}
-                    className={cn(
-                      'p-4 rounded-xl border text-left transition-all',
-                      selectedItem === music.id
-                        ? 'border-emerald-500 bg-emerald-500/20'
-                        : 'border-midnight-700 bg-midnight-800/50 hover:border-midnight-600'
-                    )}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Music className="w-5 h-5 text-emerald-400" />
-                      <div>
-                        <p className="font-medium text-white">{music.name}</p>
-                        <p className="text-xs text-midnight-400">{music.type}</p>
+              <div className="space-y-4">
+                {/* Barre de recherche */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-500" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher une musique..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white placeholder-midnight-500 focus:border-emerald-500/50 focus:outline-none"
+                  />
+                </div>
+
+                {/* Info */}
+                <p className="text-xs text-midnight-400 text-center">
+                  🎵 {MUSIC_SOUNDS.length} musiques disponibles • Clique sur ▶️ pour écouter
+                </p>
+
+                {/* Grille de musiques */}
+                <div className="grid grid-cols-1 gap-2 max-h-[50vh] overflow-y-auto pr-2">
+                  {MUSIC_SOUNDS
+                    .filter(s => searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((sound) => (
+                    <motion.div
+                      key={sound.id}
+                      className={cn(
+                        'p-3 rounded-xl border text-left transition-all flex items-center gap-3',
+                        'border-midnight-700 bg-midnight-800/50 hover:border-emerald-500/50'
+                      )}
+                      whileHover={{ scale: 1.01 }}
+                    >
+                      {/* Bouton play */}
+                      <button
+                        onClick={() => handlePlaySound(sound)}
+                        className={cn(
+                          'w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0',
+                          playingSound === sound.id
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-midnight-700 text-emerald-400 hover:bg-emerald-500/30'
+                        )}
+                      >
+                        {playingSound === sound.id ? (
+                          <Pause className="w-5 h-5" />
+                        ) : (
+                          <Play className="w-5 h-5 ml-0.5" />
+                        )}
+                      </button>
+                      
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-white truncate">{sound.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-lg">{sound.emoji}</span>
+                          <div className="flex flex-wrap gap-1">
+                            {sound.moods.slice(0, 2).map(mood => (
+                              <span key={mood} className="text-[10px] px-1.5 py-0.5 rounded bg-midnight-700 text-midnight-300">
+                                {MOOD_LABELS[mood]?.emoji} {MOOD_LABELS[mood]?.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </motion.button>
-                ))}
+
+                      {/* Bouton ajouter */}
+                      <button
+                        onClick={() => handleAddRealMusic(sound)}
+                        className="px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2 flex-shrink-0"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span className="text-sm font-medium">Ajouter</span>
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Sons */}
+            {/* Sons - VRAIE BIBLIOTHÈQUE (Ambiances + Effets) */}
             {elementType === 'sound' && (
               <div className="space-y-4">
-                {/* Onglets de catégories */}
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(SOUND_CATEGORIES) as SoundCategory[]).map((catKey) => {
-                    const cat = SOUND_CATEGORIES[catKey]
-                    return (
+                {/* Onglets Ambiances / Effets */}
+                <div className="flex gap-2 p-1 bg-midnight-800/50 rounded-lg">
+                  <button
+                    onClick={() => setRealSoundCategory('ambiance')}
+                    className={cn(
+                      'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all',
+                      realSoundCategory === 'ambiance'
+                        ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                        : 'text-midnight-400 hover:text-white'
+                    )}
+                  >
+                    <span className="mr-2">🌧️</span>
+                    Ambiances
+                    <span className="text-xs ml-2 opacity-70">({AMBIANCE_SOUNDS.length})</span>
+                  </button>
+                  <button
+                    onClick={() => setRealSoundCategory('effect')}
+                    className={cn(
+                      'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all',
+                      realSoundCategory === 'effect'
+                        ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white shadow-lg'
+                        : 'text-midnight-400 hover:text-white'
+                    )}
+                  >
+                    <span className="mr-2">💥</span>
+                    Effets Sonores
+                    <span className="text-xs ml-2 opacity-70">({EFFECT_SOUNDS.length})</span>
+                  </button>
+                </div>
+
+                {/* Barre de recherche */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-500" />
+                  <input
+                    type="text"
+                    placeholder={realSoundCategory === 'ambiance' ? "Rechercher une ambiance..." : "Rechercher un effet..."}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white placeholder-midnight-500 focus:border-pink-500/50 focus:outline-none"
+                  />
+                </div>
+
+                {/* Info */}
+                <p className="text-xs text-midnight-400 text-center">
+                  {realSoundCategory === 'ambiance' ? '🌧️' : '💥'} Clique sur ▶️ pour écouter, puis "Ajouter" pour l'utiliser
+                </p>
+
+                {/* Grille de sons */}
+                <div className="grid grid-cols-1 gap-2 max-h-[45vh] overflow-y-auto pr-2">
+                  {(realSoundCategory === 'ambiance' ? AMBIANCE_SOUNDS : EFFECT_SOUNDS)
+                    .filter(s => searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((sound) => (
+                    <motion.div
+                      key={sound.id}
+                      className={cn(
+                        'p-3 rounded-xl border text-left transition-all flex items-center gap-3',
+                        'border-midnight-700 bg-midnight-800/50',
+                        realSoundCategory === 'ambiance' 
+                          ? 'hover:border-cyan-500/50' 
+                          : 'hover:border-pink-500/50'
+                      )}
+                      whileHover={{ scale: 1.01 }}
+                    >
+                      {/* Bouton play */}
                       <button
-                        key={catKey}
-                        onClick={() => setSoundCategory(catKey)}
+                        onClick={() => handlePlaySound(sound)}
                         className={cn(
-                          'px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2',
-                          soundCategory === catKey
-                            ? 'bg-pink-500/30 text-pink-300 border border-pink-500/50'
-                            : 'bg-midnight-800/50 text-midnight-400 hover:text-white hover:bg-midnight-700/50 border border-transparent'
+                          'w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0',
+                          playingSound === sound.id
+                            ? realSoundCategory === 'ambiance' ? 'bg-cyan-500 text-white' : 'bg-pink-500 text-white'
+                            : realSoundCategory === 'ambiance' 
+                              ? 'bg-midnight-700 text-cyan-400 hover:bg-cyan-500/30'
+                              : 'bg-midnight-700 text-pink-400 hover:bg-pink-500/30'
                         )}
                       >
-                        <span>{cat.emoji}</span>
-                        <span>{cat.label}</span>
-                        <span className="text-xs opacity-60">({cat.sounds.length})</span>
+                        {playingSound === sound.id ? (
+                          <Pause className="w-5 h-5" />
+                        ) : (
+                          <Play className="w-5 h-5 ml-0.5" />
+                        )}
                       </button>
-                    )
-                  })}
-                </div>
-
-                {/* Sons de la catégorie sélectionnée */}
-                <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto pr-2">
-                  {SOUND_CATEGORIES[soundCategory].sounds.map((sound) => (
-                    <motion.button
-                      key={sound.id}
-                      onClick={() => handleAddSound(sound.id)}
-                      className={cn(
-                        'p-3 rounded-xl border text-left transition-all',
-                        'border-midnight-700 bg-midnight-800/50 hover:border-pink-500/50 hover:bg-midnight-700/50'
-                      )}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{sound.emoji}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-white text-sm truncate">{sound.name}</p>
-                          <p className="text-xs text-midnight-400">
-                            {sound.type === 'sfx' ? 'Effet' : sound.type === 'loop' ? 'Boucle' : 'Ambiance'}
-                          </p>
+                      
+                      {/* Emoji + Info */}
+                      <span className="text-2xl">{sound.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-white truncate">{sound.name}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {sound.themes.slice(0, 2).map(theme => (
+                            <span key={theme} className="text-[10px] px-1.5 py-0.5 rounded bg-midnight-700 text-midnight-300">
+                              {THEME_LABELS[theme]?.emoji} {THEME_LABELS[theme]?.label}
+                            </span>
+                          ))}
                         </div>
                       </div>
-                    </motion.button>
+
+                      {/* Bouton ajouter */}
+                      <button
+                        onClick={() => realSoundCategory === 'ambiance' 
+                          ? handleAddRealAmbiance(sound) 
+                          : handleAddRealEffect(sound)
+                        }
+                        className={cn(
+                          'px-4 py-2 rounded-lg transition-all flex items-center gap-2 flex-shrink-0',
+                          realSoundCategory === 'ambiance'
+                            ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500 hover:text-white'
+                            : 'bg-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white'
+                        )}
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span className="text-sm font-medium">Ajouter</span>
+                      </button>
+                    </motion.div>
                   ))}
                 </div>
-
-                {/* Info catégorie */}
-                <p className="text-xs text-midnight-500 text-center">
-                  {SOUND_CATEGORIES[soundCategory].emoji} {SOUND_CATEGORIES[soundCategory].label} • {SOUND_CATEGORIES[soundCategory].sounds.length} sons disponibles
-                </p>
               </div>
             )}
 

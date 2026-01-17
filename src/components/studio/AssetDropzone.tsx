@@ -15,11 +15,13 @@ import {
   Sparkles,
   Cloud,
   CloudOff,
-  Loader2
+  Loader2,
+  Eraser,
 } from 'lucide-react'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import { useStudioProgressStore } from '@/store/useStudioProgressStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
+import { removeBackground, isBackgroundRemovalSupported } from '@/lib/background-removal'
 import { cn } from '@/lib/utils'
 
 interface AssetDropzoneProps {
@@ -33,6 +35,9 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
   
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [removingBgId, setRemovingBgId] = useState<string | null>(null)
+  const [bgRemovalProgress, setBgRemovalProgress] = useState(0)
+  const canRemoveBackground = isBackgroundRemovalSupported()
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -165,6 +170,52 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
       upload: { label: 'Upload', color: 'bg-midnight-500' },
     }
     return badges[source]
+  }
+
+  // ✂️ Fonction de suppression du fond
+  const handleRemoveBackground = async (asset: ImportedAsset) => {
+    if (asset.type !== 'image' || removingBgId) return
+    
+    setRemovingBgId(asset.id)
+    setBgRemovalProgress(0)
+    
+    try {
+      const result = await removeBackground(asset.url, {
+        onProgress: (progress) => setBgRemovalProgress(progress),
+      })
+      
+      // Créer un nouvel asset avec l'image détourée
+      const detoureedAsset: Omit<ImportedAsset, 'id' | 'importedAt'> = {
+        type: 'image',
+        file: result.file,
+        url: result.url,
+        name: asset.name.replace(/\.[^/.]+$/, '') + '-detoured.png',
+        source: asset.source,
+        promptUsed: asset.promptUsed,
+        isUploading: true,
+      }
+      
+      const newAssetId = addImportedAsset(detoureedAsset)
+      
+      // Upload vers le cloud
+      const cloudResult = await upload(result.file, { type: 'image', source: asset.source })
+      if (cloudResult) {
+        updateAsset(newAssetId, {
+          cloudUrl: cloudResult.url,
+          assetId: cloudResult.assetId,
+          isUploading: false,
+        })
+      } else {
+        updateAsset(newAssetId, { isUploading: false })
+      }
+      
+    } catch (error) {
+      console.error('Erreur détourage:', error)
+      alert('Erreur lors du détourage. Réessayez.')
+    } finally {
+      setRemovingBgId(null)
+      setBgRemovalProgress(0)
+    }
   }
 
   return (
@@ -331,6 +382,36 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
 
                     {/* Actions */}
                     <div className="flex gap-2">
+                      {/* Bouton détourage (seulement pour images) */}
+                      {asset.type === 'image' && canRemoveBackground && (
+                        <motion.button
+                          onClick={() => handleRemoveBackground(asset)}
+                          disabled={removingBgId !== null}
+                          className={cn(
+                            'p-2 rounded-lg transition-colors relative overflow-hidden',
+                            removingBgId === asset.id 
+                              ? 'bg-aurora-500/30 text-aurora-300 cursor-wait'
+                              : 'bg-aurora-500/20 text-aurora-400 hover:bg-aurora-500/30'
+                          )}
+                          whileHover={{ scale: removingBgId ? 1 : 1.1 }}
+                          whileTap={{ scale: removingBgId ? 1 : 0.9 }}
+                          title="Enlever le fond"
+                        >
+                          {removingBgId === asset.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              {/* Barre de progression */}
+                              <div 
+                                className="absolute bottom-0 left-0 h-1 bg-aurora-500 transition-all"
+                                style={{ width: `${bgRemovalProgress}%` }}
+                              />
+                            </>
+                          ) : (
+                            <Eraser className="w-4 h-4" />
+                          )}
+                        </motion.button>
+                      )}
+                      
                       <motion.button
                         onClick={() => removeImportedAsset(asset.id)}
                         className="p-2 rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 transition-colors"
