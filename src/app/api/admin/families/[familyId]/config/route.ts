@@ -16,15 +16,27 @@ export async function PATCH(
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
     
-    // Super admin only pour modifier les clés API
+    // Vérifier accès : Super admin OU parent de cette famille
     const { data: superAdmin } = await supabase
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
       .single();
     
-    if (!superAdmin) {
-      return NextResponse.json({ error: 'Accès refusé - Super Admin requis' }, { status: 403 });
+    const isSuperAdmin = !!superAdmin;
+    
+    if (!isSuperAdmin) {
+      // Vérifier si l'utilisateur est un parent de cette famille
+      const { data: membership } = await supabase
+        .from('family_members')
+        .select('role')
+        .eq('family_id', familyId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (!membership || membership.role !== 'parent') {
+        return NextResponse.json({ error: 'Accès refusé - Admin ou Parent requis' }, { status: 403 });
+      }
     }
     
     const body = await request.json();
@@ -107,20 +119,33 @@ export async function POST(
 ) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
+    const { familyId } = params;
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
     
+    // Vérifier accès : Super admin OU parent de cette famille
     const { data: superAdmin } = await supabase
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
       .single();
     
-    if (!superAdmin) {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    const isSuperAdmin = !!superAdmin;
+    
+    if (!isSuperAdmin) {
+      const { data: membership } = await supabase
+        .from('family_members')
+        .select('role')
+        .eq('family_id', familyId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (!membership || membership.role !== 'parent') {
+        return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+      }
     }
     
     const body = await request.json();

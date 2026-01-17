@@ -16,17 +16,30 @@ import {
   CheckCircle,
   AlertCircle,
   RefreshCw,
+  Key,
+  Eye,
+  EyeOff,
+  Shield,
+  HelpCircle,
 } from 'lucide-react';
-import { useAdminStore, FamilyMember } from '@/store/useAdminStore';
+import { useAdminStore, FamilyMember, FamilyConfig } from '@/store/useAdminStore';
+
+type TabType = 'members' | 'settings';
 
 export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
   // État local
+  const [activeTab, setActiveTab] = useState<TabType>('members');
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'child' as const, avatar_emoji: '👤' });
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // État pour les clés API
+  const [config, setConfig] = useState<Partial<FamilyConfig>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [keyStatus, setKeyStatus] = useState<Record<string, 'unchecked' | 'checking' | 'valid' | 'invalid'>>({});
   
   const EMOJI_OPTIONS = ['👧', '👦', '👶', '🧒', '👩', '👨', '🧑', '👴', '👵', '🐱', '🐶', '🦄', '🌟', '🎀', '🎮'];
   
@@ -51,9 +64,26 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
     }
   }, [familyId]);
   
+  // Charger la config
+  const loadConfig = useCallback(async () => {
+    if (!familyId) return;
+    
+    try {
+      const res = await fetch(`/api/admin/families/${familyId}`);
+      if (!res.ok) throw new Error('Erreur');
+      const data = await res.json();
+      // Note: les clés sont masquées côté serveur pour les non-super-admins
+      // mais on peut quand même les modifier
+      setConfig(data.config || {});
+    } catch (err) {
+      console.error('Erreur:', err);
+    }
+  }, [familyId]);
+  
   useEffect(() => {
     loadMembers();
-  }, [loadMembers]);
+    loadConfig();
+  }, [loadMembers, loadConfig]);
   
   // Ajouter un membre
   const handleAddMember = async () => {
@@ -126,6 +156,49 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
     }
   };
   
+  // Sauvegarder la config
+  const handleSaveConfig = async () => {
+    if (!familyId) return;
+    
+    try {
+      setIsSaving(true);
+      const res = await fetch(`/api/admin/families/${familyId}/config`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      
+      if (!res.ok) throw new Error('Erreur');
+      
+      setMessage({ type: 'success', text: '✅ Configuration sauvegardée !' });
+    } catch (err) {
+      console.error('Erreur:', err);
+      setMessage({ type: 'error', text: 'Erreur de sauvegarde' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Tester une clé
+  const testKey = async (keyType: string, keyValue: string) => {
+    if (!keyValue || !familyId) return;
+    
+    setKeyStatus(prev => ({ ...prev, [keyType]: 'checking' }));
+    
+    try {
+      const res = await fetch(`/api/admin/families/${familyId}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key_type: keyType, key_value: keyValue }),
+      });
+      
+      const data = await res.json();
+      setKeyStatus(prev => ({ ...prev, [keyType]: data.isValid ? 'valid' : 'invalid' }));
+    } catch {
+      setKeyStatus(prev => ({ ...prev, [keyType]: 'invalid' }));
+    }
+  };
+  
   // Effacer le message
   useEffect(() => {
     if (message) {
@@ -168,6 +241,32 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         
+        {/* Onglets */}
+        <div className="flex border-b border-white/10">
+          <button
+            onClick={() => setActiveTab('members')}
+            className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 transition-colors ${
+              activeTab === 'members'
+                ? 'bg-white/10 text-white border-b-2 border-pink-400'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span className="font-medium">Membres</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 transition-colors ${
+              activeTab === 'settings'
+                ? 'bg-white/10 text-white border-b-2 border-purple-400'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span className="font-medium">Configuration</span>
+          </button>
+        </div>
+        
         {/* Message toast */}
         <AnimatePresence>
           {message && (
@@ -193,99 +292,270 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
         
         {/* Contenu */}
         <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
-          {/* Bouton ajouter */}
-          <button
-            onClick={() => setShowAddMember(true)}
-            className="w-full py-4 bg-gradient-to-r from-pink-500/20 to-purple-500/20 hover:from-pink-500/30 hover:to-purple-500/30 rounded-2xl border-2 border-dashed border-pink-400/40 hover:border-pink-400/60 transition-all flex items-center justify-center gap-3 group"
-          >
-            <div className="w-10 h-10 bg-pink-500/30 group-hover:bg-pink-500/50 rounded-xl flex items-center justify-center transition-colors">
-              <Plus className="w-5 h-5 text-pink-300" />
-            </div>
-            <span className="font-medium text-pink-200">Ajouter quelqu&apos;un</span>
-          </button>
-          
-          {/* Liste des membres */}
-          <div className="space-y-3">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
-              </div>
-            ) : members.length === 0 ? (
-              <div className="text-center py-8 text-purple-300/60">
-                <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Ajoutez des membres à votre famille</p>
-              </div>
-            ) : (
-              members.map((member, index) => (
-                <motion.div
-                  key={member.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-center justify-between group hover:bg-white/10 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{member.avatar_emoji}</span>
-                    <div>
-                      <div className="font-medium text-white flex items-center gap-2">
-                        {member.name}
-                        {member.role === 'parent' && (
-                          <Crown className="w-4 h-4 text-yellow-400" title="Parent" />
-                        )}
-                        {member.role === 'child' && (
-                          <Baby className="w-4 h-4 text-pink-400" title="Enfant" />
-                        )}
-                        {member.role === 'guest' && (
-                          <UserCircle className="w-4 h-4 text-gray-400" title="Invité" />
-                        )}
+          {activeTab === 'members' ? (
+            <>
+              {/* Bouton ajouter */}
+              <button
+                onClick={() => setShowAddMember(true)}
+                className="w-full py-4 bg-gradient-to-r from-pink-500/20 to-purple-500/20 hover:from-pink-500/30 hover:to-purple-500/30 rounded-2xl border-2 border-dashed border-pink-400/40 hover:border-pink-400/60 transition-all flex items-center justify-center gap-3 group"
+              >
+                <div className="w-10 h-10 bg-pink-500/30 group-hover:bg-pink-500/50 rounded-xl flex items-center justify-center transition-colors">
+                  <Plus className="w-5 h-5 text-pink-300" />
+                </div>
+                <span className="font-medium text-pink-200">Ajouter quelqu&apos;un</span>
+              </button>
+              
+              {/* Liste des membres */}
+              <div className="space-y-3">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                  </div>
+                ) : members.length === 0 ? (
+                  <div className="text-center py-8 text-purple-300/60">
+                    <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Ajoutez des membres à votre famille</p>
+                  </div>
+                ) : (
+                  members.map((member, index) => (
+                    <motion.div
+                      key={member.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-center justify-between group hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{member.avatar_emoji}</span>
+                        <div>
+                          <div className="font-medium text-white flex items-center gap-2">
+                            {member.name}
+                            {member.role === 'parent' && (
+                              <Crown className="w-4 h-4 text-yellow-400" title="Parent" />
+                            )}
+                            {member.role === 'child' && (
+                              <Baby className="w-4 h-4 text-pink-400" title="Enfant" />
+                            )}
+                            {member.role === 'guest' && (
+                              <UserCircle className="w-4 h-4 text-gray-400" title="Invité" />
+                            )}
+                          </div>
+                          <div className="text-xs text-purple-300/60">{member.email}</div>
+                        </div>
                       </div>
-                      <div className="text-xs text-purple-300/60">{member.email}</div>
+                      
+                      <div className="flex items-center gap-2">
+                        {member.invitation_status === 'pending' && (
+                          <>
+                            <span className="px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs rounded-lg">
+                              En attente
+                            </span>
+                            <button
+                              onClick={() => handleResendInvite(member)}
+                              className="p-2 hover:bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                              title="Renvoyer l'invitation"
+                            >
+                              <Mail className="w-4 h-4 text-blue-400" />
+                            </button>
+                          </>
+                        )}
+                        {member.invitation_status === 'accepted' && (
+                          <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-lg flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3" />
+                            Actif
+                          </span>
+                        )}
+                        <button
+                          onClick={() => handleRemoveMember(member)}
+                          className="p-2 hover:bg-red-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                          title="Retirer"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+              
+              {/* Bouton actualiser */}
+              {!isLoading && members.length > 0 && (
+                <button
+                  onClick={loadMembers}
+                  className="w-full py-2 text-purple-300/60 hover:text-purple-300 flex items-center justify-center gap-2 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="text-sm">Actualiser</span>
+                </button>
+              )}
+            </>
+          ) : (
+            /* Onglet Configuration */
+            <div className="space-y-4">
+              {/* Avertissement */}
+              <div className="bg-amber-500/10 border border-amber-400/30 rounded-xl p-4 flex gap-3">
+                <Shield className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-amber-200 text-sm font-medium">Paramètres avancés</p>
+                  <p className="text-amber-200/70 text-xs mt-1">
+                    Ces clés permettent d&apos;utiliser les services d&apos;IA. Ne les modifiez que si nécessaire.
+                  </p>
+                </div>
+              </div>
+              
+              {/* Clés API */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-purple-200 flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  Clés API
+                </h4>
+                
+                {/* ElevenLabs */}
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-white">ElevenLabs</span>
+                      <span className="text-xs text-purple-300/50">(voix narration)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {keyStatus.elevenlabs === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
+                      {keyStatus.elevenlabs === 'valid' && <CheckCircle className="w-4 h-4 text-green-400" />}
+                      {keyStatus.elevenlabs === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+                      <button
+                        onClick={() => setShowKeys(p => ({ ...p, elevenlabs: !p.elevenlabs }))}
+                        className="p-1 hover:bg-white/10 rounded"
+                      >
+                        {showKeys.elevenlabs ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
+                      </button>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {member.invitation_status === 'pending' && (
-                      <>
-                        <span className="px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs rounded-lg">
-                          En attente
-                        </span>
-                        <button
-                          onClick={() => handleResendInvite(member)}
-                          className="p-2 hover:bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
-                          title="Renvoyer l'invitation"
-                        >
-                          <Mail className="w-4 h-4 text-blue-400" />
-                        </button>
-                      </>
-                    )}
-                    {member.invitation_status === 'accepted' && (
-                      <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-lg flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" />
-                        Actif
-                      </span>
-                    )}
+                  <div className="flex gap-2">
+                    <input
+                      type={showKeys.elevenlabs ? 'text' : 'password'}
+                      value={config.elevenlabs_key || ''}
+                      onChange={e => setConfig(p => ({ ...p, elevenlabs_key: e.target.value }))}
+                      placeholder="sk-..."
+                      className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:border-purple-400 focus:outline-none"
+                    />
                     <button
-                      onClick={() => handleRemoveMember(member)}
-                      className="p-2 hover:bg-red-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
-                      title="Retirer"
+                      onClick={() => testKey('elevenlabs', config.elevenlabs_key || '')}
+                      className="px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-purple-300 text-xs"
                     >
-                      <Trash2 className="w-4 h-4 text-red-400" />
+                      Tester
                     </button>
                   </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-          
-          {/* Bouton actualiser */}
-          {!isLoading && members.length > 0 && (
-            <button
-              onClick={loadMembers}
-              className="w-full py-2 text-purple-300/60 hover:text-purple-300 flex items-center justify-center gap-2 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span className="text-sm">Actualiser</span>
-            </button>
+                </div>
+                
+                {/* Gemini */}
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-white">Gemini</span>
+                      <span className="text-xs text-purple-300/50">(IA compagnon)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {keyStatus.gemini === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
+                      {keyStatus.gemini === 'valid' && <CheckCircle className="w-4 h-4 text-green-400" />}
+                      {keyStatus.gemini === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+                      <button
+                        onClick={() => setShowKeys(p => ({ ...p, gemini: !p.gemini }))}
+                        className="p-1 hover:bg-white/10 rounded"
+                      >
+                        {showKeys.gemini ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type={showKeys.gemini ? 'text' : 'password'}
+                      value={config.gemini_key || ''}
+                      onChange={e => setConfig(p => ({ ...p, gemini_key: e.target.value }))}
+                      placeholder="AIza..."
+                      className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:border-purple-400 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => testKey('gemini', config.gemini_key || '')}
+                      className="px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-purple-300 text-xs"
+                    >
+                      Tester
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Midjourney */}
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-white">Midjourney</span>
+                      <span className="text-xs text-purple-300/50">(images IA)</span>
+                    </div>
+                    <button
+                      onClick={() => setShowKeys(p => ({ ...p, midjourney: !p.midjourney }))}
+                      className="p-1 hover:bg-white/10 rounded"
+                    >
+                      {showKeys.midjourney ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
+                    </button>
+                  </div>
+                  <input
+                    type={showKeys.midjourney ? 'text' : 'password'}
+                    value={config.midjourney_key || ''}
+                    onChange={e => setConfig(p => ({ ...p, midjourney_key: e.target.value }))}
+                    placeholder="Clé ImagineAPI..."
+                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+                
+                {/* Runway */}
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-white">Runway</span>
+                      <span className="text-xs text-purple-300/50">(vidéos IA)</span>
+                    </div>
+                    <button
+                      onClick={() => setShowKeys(p => ({ ...p, runway: !p.runway }))}
+                      className="p-1 hover:bg-white/10 rounded"
+                    >
+                      {showKeys.runway ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
+                    </button>
+                  </div>
+                  <input
+                    type={showKeys.runway ? 'text' : 'password'}
+                    value={config.runway_key || ''}
+                    onChange={e => setConfig(p => ({ ...p, runway_key: e.target.value }))}
+                    placeholder="key_..."
+                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+              
+              {/* Bouton sauvegarder */}
+              <button
+                onClick={handleSaveConfig}
+                disabled={isSaving}
+                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl font-medium text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-5 h-5" />
+                )}
+                Sauvegarder
+              </button>
+              
+              {/* Aide */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div className="flex items-start gap-3">
+                  <HelpCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-blue-200 text-sm font-medium">Besoin d&apos;aide ?</p>
+                    <p className="text-blue-200/60 text-xs mt-1">
+                      Pour obtenir vos clés API ou en cas de problème, contactez votre support technique.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
         
