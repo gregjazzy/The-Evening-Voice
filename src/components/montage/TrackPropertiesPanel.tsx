@@ -635,10 +635,19 @@ export function TrackPropertiesPanel() {
   const scene = getCurrentScene()
   
   // État pour la position du panneau (déplaçable)
-  const [position, setPosition] = useState({ x: 16, y: 16 }) // Position initiale en haut à droite
+  const [position, setPosition] = useState({ x: 0, y: 100 }) // Position initiale, sera ajustée au mount
   const [isDragging, setIsDragging] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0 })
   const positionStartRef = useRef({ x: 0, y: 0 })
+
+  // Initialiser la position au mount (côté client uniquement)
+  useEffect(() => {
+    if (!isInitialized && typeof window !== 'undefined') {
+      setPosition({ x: window.innerWidth - 300, y: 100 })
+      setIsInitialized(true)
+    }
+  }, [isInitialized])
 
   // Handlers pour le drag
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -655,9 +664,9 @@ export function TrackPropertiesPanel() {
       const deltaX = e.clientX - dragStartRef.current.x
       const deltaY = e.clientY - dragStartRef.current.y
       
-      // Limiter aux bords de l'écran
-      const newX = Math.max(0, Math.min(window.innerWidth - 300, positionStartRef.current.x + deltaX))
-      const newY = Math.max(0, Math.min(window.innerHeight - 200, positionStartRef.current.y + deltaY))
+      // Limiter aux bords de l'écran (avec marge pour la sidebar de 96px à gauche)
+      const newX = Math.max(96, Math.min(window.innerWidth - 288, positionStartRef.current.x + deltaX))
+      const newY = Math.max(16, Math.min(window.innerHeight - 300, positionStartRef.current.y + deltaY))
       
       setPosition({ x: newX, y: newY })
     }
@@ -728,7 +737,7 @@ export function TrackPropertiesPanel() {
             isDragging && "cursor-grabbing"
           )}
           style={{ 
-            right: position.x, 
+            left: position.x, 
             top: position.y,
           }}
         >
