@@ -404,9 +404,11 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
   // 🎨 Récupérer les assets importés depuis le Studio
   const { importedAssets } = useStudioStore()
   
-  // Filtrer pour n'avoir que les images et vidéos du Studio
+  // Filtrer pour n'avoir que les images et vidéos du Studio avec une URL valide
   const studioMediaAssets = importedAssets.filter(
-    (asset) => asset.type === 'image' || asset.type === 'video'
+    (asset) => 
+      (asset.type === 'image' || asset.type === 'video') &&
+      (asset.cloudUrl || asset.url) // Doit avoir au moins une URL
   )
   
   const { upload, isUploading } = useMediaUpload()
@@ -801,13 +803,13 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                         >
                           {asset.type === 'video' ? (
                             <video
-                              src={asset.url}
+                              src={asset.cloudUrl || asset.url}
                               className="absolute inset-0 w-full h-full object-cover"
                               muted
                             />
                           ) : (
                             <img
-                              src={asset.url}
+                              src={asset.cloudUrl || asset.url}
                               alt={asset.name}
                               className="absolute inset-0 w-full h-full object-cover"
                             />
