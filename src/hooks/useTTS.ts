@@ -50,35 +50,46 @@ function cleanTextForTTS(text: string): string {
     .trim()
 }
 
+// Helper pour trouver la meilleure voix
+function findBestVoice(locale: string): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices()
+  const preferredNames = WEB_VOICES[locale] || WEB_VOICES.fr
+  
+  // Chercher une voix préférée
+  let selectedVoice = voices.find(v => 
+    preferredNames.some(name => v.name.includes(name))
+  )
+  
+  // Fallback : voix de la langue
+  if (!selectedVoice) {
+    const langCode = locale === 'fr' ? 'fr' : locale === 'ru' ? 'ru' : 'en'
+    selectedVoice = voices.find(v => v.lang.startsWith(langCode))
+  }
+  
+  // Fallback ultime : première voix
+  if (!selectedVoice && voices.length > 0) {
+    selectedVoice = voices[0]
+  }
+  
+  return selectedVoice || null
+}
+
 export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr'): UseTTSReturn {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [webVoice, setWebVoice] = useState<SpeechSynthesisVoice | null>(null)
+  const [voicesReady, setVoicesReady] = useState(false)
 
   // Charger les voix disponibles pour Web Speech
   useEffect(() => {
     if (!hasWebSpeech || isElectron) return
 
     const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices()
-      const preferredNames = WEB_VOICES[locale] || WEB_VOICES.fr
-      
-      // Chercher une voix préférée
-      let selectedVoice = voices.find(v => 
-        preferredNames.some(name => v.name.includes(name))
-      )
-      
-      // Fallback : voix de la langue
-      if (!selectedVoice) {
-        const langCode = locale === 'fr' ? 'fr' : locale === 'ru' ? 'ru' : 'en'
-        selectedVoice = voices.find(v => v.lang.startsWith(langCode))
+      const selectedVoice = findBestVoice(locale)
+      setWebVoice(selectedVoice)
+      if (selectedVoice) {
+        setVoicesReady(true)
+        console.log('🎤 Voix TTS chargée:', selectedVoice.name)
       }
-      
-      // Fallback ultime : première voix
-      if (!selectedVoice && voices.length > 0) {
-        selectedVoice = voices[0]
-      }
-      
-      setWebVoice(selectedVoice || null)
     }
 
     // Les voix peuvent être chargées de manière asynchrone
@@ -111,14 +122,32 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr'): UseTTSReturn {
     // Mode Web : Web Speech API
     if (hasWebSpeech) {
       try {
-        // Arrêter toute lecture en cours
-        window.speechSynthesis.cancel()
+        // Arrêter toute lecture en cours SEULEMENT si elle parle vraiment
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel()
+          // Petit délai pour laisser le temps à cancel() de prendre effet
+          await new Promise(resolve => setTimeout(resolve, 50))
+        }
         
         const utterance = new SpeechSynthesisUtterance(cleanText)
         
-        if (webVoice) {
-          utterance.voice = webVoice
+        // Essayer de trouver une voix à chaque fois (au cas où pas encore chargée)
+        let voiceToUse = webVoice
+        if (!voiceToUse) {
+          voiceToUse = findBestVoice(locale)
+          if (voiceToUse) {
+            setWebVoice(voiceToUse)
+            setVoicesReady(true)
+            console.log('🎤 Voix TTS chargée (lazy):', voiceToUse.name)
+          }
         }
+        
+        if (voiceToUse) {
+          utterance.voice = voiceToUse
+        }
+        
+        // Définir la langue explicitement (important si pas de voix)
+        utterance.lang = locale === 'fr' ? 'fr-FR' : locale === 'ru' ? 'ru-RU' : 'en-US'
         
         // Paramètres adaptés par langue
         const settings = VOICE_SETTINGS[locale] || VOICE_SETTINGS.fr
@@ -126,9 +155,21 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr'): UseTTSReturn {
         utterance.pitch = settings.pitch
         utterance.volume = 1
         
-        utterance.onstart = () => setIsSpeaking(true)
-        utterance.onend = () => setIsSpeaking(false)
-        utterance.onerror = () => setIsSpeaking(false)
+        utterance.onstart = () => {
+          console.log('🔊 TTS démarré:', cleanText.slice(0, 50) + '...')
+          setIsSpeaking(true)
+        }
+        utterance.onend = () => {
+          console.log('🔇 TTS terminé')
+          setIsSpeaking(false)
+        }
+        utterance.onerror = (e) => {
+          // Ignorer 'canceled' si c'est juste une interruption normale
+          if (e.error !== 'canceled') {
+            console.error('❌ Erreur TTS:', e.error)
+          }
+          setIsSpeaking(false)
+        }
         
         window.speechSynthesis.speak(utterance)
       } catch (error) {
