@@ -21,10 +21,56 @@ import {
   EyeOff,
   Shield,
   HelpCircle,
+  Sparkles,
+  BookOpen,
+  Film,
+  Clock,
+  ChevronRight,
 } from 'lucide-react';
 import { useAdminStore, FamilyMember, FamilyConfig } from '@/store/useAdminStore';
 
-type TabType = 'members' | 'settings';
+type TabType = 'members' | 'creations' | 'settings';
+
+// Fonction utilitaire pour formater les dates
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return "Hier";
+  if (diffDays < 7) return `Il y a ${diffDays} jours`;
+  if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} semaine${Math.floor(diffDays / 7) > 1 ? 's' : ''}`;
+  
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+interface ChildCreations {
+  member: {
+    id: string;
+    name: string;
+    avatar_emoji: string;
+    email: string;
+  };
+  stories: {
+    id: string;
+    title: string;
+    status: string;
+    total_pages: number;
+    cover_image_url: string | null;
+    created_at: string;
+    updated_at: string;
+  }[];
+  montages: {
+    id: string;
+    title: string;
+    scenes_count: number;
+    created_at: string;
+    updated_at: string;
+  }[];
+  lastActivity: string | null;
+}
 
 export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
   // État local
@@ -40,6 +86,11 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
   const [config, setConfig] = useState<Partial<FamilyConfig>>({});
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [keyStatus, setKeyStatus] = useState<Record<string, 'unchecked' | 'checking' | 'valid' | 'invalid'>>({});
+  
+  // État pour les créations
+  const [childrenCreations, setChildrenCreations] = useState<ChildCreations[]>([]);
+  const [isLoadingCreations, setIsLoadingCreations] = useState(false);
+  const [expandedChild, setExpandedChild] = useState<string | null>(null);
   
   const EMOJI_OPTIONS = ['👧', '👦', '👶', '🧒', '👩', '👨', '🧑', '👴', '👵', '🐱', '🐶', '🦄', '🌟', '🎀', '🎮'];
   
@@ -80,10 +131,34 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
     }
   }, [familyId]);
   
+  // Charger les créations des enfants
+  const loadCreations = useCallback(async () => {
+    if (!familyId) return;
+    
+    try {
+      setIsLoadingCreations(true);
+      const res = await fetch(`/api/admin/families/${familyId}/creations`);
+      if (!res.ok) throw new Error('Erreur');
+      const data = await res.json();
+      setChildrenCreations(data.creations || []);
+    } catch (err) {
+      console.error('Erreur:', err);
+    } finally {
+      setIsLoadingCreations(false);
+    }
+  }, [familyId]);
+  
   useEffect(() => {
     loadMembers();
     loadConfig();
   }, [loadMembers, loadConfig]);
+  
+  // Charger les créations quand on ouvre l'onglet
+  useEffect(() => {
+    if (activeTab === 'creations' && childrenCreations.length === 0) {
+      loadCreations();
+    }
+  }, [activeTab, childrenCreations.length, loadCreations]);
   
   // Ajouter un membre
   const handleAddMember = async () => {
@@ -245,25 +320,36 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
         <div className="flex border-b border-white/10">
           <button
             onClick={() => setActiveTab('members')}
-            className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 transition-colors ${
+            className={`flex-1 py-3 px-2 flex items-center justify-center gap-1.5 transition-colors ${
               activeTab === 'members'
                 ? 'bg-white/10 text-white border-b-2 border-pink-400'
                 : 'text-white/60 hover:text-white hover:bg-white/5'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span className="font-medium">Membres</span>
+            <span className="font-medium text-sm">Membres</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('creations')}
+            className={`flex-1 py-3 px-2 flex items-center justify-center gap-1.5 transition-colors ${
+              activeTab === 'creations'
+                ? 'bg-white/10 text-white border-b-2 border-amber-400'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span className="font-medium text-sm">Créations</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 transition-colors ${
+            className={`flex-1 py-3 px-2 flex items-center justify-center gap-1.5 transition-colors ${
               activeTab === 'settings'
                 ? 'bg-white/10 text-white border-b-2 border-purple-400'
                 : 'text-white/60 hover:text-white hover:bg-white/5'
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span className="font-medium">Configuration</span>
+            <span className="font-medium text-sm">Config</span>
           </button>
         </div>
         
@@ -389,6 +475,171 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
                 </button>
               )}
             </>
+          ) : activeTab === 'creations' ? (
+            /* Onglet Créations */
+            <div className="space-y-4">
+              {isLoadingCreations ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+                </div>
+              ) : childrenCreations.length === 0 ? (
+                <div className="text-center py-12 text-purple-300/60">
+                  <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="font-medium">Aucune création pour le moment</p>
+                  <p className="text-sm mt-1 opacity-75">Les histoires et montages des enfants apparaîtront ici</p>
+                </div>
+              ) : (
+                childrenCreations.map((child, index) => (
+                  <motion.div
+                    key={child.member.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden"
+                  >
+                    {/* En-tête enfant */}
+                    <button
+                      onClick={() => setExpandedChild(expandedChild === child.member.id ? null : child.member.id)}
+                      className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{child.member.avatar_emoji}</span>
+                        <div className="text-left">
+                          <div className="font-medium text-white">{child.member.name}</div>
+                          <div className="flex items-center gap-3 text-xs text-purple-300/60 mt-0.5">
+                            <span className="flex items-center gap-1">
+                              <BookOpen className="w-3 h-3" />
+                              {child.stories.length} histoire{child.stories.length !== 1 ? 's' : ''}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Film className="w-3 h-3" />
+                              {child.montages.length} montage{child.montages.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {child.lastActivity && (
+                          <span className="text-xs text-purple-300/50 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDate(child.lastActivity)}
+                          </span>
+                        )}
+                        <ChevronRight className={`w-5 h-5 text-white/50 transition-transform ${
+                          expandedChild === child.member.id ? 'rotate-90' : ''
+                        }`} />
+                      </div>
+                    </button>
+                    
+                    {/* Détails des créations */}
+                    <AnimatePresence>
+                      {expandedChild === child.member.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="border-t border-white/10 overflow-hidden"
+                        >
+                          <div className="p-4 space-y-4">
+                            {/* Histoires */}
+                            {child.stories.length > 0 && (
+                              <div>
+                                <h5 className="text-xs font-medium text-amber-300 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                  <BookOpen className="w-3.5 h-3.5" />
+                                  Histoires
+                                </h5>
+                                <div className="space-y-2">
+                                  {child.stories.map(story => (
+                                    <div
+                                      key={story.id}
+                                      className="bg-black/20 rounded-xl p-3 flex items-center gap-3"
+                                    >
+                                      {story.cover_image_url ? (
+                                        <img
+                                          src={story.cover_image_url}
+                                          alt={story.title}
+                                          className="w-12 h-12 rounded-lg object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500/30 to-orange-500/30 flex items-center justify-center">
+                                          <BookOpen className="w-5 h-5 text-amber-300" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-white text-sm truncate">{story.title}</div>
+                                        <div className="flex items-center gap-2 text-xs text-purple-300/60 mt-0.5">
+                                          <span>{story.total_pages} page{story.total_pages !== 1 ? 's' : ''}</span>
+                                          <span>•</span>
+                                          <span className={`capitalize ${
+                                            story.status === 'completed' ? 'text-green-400' :
+                                            story.status === 'in_progress' ? 'text-amber-400' :
+                                            'text-gray-400'
+                                          }`}>
+                                            {story.status === 'completed' ? '✓ Terminée' :
+                                             story.status === 'in_progress' ? 'En cours' :
+                                             'Brouillon'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Montages */}
+                            {child.montages.length > 0 && (
+                              <div>
+                                <h5 className="text-xs font-medium text-pink-300 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                  <Film className="w-3.5 h-3.5" />
+                                  Montages
+                                </h5>
+                                <div className="space-y-2">
+                                  {child.montages.map(montage => (
+                                    <div
+                                      key={montage.id}
+                                      className="bg-black/20 rounded-xl p-3 flex items-center gap-3"
+                                    >
+                                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-pink-500/30 to-purple-500/30 flex items-center justify-center">
+                                        <Film className="w-5 h-5 text-pink-300" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-white text-sm truncate">{montage.title}</div>
+                                        <div className="text-xs text-purple-300/60 mt-0.5">
+                                          {montage.scenes_count} scène{montage.scenes_count !== 1 ? 's' : ''}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Message si aucune création */}
+                            {child.stories.length === 0 && child.montages.length === 0 && (
+                              <div className="text-center py-4 text-purple-300/50 text-sm">
+                                Pas encore de créations
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                ))
+              )}
+              
+              {/* Bouton actualiser */}
+              {!isLoadingCreations && childrenCreations.length > 0 && (
+                <button
+                  onClick={loadCreations}
+                  className="w-full py-2 text-purple-300/60 hover:text-purple-300 flex items-center justify-center gap-2 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="text-sm">Actualiser</span>
+                </button>
+              )}
+            </div>
           ) : (
             /* Onglet Configuration */
             <div className="space-y-4">
