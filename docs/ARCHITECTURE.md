@@ -28,14 +28,59 @@
         │                    │                    │                  │
         ▼                    ▼                    ▼                  ▼
 ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│   Supabase    │   │    Gemini     │   │  Web Speech   │   │   Electron    │
-│   (Database)  │   │    (Luna)     │   │   API         │   │   (Desktop)   │
+│   Supabase    │   │    fal.ai     │   │  Web Speech   │   │   Electron    │
+│   (Database)  │   │  (AI Unified) │   │   API         │   │   (Desktop)   │
 ├───────────────┤   ├───────────────┤   ├───────────────┤   ├───────────────┤
-│ - Auth        │   │ - Chat        │   │ - TTS         │   │ - TTS macOS   │
-│ - Profiles    │   │ - Pédagogie   │   │ - STT         │   │ - Screen      │
-│ - Stories     │   │ - Prompts     │   │ (dictée)      │   │ - Control     │
+│ - Auth        │   │ - Flux 1 Pro  │   │ - TTS         │   │ - TTS macOS   │
+│ - Profiles    │   │ - Kling 2.1   │   │ - STT         │   │ - Screen      │
+│ - Stories     │   │ - ElevenLabs  │   │ (dictée)      │   │ - Control     │
 │ - Realtime    │   │               │   │               │   │               │
 └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘
+                            │
+                    ┌───────▼───────┐
+                    │  + Gemini     │  ← Chat IA
+                    │  + AssemblyAI │  ← Transcription
+                    └───────────────┘
+```
+
+---
+
+## Services IA
+
+### Architecture Unifiée (fal.ai)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     fal.ai API                               │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │  Flux 1 Pro │  │  Kling 2.1  │  │ ElevenLabs  │         │
+│  │  (Images)   │  │  (Vidéos)   │  │  (Voix IA)  │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+└─────────────────────────────────────────────────────────────┘
+          │                  │                  │
+          ▼                  ▼                  ▼
+   /api/ai/image      /api/ai/video    /api/ai/voice/narration
+```
+
+### Services Séparés
+
+| Service | Usage | Raison |
+|---------|-------|--------|
+| **Gemini** | Chat IA (assistance) | Meilleur pour dialogue |
+| **AssemblyAI** | Transcription voix | Timestamps plus précis que Whisper |
+
+### Fichier unifié : `src/lib/ai/fal.ts`
+
+```typescript
+// Génération d'images
+export async function generateFalImage(prompt: string, apiKey?: string)
+
+// Génération de vidéos
+export async function generateFalVideo(imageUrl: string, prompt: string, apiKey?: string)
+
+// Voix ElevenLabs avec timestamps
+export async function generateFalElevenLabsVoice(text: string, voiceId: string, apiKey?: string)
 ```
 
 ---
@@ -47,6 +92,7 @@
 ```
 BookMode.tsx (~7000 lignes)
 ├── useSpeechRecognition()      # Hook custom pour la dictée vocale
+├── useTTS()                    # Hook pour synthèse vocale IA
 │
 ├── CONFIGURATION
 │   ├── FONTS (6 polices)
@@ -60,241 +106,110 @@ BookMode.tsx (~7000 lignes)
 │   ├── PageTab                    # Onglet de page
 │   ├── Overview                   # Vue miniatures
 │   ├── FormatBar                  # Barre de formatage complète
-│   │   ├── Sélecteur police
-│   │   ├── Tailles (S/M/L)
-│   │   ├── Gras / Italique
-│   │   ├── Alignement (←/▣/→)
-│   │   ├── Décalage position (←→ + ↑↓)
-│   │   ├── Couleurs
-│   │   ├── Fond de page (opacité + zoom)
-│   │   └── Toggle lignes
+│   │   └── Highlightable          # Wrapper pour guidage IA
 │   ├── WritingArea                # Zone d'écriture
 │   │   ├── BackgroundMedia        # Image/vidéo de fond
-│   │   ├── EditableBackground     # Contrôles drag/zoom fond
 │   │   ├── DraggableImage         # Images flottantes
 │   │   ├── DraggableDecoration    # Décorations premium
-│   │   ├── Textarea stylisé
-│   │   ├── Bouton Dicter 🎙️
-│   │   ├── Bouton Image 📷
-│   │   ├── Bouton Fond 🖼️
-│   │   └── Bouton Décorations 🎨
+│   │   └── Highlightable          # Boutons avec guidage IA
 │   ├── DecorationPicker           # Sélecteur de décorations
-│   ├── LunaSidePanel              # Panneau Luna latéral
-│   │   ├── Toggle voix 🔊
-│   │   ├── Chat historique
-│   │   ├── Bouton "Luna, lis ma page"
-│   │   └── Input + Micro
-│   └── StructureSelector          # Choix structure narrative
+│   └── AISidePanel                # Panneau IA latéral
+│       ├── Toggle voix 🔊
+│       ├── Chat historique
+│       ├── Bouton "Lis ma page"
+│       └── Input + Micro (Speech Recognition)
 │
 └── ÉTAT
     ├── pages: StoryPageLocal[]
     ├── currentPageIndex: number
-    ├── storyTitle: string
-    ├── showLunaPanel: boolean
-    ├── showDecorationPicker: boolean
-    └── backgroundPickerTargetPage: number | null
+    ├── autoSpeak: boolean          # IA parle automatiquement
+    └── aiVoiceEnabled: boolean     # Saisie vocale activée
 ```
 
-### Structure de données
+### Système de Guidage IA (Highlightable)
 
 ```typescript
-interface TextStyle {
-  fontFamily: string           // "'Merriweather', serif"
-  fontSize: 'small' | 'medium' | 'large'
-  color: string                // '#ffffff'
-  isBold: boolean
-  isItalic: boolean
-  textAlign: 'left' | 'center' | 'right'
-  lineSpacing: 'tight' | 'normal' | 'relaxed'
-  horizontalOffset: number     // Décalage horizontal en px
-  verticalOffset: number       // Décalage vertical en px
-}
+// Wrapper pour éléments guidables
+<Highlightable id="book-add-image">
+  <button onClick={addImage}>📷 Image</button>
+</Highlightable>
 
-interface BackgroundMedia {
-  type: 'image' | 'video'
-  url: string
-  opacity: number              // 0-100
-  x: number                    // Position X en %
-  y: number                    // Position Y en %
-  scale: number                // Zoom 0.1-3.0
-}
-
-interface PageDecoration {
-  id: string
-  decorationId: string         // Référence vers PREMIUM_DECORATIONS
-  position: { x: number; y: number }  // Position en %
-  scale: number                // 0.2-3.0
-  rotation: number             // -180 à 180
-  color?: string               // Override couleur
-  opacity: number              // 0.2-1.0
-  flipH?: boolean              // Miroir horizontal
-  flipV?: boolean              // Miroir vertical
-  glowEnabled?: boolean        // Effet luminosité
-  glowColor?: string           // Couleur du halo
-  glowIntensity?: number       // 10-100
-}
-
-interface StoryPageLocal {
-  id: string
-  title: string
-  content: string
-  image?: string
-  imagePosition?: ImagePosition
-  imageStyle?: string
-  frameStyle?: string
-  backgroundMedia?: BackgroundMedia
-  decorations?: PageDecoration[]
-  chapter?: number
-  style?: TextStyle
-}
+// L'IA peut déclencher un highlight
+"Clique sur le bouton qui clignote ! [HIGHLIGHT:book-add-image]"
 ```
 
-### Les 6 Polices
-
-| ID | Nom | CSS Family | Usage |
-|----|-----|------------|-------|
-| `handwriting` | Écriture | `'Caveat', cursive` | Journal, lettres |
-| `tale` | Conte | `'Cormorant Garamond', serif` | Contes classiques |
-| `child` | Enfant | `'Patrick Hand', cursive` | Histoires perso |
-| `book` | Livre | `'Merriweather', serif` | Romans (défaut) |
-| `comic` | BD | `'Comic Neue', cursive` | Aventures |
-| `magic` | Magie | `'Spectral', serif` | Fantastique |
+**Implémentation :**
+- `useHighlightStore.ts` : Gestion des highlights actifs
+- `Highlightable.tsx` : Animation glow/pulse via Framer Motion
+- Durée : 6 secondes auto-stop
+- Portal React pour éviter `overflow: hidden`
 
 ---
 
-## Système de Décorations Premium
+## Mode Montage
 
 ### Architecture
 
-```typescript
-interface DecorationType {
-  id: string
-  name: string
-  category: DecorationCategory
-  svg: string                  // Code SVG inline
-  defaultColor: string         // Couleur par défaut (#D4AF37)
-}
-
-type DecorationCategory = 
-  | 'gold'      // Ornements dorés
-  | 'floral'    // Floraux
-  | 'royal'     // Royaux
-  | 'celestial' // Célestes
-  | 'artistic'  // Artistiques
-  | 'frames'    // Cadres
+```
+MontageEditor.tsx
+├── VUE CARTES (SceneCard[])
+│   ├── MontageAIChat              # Chat IA intégré
+│   │   ├── useTTS() + autoSpeak
+│   │   ├── useSpeechRecognition()
+│   │   └── highlightMultiple()
+│   ├── SceneCard                  # Carte par scène
+│   │   ├── Enregistrer voix
+│   │   ├── IA raconte (ElevenLabs)
+│   │   └── Status synchronisation
+│   └── NarrationVoiceSelectorModal
+│
+└── VUE TIMELINE (TimelineRubans)
+    ├── TimelineAIHelp             # Aide IA flottante (Portal)
+    │   ├── Drag & drop position
+    │   └── z-index: 10001 (fullscreen)
+    ├── Rubans
+    │   ├── Structure (phrases)
+    │   ├── Médias (images/vidéos)
+    │   ├── Musique
+    │   ├── Sons
+    │   ├── Lumières (HomeKit)
+    │   ├── Décorations
+    │   ├── Animations
+    │   └── Effets
+    └── PhrasePropertiesPanel
 ```
 
-### Catégories et exemples
+### Flux Narration IA
 
-| Catégorie | Exemples |
-|-----------|----------|
-| **gold** | Coin Baroque, Coin Filigrane, Séparateur Royal, Volute Dorée |
-| **floral** | Branche Sakura, Rose Épanouie, Guirlande Florale, Bouquet |
-| **royal** | Couronne Royale, Fleur de Lys, Blason, Sceptre, Diadème |
-| **celestial** | Lune Croissant, Étoile Filante, Constellation, Soleil |
-| **artistic** | Papillon, Plume Calligraphie, Cœur Orné, Encrier |
-| **frames** | Cadre Doré, Cadre Parchemin, Cadre Ovale, Bannière |
-
-### Composant DraggableDecoration
-
-```typescript
-function DraggableDecoration({
-  decoration,        // PageDecoration
-  decorationItem,    // DecorationType
-  onPositionChange,
-  onScaleChange,
-  onRotationChange,
-  onColorChange,
-  onOpacityChange,
-  onFlip,
-  onDelete,
-  onGlowToggle,
-  onGlowColorChange,
-  onGlowIntensityChange,
-  containerRef
-}) {
-  // États
-  const [isEditing, setIsEditing] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
-  const [menuOffset, setMenuOffset] = useState({ x: 0, y: 0 })
-  const [isDraggingMenu, setIsDraggingMenu] = useState(false)
-  
-  // Rendu avec Portal pour le menu
-  return (
-    <>
-      <div /* Décoration draggable avec croix rouge */ />
-      {createPortal(
-        <div /* Menu d'édition flottant et déplaçable */ />,
-        document.body
-      )}
-    </>
-  )
-}
+```
+1. Clic "IA raconte" → NarrationVoiceSelectorModal
+                              ↓
+2. Sélection voix ElevenLabs (21 voix : FR/EN/RU)
+                              ↓
+3. POST /api/ai/voice/narration
+   └── fal.ai → ElevenLabs TTS avec timestamps
+                              ↓
+4. Réponse : { audioUrl, wordTimings[] }
+                              ↓
+5. Création PhraseTiming[] depuis wordTimings
+                              ↓
+6. Affichage sur Timeline (comme voix enregistrée)
 ```
 
-### Effet Glow (Luminosité)
+### Flux Voix Enregistrée
 
-L'effet de luminosité utilise `filter: drop-shadow()` CSS :
-
-```typescript
-// Application du glow
-style={{
-  filter: glowEnabled
-    ? `drop-shadow(0 0 ${intensity/10}px ${color}) drop-shadow(0 0 ${intensity/5}px ${color})`
-    : 'none'
-}}
 ```
-
----
-
-## Speech Recognition (Dictée vocale)
-
-### Hook useSpeechRecognition
-
-```typescript
-interface UseSpeechRecognitionReturn {
-  isListening: boolean         // En cours d'écoute
-  isSupported: boolean         // Navigateur supporte
-  transcript: string           // Texte reconnu
-  startListening: () => void
-  stopListening: () => void
-  resetTranscript: () => void
-}
-
-function useSpeechRecognition(locale: string): UseSpeechRecognitionReturn
+1. Enregistrement micro (MediaRecorder)
+                              ↓
+2. POST /api/ai/transcribe (multipart/form-data)
+   └── AssemblyAI → Transcription + timestamps
+                              ↓
+3. Réponse : { text, words[], duration }
+                              ↓
+4. Création PhraseTiming[] depuis words
+                              ↓
+5. Affichage sur Timeline (draggable)
 ```
-
-### Utilisation
-
-```typescript
-// Dans WritingArea - pour dicter le texte
-const { isListening, transcript, startListening, stopListening } = useSpeechRecognition(locale)
-
-useEffect(() => {
-  if (!isListening && transcript) {
-    onContentChange(page.content + ' ' + transcript)
-    resetTranscript()
-  }
-}, [isListening, transcript])
-
-// Dans LunaSidePanel - pour parler à Luna
-useEffect(() => {
-  if (!isListening && transcript) {
-    sendToLuna(transcript)
-    resetTranscript()
-  }
-}, [isListening, transcript])
-```
-
-### Compatibilité
-
-| Navigateur | Support STT |
-|------------|-------------|
-| Chrome | ✅ Complet |
-| Safari | ✅ macOS 10.14.6+, iOS 14.5+ |
-| Edge | ✅ Complet |
-| Firefox | ❌ Non supporté |
 
 ---
 
@@ -310,131 +225,153 @@ useTTS(locale) Hook
        └─── Web/iPad ? ─────────► Web Speech API (speechSynthesis)
 ```
 
-### Voix configurées
+### Priorité des voix
 
-| Plateforme | Français | Anglais | Russe |
-|------------|----------|---------|-------|
-| **Electron** | Audrey (Enhanced) @ 200 | Samantha @ 180 | Milena @ 170 |
-| **Web** | Voix système @ 1.15x | Voix système @ 1.0x | Voix système @ 1.0x |
+```typescript
+// Web (Chrome/Safari)
+const RECOMMENDED_VOICES_WEB = [
+  // Français
+  'Google français',
+  'Microsoft Paul - French',
+  // Anglais
+  'Google US English',
+  'Google UK English Female',
+  // Russe
+  'Google русский',
+]
+
+// Electron (macOS)
+const RECOMMENDED_VOICES_ELECTRON = [
+  // Français
+  'Audrey (Enhanced)',
+  'Audrey (Premium)',
+  'Thomas',
+  // Anglais
+  'Samantha',
+  'Alex',
+  // Russe
+  'Milena',
+]
+```
+
+### Vitesse adaptée aux enfants
+
+```typescript
+const VOICE_SETTINGS = {
+  'fr': { rate: 0.92, pitch: 1.05 },  // Plus lent pour enfants
+  'en': { rate: 0.92, pitch: 1.0 },
+  'ru': { rate: 0.90, pitch: 1.0 },
+}
+```
 
 ---
 
-## Panneau Luna (LunaSidePanel)
+## Séquence d'Accueil
 
-### Fonctionnalités
+### Flux
 
 ```
-┌─────────────────────────────────────┐
-│  💜 Luna           🔊  ▶           │  ← Toggle voix + Réduire
-├─────────────────────────────────────┤
-│                                     │
-│  [Messages de Luna]                 │  ← Historique du chat
-│  [Messages de l'enfant]             │
-│                                     │
-├─────────────────────────────────────┤
-│  🔍 Analyse ▼                      │  ← Menu : Page / Chapitre / Livre
-├─────────────────────────────────────┤
-│  [Écrire à Luna...]  [🎙️]  [💬]    │  ← Input + Micro + Envoyer
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ 1. Prénom de l'enfant                   │
+│    "Comment tu t'appelles ?"            │
+│    [_____________]                       │
+└─────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────┐
+│ 2. Nom de l'IA                          │
+│    "Je suis ton amie magique..."        │
+│    [Étoile] [Lune] [Fée] [___]          │
+└─────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────┐
+│ 3. Voix de l'IA                         │
+│    "Quelle voix tu préfères ?"          │
+│    [🔊 Voix 1] [🔊 Voix 2] [🔊 Voix 3]  │
+│    (voix premium du navigateur)         │
+└─────────────────────────────────────────┘
 ```
 
-### Menu "Analyse" (Page / Chapitre / Livre)
-- Message visible court pour l'enfant (ex: "Luna, lis ma page !")
-- Contexte complet envoyé à Luna en coulisses (structure, cohérence, fautes légères)
-- Le contenu est nettoyé du HTML avant envoi (strip)
-- Options :
-  - Page : structure + cohérence + petites fautes
-  - Chapitre : cohérence narrative, personnages, pistes
-  - Livre : arc global début/milieu/fin, cohérence des persos, améliorations
+### Stockage
+
+```typescript
+// useAppStore.ts
+{
+  userName: string,       // Prénom enfant
+  aiName: string,         // Nom IA choisi
+  aiVoiceId: string,      // Voix TTS choisie
+  aiVoiceEnabled: boolean // Toujours true par défaut
+}
+```
+
+---
+
+## Gestion des Clés API
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    API Route                                 │
+├─────────────────────────────────────────────────────────────┤
+│  const apiKey = await getApiKeyForRequest('fal')            │
+│                                                              │
+│  1. Extraire familyId du token JWT                          │
+│  2. SELECT fal_key FROM family_config WHERE family_id = ?   │
+│  3. Si trouvé → utiliser clé famille                        │
+│  4. Sinon → process.env.FAL_API_KEY (fallback admin)        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Fichiers
+
+```
+src/lib/config/
+├── api-keys.ts        # Client-side helpers
+└── server-config.ts   # Server-side (getApiKeyForRequest)
+```
+
+### Clés supportées
+
+| Type | Variable env | Colonne Supabase |
+|------|-------------|------------------|
+| fal.ai | `FAL_API_KEY` | `fal_key` |
+| Gemini | `GOOGLE_GEMINI_API_KEY` | `gemini_key` |
+| AssemblyAI | `ASSEMBLYAI_API_KEY` | `assemblyai_key` |
 
 ---
 
 ## State Management (Zustand)
 
-### Store principal (useAppStore)
+### Stores
 
-```typescript
-interface AppState {
-  // Stories
-  stories: Story[]
-  currentStory: Story | null
-  createStory: (title: string, structure: StoryStructure) => Story
-  updateStoryPage: (storyId: string, pageIndex: number, content: string, image?: string) => void
-  updateStoryPages: (storyId: string, pages: StoryPage[]) => void
-  setCurrentStory: (story: Story | null) => void
-  
-  // Progression pédagogique
-  promptingProgress: PromptingProgress
-  addPromptingXP: (xp: number) => void
-  setPromptingLevel: (level: PromptingLevel) => void
-  
-  // ... autres états
-}
+```
+src/store/
+├── useAppStore.ts            # État global, histoires, préférences, userName
+├── useStudioStore.ts         # Kits de création, assets importés
+├── useStudioProgressStore.ts # Progression pédagogique
+├── useMontageStore.ts        # Projets montage (sync Supabase)
+├── usePublishStore.ts        # Publication Gelato
+├── useMentorStore.ts         # Session mentor
+├── useAuthStore.ts           # Authentification
+├── useHighlightStore.ts      # Guidage visuel IA ✨
+└── useAdminStore.ts          # Administration multi-famille
 ```
 
-### Persistance
+### useHighlightStore
 
 ```typescript
-persist(
-  (set, get) => ({ ... }),
-  {
-    name: 'lavoixdusoir-storage',
-    partialize: (state) => ({
-      stories: state.stories,
-      promptingProgress: state.promptingProgress,
-      // ...
-    }),
-  }
-)
-```
-
----
-
-## Système Pédagogique
-
-### Les 5 Clés Magiques (Images)
-
-| Clé | Impact | Détection |
-|-----|--------|-----------|
-| 🎨 Style | 40% | `/cartoon\|dessin\|peinture\|photo/i` |
-| 🦸 Héros | 25% | Sujet + description |
-| 💫 Ambiance | 15% | Émotion + lumière |
-| 🌍 Monde | 10% | Lieu + moment |
-| ✨ Magie | 10% | Détail unique |
-
-### Les 5 Questions Magiques (Texte)
-
-| Question | But | Exemples Luna |
-|----------|-----|---------------|
-| Qui ? | Personnage | "Il s'appelle comment ?" |
-| Quoi ? | Action | "Qu'est-ce qui lui arrive ?" |
-| Où ? | Lieu | "C'est où exactement ?" |
-| Quand ? | Moment | "C'est le jour ou la nuit ?" |
-| Et alors ? | Rebondissement | "Et ensuite ?" |
-
----
-
-## API Routes
-
-### /api/ai/chat
-
-```typescript
-// POST
-{
-  message: string,
-  context: 'diary' | 'book' | 'studio' | 'general',
-  chatHistory: ChatMessage[],
-  promptingProgress?: PromptingProgress
+interface HighlightStore {
+  activeHighlights: Record<string, HighlightConfig>
+  
+  highlight: (elementId: string, config?: HighlightConfig) => void
+  highlightMultiple: (elementIds: string[], config?: HighlightConfig) => void
+  stopHighlight: (elementId: string) => void
+  stopAllHighlights: () => void
+  isHighlighted: (elementId: string) => boolean
 }
 
-// Response
-{
-  text: string,
-  sentiment: 'positive' | 'neutral' | 'negative',
-  suggestions: string[],
-  xpEarned?: number,
-  levelUp?: { newLevel: string, message: string }
-}
+// Auto-stop après 6 secondes
+const DEFAULT_DURATION = 6000
 ```
 
 ---
@@ -456,44 +393,16 @@ persist(
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Preload (preload.js)
-
-```typescript
-contextBridge.exposeInMainWorld('electronAPI', {
-  isElectron: true,
-  tts: {
-    speak: (text, locale) => ipcRenderer.invoke('tts-speak', text, locale),
-    stop: () => ipcRenderer.invoke('tts-stop'),
-  },
-  captureScreen: () => ipcRenderer.invoke('capture-screen'),
-  simulateClick: (x, y) => ipcRenderer.send('simulate-click', x, y),
-  simulateKey: (key, modifiers) => ipcRenderer.send('simulate-key', key, modifiers),
-})
-```
-
----
-
-## Performance
-
-### Optimisations
-
-- **Fonts** : 6 polices Google Fonts préchargées
-- **State** : Persistance sélective (Zustand localStorage)
-- **TTS** : Nettoyage emojis avant synthèse
-- **Chat** : Historique limité à 10 messages
-- **Stars background** : useMemo pour éviter re-renders
-- **Portal** : Menus de décorations rendus via Portal pour éviter clipping
-
-### Points d'attention
-
-- **Sauvegarde** : À chaque caractère tapé (pourrait être optimisé avec debounce)
-- **STT** : Utilise des ressources (micro actif)
-- **TTS iOS** : Nécessite interaction utilisateur avant
-- **BookMode.tsx** : Fichier volumineux (~7000 lignes) - candidat au refactoring
-
 ---
 
 ## Sécurité
+
+### Clés API
+
+- **Jamais exposées côté client**
+- Stockées dans Supabase `family_config` (chiffrées)
+- `.env.local` pour fallback admin (gitignored)
+- Récupération via API routes (server-side)
 
 ### Middleware Next.js
 
@@ -506,325 +415,22 @@ if (!user && !publicRoutes.includes(pathname)) {
 ### Contenu safe
 
 - Gemini configuré pour réponses adaptées aux enfants
-- Luna ne fait jamais le travail à la place de l'enfant
+- L'IA ne fait jamais le travail à la place de l'enfant
 - Pas de contenu violent ou inapproprié
-- Décorations SVG inline (pas de ressources externes)
 
 ---
 
-## Mode Montage (Timeline Rubans)
+## Performance
 
-### Concept
+### Optimisations
 
-Le montage utilise une **timeline temporelle** (en secondes) avec des **rubans** pour chaque type d'élément. L'interface est adaptée aux enfants de 8 ans avec une vue simplifiée (Cartes) et une vue avancée (Rubans).
+- **TTS** : Nettoyage emojis avant synthèse, rate réduit
+- **Highlights** : Auto-stop après 6s, cleanup animations
+- **Chat** : Historique limité à 10 messages
+- **Portal** : Menus et chat Timeline rendus via Portal
 
-### Architecture
+### Points d'attention
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         MODE MONTAGE                                     │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                    VUE CARTES (Simple)                          │   │
-│  │  ┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐                       │   │
-│  │  │ 🎬 1  │ │ 🎬 2  │ │ 🎬 3  │ │  +   │  ← Moments/Scènes     │   │
-│  │  └───────┘ └───────┘ └───────┘ └───────┘                       │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                              ↓                                          │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                    VUE RUBANS (Timing)                          │   │
-│  │  0s      5s      10s      15s      20s                         │   │
-│  │  │       │        │        │        │                          │   │
-│  │  🎥 ▹████████████████████████◃        ← Vidéo/Image           │   │
-│  │  📝      |Phrase 1|Phrase 2|Phrase 3| ← Texte (ancre)          │   │
-│  │  🔊   |██████████████████████████|    ← Sons                   │   │
-│  │  💡  |████████████████████████████|   ← Lumières               │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Principes clés
-
-| Principe | Description |
-|----------|-------------|
-| **Timeline temporelle** | Tout est positionné en secondes, pas en index de mots |
-| **Voix = ancre** | La durée de la voix définit la durée totale de la scène |
-| **Rubans** | Chaque élément est un ruban qu'on peut glisser/étirer |
-| **Karaoké phrase** | Les phrases s'illuminent une par une (pas mot par mot) |
-| **Éléments obligatoires** | Texte, Voix, Média, Sons, Lumières, Effets |
-
-### Structure de données
-
-```typescript
-// ==================== TYPES TIMELINE ====================
-
-/**
- * Position temporelle d'un élément sur la timeline
- */
-interface TimeRange {
-  startTime: number      // Début en secondes
-  endTime: number        // Fin en secondes
-  fadeIn?: number        // Durée fondu entrée (secondes)
-  fadeOut?: number       // Durée fondu sortie (secondes)
-}
-
-/**
- * Style d'affichage d'une phrase (personnalisable)
- */
-interface PhraseStyle {
-  position: 'top' | 'center' | 'bottom' | 'custom'
-  customPosition?: { x: number; y: number }  // Si position = 'custom'
-  fontSize: 'small' | 'medium' | 'large' | 'xlarge'
-  color: string              // Couleur du texte (hex)
-  backgroundColor?: string   // Fond optionnel (hex)
-  animation?: 'fade' | 'slide' | 'zoom' | 'typewriter'
-}
-
-/**
- * Une phrase avec son timing et style
- */
-interface PhraseTiming {
-  id: string
-  text: string              // Contenu de la phrase
-  index: number             // Position dans le texte (0, 1, 2...)
-  timeRange: TimeRange      // Position sur la TIMELINE (modifiable)
-  audioTimeRange?: TimeRange // Timing ORIGINAL dans l'audio (immuable)
-  style?: PhraseStyle       // Style d'affichage personnalisé
-  volume?: number           // Volume audio (0-1.5, défaut: 1)
-}
-
-/**
- * Piste de narration (voix)
- */
-interface NarrationTrack {
-  id: string
-  audioUrl?: string      // URL de l'audio (enregistré ou TTS)
-  audioBlob?: Blob       // Blob audio pour lecture locale
-  source: 'recorded' | 'tts'
-  ttsVoice?: string      // Voix ElevenLabs si TTS
-  duration: number       // Durée totale en secondes
-  phrases: PhraseTiming[] // Timing de chaque phrase
-  isSynced: boolean
-  volume?: number        // Volume global narration (0-1)
-}
-
-/**
- * Un média (vidéo ou image) sur la timeline
- */
-interface MediaTrack {
-  id: string
-  type: 'video' | 'image'
-  url: string
-  name: string
-  timeRange: TimeRange   // Position sur la timeline
-  position: {            // Position dans le canvas (%)
-    x: number
-    y: number
-    width: number
-    height: number
-  }
-  zIndex: number
-  loop?: boolean         // Pour vidéos
-  muted?: boolean        // Pour vidéos
-}
-
-/**
- * Un son sur la timeline
- */
-interface SoundTrack {
-  id: string
-  url: string
-  name: string
-  type: 'sfx' | 'ambiance' | 'music'
-  timeRange: TimeRange
-  volume: number         // 0-1
-  loop: boolean
-}
-
-/**
- * Un état de lumière sur la timeline
- */
-interface LightTrack {
-  id: string
-  timeRange: TimeRange
-  color: string          // Hex
-  intensity: number      // 0-100
-}
-
-/**
- * Un effet de texte sur la timeline
- */
-interface TextEffectTrack {
-  id: string
-  type: 'highlight' | 'glow' | 'shake' | 'scale'
-  phraseIndex: number    // Quelle phrase est affectée
-  timeRange: TimeRange
-  color?: string
-  intensity?: number
-}
-
-/**
- * Une scène (moment) dans le montage
- */
-interface MontageScene {
-  id: string
-  title: string
-  
-  // Texte découpé en phrases
-  text: string
-  phrases: string[]      // Texte splitté en phrases
-  
-  // Durée totale de la scène
-  duration: number       // En secondes
-  
-  // Pistes (rubans)
-  narration: NarrationTrack
-  mediaTrack: MediaTrack[]
-  soundTracks: SoundTrack[]
-  lightTracks: LightTrack[]
-  textEffects: TextEffectTrack[]
-}
-
-/**
- * Projet de montage complet
- */
-interface MontageProject {
-  id: string
-  storyId: string
-  title: string
-  scenes: MontageScene[]
-  createdAt: Date
-  updatedAt: Date
-  isComplete: boolean
-}
-```
-
-### Flux utilisateur
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  1. SÉLECTION HISTOIRE                                  │
-│     └→ Choisir une histoire du mode Écriture           │
-└─────────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────┐
-│  2. DÉCOUPAGE EN SCÈNES                                 │
-│     └→ Chaque page = 1 scène par défaut                │
-│     └→ Possibilité de redécouper                       │
-└─────────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────┐
-│  3. POUR CHAQUE SCÈNE :                                 │
-│                                                         │
-│     a. VOIX (obligatoire)                               │
-│        ├→ Enregistrer sa voix                          │
-│        └→ OU générer TTS (ElevenLabs)                  │
-│                                                         │
-│     b. SYNCHRONISATION PHRASES                          │
-│        └→ Jeu de rythme : 1 tap par phrase             │
-│                                                         │
-│     c. MÉDIA (obligatoire)                              │
-│        └→ Ajouter image/vidéo depuis Studio            │
-│                                                         │
-│     d. ENRICHISSEMENT (vue Rubans)                      │
-│        ├→ Sons d'ambiance / effets                     │
-│        ├→ Scénario lumières (HomeKit)                  │
-│        └→ Effets sur le texte                          │
-│                                                         │
-│     e. PRÉVISUALISATION                                 │
-│        └→ Tester la scène complète                     │
-└─────────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────┐
-│  4. THÉÂTRE                                             │
-│     └→ Lecture finale avec tout synchronisé            │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Composants
-
-| Composant | Rôle |
-|-----------|------|
-| `MontageEditor.tsx` | Éditeur principal avec vues Cartes/Rubans |
-| `SceneCard.tsx` | Carte d'une scène (vue simple) |
-| `TimelineRubans.tsx` | Timeline avec rubans drag & drop |
-| `RhythmGame.tsx` | Jeu de sync phrase par phrase |
-| `KaraokePlayer.tsx` | Lecteur karaoké phrase par phrase |
-| `MediaPicker.tsx` | Sélecteur de médias depuis Studio |
-| `SoundPicker.tsx` | Bibliothèque de sons |
-| `LightEditor.tsx` | Éditeur de scénario lumières |
-
-### Karaoké phrase par phrase
-
-```
-┌────────────────────────────────────────────────────────┐
-│                                                        │
-│   [IMAGE/VIDÉO DE FOND]                                │
-│                                                        │
-│   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ← phrase passée     │
-│   (Il était une fois, dans une forêt.)                 │
-│                                                        │
-│   ████████████████████████████████  ← phrase active   │
-│   "Une petite fille nommée Luna."   ← illuminée       │
-│                                                        │
-│   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ← phrase à venir   │
-│   (Elle adorait explorer les sentiers.)               │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
-
-### Jeu de rythme (sync phrases)
-
-```
-┌────────────────────────────────────────────────────────┐
-│                                                        │
-│  🎵 Synchronise ta voix !                              │
-│                                                        │
-│  ▶️ [AUDIO QUI JOUE] ━━━━━━━●━━━━━━━━━━━━━━━━         │
-│                                                        │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │                                                  │  │
-│  │  ✅ "Il était une fois, dans une forêt."        │  │
-│  │                                                  │  │
-│  │  👉 "Une petite fille nommée Luna."      [TAP!] │  │
-│  │                                                  │  │
-│  │  ⏳ "Elle adorait explorer les sentiers."       │  │
-│  │                                                  │  │
-│  └──────────────────────────────────────────────────┘  │
-│                                                        │
-│  Tape ESPACE quand tu entends le début de la phrase !  │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
-
-### Interface Rubans
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  🎬 Scène 1 : "La forêt enchantée"                      │
-│                                                         │
-│  ▶️ ━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━  0:07 / 0:18      │
-│     0s      5s      10s      15s      20s               │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │ 🎥 Vidéo    ▹██████████████████████████◃         │  │
-│  │ 📝 Phrases      |P1|  P2  |  P3  |               │  │
-│  │ 🔊 Forêt     |██████████████████████████|        │  │
-│  │ 🔊 Oiseaux        |████████|                     │  │
-│  │ 💡 Bleu→Vert |████████████████████████████|      │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                         │
-│  👆 Glisse les rubans ! Tire les bords pour ajuster !   │
-│                                                         │
-│  [← Cartes]                           [▶️ Prévisualiser]│
-└─────────────────────────────────────────────────────────┘
-
-Gestes :
-- Glisser ruban      → Décaler dans le temps
-- Tirer bord gauche  → Changer début
-- Tirer bord droit   → Changer fin
-- Tirer coin ▹       → Fondu entrée
-- Tirer coin ◃       → Fondu sortie
-```
+- **BookMode.tsx** : Fichier volumineux (~7000 lignes)
+- **Safari** : Fix spécifique pour `aspect-ratio` + `flex`
+- **SSR** : Web Speech API vérifié côté client uniquement

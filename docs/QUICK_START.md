@@ -9,13 +9,40 @@ cd lavoixdusoir
 npm install
 ```
 
-### 2️⃣ Configurer Supabase
+### 2️⃣ Configurer les variables d'environnement
 
-1. Va sur https://supabase.com/dashboard/project/frufyxrhpqxhnawmrhru/sql/new
+Copier `env.example` vers `.env.local` et remplir :
+
+```bash
+cp env.example .env.local
+```
+
+**Clés essentielles :**
+
+```bash
+# Supabase (obligatoire)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+SUPABASE_SERVICE_ROLE_KEY=xxx
+
+# fal.ai (images, vidéos, voix IA)
+FAL_API_KEY=xxx
+
+# Gemini (chat IA)
+GOOGLE_GEMINI_API_KEY=xxx
+
+# AssemblyAI (transcription voix)
+ASSEMBLYAI_API_KEY=xxx
+```
+
+### 3️⃣ Configurer Supabase
+
+1. Va sur https://supabase.com/dashboard/project/xxx/sql/new
 2. Copie-colle le contenu de `supabase/schema-clean.sql`
 3. Clique sur **Run**
+4. (Optionnel) Applique les migrations dans `supabase/migrations/`
 
-### 3️⃣ Lancer l'app
+### 4️⃣ Lancer l'app
 
 #### Version Web (navigateur/iPad)
 ```bash
@@ -27,11 +54,11 @@ npm run dev
 npm run dev:electron
 ```
 
-### 4️⃣ Ouvrir dans le navigateur
+### 5️⃣ Ouvrir dans le navigateur
 
 👉 http://localhost:3000
 
-### 5️⃣ Se connecter
+### 6️⃣ Première connexion
 
 **Compte admin existant :**
 | | |
@@ -48,9 +75,37 @@ npm run dev:electron
 |------|---------|-------------|
 | 📔 **Journal** | Icône livre | Écrire son journal intime |
 | ✍️ **Écriture** | Icône stylo | Créer des histoires |
-| 🎨 **Studio** | Icône palette | Générer des images IA |
-| 📐 **Montage** | Icône règle | Mettre en page |
+| 🎨 **Studio** | Icône palette | Générer des images/vidéos IA |
+| 📐 **Montage** | Icône règle | Créer le livre-disque (audio + timing) |
 | 🎭 **Théâtre** | Icône masques | Présenter ses créations |
+
+---
+
+## 🤖 L'IA-Amie
+
+### Première utilisation
+
+À la première connexion, l'enfant personnalise son IA :
+1. **Son prénom** → L'IA l'utilisera
+2. **Nom de l'IA** → Choix libre (Étoile, Lune, etc.)
+3. **Voix de l'IA** → Parmi les voix premium du navigateur
+
+### Fonctionnalités
+
+| Icône | Fonction |
+|-------|----------|
+| 🔊 | Toggle voix IA (activé par défaut) |
+| 🎙️ | Parler à l'IA (micro) |
+| 💬 | Envoyer un message texte |
+
+### Guidage visuel
+
+L'IA peut faire **clignoter des boutons** pour guider l'enfant !
+
+```
+"Pour ajouter une image, clique sur le bouton qui clignote !"
+→ Le bouton 📷 brille pendant 6 secondes
+```
 
 ---
 
@@ -68,17 +123,17 @@ npm run dev:electron
    - 🔄 La Boucle (4-6 pages)
    - 🎨 Libre (illimité)
 
-### Interface d'écriture
+### Interface
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │  [Onglets]  Page 1 | Page 2 | Page 3 | +                       │
 ├────────────────────────────────────┬───────────────────────────┤
-│                                    │  💜 Luna      🔊          │
+│                                    │  💜 [Nom IA]   🔊         │
 │  [Barre de formatage]              │                           │
-│                                    │  Chat avec Luna           │
+│                                    │  Chat avec l'IA           │
 │  ┌──────────────────────────────┐  │                           │
-│  │ Zone d'écriture              │  │  [📖 Luna, lis ma page!]  │
+│  │ Zone d'écriture              │  │  [📖 Lis ma page!]        │
 │  │                              │  │                           │
 │  ├──────────────────────────────┤  │                           │
 │  │ [🎙️][📷][🖼️][🎨]            │  │  [Écrire...] 🎙️ 💬       │
@@ -97,100 +152,29 @@ npm run dev:electron
 
 ---
 
-## 🖼️ Fond de Page (Nouveau !)
+## 🎬 Mode Montage
 
-### Ajouter un fond
+### Vue Cartes (simple)
 
-1. Cliquer sur **🖼️ Fond de page** en bas de la page
-2. Choisir une image ou vidéo
-3. Ajuster les contrôles dans la barre d'outils :
-   - **Opacité** : Slider 0-100%
-   - **Zoom** : Slider 10-300%
-   - **Éditer position** : Activer pour déplacer le fond à la souris
+Pour chaque scène :
+1. **Ma voix** → Enregistrer sa propre voix
+2. **IA raconte** → Générer une voix ElevenLabs
 
-### Supprimer un fond
+L'IA est disponible pour aider (chat sur le côté).
 
-- Cliquer sur **🖼️** et sélectionner "Supprimer le fond"
+### Vue Timeline (avancée)
 
----
+Rubans disponibles :
+- 📝 **Structure** : Phrases synchronisées
+- 🖼️ **Médias** : Images et vidéos
+- 🎵 **Musique** : Ambiance de fond
+- 🔊 **Sons** : Effets sonores
+- 💡 **Lumières** : Scénario HomeKit
+- ✨ **Déco** : Décorations animées
+- 🎬 **Anim** : Animations
+- 🌟 **Effets** : Effets visuels
 
-## 🎨 Décorations Premium (Nouveau !)
-
-### Ajouter une décoration
-
-1. Cliquer sur **🎨 Décorations** en bas de la page
-2. Choisir une **catégorie** :
-   - ✨ Ornements Dorés
-   - 🌸 Floraux
-   - 👑 Royaux
-   - ⭐ Célestes
-   - 🦋 Artistiques
-   - 🖼️ Cadres
-3. Cliquer sur une décoration pour l'ajouter
-
-### Éditer une décoration
-
-1. **Cliquer** sur la décoration sur la page
-2. Le **menu d'édition** apparaît avec :
-   - Taille (20-300%)
-   - Rotation (-180° à 180°)
-   - Opacité (20-100%)
-   - Couleur (12 choix)
-   - Flip horizontal/vertical
-   - **Luminosité** (effet glow)
-3. **Déplacer le menu** en glissant le header (icône ✥)
-
-### Effet de Luminosité
-
-1. Dans le menu d'édition, activer **Luminosité**
-2. Ajuster l'**intensité** avec le slider
-3. Choisir la **couleur du halo**
-
-### Déplacer une décoration
-
-- **Cliquer-glisser** la décoration vers sa nouvelle position
-
-### Supprimer une décoration
-
-- Cliquer sur la **croix rouge** (visible quand la décoration est sélectionnée)
-- Ou cliquer sur **Supprimer** dans le menu
-
----
-
-## 📔 Mode Journal
-
-| Icône | Action | Comment |
-|-------|--------|---------|
-| 🎙️ | Enregistrer sa voix | Clic → parler → re-clic |
-| 📷 | Ajouter des photos | Clic → choisir fichiers |
-| ✨ | Créer image IA | Clic → décrire → créer |
-| 😊 | Choisir son humeur | Clic sur un emoji en haut |
-| 🔊 | Mode Oral Luna | Toggle en haut du chat |
-
----
-
-## 🤖 Luna - L'IA-Amie
-
-### Activer le Mode Oral
-
-1. Dans le chat avec Luna, toggle le bouton 🔊
-2. Luna parlera automatiquement ses réponses
-
-### Parler à Luna
-
-1. Clique sur 🎙️ à côté du champ de texte
-2. Parle ta question
-3. Luna répond (en texte et/ou en voix)
-
-### Les 5 Clés Magiques (pour les images)
-
-| Clé | Ce que Luna enseigne |
-|-----|---------------------|
-| 🎨 Style | "Cartoon, peinture, photo ?" |
-| 🦸 Héros | "Qui ou quoi ? Décris-le !" |
-| 💫 Ambiance | "Quelle émotion ? Quelle lumière ?" |
-| 🌍 Monde | "Où ? Jour ou nuit ?" |
-| ✨ Magie | "Quel détail unique ?" |
+**Aide IA :** Bouton flottant (déplaçable) en haut à droite.
 
 ---
 
@@ -220,6 +204,27 @@ Installer dans **Réglages > Accessibilité > Contenu énoncé > Voix système**
 
 ---
 
+## 🔧 Configuration Admin
+
+### Se configurer en Super Admin
+
+1. Créer un compte sur l'app
+2. Dans Supabase SQL Editor :
+```sql
+INSERT INTO super_admins (user_id, name)
+VALUES ('VOTRE_USER_ID', 'Admin');
+```
+3. Rafraîchir l'app → Bouton "Admin" apparaît dans la sidebar
+
+### Clés API par famille
+
+Les familles peuvent avoir leurs propres clés API :
+1. Super Admin → Créer une famille
+2. Configurer les clés dans l'interface admin
+3. Les clés sont utilisées automatiquement pour cette famille
+
+---
+
 ## 🆘 Problèmes courants
 
 ### "Port 3000 is in use"
@@ -235,7 +240,7 @@ npm run dev
 - **Firefox** : Non supporté ❌
 - Vérifie que le site a la permission d'accéder au micro
 
-### Luna ne parle pas
+### L'IA ne parle pas
 
 **Sur Electron (macOS)** :
 ```bash
@@ -246,19 +251,22 @@ Si ça ne marche pas, installe la voix (voir section Electron).
 **Sur Web/iPad** :
 - Le navigateur doit supporter Web Speech API
 - Safari et Chrome sont supportés
+- Vérifie que le volume n'est pas à zéro
+
+### La voix IA est trop rapide
+
+La vitesse a été réduite pour les enfants. Si toujours trop rapide, c'est un problème de voix système.
 
 ### L'histoire ne se sauvegarde pas
 
-- Les histoires sont sauvegardées automatiquement dans le navigateur (localStorage)
-- Si tu changes de navigateur, les histoires ne seront pas là
+- Les histoires sont sauvegardées automatiquement
+- Vérifie la connexion Supabase dans la console
 
-### Les décorations ne s'affichent pas en mode zoom
+### Les animations de guidage ne s'arrêtent pas
 
-- Ce bug a été corrigé ! Rafraîchis la page si nécessaire
-
-### Le menu d'édition est caché
-
-- Le menu peut être déplacé ! Glisse le header (icône ✥)
+Les animations s'arrêtent après 6 secondes. Si ça persiste :
+- Rafraîchir la page
+- Vérifier la console pour erreurs
 
 ---
 

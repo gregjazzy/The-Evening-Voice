@@ -9,11 +9,11 @@ Application créative pour enfants permettant de créer des **livres-disques num
 ## Les 5 Modes
 
 ### 📔 Journal
-Le journal intime de l'enfant avec Luna, sa copine IA.
+Le journal intime de l'enfant avec son ami(e) IA (nom personnalisé).
 - Écrire ses pensées, secrets, rêves
 - Enregistrer des messages vocaux
 - Ajouter des photos
-- Discuter avec Luna (IA bienveillante)
+- Discuter avec l'IA (bienveillante)
 - Sélectionner son humeur du jour
 
 ---
@@ -29,15 +29,20 @@ Création du **livre STATIQUE** - comme un scrapbook premium.
 | 🎨 Fonds | Images de fond des pages |
 | 📐 Mise en page | Disposition des éléments |
 
+**Aide IA intégrée :**
+- Chat avec l'IA pour conseils d'écriture
+- Les 5 Questions Magiques (Qui, Quoi, Où, Quand, Et alors)
+- Guidage visuel : l'IA fait clignoter les boutons pour guider l'enfant
+
 **Output** : Un livre avec des pages qu'on tourne, exportable en PDF, imprimable.
 
 ---
 
 ### 🎨 Studio
 L'atelier de création d'assets avec l'IA.
-- Générer des images (Midjourney)
-- Générer des vidéos (Runway)
-- Générer des voix (ElevenLabs)
+- Générer des images (Flux 1 Pro via fal.ai)
+- Générer des vidéos (Kling 2.1 via fal.ai)
+- Générer des voix (ElevenLabs via fal.ai)
 - Bibliothèque d'assets réutilisables
 
 ---
@@ -50,15 +55,22 @@ Inspiré des livres-disques d'antan (Marlène Jobert, Disney...) mais augmenté 
 | Élément | Description |
 |---------|-------------|
 | 📖 Pages | Importées depuis le mode Écriture |
-| 🎙️ Voix | Narration (enfant, parent, ou IA Luna) |
+| 🎙️ Voix | Narration (enfant, parent, ou IA) |
 | 🎵 Musique | Ambiance sonore de fond |
 | 🔊 Effets | Sons d'ambiance (orage, oiseaux, magie...) |
-| ⏱️ Timing | Synchronisation page par page |
+| ⏱️ Timing | Synchronisation phrase par phrase |
 | 🎬 Vidéos | Optionnel - clips animés pour enrichir |
 
-**Interface** : Comme Filmora mais ultra simplifié pour enfant.
+**Deux vues :**
+- **Cartes** : Vue simplifiée pour enregistrer/générer les voix
+- **Timeline** : Vue avancée avec rubans pour ajuster timing et effets
 
-**Output** : Un livre-disque interactif avec audio synchronisé (et vidéo optionnelle).
+**Aide IA intégrée :**
+- Chat IA dans les deux vues
+- Guidage pour enregistrement et synchronisation
+- L'IA explique chaque ruban de la Timeline
+
+**Output** : Un livre-disque interactif avec audio synchronisé.
 
 ---
 
@@ -75,8 +87,6 @@ Le **lecteur/player** de la création finale.
 
 L'app s'adapte à l'équipement existant - pas besoin d'acheter du matériel spécifique.
 
-**Bouton "Projeter sur..."** avec options :
-
 | Méthode | Compatible avec | Intégration |
 |---------|-----------------|-------------|
 | 🍎 **AirPlay** | Apple TV, TV/projecteurs AirPlay 2 | Natif macOS |
@@ -85,35 +95,31 @@ L'app s'adapte à l'équipement existant - pas besoin d'acheter du matériel sp�
 | 📡 **DLNA/UPnP** | Smart TV (Samsung, LG, Sony...) | Librairie JS |
 | 🏠 **Domotique pro** | Crestron, Control4, Savant... | API selon système |
 
+---
+
+## L'IA-Amie
+
+### Personnalisation
+
+À la première utilisation, l'enfant :
+1. **Donne son prénom** → L'IA l'utilisera pour personnaliser
+2. **Nomme son IA** → Choix parmi suggestions ou nom libre
+3. **Choisit la voix** → Parmi les voix premium du navigateur
+
+### Voix par défaut activée
+
+L'assistant vocal IA est **toujours activé par défaut** :
+- L'IA parle automatiquement ses réponses
+- L'enfant peut dicter ses messages au micro
+- Vitesse de parole adaptée aux enfants (ralentie)
+
+### Guidage visuel
+
+L'IA peut faire **clignoter des éléments** de l'interface pour guider l'enfant :
 ```
-┌─────────────────────────────────┐
-│  📺 Projeter sur...             │
-│                                 │
-│  ○ AirPlay - Salon Apple TV     │
-│  ○ AirPlay - Chambre Emma       │
-│  ○ Chromecast - Projecteur      │
-│  ○ Plein écran (cet appareil)   │
-│  ○ Écran externe (HDMI)         │
-│                                 │
-│  [ Lancer la projection ]       │
-└─────────────────────────────────┘
+"Pour ajouter une image, clique sur le bouton qui clignote !"
+→ Le bouton 📷 se met à briller
 ```
-
-#### 📽️ Scénarios de projection
-
-**Chambre avec projecteur plafond :**
-- Projection au plafond, l'enfant regarde depuis son lit
-
-**Chambre avec TV :**
-- AirPlay/Cast vers la TV murale
-
-**Salon familial :**
-- Sur la grande TV, toute la famille regarde ensemble
-
-**N'importe où :**
-- Mode plein écran sur iPad/Mac, casque audio
-
-L'enfant s'endort en regardant son histoire projetée, bercé par la narration et la musique, avec les lumières de la chambre qui suivent l'ambiance... ✨
 
 ---
 
@@ -132,8 +138,9 @@ L'enfant s'endort en regardant son histoire projetée, bercé par la narration e
        ▼
 ┌─────────────┐
 │   Montage   │  ← Ajouter audio + timing (livre-disque)
-└──────┬──────┘
-       │
+└──────┬──────┘           │
+       │                  ├─ Vue Cartes : enregistrer/générer voix
+       │                  └─ Vue Timeline : ajuster timing + effets
        ▼
 ┌─────────────┐
 │   Théâtre   │  ← Lire l'histoire avec immersion totale
@@ -164,28 +171,6 @@ Quand l'enfant lance son histoire en mode Théâtre :
 5. 🎵 La **musique** crée l'atmosphère
 6. → **Magie de l'histoire du soir** ✨
 
-### Setup chambre - Flexible selon équipement existant
-
-```
-┌─────────────────────────────────────┐
-│          PLAFOND / MUR              │
-│     ┌──────────────────┐            │
-│     │  📽️ Projection   │  ← Projecteur, TV, ou écran existant
-│     │  de l'histoire   │    (AirPlay, Chromecast, HDMI...)
-│     └──────────────────┘            │
-│                                     │
-│  💡 Lumières      💡 Lumières       │  ← HomeKit ou autre domotique
-│     connectées       connectées     │
-│                                     │
-│         🛏️ Lit enfant               │
-│                                     │
-│              📱 iPad/Mac            │
-│          (contrôle principal)       │
-└─────────────────────────────────────┘
-```
-
-**L'app s'adapte à l'infrastructure existante** - aucun achat spécifique requis.
-
 ---
 
 ## Public Cible
@@ -204,11 +189,12 @@ Quand l'enfant lance son histoire en mode Théâtre :
 - Supabase (auth, DB, storage)
 - Cloudflare R2 (vidéos)
 
-### IA & Création
-- Gemini 2.0 Flash (Luna - assistant IA)
-- Midjourney (génération d'images)
-- ElevenLabs (voix IA)
-- Runway (génération de vidéos)
+### IA & Création (via fal.ai)
+- Gemini 2.0 Flash (IA-Amie - assistant)
+- Flux 1 Pro (génération d'images)
+- Kling 2.1 (génération de vidéos)
+- ElevenLabs (voix IA narration)
+- AssemblyAI (transcription voix enregistrées)
 
 ### Diffusion & Projection
 - AirPlay (natif macOS → Apple TV, TV compatibles)
@@ -219,3 +205,17 @@ Quand l'enfant lance son histoire en mode Théâtre :
 ### Domotique
 - HomeKit (Philips Hue, HomePod, etc.)
 - Extensible vers Crestron, Control4, Savant si besoin
+
+---
+
+## Évolutions Futures (fal.ai)
+
+Grâce à fal.ai, de nouvelles fonctionnalités sont envisageables :
+
+| Fonctionnalité | Modèle fal.ai | Description |
+|----------------|---------------|-------------|
+| 🎭 **Voix de personnages** | ElevenLabs Voice Design | Créer des voix (sorcière, dragon...) |
+| 👄 **Lip-sync** | Sync Labs | Faire parler les personnages |
+| 🎵 **Musique générée** | MusicGen | Musique d'ambiance sur mesure |
+| 🔊 **Effets sonores** | AudioLDM | Bruitages personnalisés |
+| 🎨 **Coloriage IA** | Flux ControlNet | Transformer dessins en illustrations |

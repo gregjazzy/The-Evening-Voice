@@ -2,11 +2,11 @@
 
 ## Endpoints
 
-### Chat avec Luna
+### Chat avec l'IA-Amie
 
 **POST** `/api/ai/chat`
 
-Dialogue avec l'IA-Amie Luna. Intègre le système pédagogique pour adapter les réponses.
+Dialogue avec l'IA-Amie (nom choisi par l'enfant). Intègre le système pédagogique pour adapter les réponses.
 
 #### Request
 
@@ -14,6 +14,7 @@ Dialogue avec l'IA-Amie Luna. Intègre le système pédagogique pour adapter les
 {
   "message": "Je veux écrire une histoire de princesse",
   "context": "book",
+  "userName": "Emma",
   "chatHistory": [
     { "role": "user", "content": "..." },
     { "role": "assistant", "content": "..." }
@@ -29,7 +30,8 @@ Dialogue avec l'IA-Amie Luna. Intègre le système pédagogique pour adapter les
 | Param | Type | Description |
 |-------|------|-------------|
 | `message` | string | Message de l'utilisateur |
-| `context` | string | `diary`, `book`, `studio`, `general` |
+| `context` | string | `diary`, `book`, `studio`, `montage`, `general` |
+| `userName` | string | Prénom de l'enfant (pour personnalisation) |
 | `chatHistory` | array | Historique (max 10 messages) |
 | `promptingProgress` | object | Progression pédagogique |
 
@@ -40,6 +42,7 @@ Dialogue avec l'IA-Amie Luna. Intègre le système pédagogique pour adapter les
   "text": "Une princesse ! C'est un super début ! ✨ Elle s'appelle comment ta princesse ?",
   "sentiment": "positive",
   "suggestions": ["Décris sa robe", "Où habite-t-elle ?"],
+  "highlights": ["book-add-image"],
   "tokensUsed": 45,
   "xpEarned": 15,
   "levelUp": null
@@ -48,19 +51,20 @@ Dialogue avec l'IA-Amie Luna. Intègre le système pédagogique pour adapter les
 
 | Champ | Type | Description |
 |-------|------|-------------|
-| `text` | string | Réponse de Luna |
+| `text` | string | Réponse de l'IA |
 | `sentiment` | string | `positive`, `neutral`, `negative` |
 | `suggestions` | array | Suggestions contextuelles |
+| `highlights` | array | IDs d'éléments UI à mettre en évidence |
 | `xpEarned` | number | XP gagné (0, 5, 15, ou 30) |
 | `levelUp` | object\|null | Si passage de niveau |
 
 ---
 
-### Génération d'image
+### Génération d'image (fal.ai - Flux 1 Pro)
 
 **POST** `/api/ai/image`
 
-Lance une génération d'image (Midjourney).
+Génère une image via fal.ai (Flux 1 Pro).
 
 #### Request
 
@@ -78,42 +82,148 @@ Lance une génération d'image (Midjourney).
 ```json
 {
   "jobId": "abc123",
-  "status": "pending",
-  "prompt": "A magical castle in the clouds, cartoon style..."
+  "status": "completed",
+  "imageUrl": "https://fal.media/files/xxx.png"
 }
 ```
 
 ---
 
-**GET** `/api/ai/image?jobId=abc123`
+### Génération de vidéo (fal.ai - Kling 2.1)
 
-Vérifie le statut.
+**POST** `/api/ai/video`
+
+Génère une vidéo via fal.ai (Kling 2.1).
+
+#### Request
 
 ```json
 {
-  "id": "abc123",
-  "status": "completed",
-  "progress": 100,
+  "prompt": "Un château qui flotte dans les nuages",
   "imageUrl": "https://...",
-  "thumbnailUrl": "https://..."
+  "duration": 5,
+  "aspectRatio": "16:9"
+}
+```
+
+#### Response
+
+```json
+{
+  "jobId": "xyz789",
+  "status": "processing"
+}
+```
+
+**GET** `/api/ai/video?jobId=xyz789`
+
+```json
+{
+  "id": "xyz789",
+  "status": "completed",
+  "videoUrl": "https://..."
 }
 ```
 
 ---
 
-### Génération de voix
+### Génération de voix (fal.ai - ElevenLabs)
 
 **POST** `/api/ai/voice`
 
-Génère de l'audio (ElevenLabs).
+Génère de l'audio via fal.ai (ElevenLabs).
 
 ```json
 {
   "text": "Il était une fois...",
-  "type": "narration",
-  "voiceType": "narrator"
+  "voiceId": "kwhMCf63M8O3rCfnQ3oQ",
+  "language": "fr"
 }
 ```
+
+#### Response
+
+```json
+{
+  "audioUrl": "https://...",
+  "duration": 3.5
+}
+```
+
+---
+
+### Narration avec Timestamps (fal.ai - ElevenLabs)
+
+**POST** `/api/ai/voice/narration`
+
+Génère une narration avec timestamps par mot pour synchronisation Timeline.
+
+#### Request
+
+```json
+{
+  "text": "Il était une fois, dans une forêt enchantée.",
+  "voiceId": "kwhMCf63M8O3rCfnQ3oQ",
+  "language": "fr"
+}
+```
+
+#### Response
+
+```json
+{
+  "audioUrl": "https://...",
+  "duration": 4.2,
+  "wordTimings": [
+    { "word": "Il", "start": 0.0, "end": 0.15 },
+    { "word": "était", "start": 0.15, "end": 0.4 },
+    { "word": "une", "start": 0.4, "end": 0.55 },
+    { "word": "fois", "start": 0.55, "end": 0.8 }
+  ]
+}
+```
+
+---
+
+### Transcription Audio (AssemblyAI)
+
+**POST** `/api/ai/transcribe`
+
+Transcrit un fichier audio avec timestamps par mot.
+
+#### Request
+
+```
+Content-Type: multipart/form-data
+
+file: [audio blob]
+```
+
+#### Response
+
+```json
+{
+  "text": "Il était une fois dans une forêt enchantée",
+  "words": [
+    { "text": "Il", "start": 0, "end": 150 },
+    { "text": "était", "start": 150, "end": 400 }
+  ],
+  "duration": 4200
+}
+```
+
+---
+
+## Services IA Unifiés (fal.ai)
+
+| Service | Modèle fal.ai | Usage |
+|---------|--------------|-------|
+| **Images** | Flux 1 Pro | Génération d'illustrations |
+| **Vidéos** | Kling 2.1 | Animation d'images |
+| **Voix IA** | ElevenLabs | Narration, voix personnages |
+| **Transcription** | AssemblyAI* | Synchronisation voix enregistrées |
+
+> *AssemblyAI est utilisé directement (pas via fal.ai) pour une meilleure précision des timestamps.
 
 ---
 
@@ -121,11 +231,12 @@ Génère de l'audio (ElevenLabs).
 
 ### Contextes
 
-| Context | Comportement Luna |
-|---------|-------------------|
+| Context | Comportement IA |
+|---------|-----------------|
 | `diary` | Écoute, encourage, pose des questions sur les émotions |
 | `book` | Guide avec les 5 Questions Magiques (Qui, Quoi, Où, Quand, Et alors) |
 | `studio` | Enseigne les 5 Clés Magiques pour les images |
+| `montage` | Guide dans la création du livre-disque (voix, timeline, effets) |
 | `general` | Conversation libre |
 
 ### Calcul XP
@@ -148,43 +259,77 @@ excellent (> 20 mots, 4+ clés)     → +30 XP
 
 ---
 
+## Guidage Visuel IA (Highlights)
+
+L'IA peut faire clignoter des éléments UI pour guider l'enfant.
+
+### Syntaxe dans les réponses IA
+
+```
+"Clique sur le bouton qui clignote ! [HIGHLIGHT:book-add-image]"
+```
+
+### IDs disponibles
+
+#### Mode Écriture
+- `book-text-color`, `book-lines`, `book-add-image`, `book-decorations`
+- `book-font-family`, `book-font-size`, `book-bold`, `book-italic`, `book-text-align`
+
+#### Mode Studio
+- `studio-create-image`, `studio-create-video`, `studio-library`
+
+#### Mode Montage
+- `montage-record-voice`, `montage-view-cards`, `montage-view-timeline`
+- `montage-timeline-structure`, `montage-timeline-media`, `montage-timeline-music`
+- `montage-timeline-sound`, `montage-timeline-lights`, `montage-timeline-decoration`
+- `montage-timeline-animation`, `montage-timeline-effects`
+
+#### Navigation
+- `nav-book`, `nav-studio`, `nav-montage`, `nav-theater`, `nav-publish`
+
+---
+
 ## Speech APIs (côté client)
 
 ### TTS (Text-to-Speech)
 
-#### Electron (macOS natif)
+#### Hook useTTS
 
 ```typescript
-window.electronAPI.tts.speak("Bonjour !", "fr")
-window.electronAPI.tts.stop()
+const { speak, stop, isSpeaking, isTTSAvailable, voices } = useTTS('fr')
+
+// Parler
+speak("Bonjour !")
+
+// Arrêter
+stop()
 ```
 
-#### Web (Web Speech API)
+#### Voix prioritaires par environnement
 
-```typescript
-const utterance = new SpeechSynthesisUtterance("Bonjour !")
-utterance.lang = "fr-FR"
-utterance.rate = 1.15
-speechSynthesis.speak(utterance)
-```
+| Environnement | Français | Anglais | Russe |
+|---------------|----------|---------|-------|
+| **Chrome/Safari** | Google français | Google US English | Google русский |
+| **Electron/macOS** | Audrey Premium | Samantha | Milena |
+
+#### Vitesse adaptée aux enfants
+
+| Langue | Rate |
+|--------|------|
+| Français | 0.92 |
+| Anglais | 0.92 |
+| Russe | 0.90 |
 
 ### STT (Speech-to-Text)
 
 ```typescript
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-const recognition = new SpeechRecognition()
+const { isListening, transcript, startListening, stopListening } = useSpeechRecognition(locale)
 
-recognition.lang = 'fr-FR'
-recognition.continuous = true
-recognition.interimResults = true
+// Démarrer l'écoute
+startListening()
 
-recognition.onresult = (event) => {
-  const transcript = event.results[event.resultIndex][0].transcript
-  // Utiliser le texte reconnu
-}
-
-recognition.start()  // Démarrer l'écoute
-recognition.stop()   // Arrêter l'écoute
+// Arrêter
+stopListening()
 ```
 
 ---
@@ -216,52 +361,54 @@ interface StoryPage {
 }
 ```
 
-### BackgroundMedia
+### PhraseTiming (Timeline)
 
 ```typescript
-interface BackgroundMedia {
-  type: 'image' | 'video'
-  url: string
-  opacity: number   // 0-100
-  x: number         // Position X en %
-  y: number         // Position Y en %
-  scale: number     // 0.1-3.0
-}
-```
-
-### PageDecoration
-
-```typescript
-interface PageDecoration {
+interface PhraseTiming {
   id: string
-  decorationId: string   // Référence vers PREMIUM_DECORATIONS
-  position: {
-    x: number            // Position X en %
-    y: number            // Position Y en %
-  }
-  scale: number          // 0.2-3.0
-  rotation: number       // -180 à 180
-  color?: string         // Couleur override
-  opacity: number        // 0.2-1.0
-  flipH?: boolean        // Miroir horizontal
-  flipV?: boolean        // Miroir vertical
-  glowEnabled?: boolean  // Effet luminosité
-  glowColor?: string     // Couleur du halo
-  glowIntensity?: number // Intensité 10-100
+  text: string
+  index: number
+  timeRange: TimeRange
+  audioTimeRange?: TimeRange
+  style?: PhraseStyle
+  volume?: number
+}
+
+interface PhraseStyle {
+  position: 'top' | 'center' | 'bottom' | 'custom'
+  customPosition?: { x: number; y: number }
+  fontSize: 'small' | 'medium' | 'large' | 'xlarge'
+  color: string
+  backgroundColor?: string
+  animation?: 'fade' | 'slide' | 'zoom' | 'typewriter'
 }
 ```
 
-### DecorationType
+---
 
-```typescript
-interface DecorationType {
-  id: string
-  name: string
-  category: 'gold' | 'floral' | 'royal' | 'celestial' | 'artistic' | 'frames'
-  svg: string           // Code SVG inline
-  defaultColor: string  // Couleur par défaut
-}
+## Gestion des Clés API
+
+### Architecture
+
 ```
+┌─────────────────────────────────────────────────┐
+│              API Route                          │
+├─────────────────────────────────────────────────┤
+│  1. getApiKeyForRequest('fal')                  │
+│     ↓                                           │
+│  2. Cherche clé famille dans Supabase           │
+│     ↓                                           │
+│  3. Fallback: process.env.FAL_API_KEY           │
+└─────────────────────────────────────────────────┘
+```
+
+### Clés supportées
+
+| Service | Variable env | Colonne Supabase |
+|---------|-------------|------------------|
+| **fal.ai** | `FAL_API_KEY` | `fal_key` |
+| **Gemini** | `GOOGLE_GEMINI_API_KEY` | `gemini_key` |
+| **AssemblyAI** | `ASSEMBLYAI_API_KEY` | `assemblyai_key` |
 
 ---
 
@@ -282,8 +429,8 @@ interface DecorationType {
 | Service | Limite |
 |---------|--------|
 | Gemini | 60 req/min |
-| ElevenLabs | 10k chars/mois (free) |
-| Midjourney | Variable |
+| fal.ai | Variable selon plan |
+| AssemblyAI | 5 req/min (free) |
 | Web Speech API | Illimité (local) |
 
 ---
@@ -296,13 +443,14 @@ interface DecorationType {
 curl -X POST http://localhost:3000/api/ai/chat \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "Luna, aide-moi à continuer mon histoire",
+    "message": "Aide-moi à continuer mon histoire",
     "context": "book",
+    "userName": "Emma",
     "chatHistory": []
   }'
 ```
 
-### Image
+### Image (fal.ai)
 
 ```bash
 curl -X POST http://localhost:3000/api/ai/image \
@@ -314,31 +462,14 @@ curl -X POST http://localhost:3000/api/ai/image \
   }'
 ```
 
----
+### Narration avec timestamps
 
-## Notes Techniques
-
-### Décorations Premium
-
-Les décorations sont gérées **entièrement côté client** :
-- Stockées dans le state Zustand
-- Persistées dans localStorage
-- Pas d'appel API nécessaire
-- Les SVG sont inline dans le code
-
-### Fond de Page
-
-Les fonds de page (images/vidéos) sont également gérés **côté client** :
-- Images via `URL.createObjectURL()` ou URLs externes
-- Vidéos en lecture automatique, muette, en boucle
-- Contrôles d'opacité et zoom en temps réel
-
-### Effet Glow
-
-L'effet de luminosité utilise CSS `filter: drop-shadow()` :
-
-```css
-filter: drop-shadow(0 0 5px #D4AF37) drop-shadow(0 0 10px #D4AF37);
+```bash
+curl -X POST http://localhost:3000/api/ai/voice/narration \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Il était une fois une princesse.",
+    "voiceId": "kwhMCf63M8O3rCfnQ3oQ",
+    "language": "fr"
+  }'
 ```
-
-L'intensité contrôle le rayon de l'ombre (blur radius).
