@@ -1099,24 +1099,38 @@ export function TimelineRubans() {
 
   // Vérifier et jouer les sons qui doivent démarrer
   const checkAndPlaySounds = useCallback((currentTime: number, previousTime: number) => {
-    if (!scene?.soundTracks) return
+    if (!scene?.soundTracks || scene.soundTracks.length === 0) return
     
     scene.soundTracks.forEach((sound) => {
       const soundKey = `${sound.id}-${sound.timeRange.startTime}`
+      const isInSoundRange = currentTime >= sound.timeRange.startTime && currentTime < sound.timeRange.endTime
+      const justCrossedStart = currentTime >= sound.timeRange.startTime && previousTime < sound.timeRange.startTime
+      const alreadyPlayed = playedSoundsRef.current.has(soundKey)
+      const isCurrentlyPlaying = activeSoundRefs.current.has(soundKey)
       
-      // Le son doit démarrer si on vient de passer son startTime
-      if (
-        currentTime >= sound.timeRange.startTime &&
-        previousTime < sound.timeRange.startTime &&
-        !playedSoundsRef.current.has(soundKey)
-      ) {
+      // Le son doit démarrer si:
+      // 1. On vient de passer son startTime (justCrossedStart)
+      // 2. OU on est dans sa plage et il n'a pas été joué/n'est pas en cours (pour le cas du seek)
+      const shouldStart = !alreadyPlayed && !isCurrentlyPlaying && (justCrossedStart || isInSoundRange)
+      
+      if (shouldStart && sound.url) {
         // Marquer comme joué
         playedSoundsRef.current.add(soundKey)
+        
+        // Calculer où commencer dans le son (si on a seeké au milieu)
+        const offsetInSound = isInSoundRange && !justCrossedStart 
+          ? currentTime - sound.timeRange.startTime 
+          : 0
         
         // Jouer le vrai fichier audio MP3
         try {
           const audio = new Audio(sound.url)
           audio.volume = sound.volume ?? 0.7
+          
+          // Si on a seeké au milieu du son, commencer à la bonne position
+          if (offsetInSound > 0) {
+            audio.currentTime = offsetInSound
+          }
           
           // Si c'est en boucle
           if (sound.loop) {
@@ -1132,7 +1146,7 @@ export function TimelineRubans() {
           }
           
           audio.play().then(() => {
-            console.log('🔊 Son joué:', sound.name, 'à', currentTime.toFixed(2) + 's')
+            console.log('🔊 Son joué:', sound.name, 'à', currentTime.toFixed(2) + 's', offsetInSound > 0 ? `(offset: ${offsetInSound.toFixed(2)}s)` : '')
           }).catch((err) => {
             console.warn('⚠️ Erreur lecture son:', sound.name, err)
             // Fallback: essayer le son synthétique
