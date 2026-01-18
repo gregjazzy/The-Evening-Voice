@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { useMontageStore } from '@/store/useMontageStore'
+import { useMontageStore, type PhraseTiming, type PhraseStyle } from '@/store/useMontageStore'
 import { cn } from '@/lib/utils'
 import { AnimationEffect } from './AnimationEffects'
 import {
@@ -28,6 +28,105 @@ interface DraggableElement {
   id: string
   type: 'media' | 'decoration' | 'animation'
   position: { x: number; y: number; width: number; height: number; rotation?: number }
+}
+
+// =============================================================================
+// COMPOSANT D'AFFICHAGE DE PHRASE AVEC STYLE
+// =============================================================================
+
+function PhraseDisplay({ phrase }: { phrase: PhraseTiming }) {
+  // Style par défaut
+  const style: PhraseStyle = {
+    position: phrase.style?.position || 'bottom',
+    fontSize: phrase.style?.fontSize || 'large',
+    color: phrase.style?.color || '#FFFFFF',
+    backgroundColor: phrase.style?.backgroundColor,
+    animation: phrase.style?.animation || 'fade',
+    customPosition: phrase.style?.customPosition,
+  }
+  
+  // Classes de position
+  const positionClasses = {
+    top: 'top-0 left-0 right-0 pt-6 pb-12',
+    center: 'top-1/2 left-0 right-0 -translate-y-1/2',
+    bottom: 'bottom-0 left-0 right-0 pb-6 pt-12',
+    custom: '',
+  }
+  
+  // Tailles de police
+  const fontSizeClasses = {
+    small: 'text-base md:text-lg',
+    medium: 'text-lg md:text-xl',
+    large: 'text-2xl md:text-3xl',
+    xlarge: 'text-3xl md:text-4xl',
+  }
+  
+  // Animations
+  const animations = {
+    fade: {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+    },
+    slide: {
+      initial: { opacity: 0, y: 30 },
+      animate: { opacity: 1, y: 0 },
+    },
+    zoom: {
+      initial: { opacity: 0, scale: 0.8 },
+      animate: { opacity: 1, scale: 1 },
+    },
+    typewriter: {
+      initial: { opacity: 0, x: -20 },
+      animate: { opacity: 1, x: 0 },
+    },
+  }
+  
+  const anim = animations[style.animation || 'fade']
+  
+  // Style pour position personnalisée
+  const customStyle = style.position === 'custom' && style.customPosition ? {
+    left: `${style.customPosition.x}%`,
+    top: `${style.customPosition.y}%`,
+    transform: 'translate(-50%, -50%)',
+  } : {}
+  
+  // Gradient de fond selon la position
+  const gradientClass = style.position === 'top' 
+    ? 'bg-gradient-to-b from-black/80 to-transparent'
+    : style.position === 'bottom'
+    ? 'bg-gradient-to-t from-black/80 to-transparent'
+    : ''
+  
+  return (
+    <div 
+      className={cn(
+        'absolute z-40 px-6',
+        style.position !== 'custom' && positionClasses[style.position],
+        style.position !== 'custom' && gradientClass
+      )}
+      style={style.position === 'custom' ? customStyle : undefined}
+    >
+      <motion.p
+        key={phrase.id}
+        initial={anim.initial}
+        animate={anim.animate}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className={cn(
+          'font-medium text-center drop-shadow-lg',
+          fontSizeClasses[style.fontSize]
+        )}
+        style={{
+          color: style.color,
+          backgroundColor: style.backgroundColor || 'transparent',
+          padding: style.backgroundColor ? '0.5rem 1rem' : undefined,
+          borderRadius: style.backgroundColor ? '0.5rem' : undefined,
+          textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+        }}
+      >
+        {phrase.text}
+      </motion.p>
+    </div>
+  )
 }
 
 // =============================================================================
@@ -435,26 +534,16 @@ export function PreviewCanvas() {
           />
         ))}
 
-        {/* Texte de la phrase active (style karaoké) */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent z-40">
-          {activePhrase ? (
-            <motion.p
-              key={activePhrase.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-2xl md:text-3xl font-medium text-white text-center drop-shadow-lg"
-              style={{
-                textShadow: '0 2px 10px rgba(0,0,0,0.8)',
-              }}
-            >
-              {activePhrase.text}
-            </motion.p>
-          ) : (
+        {/* Texte de la phrase active (avec style personnalisé) */}
+        {activePhrase ? (
+          <PhraseDisplay phrase={activePhrase} />
+        ) : (
+          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent z-40">
             <p className="text-xl text-midnight-400 text-center italic">
               {scene.phrases?.[0] || 'Aucun texte'}
             </p>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Instructions quand rien n'est sélectionné */}
         {!isPlaying && visibleMedia.length === 0 && visibleDecorations.length === 0 && (

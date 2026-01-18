@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   useMontageStore,
@@ -10,6 +11,10 @@ import {
   type DecorationTrack,
   type AnimationTrack,
   type MusicTrack,
+  type PhraseTiming,
+  type PhraseStyle,
+  type PhrasePosition,
+  type PhraseFontSize,
 } from '@/store/useMontageStore'
 import { cn } from '@/lib/utils'
 import { 
@@ -28,6 +33,7 @@ import {
   Clock,
   Sliders,
   GripVertical,
+  Mic,
 } from 'lucide-react'
 
 // =============================================================================
@@ -199,11 +205,269 @@ function MediaProperties({ track }: { track: MediaTrack }) {
 }
 
 // =============================================================================
+// NARRATION PROPERTIES (VOLUME DE LA VOIX)
+// =============================================================================
+function NarrationProperties() {
+  const { getCurrentScene, updateNarrationVolume } = useMontageStore()
+  const scene = getCurrentScene()
+  const volume = scene?.narration?.volume ?? 1
+  
+  return (
+    <div className="space-y-4">
+      {/* Volume de la voix */}
+      <Section title="Volume de la voix" icon={<Volume2 className="w-3.5 h-3.5" />} color="text-amber-400">
+        <Slider
+          label="Volume"
+          value={volume * 100}
+          min={0}
+          max={100}
+          unit="%"
+          onChange={(v) => updateNarrationVolume(v / 100)}
+        />
+      </Section>
+      
+      {/* Infos */}
+      <Section title="Informations" icon={<Mic className="w-3.5 h-3.5" />} color="text-blue-400">
+        <div className="text-xs text-midnight-400 space-y-1">
+          <p>Source: {scene?.narration?.source === 'recorded' ? '🎤 Enregistrée' : '🤖 TTS'}</p>
+          <p>Durée: {scene?.narration?.duration?.toFixed(1)}s</p>
+          <p>Phrases: {scene?.narration?.phrases?.length || 0}</p>
+        </div>
+      </Section>
+    </div>
+  )
+}
+
+// =============================================================================
+// PHRASE PROPERTIES (STYLE DE LA PHRASE)
+// =============================================================================
+function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
+  const { updatePhraseStyle, updatePhraseTiming } = useMontageStore()
+  
+  // Volume de la phrase (défaut: 1)
+  const volume = phrase.volume ?? 1
+  
+  // Style par défaut
+  const style: PhraseStyle = {
+    position: phrase.style?.position || 'bottom',
+    fontSize: phrase.style?.fontSize || 'large',
+    color: phrase.style?.color || '#FFFFFF',
+    backgroundColor: phrase.style?.backgroundColor,
+    animation: phrase.style?.animation || 'fade',
+    customPosition: phrase.style?.customPosition,
+  }
+  
+  const positions: { value: PhrasePosition; label: string; icon: string }[] = [
+    { value: 'top', label: 'Haut', icon: '⬆️' },
+    { value: 'center', label: 'Centre', icon: '⏺️' },
+    { value: 'bottom', label: 'Bas', icon: '⬇️' },
+    { value: 'custom', label: 'Libre', icon: '✋' },
+  ]
+  
+  const fontSizes: { value: PhraseFontSize; label: string; size: string }[] = [
+    { value: 'small', label: 'Petit', size: '16px' },
+    { value: 'medium', label: 'Moyen', size: '20px' },
+    { value: 'large', label: 'Grand', size: '28px' },
+    { value: 'xlarge', label: 'Très grand', size: '36px' },
+  ]
+  
+  const animations: { value: string; label: string }[] = [
+    { value: 'fade', label: '✨ Fondu' },
+    { value: 'slide', label: '➡️ Glissement' },
+    { value: 'zoom', label: '🔍 Zoom' },
+    { value: 'typewriter', label: '⌨️ Machine à écrire' },
+  ]
+  
+  const presetColors = [
+    '#FFFFFF', // Blanc
+    '#FFD700', // Or
+    '#FF6B6B', // Rouge clair
+    '#4ECDC4', // Turquoise
+    '#A78BFA', // Violet
+    '#F97316', // Orange
+    '#22C55E', // Vert
+    '#3B82F6', // Bleu
+  ]
+  
+  return (
+    <div className="space-y-4">
+      {/* Aperçu de la phrase */}
+      <Section title="Aperçu" icon={<Type className="w-3.5 h-3.5" />} color="text-purple-400">
+        <div 
+          className="p-3 rounded-lg bg-midnight-900 text-center"
+          style={{
+            color: style.color,
+            backgroundColor: style.backgroundColor || 'transparent',
+            fontSize: fontSizes.find(f => f.value === style.fontSize)?.size || '28px',
+          }}
+        >
+          {phrase.text.length > 50 ? phrase.text.substring(0, 50) + '...' : phrase.text}
+        </div>
+      </Section>
+      
+      {/* Position à l'écran */}
+      <Section title="Position" icon={<Move className="w-3.5 h-3.5" />} color="text-blue-400">
+        <div className="grid grid-cols-4 gap-1">
+          {positions.map((pos) => (
+            <button
+              key={pos.value}
+              onClick={() => updatePhraseStyle(phrase.id, { position: pos.value })}
+              className={cn(
+                'p-2 rounded text-xs flex flex-col items-center gap-1 transition-colors',
+                style.position === pos.value
+                  ? 'bg-aurora-500 text-white'
+                  : 'bg-midnight-700 hover:bg-midnight-600 text-midnight-300'
+              )}
+            >
+              <span>{pos.icon}</span>
+              <span>{pos.label}</span>
+            </button>
+          ))}
+        </div>
+        
+        {/* Position personnalisée */}
+        {style.position === 'custom' && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Slider
+              label="X"
+              value={style.customPosition?.x ?? 50}
+              min={0}
+              max={100}
+              unit="%"
+              onChange={(x) => updatePhraseStyle(phrase.id, { 
+                customPosition: { x, y: style.customPosition?.y ?? 50 } 
+              })}
+            />
+            <Slider
+              label="Y"
+              value={style.customPosition?.y ?? 50}
+              min={0}
+              max={100}
+              unit="%"
+              onChange={(y) => updatePhraseStyle(phrase.id, { 
+                customPosition: { x: style.customPosition?.x ?? 50, y } 
+              })}
+            />
+          </div>
+        )}
+      </Section>
+      
+      {/* Taille de police */}
+      <Section title="Taille" icon={<Maximize2 className="w-3.5 h-3.5" />} color="text-green-400">
+        <div className="grid grid-cols-4 gap-1">
+          {fontSizes.map((size) => (
+            <button
+              key={size.value}
+              onClick={() => updatePhraseStyle(phrase.id, { fontSize: size.value })}
+              className={cn(
+                'p-2 rounded text-xs transition-colors',
+                style.fontSize === size.value
+                  ? 'bg-aurora-500 text-white'
+                  : 'bg-midnight-700 hover:bg-midnight-600 text-midnight-300'
+              )}
+            >
+              {size.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+      
+      {/* Couleur du texte */}
+      <Section title="Couleur du texte" icon={<Eye className="w-3.5 h-3.5" />} color="text-pink-400">
+        <div className="flex flex-wrap gap-2">
+          {presetColors.map((color) => (
+            <button
+              key={color}
+              onClick={() => updatePhraseStyle(phrase.id, { color })}
+              className={cn(
+                'w-7 h-7 rounded-full border-2 transition-transform hover:scale-110',
+                style.color === color ? 'border-white scale-110' : 'border-transparent'
+              )}
+              style={{ backgroundColor: color }}
+              title={color}
+            />
+          ))}
+          {/* Couleur personnalisée */}
+          <input
+            type="color"
+            value={style.color}
+            onChange={(e) => updatePhraseStyle(phrase.id, { color: e.target.value })}
+            className="w-7 h-7 rounded cursor-pointer"
+            title="Couleur personnalisée"
+          />
+        </div>
+      </Section>
+      
+      {/* Couleur de fond (optionnel) */}
+      <Section title="Fond (optionnel)" icon={<Sliders className="w-3.5 h-3.5" />} color="text-orange-400">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={!!style.backgroundColor}
+            onChange={(e) => updatePhraseStyle(phrase.id, { 
+              backgroundColor: e.target.checked ? '#00000080' : undefined 
+            })}
+            className="rounded"
+          />
+          <span className="text-xs text-midnight-400">Activer le fond</span>
+          {style.backgroundColor && (
+            <input
+              type="color"
+              value={style.backgroundColor.replace(/[0-9a-f]{2}$/i, '') || '#000000'}
+              onChange={(e) => updatePhraseStyle(phrase.id, { backgroundColor: e.target.value + '80' })}
+              className="w-6 h-6 rounded cursor-pointer ml-auto"
+            />
+          )}
+        </div>
+      </Section>
+      
+      {/* Animation d'entrée */}
+      <Section title="Animation" icon={<Sparkles className="w-3.5 h-3.5" />} color="text-yellow-400">
+        <div className="grid grid-cols-2 gap-1">
+          {animations.map((anim) => (
+            <button
+              key={anim.value}
+              onClick={() => updatePhraseStyle(phrase.id, { animation: anim.value as any })}
+              className={cn(
+                'p-2 rounded text-xs transition-colors',
+                style.animation === anim.value
+                  ? 'bg-aurora-500 text-white'
+                  : 'bg-midnight-700 hover:bg-midnight-600 text-midnight-300'
+              )}
+            >
+              {anim.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+      
+      {/* Volume audio de la phrase */}
+      <Section title="Volume Audio" icon={<Volume2 className="w-3.5 h-3.5" />} color="text-amber-400">
+        <Slider
+          label="Volume"
+          value={volume * 100}
+          min={0}
+          max={150}
+          unit="%"
+          onChange={(v) => updatePhraseTiming(phrase.id, { volume: v / 100 })}
+        />
+        <p className="text-[10px] text-midnight-500 mt-1">
+          💡 100% = volume normal, 150% = amplifié
+        </p>
+      </Section>
+    </div>
+  )
+}
+
+// =============================================================================
 // SOUND/MUSIC PROPERTIES
 // =============================================================================
 function SoundProperties({ track, type }: { track: SoundTrack | MusicTrack; type: 'sound' | 'music' }) {
   const { updateSoundTrack, updateMusicTrack } = useMontageStore()
   const update = type === 'sound' ? updateSoundTrack : updateMusicTrack
+  
+  // Debug: afficher l'ID et le nom du track en cours d'édition
+  console.log(`📝 Panel ouvert pour ${type}:`, track.name, 'ID:', track.id, 'Volume:', track.volume)
   
   return (
     <div className="space-y-4">
@@ -215,7 +479,10 @@ function SoundProperties({ track, type }: { track: SoundTrack | MusicTrack; type
           min={0}
           max={100}
           unit="%"
-          onChange={(v) => update(track.id, { volume: v / 100 })}
+          onChange={(v) => {
+            console.log(`🔊 Modification volume de "${track.name}" (ID: ${track.id}) → ${v}%`)
+            update(track.id, { volume: v / 100 })
+          }}
         />
       </Section>
 
@@ -686,7 +953,14 @@ export function TrackPropertiesPanel() {
 
   // Trouver l'élément sélectionné
   const getSelectedTrack = () => {
-    if (!scene || !selectedTrackId || !selectedTrackType) return null
+    if (!scene || !selectedTrackType) return null
+    
+    // Cas spécial pour la narration (pas d'ID de track)
+    if (selectedTrackType === 'narration') {
+      return { type: 'narration', track: scene.narration }
+    }
+    
+    if (!selectedTrackId) return null
     
     switch (selectedTrackType) {
       case 'media':
@@ -701,6 +975,8 @@ export function TrackPropertiesPanel() {
         return { type: 'decoration', track: scene.decorationTracks?.find(t => t.id === selectedTrackId) }
       case 'animation':
         return { type: 'animation', track: scene.animationTracks?.find(t => t.id === selectedTrackId) }
+      case 'phrase':
+        return { type: 'phrase', track: scene.narration?.phrases?.find(p => p.id === selectedTrackId) }
       default:
         return null
     }
@@ -716,16 +992,26 @@ export function TrackPropertiesPanel() {
       case 'light': return <Lightbulb className="w-4 h-4" />
       case 'decoration': return <Star className="w-4 h-4" />
       case 'animation': return <Sparkles className="w-4 h-4" />
+      case 'narration': return <Mic className="w-4 h-4" />
+      case 'phrase': return <Type className="w-4 h-4" />
       default: return null
     }
   }
 
   const getTrackName = () => {
     if (!selected?.track) return ''
+    if (selected.type === 'narration') return '🎤 Narration (Voix)'
+    if (selected.type === 'phrase') {
+      const phrase = selected.track as PhraseTiming
+      return phrase.text.length > 20 ? phrase.text.substring(0, 20) + '...' : phrase.text
+    }
     return (selected.track as any).name || (selected.track as any).type || 'Élément'
   }
 
-  return (
+  // Utiliser un portal pour rendre au-dessus de tout (y compris le mode plein écran)
+  if (typeof document === 'undefined') return null
+  
+  return createPortal(
     <AnimatePresence>
       {selected?.track && (
         <motion.div
@@ -733,7 +1019,7 @@ export function TrackPropertiesPanel() {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           className={cn(
-            "fixed glass rounded-xl w-72 max-h-[calc(100vh-100px)] overflow-hidden flex flex-col shadow-2xl z-[100]",
+            "fixed glass rounded-xl w-72 max-h-[calc(100vh-100px)] overflow-hidden flex flex-col shadow-2xl z-[10000]",
             isDragging && "cursor-grabbing"
           )}
           style={{ 
@@ -777,9 +1063,12 @@ export function TrackPropertiesPanel() {
             {selected.type === 'light' && <LightProperties track={selected.track as LightTrack} />}
             {selected.type === 'decoration' && <DecorationProperties track={selected.track as DecorationTrack} />}
             {selected.type === 'animation' && <AnimationProperties track={selected.track as AnimationTrack} />}
+            {selected.type === 'narration' && <NarrationProperties />}
+            {selected.type === 'phrase' && <PhraseProperties phrase={selected.track as PhraseTiming} />}
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }

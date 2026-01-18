@@ -16,6 +16,31 @@ export interface TimeRange {
 }
 
 /**
+ * Position de la phrase à l'écran
+ */
+export type PhrasePosition = 'top' | 'center' | 'bottom' | 'custom'
+
+/**
+ * Taille de la police
+ */
+export type PhraseFontSize = 'small' | 'medium' | 'large' | 'xlarge'
+
+/**
+ * Style d'affichage d'une phrase
+ */
+export interface PhraseStyle {
+  position: PhrasePosition     // Position verticale
+  customPosition?: {           // Position libre (si position === 'custom')
+    x: number                  // Position X en % (0-100)
+    y: number                  // Position Y en % (0-100)
+  }
+  fontSize: PhraseFontSize     // Taille de police
+  color: string                // Couleur du texte (hex)
+  backgroundColor?: string     // Couleur de fond (hex, optionnel)
+  animation?: 'fade' | 'slide' | 'zoom' | 'typewriter' // Animation d'entrée
+}
+
+/**
  * Une phrase avec son timing
  */
 export interface PhraseTiming {
@@ -24,6 +49,8 @@ export interface PhraseTiming {
   index: number             // Position dans le texte (0, 1, 2...)
   timeRange: TimeRange      // Position sur la TIMELINE (modifiable par l'utilisateur)
   audioTimeRange?: TimeRange // Timing ORIGINAL dans le fichier audio (immuable, pour lecture)
+  style?: PhraseStyle       // Style d'affichage personnalisé
+  volume?: number           // Volume audio de cette phrase (0-1, défaut: 1)
 }
 
 /**
@@ -42,6 +69,7 @@ export interface NarrationTrack {
   duration: number       // Durée totale en secondes
   phrases: PhraseTiming[] // Timing de chaque phrase
   isSynced: boolean
+  volume?: number        // Volume de la voix (0-1, défaut: 1)
 }
 
 /**
@@ -391,7 +419,7 @@ interface MontageState {
   
   // État de l'éditeur
   selectedTrackId: string | null
-  selectedTrackType: 'media' | 'music' | 'sound' | 'light' | 'decoration' | 'animation' | 'effect' | null
+  selectedTrackType: 'media' | 'music' | 'sound' | 'light' | 'decoration' | 'animation' | 'effect' | 'narration' | 'phrase' | null
   isPlaying: boolean
   currentPlaybackTime: number
   
@@ -418,6 +446,7 @@ interface MontageState {
   // === ACTIONS NARRATION ===
   setNarrationAudio: (audioUrl: string, source: VoiceSource, duration: number, ttsVoice?: string) => void
   clearNarrationAudio: () => void
+  updateNarrationVolume: (volume: number) => void
   
   // === ACTIONS SYNC PHRASES (Jeu de rythme) ===
   startPhraseSync: (audioStartTime: number) => void
@@ -425,6 +454,7 @@ interface MontageState {
   stopPhraseSync: () => void
   setPhraseTimings: (timings: PhraseTiming[]) => void
   updatePhraseTiming: (phraseId: string, updates: Partial<PhraseTiming>) => void
+  updatePhraseStyle: (phraseId: string, style: Partial<PhraseStyle>) => void
   
   // === ACTIONS MÉDIAS ===
   addMediaTrack: (track: Omit<MediaTrack, 'id'>) => void
@@ -467,7 +497,7 @@ interface MontageState {
   setNarrationZoneDuration: (duration: number) => void
   
   // === ACTIONS UI ===
-  setSelectedTrack: (id: string | null, type: 'media' | 'music' | 'sound' | 'light' | 'decoration' | 'animation' | 'effect' | null) => void
+  setSelectedTrack: (id: string | null, type: 'media' | 'music' | 'sound' | 'light' | 'decoration' | 'animation' | 'effect' | 'narration' | 'phrase' | null) => void
   clearSelection: () => void
   setIsPlaying: (playing: boolean) => void
   setPlaybackTime: (time: number) => void
@@ -659,6 +689,18 @@ export const useMontageStore = create<MontageState>()(
           },
         })
       },
+      
+      updateNarrationVolume: (volume) => {
+        const scene = get().getCurrentScene()
+        if (!scene) return
+        
+        get().updateCurrentScene({
+          narration: {
+            ...scene.narration,
+            volume: Math.max(0, Math.min(1, volume)),
+          },
+        })
+      },
 
       // === ACTIONS SYNC PHRASES ===
       startPhraseSync: (audioStartTime) => {
@@ -751,6 +793,38 @@ export const useMontageStore = create<MontageState>()(
         const updatedPhrases = scene.narration.phrases.map((phrase) => 
           phrase.id === phraseId 
             ? { ...phrase, ...updates }
+            : phrase
+        )
+        
+        get().updateCurrentScene({
+          narration: {
+            ...scene.narration,
+            phrases: updatedPhrases,
+          },
+        })
+      },
+
+      updatePhraseStyle: (phraseId, styleUpdates) => {
+        const scene = get().getCurrentScene()
+        if (!scene) return
+        
+        const defaultStyle: PhraseStyle = {
+          position: 'bottom',
+          fontSize: 'large',
+          color: '#FFFFFF',
+          animation: 'fade',
+        }
+        
+        const updatedPhrases = scene.narration.phrases.map((phrase) => 
+          phrase.id === phraseId 
+            ? { 
+                ...phrase, 
+                style: { 
+                  ...defaultStyle,
+                  ...phrase.style, 
+                  ...styleUpdates 
+                } 
+              }
             : phrase
         )
         

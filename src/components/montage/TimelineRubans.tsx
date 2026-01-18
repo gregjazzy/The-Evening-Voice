@@ -524,8 +524,8 @@ function Ruban({
       ref={rubanRef}
       className={cn(
         'absolute rounded-md cursor-grab transition-shadow flex items-center overflow-hidden',
-        isSelected && 'ring-2 ring-white shadow-lg',
-        isDragging && 'cursor-grabbing opacity-80',
+        isSelected && 'ring-2 ring-white shadow-lg z-20',
+        isDragging && 'cursor-grabbing opacity-80 z-30',
         color
       )}
       style={{
@@ -533,6 +533,7 @@ function Ruban({
         top: topPosition,
         width: Math.max(40, widthPx),
         height: LANE_HEIGHT - 4,
+        zIndex: isSelected ? 20 : isDragging ? 30 : 10, // Z-index explicite pour éviter les problèmes de clic
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => {
@@ -806,6 +807,7 @@ interface PhraseRubanProps {
   maxDuration: number  // Durée max de la timeline
   isActive: boolean
   onTimeRangeChange: (timeRange: TimeRange) => void
+  onSelect: () => void  // Sélectionner la narration pour ouvrir le panneau de volume
 }
 
 function PhraseRuban({
@@ -814,6 +816,7 @@ function PhraseRuban({
   maxDuration,
   isActive,
   onTimeRangeChange,
+  onSelect,
 }: PhraseRubanProps) {
   const rubanRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -927,7 +930,14 @@ function PhraseRuban({
         minWidth: 40,
       }}
       onMouseDown={handleMouseDown}
-      title={`${phrase.text}\n⏱ ${phrase.timeRange.startTime.toFixed(1)}s → ${phrase.timeRange.endTime.toFixed(1)}s`}
+      onClick={(e) => {
+        e.stopPropagation()
+        // Sélectionner seulement si ce n'était pas un drag
+        if (!isDragging && !isResizingLeft && !isResizingRight) {
+          onSelect()
+        }
+      }}
+      title={`${phrase.text}\n⏱ ${phrase.timeRange.startTime.toFixed(1)}s → ${phrase.timeRange.endTime.toFixed(1)}s\n🎤 Cliquer pour régler le volume`}
     >
       {/* Handle resize gauche */}
       <div
@@ -958,6 +968,7 @@ function PhrasesTrackScrollable({
   activePhraseIndex,
   maxDuration,
   onPhraseTimeRangeChange,
+  onSelectPhrase,
 }: { 
   phrases: PhraseTiming[]
   pixelsPerSecond: number
@@ -965,6 +976,7 @@ function PhrasesTrackScrollable({
   activePhraseIndex: number
   maxDuration: number  // Durée max de la timeline
   onPhraseTimeRangeChange: (phraseId: string, timeRange: TimeRange) => void
+  onSelectPhrase: (phraseId: string) => void  // Ouvrir le panneau de style de la phrase
 }) {
   return (
     <div className="flex items-center h-8">
@@ -987,6 +999,7 @@ function PhrasesTrackScrollable({
             maxDuration={maxDuration}
             isActive={index === activePhraseIndex}
             onTimeRangeChange={(timeRange) => onPhraseTimeRangeChange(phrase.id, timeRange)}
+            onSelect={() => onSelectPhrase(phrase.id)}
           />
         ))}
       </div>
@@ -1063,14 +1076,16 @@ export function TimelineRubans() {
   
   // Synchroniser le scroll entre la règle et les pistes
   const handleTracksScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft
     if (rulerScrollRef.current && !isPlaying) {
-      rulerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft
+      rulerScrollRef.current.scrollLeft = scrollLeft
     }
   }, [isPlaying])
   
   const handleRulerScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft
     if (scrollContainerRef.current && !isPlaying) {
-      scrollContainerRef.current.scrollLeft = e.currentTarget.scrollLeft
+      scrollContainerRef.current.scrollLeft = scrollLeft
     }
   }, [isPlaying])
   
@@ -1097,6 +1112,34 @@ export function TimelineRubans() {
   // Refs pour les sons et musiques actifs (pour pouvoir les arrêter)
   const activeSoundRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
   const activeMusicRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+
+  // Calculer le volume avec fade in/out
+  const calculateFadedVolume = useCallback((
+    currentTime: number,
+    startTime: number,
+    endTime: number,
+    baseVolume: number,
+    fadeIn: number = 0,
+    fadeOut: number = 0
+  ): number => {
+    const positionInTrack = currentTime - startTime
+    const trackDuration = endTime - startTime
+    
+    let volumeMultiplier = 1
+    
+    // Fade In : du début jusqu'à fadeIn secondes après le début
+    if (fadeIn > 0 && positionInTrack < fadeIn) {
+      volumeMultiplier = Math.min(1, positionInTrack / fadeIn)
+    }
+    
+    // Fade Out : à partir de (durée - fadeOut) jusqu'à la fin
+    if (fadeOut > 0 && positionInTrack > (trackDuration - fadeOut)) {
+      const fadeOutPosition = positionInTrack - (trackDuration - fadeOut)
+      volumeMultiplier = Math.max(0, 1 - (fadeOutPosition / fadeOut))
+    }
+    
+    return baseVolume * volumeMultiplier
+  }, [])
 
   // Vérifier et jouer les sons qui doivent démarrer
   const checkAndPlaySounds = useCallback((currentTime: number, previousTime: number) => {
@@ -1126,7 +1169,20 @@ export function TimelineRubans() {
         // Jouer le vrai fichier audio MP3
         try {
           const audio = new Audio(sound.url)
-          audio.volume = sound.volume ?? 0.7
+          
+          // Volume initial avec fade
+          const baseVolume = sound.volume ?? 0.7
+          const fadeIn = sound.timeRange.fadeIn ?? 0
+          const fadeOut = sound.timeRange.fadeOut ?? 0
+          const initialVolume = calculateFadedVolume(
+            currentTime, 
+            sound.timeRange.startTime, 
+            sound.timeRange.endTime, 
+            baseVolume, 
+            fadeIn, 
+            fadeOut
+          )
+          audio.volume = initialVolume
           
           // Si on a seeké au milieu du son, commencer à la bonne position
           if (offsetInSound > 0) {
@@ -1147,7 +1203,7 @@ export function TimelineRubans() {
           }
           
           audio.play().then(() => {
-            console.log('🔊 Son joué:', sound.name, 'à', currentTime.toFixed(2) + 's', offsetInSound > 0 ? `(offset: ${offsetInSound.toFixed(2)}s)` : '')
+            console.log('🔊 Son joué:', sound.name, 'à', currentTime.toFixed(2) + 's', 'volume:', Math.round(initialVolume * 100) + '%', fadeIn > 0 ? `(fadeIn: ${fadeIn}s)` : '', offsetInSound > 0 ? `(offset: ${offsetInSound.toFixed(2)}s)` : '')
           }).catch((err) => {
             console.warn('⚠️ Erreur lecture son:', sound.name, err)
             // Fallback: essayer le son synthétique
@@ -1159,17 +1215,37 @@ export function TimelineRubans() {
         }
       }
       
+      // Synchroniser le volume en temps réel avec fades (si le son est actif)
+      const activeAudio = activeSoundRefs.current.get(soundKey)
+      if (activeAudio && !activeAudio.paused) {
+        const baseVolume = sound.volume ?? 0.7
+        const fadeIn = sound.timeRange.fadeIn ?? 0
+        const fadeOut = sound.timeRange.fadeOut ?? 0
+        const targetVolume = calculateFadedVolume(
+          currentTime, 
+          sound.timeRange.startTime, 
+          sound.timeRange.endTime, 
+          baseVolume, 
+          fadeIn, 
+          fadeOut
+        )
+        
+        // Mettre à jour le volume (avec fades)
+        if (Math.abs(activeAudio.volume - targetVolume) > 0.01) {
+          activeAudio.volume = targetVolume
+        }
+      }
+      
       // Arrêter le son si on a dépassé son endTime
       if (currentTime >= sound.timeRange.endTime) {
-        const activeAudio = activeSoundRefs.current.get(soundKey)
         if (activeAudio && !activeAudio.paused) {
           activeAudio.pause()
           activeSoundRefs.current.delete(soundKey)
         }
       }
     })
-  }, [scene?.soundTracks])
-  
+  }, [scene?.soundTracks, calculateFadedVolume])
+
   // Vérifier et jouer les musiques qui doivent démarrer
   const checkAndPlayMusic = useCallback((currentTime: number, previousTime: number) => {
     const musicTracks = (scene as any)?.musicTracks as MusicTrack[] | undefined
@@ -1193,7 +1269,19 @@ export function TimelineRubans() {
             activeMusicRefs.current.set(musicKey, audio)
           }
           
-          audio.volume = music.volume ?? 0.5
+          // Volume initial avec fade
+          const baseVolume = music.volume ?? 0.5
+          const fadeIn = music.timeRange.fadeIn ?? 0
+          const fadeOut = music.timeRange.fadeOut ?? 0
+          const initialVolume = calculateFadedVolume(
+            currentTime, 
+            music.timeRange.startTime, 
+            music.timeRange.endTime, 
+            baseVolume, 
+            fadeIn, 
+            fadeOut
+          )
+          audio.volume = initialVolume
           audio.loop = music.loop ?? false
           
           // Positionner au bon endroit si on a seeké
@@ -1202,12 +1290,35 @@ export function TimelineRubans() {
           }
           
           audio.play().then(() => {
-            console.log('🎵 Musique jouée:', music.name, 'à', currentTime.toFixed(2) + 's', 'vol:', music.volume)
+            console.log('🎵 Musique jouée:', music.name, 'à', currentTime.toFixed(2) + 's', 'vol:', Math.round(initialVolume * 100) + '%', fadeIn > 0 ? `(fadeIn: ${fadeIn}s)` : '')
           }).catch((err) => {
             console.warn('⚠️ Erreur lecture musique:', music.name, err)
           })
         } catch (err) {
           console.warn('⚠️ Erreur création audio musique:', music.name, err)
+        }
+      }
+      
+      // Synchroniser le volume avec fades en temps réel
+      if (isInMusicRange) {
+        const activeAudio = activeMusicRefs.current.get(musicKey)
+        if (activeAudio && !activeAudio.paused) {
+          const baseVolume = music.volume ?? 0.5
+          const fadeIn = music.timeRange.fadeIn ?? 0
+          const fadeOut = music.timeRange.fadeOut ?? 0
+          const targetVolume = calculateFadedVolume(
+            currentTime, 
+            music.timeRange.startTime, 
+            music.timeRange.endTime, 
+            baseVolume, 
+            fadeIn, 
+            fadeOut
+          )
+          
+          // Mettre à jour le volume (avec fades)
+          if (Math.abs(activeAudio.volume - targetVolume) > 0.01) {
+            activeAudio.volume = targetVolume
+          }
         }
       }
       
@@ -1219,7 +1330,39 @@ export function TimelineRubans() {
         }
       }
     })
-  }, [scene])
+  }, [scene, calculateFadedVolume])
+  
+  // Synchroniser les volumes des sons/musiques actifs avec le store
+  // (quand on change le volume dans le panneau de propriétés)
+  useEffect(() => {
+    // Mettre à jour le volume des sons actifs
+    if (scene?.soundTracks) {
+      scene.soundTracks.forEach((sound) => {
+        const soundKey = `${sound.id}-${sound.timeRange.startTime}`
+        const activeAudio = activeSoundRefs.current.get(soundKey)
+        if (activeAudio) {
+          activeAudio.volume = sound.volume ?? 0.7
+        }
+      })
+    }
+    
+    // Mettre à jour le volume des musiques actives
+    const musicTracks = (scene as any)?.musicTracks as MusicTrack[] | undefined
+    if (musicTracks) {
+      musicTracks.forEach((music) => {
+        const musicKey = `music-${music.id}`
+        const activeAudio = activeMusicRefs.current.get(musicKey)
+        if (activeAudio) {
+          activeAudio.volume = music.volume ?? 0.5
+        }
+      })
+    }
+    
+    // Mettre à jour le volume de la narration (voix)
+    if (audioRef.current && scene?.narration) {
+      audioRef.current.volume = scene.narration.volume ?? 1
+    }
+  }, [scene?.soundTracks, (scene as any)?.musicTracks, scene?.narration?.volume])
   
   // Trouver quelle phrase jouer à un moment donné sur la timeline
   // Les phrases ont maintenant des positions ABSOLUES sur la timeline
@@ -1235,6 +1378,31 @@ export function TimelineRubans() {
   // Repositionner la tête de lecture (seek)
   const handleSeek = useCallback((time: number) => {
     setPlaybackTime(time)
+    
+    // Réinitialiser les sons qui sont APRÈS la nouvelle position (pour qu'ils puissent rejouer)
+    if (scene?.soundTracks) {
+      scene.soundTracks.forEach((sound) => {
+        const soundKey = `${sound.id}-${sound.timeRange.startTime}`
+        // Si on seek avant le début du son, le réinitialiser pour qu'il puisse rejouer
+        if (time < sound.timeRange.startTime) {
+          playedSoundsRef.current.delete(soundKey)
+        }
+        // Aussi réinitialiser si on seek AU DÉBUT du son (pour rejouer immédiatement)
+        if (time <= sound.timeRange.startTime + 0.1) {
+          playedSoundsRef.current.delete(soundKey)
+        }
+      })
+    }
+    
+    // Arrêter les sons actifs qui ne sont plus dans leur plage
+    activeSoundRefs.current.forEach((audio, soundKey) => {
+      const soundId = soundKey.split('-')[0]
+      const sound = scene?.soundTracks?.find(s => s.id === soundId)
+      if (sound && (time < sound.timeRange.startTime || time >= sound.timeRange.endTime)) {
+        audio.pause()
+        activeSoundRefs.current.delete(soundKey)
+      }
+    })
     
     // Si on est en lecture, redémarrer depuis la nouvelle position
     if (isPlaying) {
@@ -1256,6 +1424,10 @@ export function TimelineRubans() {
         // Offset dans la phrase = temps actuel - début de la phrase sur la timeline
         const phraseOffset = time - activePhrase.timeRange.startTime
         audioRef.current.currentTime = Math.max(0, audioRange.startTime + phraseOffset)
+        // Appliquer le volume de la phrase (combiné avec le volume global de narration)
+        const narrationVolume = scene?.narration?.volume ?? 1
+        const phraseVolume = activePhrase.volume ?? 1
+        audioRef.current.volume = Math.min(1, narrationVolume * phraseVolume)
         audioRef.current.play().catch(() => {})
         currentPhraseRef.current = activePhrase.id
       }
@@ -1266,7 +1438,7 @@ export function TimelineRubans() {
         const timelineTime = lastTimeRef.current + elapsed
         
         if (timelineTime >= duration) {
-          setIsPlaying(false)
+      setIsPlaying(false)
           setPlaybackTime(0)
           playedSoundsRef.current.clear()
           currentPhraseRef.current = null
@@ -1298,8 +1470,8 @@ export function TimelineRubans() {
         checkAndPlaySounds(timelineTime, lastTimeRef.current + elapsed - (1/60))
         checkAndPlayMusic(timelineTime, lastTimeRef.current + elapsed - (1/60))
         
-        const scrollOffset = scrollContainerRef.current?.scrollLeft || 0
-        const playheadLeft = LABEL_WIDTH + (timelineTime * pixelsPerSecond) - scrollOffset
+        // Mise à jour directe du DOM pour le playhead (sans compensation du scroll car il est dans le conteneur scrollable)
+        const playheadLeft = LABEL_WIDTH + (timelineTime * pixelsPerSecond)
         
         if (playheadMainRef.current) {
           playheadMainRef.current.style.left = `${playheadLeft}px`
@@ -1409,6 +1581,9 @@ export function TimelineRubans() {
         audioRef.current = new Audio(scene.narration?.audioUrl || '')
       }
       
+      // Appliquer le volume de la narration
+      audioRef.current.volume = scene.narration?.volume ?? 1
+      
       // Démarrer le playhead depuis la position actuelle
       playbackStartTimeRef.current = performance.now()
       lastTimeRef.current = currentPlaybackTime
@@ -1427,7 +1602,7 @@ export function TimelineRubans() {
           setPlaybackTime(0)
           playedSoundsRef.current.clear()
           currentPhraseRef.current = null
-          if (audioRef.current) {
+        if (audioRef.current) {
             audioRef.current.pause()
           }
           return
@@ -1450,6 +1625,11 @@ export function TimelineRubans() {
             // Calculer où commencer dans l'audio original
             const audioStartTime = audioRange.startTime + phraseOffset
             
+            // Appliquer le volume de la phrase (combiné avec le volume global de narration)
+            const narrationVolume = scene?.narration?.volume ?? 1
+            const phraseVolume = activePhrase.volume ?? 1
+            audioRef.current.volume = Math.min(1, narrationVolume * phraseVolume)
+            
             audioRef.current.currentTime = Math.max(0, audioStartTime)
             audioRef.current.play().catch(() => {})
           }
@@ -1469,25 +1649,24 @@ export function TimelineRubans() {
         checkAndPlaySounds(timelineTime, lastTimeRef.current + elapsed - (1/60))
         checkAndPlayMusic(timelineTime, lastTimeRef.current + elapsed - (1/60))
         
-        // Mise à jour DIRECTE du DOM pour le playhead
-        const scrollOffset = scrollContainerRef.current?.scrollLeft || 0
-        const playheadLeft = LABEL_WIDTH + (timelineTime * pixelsPerSecond) - scrollOffset
-        
+        // Mise à jour DIRECTE du DOM pour le playhead (sans compensation du scroll car il est dans le conteneur scrollable)
+        const playheadLeft = LABEL_WIDTH + (timelineTime * pixelsPerSecond)
+          
         if (playheadMainRef.current) {
           playheadMainRef.current.style.left = `${playheadLeft}px`
         }
         if (playheadRulerRef.current) {
           playheadRulerRef.current.style.left = `${timelineTime * pixelsPerSecond}px`
         }
-        
-        // Throttle: mettre à jour le state React seulement toutes les 100ms
-        const now = performance.now()
-        if (now - lastStateUpdateRef.current > 100) {
-          lastStateUpdateRef.current = now
+          
+          // Throttle: mettre à jour le state React seulement toutes les 100ms
+          const now = performance.now()
+          if (now - lastStateUpdateRef.current > 100) {
+            lastStateUpdateRef.current = now
           setPlaybackTime(timelineTime)
-        }
-        
-        animationRef.current = requestAnimationFrame(updateTime)
+          }
+          
+          animationRef.current = requestAnimationFrame(updateTime)
       }
       animationRef.current = requestAnimationFrame(updateTime)
     }
@@ -1661,7 +1840,7 @@ export function TimelineRubans() {
           ref={playheadMainRef}
           className="absolute top-0 bottom-0 w-0.5 bg-aurora-400 z-50 pointer-events-none shadow-lg shadow-aurora-400/50"
           style={{ 
-            left: LABEL_WIDTH + (currentPlaybackTime * pixelsPerSecond) - (scrollContainerRef.current?.scrollLeft || 0),
+            left: LABEL_WIDTH + (currentPlaybackTime * pixelsPerSecond),
             transition: isPlaying ? 'none' : 'left 0.15s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
@@ -1743,6 +1922,7 @@ export function TimelineRubans() {
             onPhraseTimeRangeChange={(phraseId, timeRange) => 
               updatePhraseTiming(phraseId, { timeRange })
             }
+            onSelectPhrase={(phraseId) => setSelectedTrack(phraseId, 'phrase')}
           />
         )}
 
