@@ -571,13 +571,28 @@ interface TimeRange {
 }
 
 /**
- * Une phrase avec son timing
+ * Style d'affichage d'une phrase (personnalisable)
+ */
+interface PhraseStyle {
+  position: 'top' | 'center' | 'bottom' | 'custom'
+  customPosition?: { x: number; y: number }  // Si position = 'custom'
+  fontSize: 'small' | 'medium' | 'large' | 'xlarge'
+  color: string              // Couleur du texte (hex)
+  backgroundColor?: string   // Fond optionnel (hex)
+  animation?: 'fade' | 'slide' | 'zoom' | 'typewriter'
+}
+
+/**
+ * Une phrase avec son timing et style
  */
 interface PhraseTiming {
   id: string
-  text: string           // Contenu de la phrase
-  index: number          // Position dans le texte (0, 1, 2...)
-  timeRange: TimeRange   // Quand elle est prononcée
+  text: string              // Contenu de la phrase
+  index: number             // Position dans le texte (0, 1, 2...)
+  timeRange: TimeRange      // Position sur la TIMELINE (modifiable)
+  audioTimeRange?: TimeRange // Timing ORIGINAL dans l'audio (immuable)
+  style?: PhraseStyle       // Style d'affichage personnalisé
+  volume?: number           // Volume audio (0-1.5, défaut: 1)
 }
 
 /**
@@ -592,6 +607,7 @@ interface NarrationTrack {
   duration: number       // Durée totale en secondes
   phrases: PhraseTiming[] // Timing de chaque phrase
   isSynced: boolean
+  volume?: number        // Volume global narration (0-1)
 }
 
 /**

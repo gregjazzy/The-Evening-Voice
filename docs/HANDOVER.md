@@ -2,8 +2,8 @@
 
 > Document de passation complet pour la prochaine session de développement
 
-**Date** : 17 janvier 2026  
-**Version** : 4.0.0  
+**Date** : 18 janvier 2026  
+**Version** : 4.1.0  
 **État** : Production-Ready ✅
 
 ---
@@ -35,6 +35,64 @@ Application pour **filles de 8 ans** permettant de créer des **livres-disques n
    (texte)    (assets)    (assemblage)  (lecture)
                               ↓
                          📖 Publier + Export MP4/PDF
+```
+
+---
+
+## ✅ Ce qui est FAIT (Session 18 janvier)
+
+### 🎨 Personnalisation des Phrases (Nouveau !)
+
+Chaque phrase du texte peut maintenant être personnalisée individuellement :
+
+| Propriété | Options | Description |
+|-----------|---------|-------------|
+| **Position** | Haut, Centre, Bas, Libre | Où afficher la phrase à l'écran |
+| **Taille** | Petit, Moyen, Grand, Très grand | Taille de la police |
+| **Couleur** | 8 prédéfinies + personnalisée | Couleur du texte |
+| **Fond** | Optionnel | Couleur de fond semi-transparente |
+| **Animation** | Fondu, Glissement, Zoom, Machine à écrire | Animation d'entrée |
+| **Volume Audio** | 0% - 150% | Volume individuel de la phrase |
+
+**Usage :** Cliquer sur une phrase dans la timeline → Panneau de propriétés
+
+### 🎵 Améliorations Audio
+
+| Fonctionnalité | Description |
+|----------------|-------------|
+| **Fade In/Out** | Sons et musiques supportent les fondus progressifs |
+| **Volume par phrase** | Chaque phrase peut avoir son propre volume (combiné avec volume global) |
+| **Synchronisation** | Volume mis à jour en temps réel pendant la lecture |
+
+### 🔧 Corrections Timeline
+
+| Correction | Description |
+|------------|-------------|
+| **Playhead scroll** | La tête de lecture suit correctement le scroll horizontal |
+| **Panneau propriétés** | Visible même en mode plein écran (portal + z-index 10000) |
+| **Sélection phrases** | Clic sur phrase ouvre le panneau de style (pas seulement volume narration) |
+
+### 📦 Structure des Types (PhraseTiming)
+
+```typescript
+interface PhraseTiming {
+  id: string
+  text: string
+  index: number
+  timeRange: TimeRange        // Position sur la timeline
+  audioTimeRange?: TimeRange  // Position dans l'audio original
+  style?: PhraseStyle         // Style d'affichage ✨
+  volume?: number             // Volume audio (0-1.5) ✨
+}
+
+interface PhraseStyle {
+  position: 'top' | 'center' | 'bottom' | 'custom'
+  customPosition?: { x: number; y: number }
+  fontSize: 'small' | 'medium' | 'large' | 'xlarge'
+  color: string
+  backgroundColor?: string
+  animation?: 'fade' | 'slide' | 'zoom' | 'typewriter'
+}
 ```
 
 ---
@@ -381,7 +439,7 @@ VALUES ('VOTRE_USER_ID', 'Admin');
 |-----------|------|-------|
 | Mode Écriture | ✅ | Complet |
 | Mode Studio | ✅ | Pédagogie + guidage IA |
-| Mode Montage | ✅ | Timeline fluide + sons |
+| Mode Montage | ✅ | Timeline fluide + sons + **style phrases** |
 | Mode Théâtre | ✅ | Lecture + export MP4 |
 | Mode Publier | ✅ | Gelato + PDF |
 | IA personnalisable | ✅ | Welcome sequence interactive |
@@ -398,6 +456,9 @@ VALUES ('VOTRE_USER_ID', 'Admin');
 | Sécurité Electron | ✅ | Shell injection fixé |
 | Responsive iPad | ✅ | Adaptatif |
 | Mode hors-ligne | ✅ | Fallbacks |
+| **Style par phrase** | ✅ | Position, taille, couleur, animation |
+| **Volume par phrase** | ✅ | 0% - 150% individuel |
+| **Fade audio** | ✅ | Sons et musiques |
 
 ---
 
