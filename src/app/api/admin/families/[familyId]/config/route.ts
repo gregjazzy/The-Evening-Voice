@@ -1,5 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 // PATCH - Mettre à jour la configuration (clés API, voix)
@@ -8,7 +7,7 @@ export async function PATCH(
   { params }: { params: { familyId: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     const { familyId } = params;
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -118,7 +117,7 @@ export async function POST(
   { params }: { params: { familyId: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     const { familyId } = params;
     
     const { data: { user } } = await supabase.auth.getUser();

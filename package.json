@@ -62,6 +62,7 @@
     "@tiptap/extension-text-style": "^3.15.3",
     "@tiptap/react": "^3.15.3",
     "@tiptap/starter-kit": "^3.15.3",
+    "assemblyai": "^4.22.1",
     "clsx": "^2.1.0",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.1.0",

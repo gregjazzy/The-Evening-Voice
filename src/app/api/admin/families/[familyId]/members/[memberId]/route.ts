@@ -1,5 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 // PATCH - Modifier un membre
@@ -8,7 +7,7 @@ export async function PATCH(
   { params }: { params: { familyId: string; memberId: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     const { familyId, memberId } = params;
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -71,7 +70,7 @@ export async function DELETE(
   { params }: { params: { familyId: string; memberId: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     const { familyId, memberId } = params;
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -144,7 +143,7 @@ export async function POST(
   { params }: { params: { familyId: string; memberId: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     const { familyId, memberId } = params;
     
     const { data: { user } } = await supabase.auth.getUser();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase/client';
 import { useAdminStore, FamilyConfig, UserFamilyInfo } from '@/store/useAdminStore';
 
 interface AppConfig {
@@ -49,8 +49,6 @@ export function useAppConfig() {
   const [error, setError] = useState<string | null>(null);
   
   const { setIsSuperAdmin, setUserFamilyInfo } = useAdminStore();
-  
-  const supabase = createClientComponentClient();
   
   const loadConfig = useCallback(async () => {
     try {
@@ -160,7 +158,7 @@ export function useAppConfig() {
     } finally {
       setIsLoading(false);
     }
-  }, [supabase, setIsSuperAdmin, setUserFamilyInfo]);
+  }, [setIsSuperAdmin, setUserFamilyInfo]);
   
   useEffect(() => {
     loadConfig();
@@ -173,7 +171,7 @@ export function useAppConfig() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [loadConfig, supabase.auth]);
+  }, [loadConfig]);
   
   return {
     config,

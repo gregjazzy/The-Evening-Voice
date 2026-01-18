@@ -1,5 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export interface ChildCreations {
@@ -34,7 +33,7 @@ export async function GET(
   { params }: { params: { familyId: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     const { familyId } = params;
     
     const { data: { user } } = await supabase.auth.getUser();

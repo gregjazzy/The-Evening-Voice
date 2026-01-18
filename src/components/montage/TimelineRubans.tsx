@@ -35,11 +35,20 @@ import {
   ZoomOut,
   Maximize2,
   Minimize2,
-  Fullscreen
+  Fullscreen,
+  RotateCcw
 } from 'lucide-react'
 import { AddElementModal } from './AddElementModal'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { type HighlightableElement } from '@/store/useHighlightStore'
+
+// =============================================================================
+// CONSTANTES
+// =============================================================================
+
+// Buffer de temps supplémentaire affiché à la fin de la timeline (en secondes)
+// Permet de placer des éléments au-delà de la durée actuelle et déclenche l'auto-extension
+const BUFFER_DURATION = 10
 
 // =============================================================================
 // UTILITAIRES
@@ -131,12 +140,14 @@ interface RubanProps {
   color: string
   timeRange: TimeRange
   duration: number
+  maxDuration: number // Durée max incluant le buffer (pour permettre le placement au-delà)
   pixelsPerSecond: number
   isSelected: boolean
   lane?: number // Sous-ligne (0 par défaut)
   onSelect: () => void
   onTimeRangeChange: (timeRange: TimeRange) => void
   onDelete: () => void
+  onAutoExtend?: (newEndTime: number) => void // Appelé quand un élément dépasse la durée actuelle
 }
 
 // =============================================================================
@@ -263,6 +274,117 @@ function IntroOutroZone({
 }
 
 // =============================================================================
+// ZONE NARRATION (REDIMENSIONNABLE)
+// =============================================================================
+
+interface NarrationZoneProps {
+  duration: number
+  minDuration: number  // Durée minimum (durée de l'audio)
+  pixelsPerSecond: number
+  startOffset: number  // Position de départ en secondes (après intro)
+  onDurationChange: (newDuration: number) => void
+}
+
+function NarrationZone({
+  duration,
+  minDuration,
+  pixelsPerSecond,
+  startOffset,
+  onDurationChange,
+}: NarrationZoneProps) {
+  const zoneRef = useRef<HTMLDivElement>(null)
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeStartX = useRef(0)
+  const originalDuration = useRef(duration)
+
+  // Position en pixels
+  const leftPx = startOffset * pixelsPerSecond
+  const widthPx = duration * pixelsPerSecond
+
+  // Resize handler (côté droit uniquement)
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+    resizeStartX.current = e.clientX
+    originalDuration.current = duration
+  }
+
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - resizeStartX.current
+      const deltaTime = deltaX / pixelsPerSecond
+      
+      // Minimum = durée de l'audio, pas de maximum
+      const newDuration = Math.max(minDuration, originalDuration.current + deltaTime)
+      
+      onDurationChange(Math.round(newDuration * 10) / 10) // Arrondir à 0.1s
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizing, pixelsPerSecond, minDuration, onDurationChange])
+
+  return (
+    <div
+      ref={zoneRef}
+      className={cn(
+        'absolute h-full flex items-center px-2 rounded-md text-xs transition-shadow group',
+        'bg-amber-500/20 text-amber-200 border-x border-amber-500/30',
+        isResizing && 'ring-2 ring-amber-400'
+      )}
+      style={{
+        left: leftPx,
+        width: Math.max(40, widthPx),
+        minWidth: 40,
+      }}
+    >
+      {/* Emoji et label */}
+      <span className="truncate font-medium">
+        📖 Narration
+      </span>
+      <span className="ml-1 text-[10px] opacity-70">
+        {duration.toFixed(1)}s
+      </span>
+
+      {/* Handle de redimensionnement (côté droit) */}
+      <div
+        className={cn(
+          'absolute top-0 bottom-0 right-0 w-3 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity',
+          'hover:bg-amber-400/30 flex items-center justify-center'
+        )}
+        onMouseDown={handleResizeStart}
+        title="Glisser pour étendre la zone de narration"
+      >
+        <GripVertical className="w-2 h-2 text-amber-300/70 rotate-90" />
+      </div>
+
+      {/* Bouton reset (revenir à durée audio) si étendu */}
+      {duration > minDuration && (
+        <button
+          onClick={() => onDurationChange(minDuration)}
+          className="absolute -top-1 -right-1 p-0.5 rounded-full bg-amber-500 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-amber-400"
+          title="Réinitialiser à la durée de l'audio"
+        >
+          <RotateCcw className="w-2.5 h-2.5" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
 // RUBAN DRAGGABLE
 // =============================================================================
 
@@ -273,12 +395,14 @@ function Ruban({
   color,
   timeRange,
   duration,
+  maxDuration,
   pixelsPerSecond,
   isSelected,
   lane = 0,
   onSelect,
   onTimeRangeChange,
   onDelete,
+  onAutoExtend,
 }: RubanProps) {
   const rubanRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -334,17 +458,24 @@ function Ruban({
       const deltaTime = deltaX / pixelsPerSecond
 
       if (isDragging) {
-        // Déplacement du ruban entier
+        // Déplacement du ruban entier - utiliser maxDuration pour permettre le placement au-delà
+        const segmentDuration = originalTimeRange.current.endTime - originalTimeRange.current.startTime
         const newStartTime = Math.max(0, Math.min(
-          duration - (originalTimeRange.current.endTime - originalTimeRange.current.startTime),
+          maxDuration - segmentDuration,
           originalTimeRange.current.startTime + deltaTime
         ))
-        const segmentDuration = originalTimeRange.current.endTime - originalTimeRange.current.startTime
+        const newEndTime = newStartTime + segmentDuration
+        
         onTimeRangeChange({
           ...timeRange,
           startTime: newStartTime,
-          endTime: newStartTime + segmentDuration,
+          endTime: newEndTime,
         })
+        
+        // Auto-extension si on dépasse la durée actuelle
+        if (newEndTime > duration && onAutoExtend) {
+          onAutoExtend(newEndTime)
+        }
       } else if (isResizingLeft) {
         // Resize côté gauche
         const newStartTime = Math.max(0, Math.min(
@@ -356,15 +487,20 @@ function Ruban({
           startTime: newStartTime,
         })
       } else if (isResizingRight) {
-        // Resize côté droit
+        // Resize côté droit - utiliser maxDuration pour permettre l'extension
         const newEndTime = Math.max(
           timeRange.startTime + 0.5, // Minimum 0.5s
-          Math.min(duration, originalTimeRange.current.endTime + deltaTime)
+          Math.min(maxDuration, originalTimeRange.current.endTime + deltaTime)
         )
         onTimeRangeChange({
           ...timeRange,
           endTime: newEndTime,
         })
+        
+        // Auto-extension si on dépasse la durée actuelle
+        if (newEndTime > duration && onAutoExtend) {
+          onAutoExtend(newEndTime)
+        }
       }
     }
 
@@ -381,7 +517,7 @@ function Ruban({
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, isResizingLeft, isResizingRight, duration, pixelsPerSecond, timeRange, onTimeRangeChange])
+  }, [isDragging, isResizingLeft, isResizingRight, duration, maxDuration, pixelsPerSecond, timeRange, onTimeRangeChange, onAutoExtend])
 
   return (
     <div
@@ -553,6 +689,7 @@ const LABEL_WIDTH = 110 // Largeur fixe des labels de piste (pour "Lumières")
 
 interface TimeRulerScrollableProps {
   duration: number
+  totalDuration: number // Durée totale incluant le buffer
   currentTime: number
   pixelsPerSecond: number
   rulerScrollRef: React.RefObject<HTMLDivElement>
@@ -562,12 +699,13 @@ interface TimeRulerScrollableProps {
   onSeek: (time: number) => void
 }
 
-function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScrollRef, playheadRef, isPlaying, onScroll, onSeek }: TimeRulerScrollableProps) {
+function TimeRulerScrollable({ duration, totalDuration, currentTime, pixelsPerSecond, rulerScrollRef, playheadRef, isPlaying, onScroll, onSeek }: TimeRulerScrollableProps) {
   // Handler pour cliquer sur la règle et repositionner la tête de lecture
   const handleRulerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left + (rulerScrollRef.current?.scrollLeft || 0)
-    const newTime = Math.max(0, Math.min(duration, clickX / pixelsPerSecond))
+    // On peut cliquer jusqu'à totalDuration (inclut le buffer)
+    const newTime = Math.max(0, Math.min(totalDuration, clickX / pixelsPerSecond))
     onSeek(newTime)
   }
 
@@ -581,7 +719,8 @@ function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScro
   
   const markInterval = getMarkInterval()
   const marks: number[] = []
-  for (let t = 0; t <= duration; t += markInterval) {
+  // Afficher les marques jusqu'à totalDuration (inclut le buffer)
+  for (let t = 0; t <= totalDuration; t += markInterval) {
     marks.push(t)
   }
 
@@ -591,8 +730,9 @@ function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScro
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const timelineWidth = duration * pixelsPerSecond
+  const timelineWidth = totalDuration * pixelsPerSecond
   const playheadPosition = currentTime * pixelsPerSecond
+  const bufferStartPx = duration * pixelsPerSecond
 
   return (
     <div className="flex h-6 bg-midnight-800/50 border-b border-midnight-700/30">
@@ -611,6 +751,16 @@ function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScro
           onClick={handleRulerClick}
           title="Clique pour repositionner la tête de lecture"
         >
+          {/* Zone de buffer (grisée, après la durée actuelle) */}
+          <div 
+            className="absolute top-0 bottom-0 bg-midnight-700/30 border-l border-dashed border-midnight-500/50"
+            style={{ 
+              left: bufferStartPx,
+              width: timelineWidth - bufferStartPx,
+            }}
+            title="Zone d'extension - Déplace un élément ici pour allonger la scène"
+          />
+          
           {/* Marques de temps */}
           {marks.map((t) => (
             <div
@@ -618,8 +768,14 @@ function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScro
               className="absolute top-0 bottom-0 flex flex-col items-center"
               style={{ left: t * pixelsPerSecond }}
             >
-              <div className="w-px h-2 bg-midnight-600" />
-              <span className="text-[10px] text-midnight-500 whitespace-nowrap">{formatTime(t)}</span>
+              <div className={cn(
+                "w-px h-2",
+                t > duration ? "bg-midnight-600/50" : "bg-midnight-600"
+              )} />
+              <span className={cn(
+                "text-[10px] whitespace-nowrap",
+                t > duration ? "text-midnight-600" : "text-midnight-500"
+              )}>{formatTime(t)}</span>
             </div>
           ))}
 
@@ -647,8 +803,7 @@ function TimeRulerScrollable({ duration, currentTime, pixelsPerSecond, rulerScro
 interface PhraseRubanProps {
   phrase: PhraseTiming
   pixelsPerSecond: number
-  duration: number
-  introOffset: number
+  maxDuration: number  // Durée max de la timeline
   isActive: boolean
   onTimeRangeChange: (timeRange: TimeRange) => void
 }
@@ -656,8 +811,7 @@ interface PhraseRubanProps {
 function PhraseRuban({
   phrase,
   pixelsPerSecond,
-  duration,
-  introOffset,
+  maxDuration,
   isActive,
   onTimeRangeChange,
 }: PhraseRubanProps) {
@@ -668,8 +822,8 @@ function PhraseRuban({
   const dragStartX = useRef(0)
   const originalTimeRange = useRef(phrase.timeRange)
 
-  // Position en pixels (avec offset intro)
-  const leftPx = (phrase.timeRange.startTime + introOffset) * pixelsPerSecond
+  // Position en pixels (positions ABSOLUES sur la timeline)
+  const leftPx = phrase.timeRange.startTime * pixelsPerSecond
   const widthPx = (phrase.timeRange.endTime - phrase.timeRange.startTime) * pixelsPerSecond
 
   // Gestion du drag principal (déplacement)
@@ -709,10 +863,10 @@ function PhraseRuban({
       const deltaTime = deltaX / pixelsPerSecond
 
       if (isDragging) {
-        // Déplacement du ruban entier
+        // Déplacement du ruban entier (peut aller n'importe où sur la timeline)
         const segmentDuration = originalTimeRange.current.endTime - originalTimeRange.current.startTime
         const newStartTime = Math.max(0, Math.min(
-          duration - segmentDuration,
+          maxDuration - segmentDuration,
           originalTimeRange.current.startTime + deltaTime
         ))
         onTimeRangeChange({
@@ -733,7 +887,7 @@ function PhraseRuban({
         // Resize côté droit (minimum 0.3s de durée)
         const newEndTime = Math.max(
           phrase.timeRange.startTime + 0.3,
-          Math.min(duration, originalTimeRange.current.endTime + deltaTime)
+          Math.min(maxDuration, originalTimeRange.current.endTime + deltaTime)
         )
         onTimeRangeChange({
           startTime: phrase.timeRange.startTime,
@@ -755,7 +909,7 @@ function PhraseRuban({
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, isResizingLeft, isResizingRight, pixelsPerSecond, duration, phrase.timeRange, onTimeRangeChange])
+  }, [isDragging, isResizingLeft, isResizingRight, pixelsPerSecond, maxDuration, phrase.timeRange, onTimeRangeChange])
 
   return (
     <div
@@ -802,7 +956,6 @@ function PhrasesTrackScrollable({
   pixelsPerSecond,
   timelineWidth,
   activePhraseIndex,
-  introOffset = 0,
   maxDuration,
   onPhraseTimeRangeChange,
 }: { 
@@ -810,8 +963,7 @@ function PhrasesTrackScrollable({
   pixelsPerSecond: number
   timelineWidth: number
   activePhraseIndex: number
-  introOffset?: number
-  maxDuration: number  // Durée max (narration + outro)
+  maxDuration: number  // Durée max de la timeline
   onPhraseTimeRangeChange: (phraseId: string, timeRange: TimeRange) => void
 }) {
   return (
@@ -825,15 +977,14 @@ function PhrasesTrackScrollable({
         <span className="truncate">Phrases</span>
       </div>
       
-      {/* Zone des rubans (scrollable via le container parent) */}
+      {/* Zone des rubans (scrollable via le container parent) - positions ABSOLUES */}
       <div className="flex-1 h-full relative" style={{ minWidth: timelineWidth }}>
         {phrases.map((phrase, index) => (
           <PhraseRuban
             key={phrase.id}
             phrase={phrase}
             pixelsPerSecond={pixelsPerSecond}
-            duration={maxDuration}
-            introOffset={introOffset}
+            maxDuration={maxDuration}
             isActive={index === activePhraseIndex}
             onTimeRangeChange={(timeRange) => onPhraseTimeRangeChange(phrase.id, timeRange)}
           />
@@ -883,6 +1034,7 @@ export function TimelineRubans() {
     getActivePhrase,
     setIntroDuration,
     setOutroDuration,
+    setNarrationZoneDuration,
     updatePhraseTiming,
   } = useMontageStore()
 
@@ -922,15 +1074,6 @@ export function TimelineRubans() {
     }
   }, [isPlaying])
   
-  // Repositionner la tête de lecture (seek)
-  const handleSeek = useCallback((time: number) => {
-    setPlaybackTime(time)
-    // Si l'audio est chargé, synchroniser sa position aussi
-    if (audioRef.current) {
-      audioRef.current.currentTime = time
-    }
-  }, [setPlaybackTime])
-  
   // Ouvrir le modal pour un type d'élément
   const openAddModal = useCallback((type: ModalElementType) => {
     setModalType(type)
@@ -940,55 +1083,17 @@ export function TimelineRubans() {
   // Durées intro/outro/narration
   const introDuration = scene?.introDuration || 0
   const outroDuration = scene?.outroDuration || 0
-  const narrationDuration = scene?.narration?.duration || scene?.duration || 10
+  // Utiliser narrationZoneDuration si défini (permet d'étendre la zone), sinon durée de l'audio
+  const audioNarrationDuration = scene?.narration?.duration || scene?.duration || 10
+  const narrationDuration = scene?.narrationZoneDuration || audioNarrationDuration
   
   // Durée totale de la scène (intro + narration + outro)
   const duration = introDuration + narrationDuration + outroDuration
   
-  // Largeur totale de la timeline en pixels
-  const timelineWidth = duration * pixelsPerSecond
+  // Ref pour tracker la phrase actuellement jouée
+  const currentPhraseRef = useRef<string | null>(null)
+  const playbackStartTimeRef = useRef<number>(0)
   
-  // Zoom handlers
-  const zoomIn = useCallback(() => {
-    setPixelsPerSecond(prev => Math.min(prev * 1.5, 200)) // Max 200px/s
-  }, [])
-  
-  const zoomOut = useCallback(() => {
-    setPixelsPerSecond(prev => Math.max(prev / 1.5, 20)) // Min 20px/s
-  }, [])
-  
-  const zoomFit = useCallback(() => {
-    // Adapter le zoom pour que toute la timeline soit visible
-    if (scrollContainerRef.current && duration > 0) {
-      const containerWidth = scrollContainerRef.current.clientWidth - 100 // Enlever la marge des labels
-      setPixelsPerSecond(Math.max(20, Math.min(200, containerWidth / duration)))
-    }
-  }, [duration])
-  
-  // Auto-scroll pour suivre le playhead (synchronisé entre règle et pistes)
-  useEffect(() => {
-    if (isPlaying && scrollContainerRef.current) {
-      const container = scrollContainerRef.current
-      const playheadPosition = currentPlaybackTime * pixelsPerSecond
-      const containerWidth = container.clientWidth - 100
-      const scrollLeft = container.scrollLeft
-      
-      // Si le playhead sort de la zone visible, scroller
-      if (playheadPosition > scrollLeft + containerWidth - 50 || playheadPosition < scrollLeft + 50) {
-        const newScrollLeft = Math.max(0, playheadPosition - containerWidth / 2)
-        container.scrollLeft = newScrollLeft
-        // Synchroniser la règle aussi
-        if (rulerScrollRef.current) {
-          rulerScrollRef.current.scrollLeft = newScrollLeft
-        }
-      }
-    }
-  }, [currentPlaybackTime, isPlaying, pixelsPerSecond])
-
-  // Phrase active
-  const activePhrase = scene ? getActivePhrase(currentPlaybackTime) : null
-  const activePhraseIndex = activePhrase ? activePhrase.index : -1
-
   // Refs pour les sons actifs (pour pouvoir les arrêter)
   const activeSoundRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
 
@@ -1049,18 +1154,172 @@ export function TimelineRubans() {
       }
     })
   }, [scene?.soundTracks])
+  
+  // Trouver quelle phrase jouer à un moment donné sur la timeline
+  // Les phrases ont maintenant des positions ABSOLUES sur la timeline
+  const findPhraseAtTime = useCallback((timelineTime: number) => {
+    const phrases = scene?.narration?.phrases || []
+    
+    return phrases.find(p => 
+      timelineTime >= p.timeRange.startTime && 
+      timelineTime < p.timeRange.endTime
+    ) || null
+  }, [scene?.narration?.phrases])
+  
+  // Repositionner la tête de lecture (seek)
+  const handleSeek = useCallback((time: number) => {
+    setPlaybackTime(time)
+    
+    // Si on est en lecture, redémarrer depuis la nouvelle position
+    if (isPlaying) {
+      // Arrêter la lecture actuelle
+      audioRef.current?.pause()
+      currentPhraseRef.current = null
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+      
+      // Redémarrer depuis la nouvelle position
+      playbackStartTimeRef.current = performance.now()
+      lastTimeRef.current = time
+      
+      // Trouver si on est sur une phrase et jouer son audio
+      const activePhrase = findPhraseAtTime(time)
+      if (activePhrase && audioRef.current) {
+        const audioRange = activePhrase.audioTimeRange || activePhrase.timeRange
+        // Offset dans la phrase = temps actuel - début de la phrase sur la timeline
+        const phraseOffset = time - activePhrase.timeRange.startTime
+        audioRef.current.currentTime = Math.max(0, audioRange.startTime + phraseOffset)
+        audioRef.current.play().catch(() => {})
+        currentPhraseRef.current = activePhrase.id
+      }
+      
+      // Relancer l'animation de mise à jour
+      const updateTime = () => {
+        const elapsed = (performance.now() - playbackStartTimeRef.current) / 1000
+        const timelineTime = lastTimeRef.current + elapsed
+        
+        if (timelineTime >= duration) {
+          setIsPlaying(false)
+          setPlaybackTime(0)
+          playedSoundsRef.current.clear()
+          currentPhraseRef.current = null
+          audioRef.current?.pause()
+          return
+        }
+        
+        const phrase = findPhraseAtTime(timelineTime)
+        
+        if (phrase && audioRef.current) {
+          if (currentPhraseRef.current !== phrase.id) {
+            currentPhraseRef.current = phrase.id
+            const audioRange = phrase.audioTimeRange || phrase.timeRange
+            // Offset dans la phrase = temps actuel - début de la phrase
+            const phraseOffset = timelineTime - phrase.timeRange.startTime
+            audioRef.current.currentTime = Math.max(0, audioRange.startTime + phraseOffset)
+            audioRef.current.play().catch(() => {})
+          }
+          // Vérifier si on a dépassé la fin de la phrase
+          if (timelineTime >= phrase.timeRange.endTime) {
+            audioRef.current.pause()
+            currentPhraseRef.current = null
+          }
+        } else if (!phrase && audioRef.current) {
+          audioRef.current.pause()
+          currentPhraseRef.current = null
+        }
+        
+        checkAndPlaySounds(timelineTime, lastTimeRef.current + elapsed - (1/60))
+        
+        const scrollOffset = scrollContainerRef.current?.scrollLeft || 0
+        const playheadLeft = LABEL_WIDTH + (timelineTime * pixelsPerSecond) - scrollOffset
+        
+        if (playheadMainRef.current) {
+          playheadMainRef.current.style.left = `${playheadLeft}px`
+        }
+        if (playheadRulerRef.current) {
+          playheadRulerRef.current.style.left = `${timelineTime * pixelsPerSecond}px`
+        }
+        
+        const now = performance.now()
+        if (now - lastStateUpdateRef.current > 100) {
+          lastStateUpdateRef.current = now
+          setPlaybackTime(timelineTime)
+        }
+        
+        animationRef.current = requestAnimationFrame(updateTime)
+      }
+      animationRef.current = requestAnimationFrame(updateTime)
+    }
+  }, [setPlaybackTime, isPlaying, setIsPlaying, findPhraseAtTime, duration, checkAndPlaySounds, pixelsPerSecond])
+  
+  // Durée totale AVEC le buffer (pour l'affichage et le placement d'éléments)
+  const durationWithBuffer = duration + BUFFER_DURATION
+  
+  // Largeur totale de la timeline en pixels (inclut le buffer)
+  const timelineWidth = durationWithBuffer * pixelsPerSecond
+  
+  // Zoom handlers
+  const zoomIn = useCallback(() => {
+    setPixelsPerSecond(prev => Math.min(prev * 1.5, 200)) // Max 200px/s
+  }, [])
+  
+  const zoomOut = useCallback(() => {
+    setPixelsPerSecond(prev => Math.max(prev / 1.5, 20)) // Min 20px/s
+  }, [])
+  
+  const zoomFit = useCallback(() => {
+    // Adapter le zoom pour que toute la timeline soit visible
+    if (scrollContainerRef.current && duration > 0) {
+      const containerWidth = scrollContainerRef.current.clientWidth - 100 // Enlever la marge des labels
+      setPixelsPerSecond(Math.max(20, Math.min(200, containerWidth / duration)))
+    }
+  }, [duration])
+  
+  // Auto-extension de la timeline quand un élément dépasse la durée actuelle
+  const handleAutoExtend = useCallback((newEndTime: number) => {
+    // Calculer de combien on doit étendre l'outro
+    const currentEnd = introDuration + narrationDuration + outroDuration
+    if (newEndTime > currentEnd) {
+      const extraTime = newEndTime - currentEnd
+      // Arrondir à 0.5s près pour éviter les micro-ajustements
+      const newOutroDuration = outroDuration + Math.ceil(extraTime * 2) / 2
+      setOutroDuration(newOutroDuration)
+    }
+  }, [introDuration, narrationDuration, outroDuration, setOutroDuration])
+  
+  // Auto-scroll pour suivre le playhead (synchronisé entre règle et pistes)
+  useEffect(() => {
+    if (isPlaying && scrollContainerRef.current) {
+      const container = scrollContainerRef.current
+      const playheadPosition = currentPlaybackTime * pixelsPerSecond
+      const containerWidth = container.clientWidth - 100
+      const scrollLeft = container.scrollLeft
+      
+      // Si le playhead sort de la zone visible, scroller
+      if (playheadPosition > scrollLeft + containerWidth - 50 || playheadPosition < scrollLeft + 50) {
+        const newScrollLeft = Math.max(0, playheadPosition - containerWidth / 2)
+        container.scrollLeft = newScrollLeft
+        // Synchroniser la règle aussi
+        if (rulerScrollRef.current) {
+          rulerScrollRef.current.scrollLeft = newScrollLeft
+        }
+      }
+    }
+  }, [currentPlaybackTime, isPlaying, pixelsPerSecond])
 
-  // Playback
+  // Phrase active - maintenant les timeRange sont ABSOLUS sur la timeline
+  const activePhrase = scene ? getActivePhrase(currentPlaybackTime) : null
+  const activePhraseIndex = activePhrase ? activePhrase.index : -1
+
+  // Playback basé sur les segments de phrases
   const togglePlayback = useCallback(() => {
-    if (!scene?.narration.audioUrl) return
+    if (!scene?.narration?.audioUrl) return
 
     if (isPlaying) {
       audioRef.current?.pause()
       setIsPlaying(false)
-      // Synchroniser le state final avec la position actuelle de l'audio
-      if (audioRef.current) {
-        setPlaybackTime(audioRef.current.currentTime)
-      }
+      currentPhraseRef.current = null
       // Arrêter tous les sons actifs
       activeSoundRefs.current.forEach((audio) => {
         audio.pause()
@@ -1077,52 +1336,90 @@ export function TimelineRubans() {
       
       if (!audioRef.current) {
         audioRef.current = new Audio(scene.narration?.audioUrl || '')
-        audioRef.current.onended = () => {
-          setIsPlaying(false)
-          setPlaybackTime(0)
-          playedSoundsRef.current.clear() // Reset pour la prochaine lecture
-        }
       }
-      audioRef.current.currentTime = currentPlaybackTime
+      
+      // Démarrer le playhead depuis la position actuelle
+      playbackStartTimeRef.current = performance.now()
       lastTimeRef.current = currentPlaybackTime
-      audioRef.current.play()
+      currentPhraseRef.current = null
+      
       setIsPlaying(true)
 
-      // Mettre à jour le temps de lecture et vérifier les sons
-      // OPTIMISATION: Mise à jour DOM directe pour fluidité du playhead
+      // Lecture basée sur le temps réel de la timeline
       const updateTime = () => {
-        if (audioRef.current) {
-          const newTime = audioRef.current.currentTime
-          
-          // Vérifier si des sons doivent être joués
-          checkAndPlaySounds(newTime, lastTimeRef.current)
-          lastTimeRef.current = newTime
-          
-          // Mise à jour DIRECTE du DOM pour le playhead (fluide, pas de re-render)
-          const scrollOffset = scrollContainerRef.current?.scrollLeft || 0
-          const playheadLeft = LABEL_WIDTH + (newTime * pixelsPerSecond) - scrollOffset
-          
-          if (playheadMainRef.current) {
-            playheadMainRef.current.style.left = `${playheadLeft}px`
+        const elapsed = (performance.now() - playbackStartTimeRef.current) / 1000
+        const timelineTime = lastTimeRef.current + elapsed
+        
+        // Vérifier si on a dépassé la fin de la timeline
+        if (timelineTime >= duration) {
+          setIsPlaying(false)
+          setPlaybackTime(0)
+          playedSoundsRef.current.clear()
+          currentPhraseRef.current = null
+          if (audioRef.current) {
+            audioRef.current.pause()
           }
-          if (playheadRulerRef.current) {
-            playheadRulerRef.current.style.left = `${newTime * pixelsPerSecond}px`
-          }
-          
-          // Throttle: mettre à jour le state React seulement toutes les 100ms
-          // (pour synchroniser les autres composants sans trop de re-renders)
-          const now = performance.now()
-          if (now - lastStateUpdateRef.current > 100) {
-            lastStateUpdateRef.current = now
-            setPlaybackTime(newTime)
-          }
-          
-          animationRef.current = requestAnimationFrame(updateTime)
+          return
         }
+        
+        // Trouver la phrase active à ce moment
+        const activePhrase = findPhraseAtTime(timelineTime)
+        
+        if (activePhrase && audioRef.current) {
+          // Si on entre dans une nouvelle phrase, jouer son segment audio
+          if (currentPhraseRef.current !== activePhrase.id) {
+            currentPhraseRef.current = activePhrase.id
+            
+            // Utiliser audioTimeRange si disponible, sinon timeRange
+            const audioRange = activePhrase.audioTimeRange || activePhrase.timeRange
+            
+            // Offset dans la phrase = temps actuel - début de la phrase sur la timeline
+            const phraseOffset = timelineTime - activePhrase.timeRange.startTime
+            
+            // Calculer où commencer dans l'audio original
+            const audioStartTime = audioRange.startTime + phraseOffset
+            
+            audioRef.current.currentTime = Math.max(0, audioStartTime)
+            audioRef.current.play().catch(() => {})
+          }
+          
+          // Vérifier si on a dépassé la fin de la phrase
+          if (timelineTime >= activePhrase.timeRange.endTime) {
+            audioRef.current.pause()
+            currentPhraseRef.current = null
+          }
+        } else if (!activePhrase && audioRef.current) {
+          // Pas de phrase active, mettre l'audio en pause
+          audioRef.current.pause()
+          currentPhraseRef.current = null
+        }
+        
+        // Vérifier si des sons doivent être joués
+        checkAndPlaySounds(timelineTime, lastTimeRef.current + elapsed - (1/60))
+        
+        // Mise à jour DIRECTE du DOM pour le playhead
+        const scrollOffset = scrollContainerRef.current?.scrollLeft || 0
+        const playheadLeft = LABEL_WIDTH + (timelineTime * pixelsPerSecond) - scrollOffset
+        
+        if (playheadMainRef.current) {
+          playheadMainRef.current.style.left = `${playheadLeft}px`
+        }
+        if (playheadRulerRef.current) {
+          playheadRulerRef.current.style.left = `${timelineTime * pixelsPerSecond}px`
+        }
+        
+        // Throttle: mettre à jour le state React seulement toutes les 100ms
+        const now = performance.now()
+        if (now - lastStateUpdateRef.current > 100) {
+          lastStateUpdateRef.current = now
+          setPlaybackTime(timelineTime)
+        }
+        
+        animationRef.current = requestAnimationFrame(updateTime)
       }
       animationRef.current = requestAnimationFrame(updateTime)
     }
-  }, [scene, isPlaying, currentPlaybackTime, setIsPlaying, setPlaybackTime, checkAndPlaySounds])
+  }, [scene, isPlaying, currentPlaybackTime, setIsPlaying, setPlaybackTime, checkAndPlaySounds, pixelsPerSecond, duration, findPhraseAtTime])
 
   // Cleanup
   useEffect(() => {
@@ -1230,7 +1527,7 @@ export function TimelineRubans() {
           <div className="flex items-center gap-2">
             <button
               onClick={togglePlayback}
-              disabled={!scene.narration?.audioUrl}
+              disabled={!scene?.narration?.audioUrl}
               className={cn(
                 'p-2 rounded-lg transition-colors',
                 scene.narration?.audioUrl
@@ -1252,7 +1549,8 @@ export function TimelineRubans() {
 
       {/* Règle temporelle avec scroll horizontal - clique pour repositionner */}
       <TimeRulerScrollable 
-        duration={duration} 
+        duration={duration}
+        totalDuration={durationWithBuffer}
         currentTime={currentPlaybackTime} 
         pixelsPerSecond={pixelsPerSecond}
         rulerScrollRef={rulerScrollRef}
@@ -1272,7 +1570,8 @@ export function TimelineRubans() {
             const rect = e.currentTarget.getBoundingClientRect()
             const clickX = e.clientX - rect.left - LABEL_WIDTH + e.currentTarget.scrollLeft
             if (clickX > 0) {
-              const newTime = Math.max(0, Math.min(duration, clickX / pixelsPerSecond))
+              // Permettre de cliquer jusqu'au buffer
+              const newTime = Math.max(0, Math.min(durationWithBuffer, clickX / pixelsPerSecond))
               handleSeek(newTime)
             }
           }
@@ -1334,18 +1633,15 @@ export function TimelineRubans() {
               onDurationChange={setIntroDuration}
             />
             
-            {/* Zone Narration (indicatif, non éditable) */}
+            {/* Zone Narration (redimensionnable à droite) */}
             {narrationDuration > 0 && (
-              <div
-                className="absolute h-full flex items-center px-2 rounded-md text-xs bg-amber-500/20 text-amber-200 border-x border-amber-500/30"
-                style={{
-                  left: introDuration * pixelsPerSecond,
-                  width: narrationDuration * pixelsPerSecond,
-                  minWidth: 40,
-                }}
-              >
-                <span className="truncate">📖 Narration ({narrationDuration.toFixed(1)}s)</span>
-              </div>
+              <NarrationZone
+                duration={narrationDuration}
+                minDuration={audioNarrationDuration}
+                pixelsPerSecond={pixelsPerSecond}
+                startOffset={introDuration}
+                onDurationChange={setNarrationZoneDuration}
+              />
             )}
             
             {/* Zone Outro */}
@@ -1359,15 +1655,14 @@ export function TimelineRubans() {
           </div>
         </div>
 
-        {/* Piste des phrases (draggable pour ajouter des espaces) */}
+        {/* Piste des phrases (positions ABSOLUES - peuvent être n'importe où sur la timeline) */}
         {scene.narration?.isSynced && (scene.narration?.phrases?.length || 0) > 0 && (
           <PhrasesTrackScrollable
             phrases={scene.narration?.phrases || []}
             pixelsPerSecond={pixelsPerSecond}
             timelineWidth={timelineWidth}
             activePhraseIndex={activePhraseIndex}
-            introOffset={introDuration}
-            maxDuration={narrationDuration + outroDuration}
+            maxDuration={durationWithBuffer}
             onPhraseTimeRangeChange={(phraseId, timeRange) => 
               updatePhraseTiming(phraseId, { timeRange })
             }
@@ -1399,12 +1694,14 @@ export function TimelineRubans() {
                   color="bg-blue-500"
                   timeRange={track.timeRange}
                   duration={duration}
+                  maxDuration={durationWithBuffer}
                   pixelsPerSecond={pixelsPerSecond}
                   isSelected={selectedTrackId === track.id && selectedTrackType === 'media'}
                   lane={lanes.get(track.id) || 0}
                   onSelect={() => setSelectedTrack(track.id, 'media')}
                   onTimeRangeChange={(tr) => updateMediaTrack(track.id, { timeRange: tr })}
                   onDelete={() => deleteMediaTrack(track.id)}
+                  onAutoExtend={handleAutoExtend}
                 />
               ))}
             </TrackRowScrollable>
@@ -1436,12 +1733,14 @@ export function TimelineRubans() {
                   color="bg-emerald-500"
                   timeRange={track.timeRange}
                   duration={duration}
+                  maxDuration={durationWithBuffer}
                   pixelsPerSecond={pixelsPerSecond}
                   isSelected={selectedTrackId === track.id && selectedTrackType === 'music'}
                   lane={lanes.get(track.id) || 0}
                   onSelect={() => setSelectedTrack(track.id, 'music')}
                   onTimeRangeChange={(tr) => updateMusicTrack(track.id, { timeRange: tr })}
                   onDelete={() => deleteMusicTrack(track.id)}
+                  onAutoExtend={handleAutoExtend}
                 />
               ))}
             </TrackRowScrollable>
@@ -1474,12 +1773,14 @@ export function TimelineRubans() {
                   color="bg-pink-500"
                   timeRange={track.timeRange}
                   duration={duration}
+                  maxDuration={durationWithBuffer}
                   pixelsPerSecond={pixelsPerSecond}
                   isSelected={selectedTrackId === track.id && selectedTrackType === 'sound'}
                   lane={lanes.get(track.id) || 0}
                   onSelect={() => setSelectedTrack(track.id, 'sound')}
                   onTimeRangeChange={(tr) => updateSoundTrack(track.id, { timeRange: tr })}
                   onDelete={() => deleteSoundTrack(track.id)}
+                  onAutoExtend={handleAutoExtend}
                 />
               ))}
             </TrackRowScrollable>
@@ -1511,12 +1812,14 @@ export function TimelineRubans() {
                   color="bg-yellow-500"
                   timeRange={track.timeRange}
                   duration={duration}
+                  maxDuration={durationWithBuffer}
                   pixelsPerSecond={pixelsPerSecond}
                   isSelected={selectedTrackId === track.id && selectedTrackType === 'light'}
                   lane={lanes.get(track.id) || 0}
                   onSelect={() => setSelectedTrack(track.id, 'light')}
                   onTimeRangeChange={(tr) => updateLightTrack(track.id, { timeRange: tr })}
                   onDelete={() => deleteLightTrack(track.id)}
+                  onAutoExtend={handleAutoExtend}
                 />
               ))}
             </TrackRowScrollable>
@@ -1548,12 +1851,14 @@ export function TimelineRubans() {
                   color="bg-orange-500"
                   timeRange={track.timeRange}
                   duration={duration}
+                  maxDuration={durationWithBuffer}
                   pixelsPerSecond={pixelsPerSecond}
                   isSelected={selectedTrackId === track.id && selectedTrackType === 'decoration'}
                   lane={lanes.get(track.id) || 0}
                   onSelect={() => setSelectedTrack(track.id, 'decoration')}
                   onTimeRangeChange={(tr) => updateDecorationTrack(track.id, { timeRange: tr })}
                   onDelete={() => deleteDecorationTrack(track.id)}
+                  onAutoExtend={handleAutoExtend}
                 />
               ))}
             </TrackRowScrollable>
@@ -1585,12 +1890,14 @@ export function TimelineRubans() {
                   color="bg-cyan-500"
                   timeRange={track.timeRange}
                   duration={duration}
+                  maxDuration={durationWithBuffer}
                   pixelsPerSecond={pixelsPerSecond}
                   isSelected={selectedTrackId === track.id && selectedTrackType === 'animation'}
                   lane={lanes.get(track.id) || 0}
                   onSelect={() => setSelectedTrack(track.id, 'animation')}
                   onTimeRangeChange={(tr) => updateAnimationTrack(track.id, { timeRange: tr })}
                   onDelete={() => deleteAnimationTrack(track.id)}
+                  onAutoExtend={handleAutoExtend}
                 />
               ))}
             </TrackRowScrollable>
@@ -1621,12 +1928,14 @@ export function TimelineRubans() {
                   color="bg-purple-500"
                   timeRange={effect.timeRange}
                   duration={duration}
+                  maxDuration={durationWithBuffer}
                   pixelsPerSecond={pixelsPerSecond}
                   isSelected={selectedTrackId === effect.id && selectedTrackType === 'effect'}
                   lane={lanes.get(effect.id) || 0}
                   onSelect={() => setSelectedTrack(effect.id, 'effect')}
                   onTimeRangeChange={(tr) => updateTextEffect(effect.id, { timeRange: tr })}
                   onDelete={() => deleteTextEffect(effect.id)}
+                  onAutoExtend={handleAutoExtend}
                 />
               ))}
             </TrackRowScrollable>

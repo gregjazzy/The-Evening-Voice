@@ -359,17 +359,66 @@ export function useSupabaseSync() {
 
       if (!montageError && montageData && montageData.length > 0) {
         const typedMontageData = montageData as unknown as DbMontageProject[]
-        const loadedProjects = typedMontageData.map((p) => ({
-          id: p.id,
-          storyId: p.story_id || '',
-          title: p.title,
-          scenes: p.scenes as MontageProject['scenes'],
-          isComplete: p.is_complete,
-          createdAt: new Date(p.created_at),
-          updatedAt: new Date(p.updated_at),
-        })) as MontageProject[]
+        let needsMigrationSave = false
+        
+        const loadedProjects = typedMontageData.map((p) => {
+          // Migration: convertir les anciennes données de phrases en nouveau format
+          const scenes = (p.scenes as MontageProject['scenes']).map((scene) => {
+            if (scene.narration?.phrases && scene.narration.phrases.length > 0) {
+              const introDuration = scene.introDuration || 0
+              const migratedPhrases = scene.narration.phrases.map((phrase) => {
+                // Si audioTimeRange n'existe pas, c'est l'ancien format
+                if (!phrase.audioTimeRange) {
+                  needsMigrationSave = true
+                  console.log(`   🔄 Migration phrase "${phrase.text?.substring(0, 20)}..." vers format absolu`)
+                  return {
+                    ...phrase,
+                    // audioTimeRange = timing original dans l'audio (inchangé)
+                    audioTimeRange: {
+                      startTime: phrase.timeRange.startTime,
+                      endTime: phrase.timeRange.endTime,
+                    },
+                    // timeRange = position ABSOLUE sur la timeline (ajouter intro)
+                    timeRange: {
+                      startTime: introDuration + phrase.timeRange.startTime,
+                      endTime: introDuration + phrase.timeRange.endTime,
+                    },
+                  }
+                }
+                return phrase
+              })
+              return {
+                ...scene,
+                narration: {
+                  ...scene.narration,
+                  phrases: migratedPhrases,
+                },
+              }
+            }
+            return scene
+          })
+          
+          return {
+            id: p.id,
+            storyId: p.story_id || '',
+            title: p.title,
+            scenes,
+            isComplete: p.is_complete,
+            createdAt: new Date(p.created_at),
+            updatedAt: new Date(p.updated_at),
+          }
+        }) as MontageProject[]
         useMontageStore.setState({ projects: loadedProjects })
         console.log(`   ✅ ${loadedProjects.length} projets de montage chargés depuis Supabase`)
+        
+        // Si migration effectuée, re-sauvegarder dans Supabase
+        if (needsMigrationSave) {
+          console.log(`   💾 Re-sauvegarde des projets migrés dans Supabase...`)
+          for (const project of loadedProjects) {
+            await saveMontageProjectToSupabase(project, profile.id)
+          }
+          console.log(`   ✅ Projets migrés sauvegardés dans Supabase`)
+        }
       } else {
         // Synchroniser les projets locaux vers Supabase si nécessaire
         const localProjects = useMontageStore.getState().projects

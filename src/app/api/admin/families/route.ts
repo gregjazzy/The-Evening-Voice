@@ -1,11 +1,10 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET - Liste toutes les familles (super admin only)
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     
     // Vérifier que l'utilisateur est super admin
     const { data: { user } } = await supabase.auth.getUser();
@@ -66,7 +65,7 @@ export async function GET() {
 // POST - Créer une nouvelle famille
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     
     // Vérifier super admin
     const { data: { user } } = await supabase.auth.getUser();

@@ -20,9 +20,10 @@ export interface TimeRange {
  */
 export interface PhraseTiming {
   id: string
-  text: string           // Contenu de la phrase
-  index: number          // Position dans le texte (0, 1, 2...)
-  timeRange: TimeRange   // Quand elle est prononcée
+  text: string              // Contenu de la phrase
+  index: number             // Position dans le texte (0, 1, 2...)
+  timeRange: TimeRange      // Position sur la TIMELINE (modifiable par l'utilisateur)
+  audioTimeRange?: TimeRange // Timing ORIGINAL dans le fichier audio (immuable, pour lecture)
 }
 
 /**
@@ -285,6 +286,7 @@ export interface MontageScene {
   // Zones intro/outro (avant et après la narration)
   introDuration: number  // Durée de l'intro en secondes (défaut: 0)
   outroDuration: number  // Durée de l'outro en secondes (défaut: 0)
+  narrationZoneDuration?: number  // Durée de la zone narration (si > narration.duration, permet d'étendre)
   
   // Pistes (rubans)
   narration: NarrationTrack
@@ -459,9 +461,10 @@ interface MontageState {
   updateTextEffect: (effectId: string, updates: Partial<TextEffectTrack>) => void
   deleteTextEffect: (effectId: string) => void
   
-  // === ACTIONS INTRO/OUTRO ===
+  // === ACTIONS INTRO/OUTRO/NARRATION ZONE ===
   setIntroDuration: (duration: number) => void
   setOutroDuration: (duration: number) => void
+  setNarrationZoneDuration: (duration: number) => void
   
   // === ACTIONS UI ===
   setSelectedTrack: (id: string | null, type: 'media' | 'music' | 'sound' | 'light' | 'decoration' | 'animation' | 'effect' | null) => void
@@ -1058,6 +1061,14 @@ export const useMontageStore = create<MontageState>()(
         if (!scene) return
         get().updateCurrentScene({ outroDuration: Math.max(0, duration) })
       },
+      
+      setNarrationZoneDuration: (duration) => {
+        const scene = get().getCurrentScene()
+        if (!scene) return
+        // Minimum = durée de l'audio narration
+        const minDuration = scene.narration?.duration || 0
+        get().updateCurrentScene({ narrationZoneDuration: Math.max(minDuration, duration) })
+      },
 
       // === ACTIONS UI ===
       setSelectedTrack: (id, type) => set({ selectedTrackId: id, selectedTrackType: type }),
@@ -1086,10 +1097,57 @@ export const useMontageStore = create<MontageState>()(
       },
     }),
     {
-      name: 'lavoixdusoir-montage-v2',
+      name: 'lavoixdusoir-montage-v3', // Nouvelle version avec migration
       partialize: (state) => ({
         projects: state.projects,
       }),
+      // Migration des anciennes données
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as { projects?: MontageProject[] }
+        
+        if (state.projects) {
+          // Migrer les phrases vers le format absolu avec audioTimeRange
+          const migratedProjects = state.projects.map((project) => ({
+            ...project,
+            scenes: project.scenes.map((scene) => {
+              if (scene.narration?.phrases && scene.narration.phrases.length > 0) {
+                const introDuration = scene.introDuration || 0
+                const migratedPhrases = scene.narration.phrases.map((phrase) => {
+                  // Si audioTimeRange n'existe pas, c'est l'ancien format
+                  if (!phrase.audioTimeRange) {
+                    console.log(`🔄 [localStorage] Migration phrase vers format absolu`)
+                    return {
+                      ...phrase,
+                      audioTimeRange: {
+                        startTime: phrase.timeRange.startTime,
+                        endTime: phrase.timeRange.endTime,
+                      },
+                      timeRange: {
+                        startTime: introDuration + phrase.timeRange.startTime,
+                        endTime: introDuration + phrase.timeRange.endTime,
+                      },
+                    }
+                  }
+                  return phrase
+                })
+                return {
+                  ...scene,
+                  narration: {
+                    ...scene.narration,
+                    phrases: migratedPhrases,
+                  },
+                }
+              }
+              return scene
+            }),
+          }))
+          
+          return { projects: migratedProjects }
+        }
+        
+        return persistedState as MontageState
+      },
+      version: 3,
     }
   )
 )

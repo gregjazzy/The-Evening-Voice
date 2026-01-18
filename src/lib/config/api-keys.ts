@@ -3,7 +3,7 @@
  * Priorité : Config famille (Supabase) > Variables d'environnement > null
  */
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase/client';
 
 export interface ApiKeys {
   elevenlabs: string | null;
@@ -26,8 +26,6 @@ export async function getApiKeys(): Promise<ApiKeys> {
   if (cachedKeys && Date.now() - cacheTimestamp < CACHE_DURATION) {
     return cachedKeys;
   }
-  
-  const supabase = createClientComponentClient();
   
   try {
     const { data: { user } } = await supabase.auth.getUser();

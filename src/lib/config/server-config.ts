@@ -2,11 +2,25 @@
  * Utilitaires côté serveur pour récupérer la configuration
  */
 
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 
 export interface FamilyApiConfig {
   family_id: string | null;
+  elevenlabs_key: string | null;
+  midjourney_key: string | null;
+  runway_key: string | null;
+  gemini_key: string | null;
+  default_narration_voice_fr: string | null;
+  default_narration_voice_en: string | null;
+  default_narration_voice_ru: string | null;
+  default_ai_voice: string | null;
+}
+
+interface FamilyConfigRow {
+  family_id: string;
+  family_name: string;
+  family_code: string;
+  user_role: string;
   elevenlabs_key: string | null;
   midjourney_key: string | null;
   runway_key: string | null;
@@ -22,13 +36,14 @@ export interface FamilyApiConfig {
  */
 export async function getUserFamilyConfig(): Promise<FamilyApiConfig | null> {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     
-    const { data: familyConfig } = await supabase
-      .rpc('get_user_family_config', { p_user_id: user.id });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: familyConfig } = await (supabase as any)
+      .rpc('get_user_family_config', { p_user_id: user.id }) as { data: FamilyConfigRow[] | null };
     
     if (familyConfig && familyConfig.length > 0) {
       const fc = familyConfig[0];

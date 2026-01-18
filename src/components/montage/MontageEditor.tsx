@@ -6,7 +6,7 @@ import { useMontageStore, type PhraseTiming, type MontageScene } from '@/store/u
 import { useAppStore } from '@/store/useAppStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { TimelineRubans } from './TimelineRubans'
-import { RhythmGame } from './RhythmGame'
+import { GuidedRecording } from './GuidedRecording'
 import { KaraokePlayer } from './KaraokePlayer'
 import { PreviewCanvas } from './PreviewCanvas'
 import { TrackPropertiesPanel } from './TrackPropertiesPanel'
@@ -222,7 +222,7 @@ function NarrationPanel() {
   const [recordingTime, setRecordingTime] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [permissionDenied, setPermissionDenied] = useState(false)
-  const [showRhythmGame, setShowRhythmGame] = useState(false)
+  const [showGuidedRecording, setShowGuidedRecording] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -355,9 +355,12 @@ function NarrationPanel() {
     setIsPlaying(false)
   }
 
-  const handleRhythmGameComplete = (timings: PhraseTiming[]) => {
+  const handleGuidedRecordingComplete = (timings: PhraseTiming[], audioUrl: string, duration: number) => {
+    // Sauvegarder l'audio dans la scène
+    setNarrationAudio(audioUrl, 'recorded', duration)
+    // Sauvegarder les timings des phrases
     setPhraseTimings(timings)
-    setShowRhythmGame(false)
+    setShowGuidedRecording(false)
   }
 
   const formatTime = (seconds: number) => {
@@ -400,42 +403,25 @@ function NarrationPanel() {
         {/* Interface d'enregistrement */}
         {!scene.narration.audioUrl ? (
           <div className="grid grid-cols-2 gap-3">
-            {/* Enregistrer sa voix */}
+            {/* Enregistrer sa voix avec synchronisation AssemblyAI */}
             <motion.button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={cn(
-                'flex flex-col items-center gap-2 p-4 rounded-xl transition-all',
-                isRecording
-                  ? 'bg-rose-500/30 ring-2 ring-rose-500'
-                  : 'bg-midnight-800/50 hover:bg-midnight-700/50'
-              )}
+              onClick={() => setShowGuidedRecording(true)}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 transition-all"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <div className={cn(
-                'w-12 h-12 rounded-full flex items-center justify-center',
-                isRecording ? 'bg-rose-500 animate-pulse' : 'bg-aurora-500/30'
-              )}>
-                <Mic className={cn('w-6 h-6', isRecording ? 'text-white' : 'text-aurora-300')} />
+              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-aurora-500/30">
+                <Mic className="w-6 h-6 text-aurora-300" />
               </div>
-              {isRecording ? (
-                <>
-                  <span className="text-sm font-medium text-rose-300">🔴 {formatTime(recordingTime)}</span>
-                  <span className="text-xs text-rose-400">Arrêter</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-sm">Ma voix</span>
-                  <span className="text-xs text-midnight-400">Enregistrer</span>
-                </>
-              )}
+              <span className="text-sm">Ma voix</span>
+              <span className="text-xs text-midnight-400">Sync auto</span>
             </motion.button>
 
             {/* TTS (placeholder) */}
             <motion.button
-              disabled={isRecording}
+              disabled
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 disabled:opacity-50"
-              whileHover={{ scale: isRecording ? 1 : 1.02 }}
+              whileHover={{ scale: 1 }}
             >
               <div className="w-12 h-12 rounded-full flex items-center justify-center bg-dream-500/30">
                 <Wand2 className="w-6 h-6 text-dream-300" />
@@ -482,33 +468,32 @@ function NarrationPanel() {
             {/* Bouton sync */}
             {!scene.narration.isSynced && (
               <motion.button
-                onClick={() => setShowRhythmGame(true)}
+                onClick={() => setShowGuidedRecording(true)}
                 className="w-full p-4 rounded-xl bg-gradient-to-r from-aurora-500/20 to-dream-500/20 text-aurora-300 hover:from-aurora-500/30 hover:to-dream-500/30 flex items-center justify-center gap-3"
                 whileHover={{ scale: 1.01 }}
               >
                 <Sparkles className="w-5 h-5" />
-                <span className="font-medium">Jeu de rythme !</span>
-                <span className="text-xs opacity-70">🎮</span>
+                <span className="font-medium">Ré-enregistrer avec sync auto</span>
               </motion.button>
             )}
 
             {scene.narration.isSynced && (
               <button
-                onClick={() => setShowRhythmGame(true)}
+                onClick={() => setShowGuidedRecording(true)}
                 className="w-full p-2 rounded-lg text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800/50 text-sm"
               >
-                🔄 Resynchroniser
+                🔄 Ré-enregistrer
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Modal RhythmGame */}
-      <RhythmGame
-        isOpen={showRhythmGame}
-        onClose={() => setShowRhythmGame(false)}
-        onComplete={handleRhythmGameComplete}
+      {/* Modal GuidedRecording avec AssemblyAI */}
+      <GuidedRecording
+        isOpen={showGuidedRecording}
+        onClose={() => setShowGuidedRecording(false)}
+        onComplete={handleGuidedRecordingComplete}
       />
     </>
   )
