@@ -25,35 +25,29 @@ interface NarrationVoiceSelectorProps {
 // ============================================
 
 const VOICE_SAMPLES: Record<string, Record<string, string>> = {
-  // 🇫🇷 Français
+  // 🇫🇷 Français (5 voix)
   fr: {
-    amelie: '/sound/voices/fr/amelie.mp3',
-    fee: '/sound/voices/fr/fee.mp3',
+    narratrice: '/sound/voices/fr/narratrice.mp3',
+    jeuneFille: '/sound/voices/fr/jeune_fille.mp3',
     mamie: '/sound/voices/fr/mamie.mp3',
-    conteur: '/sound/voices/fr/conteur.mp3',
-    magicien: '/sound/voices/fr/magicien.mp3',
-    dragon: '/sound/voices/fr/dragon.mp3',
+    jeuneGarcon: '/sound/voices/fr/jeune_garcon.mp3',
     papy: '/sound/voices/fr/papy.mp3',
   },
-  // 🇬🇧 Anglais
+  // 🇬🇧 Anglais (6 voix)
   en: {
-    aria: '/sound/voices/en/aria.mp3',
-    fairy: '/sound/voices/en/fairy.mp3',
+    narrator: '/sound/voices/en/narrator.mp3',
+    youngGirl: '/sound/voices/en/young_girl.mp3',
     grandma: '/sound/voices/en/grandma.mp3',
-    storyteller: '/sound/voices/en/storyteller.mp3',
-    wizard: '/sound/voices/en/wizard.mp3',
-    dragon: '/sound/voices/en/dragon.mp3',
+    narratorMale: '/sound/voices/en/narrator_male.mp3',
+    villain: '/sound/voices/en/villain.mp3',
     grandpa: '/sound/voices/en/grandpa.mp3',
   },
-  // 🇷🇺 Russe
+  // 🇷🇺 Russe (4 voix)
   ru: {
-    natasha: '/sound/voices/ru/natasha.mp3',
-    feya: '/sound/voices/ru/feya.mp3',
-    babushka: '/sound/voices/ru/babushka.mp3',
-    skazochnik: '/sound/voices/ru/skazochnik.mp3',
-    koldun: '/sound/voices/ru/koldun.mp3',
-    drakon: '/sound/voices/ru/drakon.mp3',
-    dedushka: '/sound/voices/ru/dedushka.mp3',
+    narrator: '/sound/voices/ru/narrator.mp3',
+    youngGirl: '/sound/voices/ru/young_girl.mp3',
+    narratorMale: '/sound/voices/ru/narrator_male.mp3',
+    mysterious: '/sound/voices/ru/mysterious.mp3',
   },
 }
 

@@ -1,6 +1,8 @@
 /**
  * Service Midjourney - Génération d'images
  * Utilise ImagineAPI comme connecteur tiers
+ * 
+ * Priorité clés API : Clé passée en paramètre > Variable d'environnement
  */
 
 const MIDJOURNEY_API_URL = process.env.MIDJOURNEY_API_URL || 'https://api.imagineapi.dev'
@@ -12,6 +14,8 @@ interface GenerateImageParams {
   chaos?: number // 0-100
   stylize?: number // 0-1000
   quality?: number // 0.25, 0.5, 1
+  // Clé API optionnelle (priorité sur env var)
+  apiKey?: string
 }
 
 interface GenerationJob {
@@ -27,9 +31,9 @@ interface GenerationJob {
  * Lance une génération d'image Midjourney
  */
 export async function generateImage(params: GenerateImageParams): Promise<GenerationJob> {
-  const apiKey = process.env.MIDJOURNEY_API_KEY
-  if (!apiKey) {
-    throw new Error('Clé API Midjourney non configurée')
+  const key = params.apiKey || process.env.MIDJOURNEY_API_KEY
+  if (!key) {
+    throw new Error('Clé API Midjourney non configurée. Configurez-la dans les paramètres de votre famille.')
   }
 
   const {
@@ -48,7 +52,7 @@ export async function generateImage(params: GenerateImageParams): Promise<Genera
     const response = await fetch(`${MIDJOURNEY_API_URL}/imagine`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -75,16 +79,16 @@ export async function generateImage(params: GenerateImageParams): Promise<Genera
 /**
  * Vérifie le statut d'une génération
  */
-export async function checkGenerationStatus(jobId: string): Promise<GenerationJob> {
-  const apiKey = process.env.MIDJOURNEY_API_KEY
-  if (!apiKey) {
+export async function checkGenerationStatus(jobId: string, apiKey?: string): Promise<GenerationJob> {
+  const key = apiKey || process.env.MIDJOURNEY_API_KEY
+  if (!key) {
     throw new Error('Clé API Midjourney non configurée')
   }
 
   try {
     const response = await fetch(`${MIDJOURNEY_API_URL}/imagine/status/${jobId}`, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${key}`,
       },
     })
 
@@ -112,14 +116,14 @@ export async function checkGenerationStatus(jobId: string): Promise<GenerationJo
  */
 export async function waitForGeneration(
   jobId: string,
-  onProgress?: (progress: number) => void,
-  maxWaitMs: number = 120000
+  options?: { apiKey?: string; onProgress?: (progress: number) => void; maxWaitMs?: number }
 ): Promise<GenerationJob> {
+  const { apiKey, onProgress, maxWaitMs = 120000 } = options || {}
   const startTime = Date.now()
   const pollInterval = 3000 // 3 secondes
 
   while (Date.now() - startTime < maxWaitMs) {
-    const status = await checkGenerationStatus(jobId)
+    const status = await checkGenerationStatus(jobId, apiKey)
     
     if (onProgress && status.progress) {
       onProgress(status.progress)

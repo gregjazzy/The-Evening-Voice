@@ -15,10 +15,13 @@ export interface FamilyConfig {
   id: string;
   family_id: string;
   // Clés API
-  elevenlabs_key: string | null;
-  midjourney_key: string | null;
-  runway_key: string | null;
-  gemini_key: string | null;
+  fal_key: string | null;        // Images (Flux), Vidéos (Kling), Voix (ElevenLabs)
+  gemini_key: string | null;     // Chat IA
+  assemblyai_key: string | null; // Transcription voix
+  // Anciennes clés (dépréciées, gardées pour migration)
+  elevenlabs_key?: string | null;
+  midjourney_key?: string | null;
+  runway_key?: string | null;
   // Voix par défaut
   default_narration_voice_fr: string | null;
   default_narration_voice_en: string | null;

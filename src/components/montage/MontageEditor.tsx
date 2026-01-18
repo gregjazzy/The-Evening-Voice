@@ -1,10 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMontageStore, type PhraseTiming, type MontageScene } from '@/store/useMontageStore'
 import { useAppStore } from '@/store/useAppStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
+import { useTTS } from '@/hooks/useTTS'
+import { useHighlightStore } from '@/store/useHighlightStore'
+import { Highlightable } from '@/components/ui/Highlightable'
+import { NarrationVoiceSelector } from '@/components/ui/NarrationVoiceSelector'
 import { TimelineRubans } from './TimelineRubans'
 import { GuidedRecording } from './GuidedRecording'
 import { KaraokePlayer } from './KaraokePlayer'
@@ -15,6 +20,8 @@ import {
   Film,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Play,
   Pause,
   Mic,
@@ -32,12 +39,14 @@ import {
   Check,
   Image,
   Volume2,
+  VolumeX,
   Grid3X3,
   Layers,
   PanelLeftClose,
   PanelLeft,
   ArrowLeft,
-  Home
+  Home,
+  X
 } from 'lucide-react'
 
 // =============================================================================
@@ -216,6 +225,7 @@ function SceneSelector() {
 
 function NarrationPanel() {
   const { getCurrentScene, setNarrationAudio, clearNarrationAudio, setPhraseTimings } = useMontageStore()
+  const { narrationVoiceId } = useAppStore()
   const { upload, isUploading, progress } = useMediaUpload()
   
   const [isRecording, setIsRecording] = useState(false)
@@ -224,6 +234,11 @@ function NarrationPanel() {
   const [permissionDenied, setPermissionDenied] = useState(false)
   const [showGuidedRecording, setShowGuidedRecording] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
+  
+  // États pour la voix IA
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false)
+  const [isGeneratingTTS, setIsGeneratingTTS] = useState(false)
+  const [ttsError, setTtsError] = useState<string | null>(null)
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -363,6 +378,146 @@ function NarrationPanel() {
     setShowGuidedRecording(false)
   }
 
+  // Générer la narration avec une voix IA (ElevenLabs)
+  const generateTTSNarration = async () => {
+    if (!scene?.text) return
+    
+    setIsGeneratingTTS(true)
+    setTtsError(null)
+    setShowVoiceSelector(false)
+    
+    try {
+      // Appeler l'API pour générer l'audio avec timestamps
+      // Note: L'API récupère automatiquement la clé famille via les cookies de session
+      const response = await fetch('/api/ai/voice/narration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: scene.text,
+          voiceId: narrationVoiceId || undefined,
+          locale: 'fr', // TODO: récupérer depuis les préférences
+          withTimestamps: true,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Erreur génération audio')
+      }
+
+      const data = await response.json()
+      
+      // Convertir base64 en blob pour upload
+      const audioBlob = base64ToBlob(data.audioData, 'audio/mpeg')
+      
+      // Uploader l'audio
+      const uploadResult = await upload(audioBlob, { type: 'audio', source: 'upload' })
+      const audioUrl = uploadResult?.url || `data:audio/mpeg;base64,${data.audioData}`
+      
+      // Créer les PhraseTiming à partir des timestamps
+      // scene.phrases est string[] - on le transforme en structure avec index
+      const phrasesWithIndex = scene.phrases.map((text, index) => ({ text, index }))
+      let phraseTimings: PhraseTiming[] = []
+      
+      if (data.wordTimestamps && data.wordTimestamps.length > 0) {
+        // Utiliser les timestamps d'ElevenLabs
+        phraseTimings = createPhraseTimingsFromWords(phrasesWithIndex, data.wordTimestamps, data.duration)
+      } else {
+        // Fallback: calculer les timings basé sur la durée et le nombre de mots
+        phraseTimings = createEstimatedPhraseTimings(phrasesWithIndex, data.duration)
+      }
+      
+      // Sauvegarder dans le store
+      setNarrationAudio(audioUrl, 'tts', data.duration)
+      setPhraseTimings(phraseTimings)
+      
+    } catch (error) {
+      console.error('Erreur TTS:', error)
+      setTtsError(error instanceof Error ? error.message : 'Erreur inconnue')
+    } finally {
+      setIsGeneratingTTS(false)
+    }
+  }
+  
+  // Convertir base64 en Blob
+  const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const byteCharacters = atob(base64)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    return new Blob([byteArray], { type: mimeType })
+  }
+  
+  // Créer les PhraseTiming à partir des timestamps de mots
+  const createPhraseTimingsFromWords = (
+    phrases: Array<{ text: string; index: number }>,
+    wordTimestamps: Array<{ word: string; start: number; end: number }>,
+    totalDuration: number
+  ): PhraseTiming[] => {
+    const introDuration = scene?.introDuration || 0
+    let wordIndex = 0
+    
+    return phrases.map((phrase, index) => {
+      const words = phrase.text.split(/\s+/)
+      const startWord = wordTimestamps[wordIndex]
+      const endWordIndex = Math.min(wordIndex + words.length - 1, wordTimestamps.length - 1)
+      const endWord = wordTimestamps[endWordIndex]
+      
+      const timing: PhraseTiming = {
+        id: `phrase-${index}`,
+        text: phrase.text,
+        index: phrase.index,
+        timeRange: {
+          startTime: introDuration + (startWord?.start || 0),
+          endTime: introDuration + (endWord?.end || startWord?.start || 0) + 0.5,
+        },
+        audioTimeRange: {
+          startTime: startWord?.start || 0,
+          endTime: endWord?.end || 0,
+        },
+      }
+      
+      wordIndex += words.length
+      return timing
+    })
+  }
+  
+  // Créer des timings estimés basés sur la durée
+  const createEstimatedPhraseTimings = (
+    phrases: Array<{ text: string; index: number }>,
+    totalDuration: number
+  ): PhraseTiming[] => {
+    const introDuration = scene?.introDuration || 0
+    const totalWords = phrases.reduce((sum, p) => sum + p.text.split(/\s+/).length, 0)
+    const wordsPerSecond = totalWords / totalDuration
+    
+    let currentTime = 0
+    
+    return phrases.map((phrase, index) => {
+      const words = phrase.text.split(/\s+/).length
+      const phraseDuration = words / wordsPerSecond
+      
+      const timing: PhraseTiming = {
+        id: `phrase-${index}`,
+        text: phrase.text,
+        index: phrase.index,
+        timeRange: {
+          startTime: introDuration + currentTime,
+          endTime: introDuration + currentTime + phraseDuration,
+        },
+        audioTimeRange: {
+          startTime: currentTime,
+          endTime: currentTime + phraseDuration,
+        },
+      }
+      
+      currentTime += phraseDuration
+      return timing
+    })
+  }
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -399,52 +554,77 @@ function NarrationPanel() {
             Upload... {progress > 0 && `${progress}%`}
           </div>
         )}
+        {isGeneratingTTS && (
+          <div className="p-3 rounded-lg bg-dream-500/20 text-dream-300 text-sm flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            ✨ Génération de la voix magique en cours...
+          </div>
+        )}
+        {ttsError && (
+          <div className="p-3 rounded-lg bg-rose-500/20 text-rose-300 text-sm">
+            ❌ {ttsError}
+          </div>
+        )}
 
         {/* Interface d'enregistrement */}
         {!scene.narration.audioUrl ? (
-          <div className="grid grid-cols-2 gap-3">
-            {/* Enregistrer sa voix avec synchronisation AssemblyAI */}
-            <motion.button
-              onClick={() => setShowGuidedRecording(true)}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 transition-all"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-aurora-500/30">
-                <Mic className="w-6 h-6 text-aurora-300" />
-              </div>
-              <span className="text-sm">Ma voix</span>
-              <span className="text-xs text-midnight-400">Sync auto</span>
-            </motion.button>
+          <Highlightable id="montage-record-voice">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Enregistrer sa voix avec synchronisation AssemblyAI */}
+              <motion.button
+                onClick={() => setShowGuidedRecording(true)}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 transition-all"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-aurora-500/30">
+                  <Mic className="w-6 h-6 text-aurora-300" />
+                </div>
+                <span className="text-sm">Ma voix</span>
+                <span className="text-xs text-midnight-400">Sync auto</span>
+              </motion.button>
 
-            {/* TTS (placeholder) */}
-            <motion.button
-              disabled
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 disabled:opacity-50"
-              whileHover={{ scale: 1 }}
-            >
-              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-dream-500/30">
-                <Wand2 className="w-6 h-6 text-dream-300" />
-              </div>
-              <span className="text-sm">IA raconte</span>
-              <span className="text-xs text-midnight-400">TTS (bientôt)</span>
-            </motion.button>
-          </div>
+              {/* TTS - Voix IA */}
+              <Highlightable id="montage-narration">
+                <motion.button
+                  onClick={() => setShowVoiceSelector(true)}
+                  disabled={isGeneratingTTS}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 disabled:opacity-50 transition-all"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-dream-500/30">
+                    {isGeneratingTTS ? (
+                      <Loader2 className="w-6 h-6 text-dream-300 animate-spin" />
+                    ) : (
+                      <Wand2 className="w-6 h-6 text-dream-300" />
+                    )}
+                  </div>
+                  <span className="text-sm">IA raconte</span>
+                  <span className="text-xs text-midnight-400">
+                    {isGeneratingTTS ? 'Génération...' : 'Voix magique'}
+                  </span>
+                </motion.button>
+              </Highlightable>
+            </div>
+          </Highlightable>
         ) : (
           /* Lecteur audio */
           <div className="space-y-3">
             <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-              <motion.button
-                onClick={playRecording}
-                className={cn(
-                  'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
-                  isPlaying ? 'bg-emerald-500 text-white' : 'bg-emerald-500/30 text-emerald-300'
-                )}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-              </motion.button>
+              <Highlightable id="montage-play">
+                <motion.button
+                  onClick={playRecording}
+                  className={cn(
+                    'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
+                    isPlaying ? 'bg-emerald-500 text-white' : 'bg-emerald-500/30 text-emerald-300'
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                </motion.button>
+              </Highlightable>
               
               <div className="flex-1">
                 <p className="font-medium text-emerald-300">🎤 Voix enregistrée</p>
@@ -467,14 +647,16 @@ function NarrationPanel() {
 
             {/* Bouton sync */}
             {!scene.narration.isSynced && (
-              <motion.button
-                onClick={() => setShowGuidedRecording(true)}
-                className="w-full p-4 rounded-xl bg-gradient-to-r from-aurora-500/20 to-dream-500/20 text-aurora-300 hover:from-aurora-500/30 hover:to-dream-500/30 flex items-center justify-center gap-3"
-                whileHover={{ scale: 1.01 }}
-              >
-                <Sparkles className="w-5 h-5" />
-                <span className="font-medium">Ré-enregistrer avec sync auto</span>
-              </motion.button>
+              <Highlightable id="montage-sync-text">
+                <motion.button
+                  onClick={() => setShowGuidedRecording(true)}
+                  className="w-full p-4 rounded-xl bg-gradient-to-r from-aurora-500/20 to-dream-500/20 text-aurora-300 hover:from-aurora-500/30 hover:to-dream-500/30 flex items-center justify-center gap-3"
+                  whileHover={{ scale: 1.01 }}
+                >
+                  <Sparkles className="w-5 h-5" />
+                  <span className="font-medium">Ré-enregistrer avec sync auto</span>
+                </motion.button>
+              </Highlightable>
             )}
 
             {scene.narration.isSynced && (
@@ -495,6 +677,69 @@ function NarrationPanel() {
         onClose={() => setShowGuidedRecording(false)}
         onComplete={handleGuidedRecordingComplete}
       />
+
+      {/* Modal sélection voix IA */}
+      <AnimatePresence>
+        {showVoiceSelector && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setShowVoiceSelector(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-md max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="glass rounded-2xl overflow-hidden">
+                {/* Header */}
+                <div className="p-4 border-b border-midnight-700/50 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-dream-500 to-aurora-500 flex items-center justify-center">
+                      <Wand2 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-white">Voix IA</h2>
+                      <p className="text-xs text-midnight-400">Choisis qui raconte ton histoire</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowVoiceSelector(false)}
+                    className="p-2 rounded-lg hover:bg-midnight-700/50 text-midnight-400 hover:text-white transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Sélecteur de voix */}
+                <div className="p-4">
+                  <NarrationVoiceSelector locale="fr" />
+                </div>
+
+                {/* Bouton générer */}
+                <div className="p-4 border-t border-midnight-700/50">
+                  <motion.button
+                    onClick={generateTTSNarration}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-dream-500 to-aurora-500 text-white font-medium flex items-center justify-center gap-2"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Sparkles className="w-5 h-5" />
+                    Générer la narration
+                  </motion.button>
+                  <p className="text-[10px] text-midnight-500 text-center mt-2">
+                    ⚡ La génération peut prendre quelques secondes
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }
@@ -599,7 +844,7 @@ function SceneStatusPanel({ onGoToTimeline }: { onGoToTimeline: () => void }) {
               {isSynced 
                 ? `${scene.narration.phrases.length} phrases sync`
                 : hasAudio 
-                  ? 'Joue au jeu de rythme !'
+                  ? 'Synchronisation en cours...'
                   : 'Enregistre d\'abord la voix'
               }
             </p>
@@ -642,24 +887,666 @@ function SceneStatusPanel({ onGoToTimeline }: { onGoToTimeline: () => void }) {
       </div>
 
       {/* Bouton Timeline */}
-      <motion.button
-        onClick={onGoToTimeline}
-        disabled={!isSynced}
-        className={cn(
-          'w-full p-4 rounded-xl flex items-center justify-center gap-3 transition-colors',
-          isSynced
-            ? 'bg-gradient-to-r from-aurora-500/20 to-dream-500/20 text-aurora-300 hover:from-aurora-500/30 hover:to-dream-500/30'
-            : 'bg-midnight-800/30 text-midnight-500 cursor-not-allowed'
-        )}
-        whileHover={isSynced ? { scale: 1.01 } : {}}
-      >
-        <Layers className="w-5 h-5" />
-        <span className="font-medium">
-          {isSynced ? 'Aller à la Timeline →' : 'Synchronise d\'abord la voix'}
-        </span>
-      </motion.button>
+      <Highlightable id="montage-timeline">
+        <motion.button
+          onClick={onGoToTimeline}
+          disabled={!isSynced}
+          className={cn(
+            'w-full p-4 rounded-xl flex items-center justify-center gap-3 transition-colors',
+            isSynced
+              ? 'bg-gradient-to-r from-aurora-500/20 to-dream-500/20 text-aurora-300 hover:from-aurora-500/30 hover:to-dream-500/30'
+              : 'bg-midnight-800/30 text-midnight-500 cursor-not-allowed'
+          )}
+          whileHover={isSynced ? { scale: 1.01 } : {}}
+        >
+          <Layers className="w-5 h-5" />
+          <span className="font-medium">
+            {isSynced ? 'Aller à la Timeline →' : 'Synchronise d\'abord la voix'}
+          </span>
+        </motion.button>
+      </Highlightable>
     </div>
   )
+}
+
+// =============================================================================
+// HOOK RECONNAISSANCE VOCALE
+// =============================================================================
+
+interface UseSpeechRecognitionReturn {
+  isListening: boolean
+  isSupported: boolean
+  transcript: string
+  startListening: () => void
+  stopListening: () => void
+  resetTranscript: () => void
+}
+
+function useSpeechRecognition(locale: string = 'fr'): UseSpeechRecognitionReturn {
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [isSupported, setIsSupported] = useState(true)
+  const recognitionRef = useRef<any>(null)
+  const hasInitialized = useRef(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsSupported(false)
+      return
+    }
+    
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    
+    if (!SpeechRecognition) {
+      setIsSupported(false)
+      return
+    }
+    
+    setIsSupported(true)
+    
+    if (hasInitialized.current) return
+    hasInitialized.current = true
+
+    try {
+      recognitionRef.current = new SpeechRecognition()
+      recognitionRef.current.continuous = true
+      recognitionRef.current.interimResults = true
+      recognitionRef.current.lang = locale === 'fr' ? 'fr-FR' : locale === 'en' ? 'en-US' : 'ru-RU'
+
+      recognitionRef.current.onresult = (event: any) => {
+        let finalTranscript = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i]
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript
+          }
+        }
+        if (finalTranscript) {
+          setTranscript(prev => prev + finalTranscript)
+        }
+      }
+
+      recognitionRef.current.onerror = () => setIsListening(false)
+      recognitionRef.current.onend = () => setIsListening(false)
+    } catch {
+      setIsSupported(false)
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop() } catch {}
+      }
+    }
+  }, [locale])
+
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      setTranscript('')
+      recognitionRef.current.start()
+      setIsListening(true)
+    }
+  }
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    }
+  }
+
+  const resetTranscript = () => setTranscript('')
+
+  return { isListening, isSupported, transcript, startListening, stopListening, resetTranscript }
+}
+
+// =============================================================================
+// CHAT IA INTÉGRÉ POUR LE MONTAGE
+// =============================================================================
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+function MontageAIChat() {
+  const [message, setMessage] = useState('')
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [autoSpeak, setAutoSpeak] = useState(true) // Vocal activé par défaut
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { aiName, aiVoice } = useAppStore()
+  const { highlightMultiple } = useHighlightStore()
+  
+  const displayName = aiName || 'Mon aide'
+  
+  // TTS avec la voix choisie
+  const { speak, stop, isSpeaking, isAvailable: isTTSAvailable } = useTTS('fr', aiVoice || undefined)
+  
+  // Reconnaissance vocale pour parler à l'IA
+  const { 
+    isListening, 
+    isSupported: isSpeechSupported, 
+    transcript, 
+    startListening, 
+    stopListening, 
+    resetTranscript 
+  } = useSpeechRecognition('fr')
+  
+  // Envoyer le transcript quand on arrête de parler
+  useEffect(() => {
+    if (!isListening && transcript) {
+      setMessage(transcript)
+      resetTranscript()
+    }
+  }, [isListening, transcript, resetTranscript])
+
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  // Message d'accueil (avec voix)
+  useEffect(() => {
+    if (messages.length === 0) {
+      const welcomeMsg = `Salut ! Je suis ${displayName} ! Besoin d'aide pour ton montage ? Demande-moi !`
+      setMessages([{
+        role: 'assistant',
+        content: welcomeMsg
+      }])
+      // Lire le message d'accueil
+      if (autoSpeak && isTTSAvailable) {
+        setTimeout(() => speak(welcomeMsg), 500)
+      }
+    }
+  }, [messages.length, displayName, autoSpeak, isTTSAvailable, speak])
+
+  const sendMessage = async () => {
+    if (!message.trim() || isLoading) return
+
+    const userMessage = message.trim()
+    setMessage('')
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          context: 'montage',
+          currentMode: 'montage',
+          aiName,
+          userName: useAppStore.getState().userName, // Prénom de l'enfant
+          chatHistory: messages.slice(-10),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.text) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.text }])
+        
+        // Déclencher les highlights si présents dans la réponse
+        if (data.highlights && data.highlights.length > 0) {
+          highlightMultiple(data.highlights)
+        }
+        
+        // Lire la réponse à voix haute
+        if (autoSpeak && isTTSAvailable) {
+          speak(data.text)
+        }
+      }
+    } catch (error) {
+      console.error('Erreur chat IA:', error)
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: "Oups, petit problème ! Réessaie !" 
+      }])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Version réduite
+  if (isCollapsed) {
+    return (
+      <motion.button
+        onClick={() => setIsCollapsed(false)}
+        className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-aurora-500/20 to-stardust-500/20 border border-aurora-500/30 hover:from-aurora-500/30 hover:to-stardust-500/30 transition-all"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-aurora-500 to-stardust-500 flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-aurora-300 font-medium text-sm">{displayName}</span>
+        <ChevronDown className="w-4 h-4 text-aurora-400 ml-auto" />
+      </motion.button>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex-1 flex flex-col bg-midnight-900/50 rounded-xl border border-aurora-500/20 overflow-hidden min-h-0"
+    >
+      {/* Header */}
+      <div className="p-3 border-b border-midnight-700/50 flex items-center gap-2 flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-aurora-500 to-stardust-500 flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-white text-sm truncate">{displayName}</p>
+          <p className="text-[10px] text-midnight-400">Aide montage</p>
+        </div>
+        
+        {/* Toggle vocal */}
+        {isTTSAvailable && (
+          <button
+            onClick={() => {
+              if (isSpeaking) stop()
+              setAutoSpeak(!autoSpeak)
+            }}
+            className={cn(
+              'p-1.5 rounded-lg transition-colors',
+              autoSpeak
+                ? 'bg-aurora-500/20 text-aurora-300'
+                : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
+            )}
+            title={autoSpeak ? 'Désactiver la voix' : 'Activer la voix'}
+          >
+            {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+        )}
+        
+        <button
+          onClick={() => setIsCollapsed(true)}
+          className="p-1.5 rounded-lg text-midnight-400 hover:text-white hover:bg-midnight-800 transition-colors"
+        >
+          <ChevronUp className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            className={cn(
+              'max-w-[90%] p-2 rounded-lg text-xs',
+              msg.role === 'user'
+                ? 'ml-auto bg-aurora-600 text-white rounded-br-sm'
+                : 'bg-midnight-800/80 text-midnight-100 rounded-bl-sm border border-aurora-500/20'
+            )}
+          >
+            <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+          </div>
+        ))}
+        
+        {isLoading && (
+          <div className="flex gap-1 p-2 bg-midnight-800/80 rounded-lg rounded-bl-sm w-fit">
+            {[0, 1, 2].map(i => (
+              <motion.div
+                key={i}
+                className="w-1.5 h-1.5 rounded-full bg-aurora-400"
+                animate={{ y: [0, -3, 0] }}
+                transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+              />
+            ))}
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <form 
+        onSubmit={(e) => { e.preventDefault(); sendMessage() }}
+        className="p-2 border-t border-midnight-700/50 flex gap-2 flex-shrink-0"
+      >
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder={isListening ? 'Écoute...' : 'Ta question...'}
+          className="flex-1 px-2 py-1.5 text-xs text-white placeholder-midnight-500 bg-midnight-800 border border-midnight-700 rounded-lg focus:border-aurora-500 focus:outline-none"
+        />
+        
+        {/* Bouton micro pour parler */}
+        {isSpeechSupported && (
+          <button
+            type="button"
+            onClick={isListening ? stopListening : startListening}
+            className={cn(
+              'p-1.5 rounded-lg transition-colors',
+              isListening
+                ? 'bg-rose-500 text-white animate-pulse'
+                : 'bg-midnight-800 text-midnight-400 hover:text-aurora-300 hover:bg-midnight-700'
+            )}
+            title={isListening ? 'Arrêter' : 'Parler'}
+          >
+            <Mic className="w-4 h-4" />
+          </button>
+        )}
+        
+        <button
+          type="submit"
+          disabled={!message.trim() || isLoading}
+          className={cn(
+            'p-1.5 rounded-lg transition-colors',
+            message.trim() && !isLoading
+              ? 'bg-aurora-500 text-white hover:bg-aurora-600'
+              : 'bg-midnight-800 text-midnight-600'
+          )}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </form>
+    </motion.div>
+  )
+}
+
+// =============================================================================
+// AIDE IA FLOTTANTE POUR LA TIMELINE
+// =============================================================================
+
+function TimelineAIHelp() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [message, setMessage] = useState('')
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { aiName, aiVoice } = useAppStore()
+  const { highlightMultiple } = useHighlightStore()
+  
+  const displayName = aiName || 'Mon aide'
+  
+  // Position du panneau (draggable)
+  const [panelPosition, setPanelPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 })
+  const panelRef = useRef<HTMLDivElement>(null)
+  
+  // TTS
+  const { speak, stop, isSpeaking, isAvailable: isTTSAvailable } = useTTS('fr', aiVoice || undefined)
+  const [autoSpeak, setAutoSpeak] = useState(true)
+  
+  // Reconnaissance vocale
+  const { 
+    isListening, 
+    isSupported: isSpeechSupported, 
+    transcript, 
+    startListening, 
+    stopListening, 
+    resetTranscript 
+  } = useSpeechRecognition('fr')
+  
+  // Gestion du drag
+  const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panelX: panelPosition.x,
+      panelY: panelPosition.y
+    }
+  }
+  
+  useEffect(() => {
+    if (!isDragging) return
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - dragStartRef.current.x
+      const deltaY = e.clientY - dragStartRef.current.y
+      setPanelPosition({
+        x: dragStartRef.current.panelX + deltaX,
+        y: dragStartRef.current.panelY + deltaY
+      })
+    }
+    
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+    
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+  
+  // Reset position quand on ferme
+  useEffect(() => {
+    if (!isOpen) {
+      setPanelPosition({ x: 0, y: 0 })
+    }
+  }, [isOpen])
+  
+  useEffect(() => {
+    if (!isListening && transcript) {
+      setMessage(transcript)
+      resetTranscript()
+    }
+  }, [isListening, transcript, resetTranscript])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  // Message d'accueil quand on ouvre
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      const welcomeMsg = `Salut ! Je suis ${displayName} ! Tu es dans la Timeline ! C'est ici que tu décores ton histoire. Qu'est-ce que tu veux savoir ?`
+      setMessages([{ role: 'assistant', content: welcomeMsg }])
+      if (autoSpeak && isTTSAvailable) {
+        setTimeout(() => speak(welcomeMsg), 300)
+      }
+    }
+  }, [isOpen, messages.length, displayName, autoSpeak, isTTSAvailable, speak])
+
+  const sendMessage = async () => {
+    if (!message.trim() || isLoading) return
+
+    const userMessage = message.trim()
+    setMessage('')
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          context: 'montage',
+          currentMode: 'montage-timeline', // Mode spécifique Timeline
+          aiName,
+          userName: useAppStore.getState().userName,
+          chatHistory: messages.slice(-10),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.text) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.text }])
+        
+        if (data.highlights && data.highlights.length > 0) {
+          highlightMultiple(data.highlights)
+        }
+        
+        if (autoSpeak && isTTSAvailable) {
+          speak(data.text)
+        }
+      }
+    } catch (error) {
+      console.error('Erreur chat IA:', error)
+      setMessages(prev => [...prev, { role: 'assistant', content: "Oups, petit problème ! Réessaie !" }])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const content = (
+    <>
+      {/* Bouton flottant - fixe en bas à droite */}
+      <motion.button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'fixed z-[10001] p-4 rounded-full shadow-xl transition-colors bottom-6 right-6',
+          isOpen
+            ? 'bg-midnight-800 text-midnight-400'
+            : 'bg-gradient-to-br from-aurora-500 to-stardust-500 text-white'
+        )}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        animate={isOpen ? {} : { 
+          boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 10px rgba(139, 92, 246, 0.3)', '0 0 0 0 rgba(139, 92, 246, 0)']
+        }}
+        transition={isOpen ? {} : { duration: 2, repeat: Infinity }}
+      >
+        {isOpen ? <X className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+      </motion.button>
+
+      {/* Panneau de chat - draggable */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            ref={panelRef}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed z-[10001] w-80 max-h-[60vh] flex flex-col bg-midnight-900/95 backdrop-blur-xl rounded-2xl border border-aurora-500/30 shadow-2xl overflow-hidden"
+            style={{
+              bottom: `calc(6rem - ${panelPosition.y}px)`,
+              right: `calc(1.5rem - ${panelPosition.x}px)`,
+            }}
+          >
+            {/* Header - Draggable */}
+            <div 
+              className={cn(
+                "p-3 border-b border-midnight-700/50 flex items-center gap-2",
+                isDragging ? "cursor-grabbing" : "cursor-grab"
+              )}
+              onMouseDown={handleDragStart}
+            >
+              {/* Icône grip pour indiquer le drag */}
+              <div className="flex flex-col gap-0.5 mr-1">
+                <div className="flex gap-0.5">
+                  <div className="w-1 h-1 rounded-full bg-midnight-500" />
+                  <div className="w-1 h-1 rounded-full bg-midnight-500" />
+                </div>
+                <div className="flex gap-0.5">
+                  <div className="w-1 h-1 rounded-full bg-midnight-500" />
+                  <div className="w-1 h-1 rounded-full bg-midnight-500" />
+                </div>
+              </div>
+              
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-aurora-500 to-stardust-500 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-white text-sm">{displayName}</p>
+                <p className="text-[10px] text-midnight-400">Aide Timeline • Glisse pour déplacer</p>
+              </div>
+              
+              {isTTSAvailable && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (isSpeaking) stop(); setAutoSpeak(!autoSpeak) }}
+                  className={cn(
+                    'p-1.5 rounded-lg transition-colors',
+                    autoSpeak ? 'bg-aurora-500/20 text-aurora-300' : 'bg-midnight-800/50 text-midnight-400'
+                  )}
+                >
+                  {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 text-sm min-h-[200px]">
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'max-w-[90%] p-2 rounded-lg',
+                    msg.role === 'user'
+                      ? 'ml-auto bg-aurora-600 text-white rounded-br-sm'
+                      : 'bg-midnight-800/80 text-midnight-100 rounded-bl-sm border border-aurora-500/20'
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              ))}
+              
+              {isLoading && (
+                <div className="flex gap-1 p-2 bg-midnight-800/80 rounded-lg w-fit">
+                  {[0, 1, 2].map(i => (
+                    <motion.div
+                      key={i}
+                      className="w-1.5 h-1.5 rounded-full bg-aurora-400"
+                      animate={{ y: [0, -3, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+                    />
+                  ))}
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <form onSubmit={(e) => { e.preventDefault(); sendMessage() }} className="p-2 border-t border-midnight-700/50 flex gap-2">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={isListening ? 'Écoute...' : 'Ta question...'}
+                className="flex-1 px-2 py-1.5 text-xs text-white placeholder-midnight-500 bg-midnight-800 border border-midnight-700 rounded-lg focus:border-aurora-500 focus:outline-none"
+              />
+              
+              {isSpeechSupported && (
+                <button
+                  type="button"
+                  onClick={isListening ? stopListening : startListening}
+                  className={cn(
+                    'p-1.5 rounded-lg transition-colors',
+                    isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-midnight-800 text-midnight-400 hover:text-aurora-300'
+                  )}
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              )}
+              
+              <button
+                type="submit"
+                disabled={!message.trim() || isLoading}
+                className={cn(
+                  'p-1.5 rounded-lg transition-colors',
+                  message.trim() && !isLoading ? 'bg-aurora-500 text-white' : 'bg-midnight-800 text-midnight-600'
+                )}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
+  
+  // Toujours rendre via un portal pour être au-dessus de tout (y compris Timeline plein écran)
+  if (typeof document !== 'undefined') {
+    return createPortal(content, document.body)
+  }
+  
+  return null
 }
 
 // =============================================================================
@@ -872,28 +1759,30 @@ export function MontageEditor() {
           <SceneSelector />
           
           {/* Toggle vue */}
-          <div className="flex rounded-lg bg-midnight-800/50 p-1">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors',
-                viewMode === 'cards' ? 'bg-aurora-500/30 text-aurora-300' : 'text-midnight-400 hover:text-white'
-              )}
-            >
-              <Grid3X3 className="w-4 h-4" />
-              Cartes
-            </button>
-            <button
-              onClick={() => setViewMode('timeline')}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors',
-                viewMode === 'timeline' ? 'bg-aurora-500/30 text-aurora-300' : 'text-midnight-400 hover:text-white'
-              )}
-            >
-              <Layers className="w-4 h-4" />
-              Timeline
-            </button>
-          </div>
+          <Highlightable id="montage-view-cards">
+            <div className="flex rounded-lg bg-midnight-800/50 p-1">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors',
+                  viewMode === 'cards' ? 'bg-aurora-500/30 text-aurora-300' : 'text-midnight-400 hover:text-white'
+                )}
+              >
+                <Grid3X3 className="w-4 h-4" />
+                Cartes
+              </button>
+              <button
+                onClick={() => setViewMode('timeline')}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors',
+                  viewMode === 'timeline' ? 'bg-aurora-500/30 text-aurora-300' : 'text-midnight-400 hover:text-white'
+                )}
+              >
+                <Layers className="w-4 h-4" />
+                Timeline
+              </button>
+            </div>
+          </Highlightable>
 
           <button 
             onClick={() => setShowPlayer(true)}
@@ -916,18 +1805,41 @@ export function MontageEditor() {
         {viewMode === 'cards' ? (
           /* VUE CARTES */
           <div className="grid grid-cols-12 gap-4 h-full">
-            {/* Colonne scènes */}
-            <div className="col-span-3 flex flex-col gap-2 overflow-y-auto">
-              <h3 className="text-sm text-midnight-400 font-medium mb-2">Scènes</h3>
-              {currentProject.scenes.map((s, index) => (
-                <SceneCard
-                  key={s.id}
-                  scene={s}
-                  index={index}
-                  isActive={index === currentSceneIndex}
-                  onClick={() => setCurrentScene(index)}
-                />
-              ))}
+            {/* Colonne scènes + Chat IA */}
+            <div className="col-span-3 flex flex-col gap-4 overflow-hidden">
+              {/* Liste des scènes */}
+              <Highlightable id="montage-scenes">
+                <div className="flex-shrink-0">
+                  <h3 className="text-sm text-midnight-400 font-medium mb-2">Scènes</h3>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {currentProject.scenes.map((s, index) => (
+                      index === 0 ? (
+                        <Highlightable key={s.id} id="montage-scene-card">
+                          <SceneCard
+                            scene={s}
+                            index={index}
+                            isActive={index === currentSceneIndex}
+                            onClick={() => setCurrentScene(index)}
+                          />
+                        </Highlightable>
+                      ) : (
+                        <SceneCard
+                          key={s.id}
+                          scene={s}
+                          index={index}
+                          isActive={index === currentSceneIndex}
+                          onClick={() => setCurrentScene(index)}
+                        />
+                      )
+                    ))}
+                  </div>
+                </div>
+              </Highlightable>
+              
+              {/* Chat IA intégré */}
+              <Highlightable id="montage-ai-chat">
+                <MontageAIChat />
+              </Highlightable>
             </div>
 
             {/* Colonne narration + texte */}
@@ -970,7 +1882,7 @@ export function MontageEditor() {
           </div>
         ) : (
           /* VUE TIMELINE */
-          <div className="h-full flex flex-col gap-4">
+          <div className="h-full flex flex-col gap-4 relative">
             {/* Résumé de la scène */}
             {scene && (
               <div className="glass rounded-xl p-4">
@@ -1035,6 +1947,9 @@ export function MontageEditor() {
             
             {/* Panneau de propriétés déplaçable (quand un élément est sélectionné) */}
             <TrackPropertiesPanel />
+            
+            {/* Bouton d'aide IA flottant */}
+            <TimelineAIHelp />
           </div>
         )}
       </div>

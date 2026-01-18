@@ -661,40 +661,43 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
                   Clés API
                 </h4>
                 
-                {/* ElevenLabs */}
+                {/* fal.ai */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-white">ElevenLabs</span>
-                      <span className="text-xs text-purple-300/50">(voix narration)</span>
+                      <span className="text-sm text-white">fal.ai</span>
+                      <span className="text-xs text-purple-300/50">(images, vidéos, voix)</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      {keyStatus.elevenlabs === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
-                      {keyStatus.elevenlabs === 'valid' && <CheckCircle className="w-4 h-4 text-green-400" />}
-                      {keyStatus.elevenlabs === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+                      {keyStatus.fal === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
+                      {keyStatus.fal === 'valid' && <CheckCircle className="w-4 h-4 text-green-400" />}
+                      {keyStatus.fal === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
                       <button
-                        onClick={() => setShowKeys(p => ({ ...p, elevenlabs: !p.elevenlabs }))}
+                        onClick={() => setShowKeys(p => ({ ...p, fal: !p.fal }))}
                         className="p-1 hover:bg-white/10 rounded"
                       >
-                        {showKeys.elevenlabs ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
+                        {showKeys.fal ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
                       </button>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <input
-                      type={showKeys.elevenlabs ? 'text' : 'password'}
-                      value={config.elevenlabs_key || ''}
-                      onChange={e => setConfig(p => ({ ...p, elevenlabs_key: e.target.value }))}
-                      placeholder="sk-..."
+                      type={showKeys.fal ? 'text' : 'password'}
+                      value={config.fal_key || ''}
+                      onChange={e => setConfig(p => ({ ...p, fal_key: e.target.value }))}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:..."
                       className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:border-purple-400 focus:outline-none"
                     />
                     <button
-                      onClick={() => testKey('elevenlabs', config.elevenlabs_key || '')}
+                      onClick={() => testKey('fal', config.fal_key || '')}
                       className="px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-purple-300 text-xs"
                     >
                       Tester
                     </button>
                   </div>
+                  <p className="text-xs text-white/40 mt-2">
+                    Utilisé pour : Flux 1 Pro (images), Kling 2.1 (vidéos), ElevenLabs (voix)
+                  </p>
                 </div>
                 
                 {/* Gemini */}
@@ -733,50 +736,40 @@ export default function ParentAdminPanel({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
                 
-                {/* Midjourney */}
+                {/* AssemblyAI */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-white">Midjourney</span>
-                      <span className="text-xs text-purple-300/50">(images IA)</span>
+                      <span className="text-sm text-white">AssemblyAI</span>
+                      <span className="text-xs text-purple-300/50">(transcription voix)</span>
                     </div>
+                    <div className="flex items-center gap-1">
+                      {keyStatus.assemblyai === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
+                      {keyStatus.assemblyai === 'valid' && <CheckCircle className="w-4 h-4 text-green-400" />}
+                      {keyStatus.assemblyai === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+                      <button
+                        onClick={() => setShowKeys(p => ({ ...p, assemblyai: !p.assemblyai }))}
+                        className="p-1 hover:bg-white/10 rounded"
+                      >
+                        {showKeys.assemblyai ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type={showKeys.assemblyai ? 'text' : 'password'}
+                      value={config.assemblyai_key || ''}
+                      onChange={e => setConfig(p => ({ ...p, assemblyai_key: e.target.value }))}
+                      placeholder="Clé AssemblyAI..."
+                      className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:border-purple-400 focus:outline-none"
+                    />
                     <button
-                      onClick={() => setShowKeys(p => ({ ...p, midjourney: !p.midjourney }))}
-                      className="p-1 hover:bg-white/10 rounded"
+                      onClick={() => testKey('assemblyai', config.assemblyai_key || '')}
+                      className="px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-purple-300 text-xs"
                     >
-                      {showKeys.midjourney ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
+                      Tester
                     </button>
                   </div>
-                  <input
-                    type={showKeys.midjourney ? 'text' : 'password'}
-                    value={config.midjourney_key || ''}
-                    onChange={e => setConfig(p => ({ ...p, midjourney_key: e.target.value }))}
-                    placeholder="Clé ImagineAPI..."
-                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:border-purple-400 focus:outline-none"
-                  />
-                </div>
-                
-                {/* Runway */}
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-white">Runway</span>
-                      <span className="text-xs text-purple-300/50">(vidéos IA)</span>
-                    </div>
-                    <button
-                      onClick={() => setShowKeys(p => ({ ...p, runway: !p.runway }))}
-                      className="p-1 hover:bg-white/10 rounded"
-                    >
-                      {showKeys.runway ? <EyeOff className="w-4 h-4 text-white/50" /> : <Eye className="w-4 h-4 text-white/50" />}
-                    </button>
-                  </div>
-                  <input
-                    type={showKeys.runway ? 'text' : 'password'}
-                    value={config.runway_key || ''}
-                    onChange={e => setConfig(p => ({ ...p, runway_key: e.target.value }))}
-                    placeholder="key_..."
-                    className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:border-purple-400 focus:outline-none"
-                  />
                 </div>
               </div>
               

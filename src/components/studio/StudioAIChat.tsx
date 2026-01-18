@@ -496,6 +496,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
           context: 'studio',
           chatHistory,
           aiName: friendName,
+          userName: useAppStore.getState().userName, // Prénom de l'enfant
           studioContext: {
             type,
             currentStep,

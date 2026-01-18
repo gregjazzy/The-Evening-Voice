@@ -24,29 +24,29 @@ export interface ElevenLabsVoice {
   style: 'warm' | 'dramatic' | 'gentle' | 'playful' | 'mysterious'
 }
 
-// 🇫🇷 VOIX FRANÇAISES (7)
+// 🇫🇷 VOIX FRANÇAISES (5 configurées)
 export const FRENCH_VOICES: Record<string, ElevenLabsVoice> = {
   // Voix féminines
-  amelie: {
-    id: process.env.ELEVENLABS_FR_AMELIE || 'XrExE9yKIg1WjnnlVkGX',
-    name: 'Amélie',
+  narratrice: {
+    id: process.env.ELEVENLABS_FR_NARRATOR || 'kwhMCf63M8O3rCfnQ3oQ',
+    name: 'La Conteuse',
     description: 'Voix douce et chaleureuse, parfaite pour les contes',
-    emoji: '🌸',
+    emoji: '📖',
     gender: 'female',
     age: 'adult',
     style: 'warm',
   },
-  fee: {
-    id: process.env.ELEVENLABS_FR_FEE || 'MF3mGyEYCl7XYWbV9V6O',
-    name: 'Fée Clochette',
-    description: 'Voix légère et féerique, pleine de magie',
-    emoji: '🧚',
+  jeuneFille: {
+    id: process.env.ELEVENLABS_FR_YOUNG_GIRL || 'FvmvwvObRqIHojkEGh5N',
+    name: 'Petite Étoile',
+    description: 'Voix légère et enjouée de jeune fille',
+    emoji: '⭐',
     gender: 'female',
     age: 'young',
     style: 'playful',
   },
   mamie: {
-    id: process.env.ELEVENLABS_FR_MAMIE || 'jsCqWAovK2LkecY7zXl4',
+    id: process.env.ELEVENLABS_FR_GRANDMA || 'M9RTtrzRACmbUzsEMq8p',
     name: 'Mamie Rose',
     description: 'Voix bienveillante de grand-mère',
     emoji: '👵',
@@ -55,35 +55,17 @@ export const FRENCH_VOICES: Record<string, ElevenLabsVoice> = {
     style: 'gentle',
   },
   // Voix masculines
-  conteur: {
-    id: process.env.ELEVENLABS_FR_CONTEUR || 'EXAVITQu4vr4xnSDxMaL',
-    name: 'Le Conteur',
-    description: 'Voix narrative classique, captivante',
-    emoji: '📖',
+  jeuneGarcon: {
+    id: process.env.ELEVENLABS_FR_YOUNG_BOY || '5Qfm4RqcAer0xoyWtoHC',
+    name: 'Petit Lucas',
+    description: 'Voix enjouée de jeune garçon',
+    emoji: '🧒',
     gender: 'male',
-    age: 'adult',
-    style: 'dramatic',
-  },
-  magicien: {
-    id: process.env.ELEVENLABS_FR_MAGICIEN || 'VR6AewLTigWG4xSOukaG',
-    name: 'Le Magicien',
-    description: 'Voix mystérieuse et envoûtante',
-    emoji: '🧙',
-    gender: 'male',
-    age: 'adult',
-    style: 'mysterious',
-  },
-  dragon: {
-    id: process.env.ELEVENLABS_FR_DRAGON || 'TxGEqnHWrfWFTfGW9XjX',
-    name: 'Dragon Gentil',
-    description: 'Voix grave mais amicale',
-    emoji: '🐉',
-    gender: 'male',
-    age: 'adult',
-    style: 'warm',
+    age: 'young',
+    style: 'playful',
   },
   papy: {
-    id: process.env.ELEVENLABS_FR_PAPY || 'pNInz6obpgDQGcFmaJgB',
+    id: process.env.ELEVENLABS_FR_GRANDPA || '1wg2wOjdEWKA7yQD8Kca',
     name: 'Papy Marcel',
     description: 'Voix sage et rassurante de grand-père',
     emoji: '👴',
@@ -93,29 +75,29 @@ export const FRENCH_VOICES: Record<string, ElevenLabsVoice> = {
   },
 }
 
-// 🇬🇧 VOIX ANGLAISES (7)
+// 🇬🇧 VOIX ANGLAISES (6 configurées)
 export const ENGLISH_VOICES: Record<string, ElevenLabsVoice> = {
   // Female voices
-  aria: {
-    id: process.env.ELEVENLABS_EN_ARIA || 'XB0fDUnXU5powFXDhCwa',
-    name: 'Aria',
+  narrator: {
+    id: process.env.ELEVENLABS_EN_NARRATOR || 'RILOU7YmBhvwJGDGjNmP',
+    name: 'The Storyteller',
     description: 'Warm and expressive storyteller',
-    emoji: '🌟',
+    emoji: '📖',
     gender: 'female',
     age: 'adult',
     style: 'warm',
   },
-  fairy: {
-    id: process.env.ELEVENLABS_EN_FAIRY || 'jBpfuIE2acCO8z3wKNLl',
-    name: 'Fairy Bell',
-    description: 'Light and magical fairy voice',
-    emoji: '🧚',
+  youngGirl: {
+    id: process.env.ELEVENLABS_EN_YOUNG_GIRL || 'rCmVtv8cYU60uhlsOo1M',
+    name: 'Little Star',
+    description: 'Light and playful young girl voice',
+    emoji: '⭐',
     gender: 'female',
     age: 'young',
     style: 'playful',
   },
   grandma: {
-    id: process.env.ELEVENLABS_EN_GRANDMA || 'ThT5KcBeYPX3keUQqHPh',
+    id: process.env.ELEVENLABS_EN_GRANDMA || 'kkPJzQOWz2Oz9cUaEaQd',
     name: 'Grandma Pearl',
     description: 'Kind and gentle grandmother voice',
     emoji: '👵',
@@ -124,35 +106,26 @@ export const ENGLISH_VOICES: Record<string, ElevenLabsVoice> = {
     style: 'gentle',
   },
   // Male voices
-  storyteller: {
-    id: process.env.ELEVENLABS_EN_STORYTELLER || 'N2lVS1w4EtoT3dr4eOWO',
-    name: 'The Storyteller',
+  narratorMale: {
+    id: process.env.ELEVENLABS_EN_NARRATOR_MALE || 'G17SuINrv2H9FC6nvetn',
+    name: 'The Narrator',
     description: 'Classic narrative voice, captivating',
-    emoji: '📖',
+    emoji: '🎭',
     gender: 'male',
     age: 'adult',
     style: 'dramatic',
   },
-  wizard: {
-    id: process.env.ELEVENLABS_EN_WIZARD || 'CYw3kZ02Hs0563khs1Fj',
-    name: 'The Wizard',
-    description: 'Mysterious and enchanting voice',
-    emoji: '🧙',
+  villain: {
+    id: process.env.ELEVENLABS_EN_VILLAIN || 'ttNi9wVM8M97tsxE7PFZ',
+    name: 'The Villain',
+    description: 'Mysterious and dramatic voice',
+    emoji: '🦹',
     gender: 'male',
     age: 'adult',
     style: 'mysterious',
   },
-  dragon: {
-    id: process.env.ELEVENLABS_EN_DRAGON || 'IKne3meq5aSn9XLyUdCD',
-    name: 'Friendly Dragon',
-    description: 'Deep but friendly voice',
-    emoji: '🐉',
-    gender: 'male',
-    age: 'adult',
-    style: 'warm',
-  },
   grandpa: {
-    id: process.env.ELEVENLABS_EN_GRANDPA || 'GBv7mTt0atIp3Br8iCZE',
+    id: process.env.ELEVENLABS_EN_GRANDPA || '0lp4RIz96WD1RUtvEu3Q',
     name: 'Grandpa Joe',
     description: 'Wise and reassuring grandfather voice',
     emoji: '👴',
@@ -162,72 +135,45 @@ export const ENGLISH_VOICES: Record<string, ElevenLabsVoice> = {
   },
 }
 
-// 🇷🇺 VOIX RUSSES (7)
+// 🇷🇺 VOIX RUSSES (4 configurées)
 export const RUSSIAN_VOICES: Record<string, ElevenLabsVoice> = {
   // Женские голоса
-  natasha: {
-    id: process.env.ELEVENLABS_RU_NATASHA || 'XrExE9yKIg1WjnnlVkGX',
+  narrator: {
+    id: process.env.ELEVENLABS_RU_NARRATOR || 'GN4wbsbejSnGSa1AzjH5',
     name: 'Наташа',
     description: 'Тёплый и душевный голос',
-    emoji: '🌸',
+    emoji: '📖',
     gender: 'female',
     age: 'adult',
     style: 'warm',
   },
-  feya: {
-    id: process.env.ELEVENLABS_RU_FEYA || 'MF3mGyEYCl7XYWbV9V6O',
-    name: 'Фея',
-    description: 'Лёгкий и волшебный голос',
-    emoji: '🧚',
+  youngGirl: {
+    id: process.env.ELEVENLABS_RU_YOUNG_GIRL || 'EDpEYNf6XIeKYRzYcx4I',
+    name: 'Звёздочка',
+    description: 'Лёгкий и игривый голос',
+    emoji: '⭐',
     gender: 'female',
     age: 'young',
     style: 'playful',
   },
-  babushka: {
-    id: process.env.ELEVENLABS_RU_BABUSHKA || 'jsCqWAovK2LkecY7zXl4',
-    name: 'Бабушка',
-    description: 'Добрый голос бабушки',
-    emoji: '👵',
-    gender: 'female',
-    age: 'elderly',
-    style: 'gentle',
-  },
   // Мужские голоса
-  skazochnik: {
-    id: process.env.ELEVENLABS_RU_SKAZOCHNIK || 'EXAVITQu4vr4xnSDxMaL',
+  narratorMale: {
+    id: process.env.ELEVENLABS_RU_NARRATOR_MALE || 're2r5d74PqDzicySNW0I',
     name: 'Сказочник',
     description: 'Классический голос рассказчика',
-    emoji: '📖',
+    emoji: '🎭',
     gender: 'male',
     age: 'adult',
     style: 'dramatic',
   },
-  koldun: {
-    id: process.env.ELEVENLABS_RU_KOLDUN || 'VR6AewLTigWG4xSOukaG',
+  mysterious: {
+    id: process.env.ELEVENLABS_RU_MYSTERIOUS || 'wAGzRVkxKEs8La0lmdrE',
     name: 'Колдун',
     description: 'Таинственный и завораживающий',
     emoji: '🧙',
     gender: 'male',
     age: 'adult',
     style: 'mysterious',
-  },
-  drakon: {
-    id: process.env.ELEVENLABS_RU_DRAKON || 'TxGEqnHWrfWFTfGW9XjX',
-    name: 'Дракон',
-    description: 'Глубокий, но дружелюбный голос',
-    emoji: '🐉',
-    gender: 'male',
-    age: 'adult',
-    style: 'warm',
-  },
-  dedushka: {
-    id: process.env.ELEVENLABS_RU_DEDUSHKA || 'pNInz6obpgDQGcFmaJgB',
-    name: 'Дедушка',
-    description: 'Мудрый и успокаивающий голос',
-    emoji: '👴',
-    gender: 'male',
-    age: 'elderly',
-    style: 'gentle',
   },
 }
 

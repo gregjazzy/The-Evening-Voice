@@ -47,7 +47,7 @@ export type HighlightableElement =
   | 'studio-type-video'
   | 'studio-chat'
   | 'studio-guide'
-  // Montage
+  // Montage - Vue Cartes
   | 'montage-timeline'
   | 'montage-add-media'
   | 'montage-add-music'
@@ -58,6 +58,24 @@ export type HighlightableElement =
   | 'montage-preview'
   | 'montage-narration'
   | 'montage-scenes'
+  | 'montage-record-voice'
+  | 'montage-sync-text'
+  | 'montage-view-cards'
+  | 'montage-view-timeline'
+  | 'montage-play'
+  | 'montage-scene-card'
+  | 'montage-ai-chat'
+  // Montage - Vue Timeline (rubans)
+  | 'montage-ruban-structure'
+  | 'montage-ruban-medias'
+  | 'montage-ruban-musique'
+  | 'montage-ruban-sons'
+  | 'montage-ruban-lumieres'
+  | 'montage-ruban-deco'
+  | 'montage-ruban-anim'
+  | 'montage-ruban-effets'
+  | 'montage-preview-area'
+  | 'montage-help-timeline'
   // Théâtre
   | 'theatre-play'
   | 'theatre-library'
@@ -78,8 +96,8 @@ export interface HighlightConfig {
 }
 
 interface HighlightState {
-  // État
-  activeHighlights: Map<HighlightableElement, HighlightConfig>
+  // État - utiliser un objet simple au lieu d'un Map pour une meilleure réactivité Zustand
+  activeHighlights: Record<string, HighlightConfig>
   highlightQueue: HighlightConfig[]
   
   // Actions
@@ -150,6 +168,24 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
   'montage-preview': { label: 'Aperçu', description: 'L\'écran où tu vois le résultat', mode: 'montage' },
   'montage-narration': { label: 'Narration', description: 'Le bouton pour ajouter la voix qui lit l\'histoire', mode: 'montage' },
   'montage-scenes': { label: 'Scènes', description: 'La liste de toutes les pages de ton histoire', mode: 'montage' },
+  'montage-record-voice': { label: 'Ma voix', description: 'Le bouton pour enregistrer ta voix qui lit l\'histoire', mode: 'montage' },
+  'montage-sync-text': { label: 'Synchroniser', description: 'La synchronisation automatique qui fait apparaître les mots au bon moment', mode: 'montage' },
+  'montage-view-cards': { label: 'Vue cartes', description: 'Le bouton pour voir tes scènes en cartes', mode: 'montage' },
+  'montage-view-timeline': { label: 'Vue timeline', description: 'Le bouton pour voir la ligne du temps détaillée', mode: 'montage' },
+  'montage-play': { label: 'Lecture', description: 'Le bouton play pour écouter/voir ton histoire', mode: 'montage' },
+  'montage-scene-card': { label: 'Carte scène', description: 'Une carte qui représente une page de ton histoire', mode: 'montage' },
+  'montage-ai-chat': { label: 'Aide IA', description: 'L\'endroit où tu peux me poser des questions sur le montage', mode: 'montage' },
+  // Timeline - Rubans
+  'montage-ruban-structure': { label: 'Structure', description: 'Le ruban qui montre l\'intro, la narration et la fin de ta scène', mode: 'montage' },
+  'montage-ruban-medias': { label: 'Médias', description: 'Le ruban pour ajouter des images et des vidéos qui apparaissent pendant l\'histoire', mode: 'montage' },
+  'montage-ruban-musique': { label: 'Musique', description: 'Le ruban pour ajouter une musique de fond à ton histoire', mode: 'montage' },
+  'montage-ruban-sons': { label: 'Sons', description: 'Le ruban pour ajouter des effets sonores (bruits d\'animaux, nature, magie...)', mode: 'montage' },
+  'montage-ruban-lumieres': { label: 'Lumières', description: 'Le ruban pour faire changer les lumières de ta maison pendant l\'histoire', mode: 'montage' },
+  'montage-ruban-deco': { label: 'Décorations', description: 'Le ruban pour ajouter des décorations animées (étoiles, cœurs, flocons...)', mode: 'montage' },
+  'montage-ruban-anim': { label: 'Animations', description: 'Le ruban pour ajouter des animations sur les images', mode: 'montage' },
+  'montage-ruban-effets': { label: 'Effets', description: 'Le ruban pour ajouter des effets spéciaux (fumée, lumière magique...)', mode: 'montage' },
+  'montage-preview-area': { label: 'Prévisualisation', description: 'L\'écran où tu vois le résultat de ton montage', mode: 'montage' },
+  'montage-help-timeline': { label: 'Aide Timeline', description: 'Le bouton pour demander de l\'aide sur la Timeline', mode: 'montage' },
   
   // Théâtre
   'theatre-play': { label: 'Lecture', description: 'Le bouton pour lancer ton histoire', mode: 'theatre' },
@@ -169,7 +205,7 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
 // =============================================================================
 
 export const useHighlightStore = create<HighlightState>((set, get) => ({
-  activeHighlights: new Map(),
+  activeHighlights: {},
   highlightQueue: [],
   
   highlight: (configOrId) => {
@@ -184,15 +220,26 @@ export const useHighlightStore = create<HighlightState>((set, get) => ({
       ...config,
     }
     
-    set((state) => {
-      const newHighlights = new Map(state.activeHighlights)
-      newHighlights.set(fullConfig.elementId, fullConfig)
-      return { activeHighlights: newHighlights }
-    })
+    // Si cet élément est déjà highlighté, ne rien faire (éviter doublons de setTimeout)
+    if (fullConfig.elementId in get().activeHighlights) {
+      console.log('⚠️ Highlight déjà actif:', fullConfig.elementId, '- ignoré')
+      return
+    }
+    
+    console.log('✨ Highlight activé:', fullConfig.elementId, '- durée:', fullConfig.duration, 'ms')
+    
+    // Ajouter au state (objet simple pour meilleure réactivité Zustand)
+    set((state) => ({
+      activeHighlights: {
+        ...state.activeHighlights,
+        [fullConfig.elementId]: fullConfig,
+      }
+    }))
     
     // Auto-stop après la durée
     if (fullConfig.duration && fullConfig.duration > 0) {
       setTimeout(() => {
+        console.log('⏰ Timeout atteint pour:', fullConfig.elementId, '- arrêt')
         get().stopHighlight(fullConfig.elementId)
       }, fullConfig.duration)
     }
@@ -209,22 +256,22 @@ export const useHighlightStore = create<HighlightState>((set, get) => ({
   
   stopHighlight: (elementId) => {
     set((state) => {
-      const newHighlights = new Map(state.activeHighlights)
-      newHighlights.delete(elementId)
-      return { activeHighlights: newHighlights }
+      // Créer un nouvel objet sans l'élément supprimé
+      const { [elementId]: removed, ...rest } = state.activeHighlights
+      return { activeHighlights: rest }
     })
   },
   
   stopAllHighlights: () => {
-    set({ activeHighlights: new Map() })
+    set({ activeHighlights: {} })
   },
   
   isHighlighted: (elementId) => {
-    return get().activeHighlights.has(elementId)
+    return elementId in get().activeHighlights
   },
   
   getHighlightConfig: (elementId) => {
-    return get().activeHighlights.get(elementId)
+    return get().activeHighlights[elementId]
   },
 }))
 
@@ -240,7 +287,8 @@ export function parseHighlightCommands(text: string): {
   cleanText: string
   highlights: HighlightConfig[]
 } {
-  const highlights: HighlightConfig[] = []
+  // Utiliser un Map pour dédoublonner par elementId
+  const highlightsMap = new Map<HighlightableElement, HighlightConfig>()
   
   // Pattern : [HIGHLIGHT:element-id] ou [HIGHLIGHT:element-id:color:intensity]
   const pattern = /\[HIGHLIGHT:([a-z-]+)(?::([#a-zA-Z0-9]+))?(?::(soft|medium|strong))?\]/g
@@ -251,16 +299,17 @@ export function parseHighlightCommands(text: string): {
     const color = match[2] || '#FFD700'
     const intensity = (match[3] as 'soft' | 'medium' | 'strong') || 'medium'
     
-    // Vérifier que l'élément existe
-    if (elementId in ELEMENT_DESCRIPTIONS) {
-      highlights.push({ elementId, color, intensity })
+    // Vérifier que l'élément existe ET qu'il n'est pas déjà dans le Map
+    if (elementId in ELEMENT_DESCRIPTIONS && !highlightsMap.has(elementId)) {
+      highlightsMap.set(elementId, { elementId, color, intensity })
     }
   }
   
   // Nettoyer le texte des commandes
   const cleanText = text.replace(pattern, '').trim()
   
-  return { cleanText, highlights }
+  // Convertir le Map en tableau
+  return { cleanText, highlights: Array.from(highlightsMap.values()) }
 }
 
 /**

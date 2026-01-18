@@ -48,6 +48,8 @@ import {
   FlipVertical,
   RotateCcw,
   Gem,
+  Edit3,
+  Settings,
 } from 'lucide-react'
 import { useAppStore, type Story } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
@@ -56,6 +58,7 @@ import { STORY_TEMPLATES, type StoryStructure } from '@/lib/ai/prompting-pedagog
 import { cn } from '@/lib/utils'
 import { MediaPicker } from '@/components/editor/MediaPicker'
 import { Highlightable } from '@/components/ui/Highlightable'
+import { VoiceSelector } from '@/components/ui/VoiceSelector'
 
 // ============================================================================
 // TYPES
@@ -4069,7 +4072,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             style={{
               height: 'calc(100vh - 220px)',
               maxHeight: 'calc(100vh - 220px)',
-              aspectRatio: '2 / 3',
+              width: 'calc((100vh - 220px) * 2 / 3)', // Largeur = hauteur * ratio (compatible Safari)
               background: getPageColorStyles(bookColor).background,
               borderRadius: '12px',
               overflow: 'visible',
@@ -4404,12 +4407,13 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           {/* PAGE GAUCHE (page d'écriture) */}
           <div 
             ref={leftPageContainerRef}
-            className="relative flex flex-col group flex-shrink"
+            className="relative flex flex-col group"
             onClick={() => setActivePage('left')}
             style={{
               height: '100%',
-              aspectRatio: '2 / 3',
-              maxWidth: '50%',
+              width: 'calc((100vh - var(--book-height-offset, 220px)) * 2 / 3)', // Largeur = hauteur * ratio
+              maxWidth: 'calc(50vw - 80px)', // Max 50% du viewport moins marges
+              flexShrink: 0,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
@@ -4753,12 +4757,13 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           {/* PAGE DROITE (page d'écriture) */}
           <div 
             ref={rightPageContainerRef}
-            className="relative flex flex-col group flex-shrink"
+            className="relative flex flex-col group"
             onClick={() => setActivePage('right')}
             style={{
               height: '100%',
-              aspectRatio: '2 / 3', // Ratio livre standard
-              maxWidth: '50%',
+              width: 'calc((100vh - var(--book-height-offset, 220px)) * 2 / 3)', // Largeur = hauteur * ratio
+              maxWidth: 'calc(50vw - 80px)', // Max 50% du viewport moins marges
+              flexShrink: 0,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '0 8px 8px 0',
               boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
@@ -5124,17 +5129,15 @@ function AISidePanel({
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [autoSpeak, setAutoSpeak] = useState(false)
+  const [autoSpeak, setAutoSpeak] = useState(true) // Vocal activé par défaut
   const [isAnalysisMenuOpen, setIsAnalysisMenuOpen] = useState(false)
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false)
+  const [showNameEditor, setShowNameEditor] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
-  // TTS
-  const { speak, stop, isSpeaking, isAvailable: isTTSAvailable } = useTTS(locale)
-  
-  // Debug TTS availability
-  useEffect(() => {
-    console.log('🎤 TTS disponible:', isTTSAvailable, '| Navigateur:', typeof window !== 'undefined' && 'speechSynthesis' in window)
-  }, [isTTSAvailable])
+  // TTS avec voix globale depuis le store
+  const { aiVoice } = useAppStore()
+  const { speak, stop, isSpeaking, isAvailable: isTTSAvailable } = useTTS(locale, aiVoice || undefined)
   
   // Speech recognition for voice input to AI
   const { 
@@ -5258,6 +5261,7 @@ function AISidePanel({
           context: 'book',
           currentMode: 'ecriture', // Pour le guidage visuel (highlights)
           aiName, // Transmettre le nom personnalisé de l'IA
+          userName: useAppStore.getState().userName, // Prénom de l'enfant
           chatHistory: messages.slice(-10),
         }),
       })
@@ -5273,9 +5277,7 @@ function AISidePanel({
         }
         
         // Speak the response if autoSpeak is enabled
-        console.log('🔊 TTS Check:', { autoSpeak, isTTSAvailable, textLength: data.text?.length })
         if (autoSpeak && isTTSAvailable) {
-          console.log('🔊 Speaking:', data.text?.slice(0, 50) + '...')
           speak(data.text)
         }
       }
@@ -5445,15 +5447,52 @@ function AISidePanel({
           <Sparkles className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1">
-          <p className="font-medium text-white">{t.title}</p>
+          {showNameEditor ? (
+            <input
+              type="text"
+              defaultValue={aiName || ''}
+              placeholder={locale === 'fr' ? 'Prénom...' : locale === 'en' ? 'Name...' : 'Имя...'}
+              maxLength={15}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const value = (e.target as HTMLInputElement).value.trim()
+                  if (value) {
+                    useAppStore.getState().setAiName(value)
+                  }
+                  setShowNameEditor(false)
+                } else if (e.key === 'Escape') {
+                  setShowNameEditor(false)
+                }
+              }}
+              onBlur={(e) => {
+                const value = e.target.value.trim()
+                if (value) {
+                  useAppStore.getState().setAiName(value)
+                }
+                setShowNameEditor(false)
+              }}
+              className="w-full bg-midnight-800 border border-aurora-500/50 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-aurora-500"
+            />
+          ) : (
+            <button
+              onClick={() => setShowNameEditor(true)}
+              className="text-left group"
+              title={locale === 'fr' ? 'Cliquer pour renommer' : locale === 'en' ? 'Click to rename' : 'Нажмите, чтобы переименовать'}
+            >
+              <p className="font-medium text-white flex items-center gap-1.5">
+                {t.title}
+                <Edit3 className="w-3 h-3 text-midnight-500 group-hover:text-aurora-400 transition-colors" />
+              </p>
+            </button>
+          )}
           <p className="text-xs text-midnight-400">{t.subtitle}</p>
         </div>
         
-        {/* Toggle Écrit / Oral (même style que DiaryMode) */}
+        {/* Toggle Écrit / Oral */}
         {isTTSAvailable && (
           <button
             onClick={() => {
-              console.log('🔊 Toggle autoSpeak:', !autoSpeak, 'isTTSAvailable:', isTTSAvailable)
               if (isSpeaking) stop()
               setAutoSpeak(!autoSpeak)
             }}
@@ -5472,6 +5511,22 @@ function AISidePanel({
           </button>
         )}
         
+        {/* Bouton paramètres voix */}
+        {isTTSAvailable && (
+          <button
+            onClick={() => setShowVoiceSelector(!showVoiceSelector)}
+            className={cn(
+              'p-2 rounded-lg transition-colors',
+              showVoiceSelector
+                ? 'bg-aurora-500/20 text-aurora-300'
+                : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
+            )}
+            title={locale === 'fr' ? 'Choisir la voix' : locale === 'en' ? 'Choose voice' : 'Выбрать голос'}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        )}
+        
         <button
           onClick={onToggle}
           className="p-2 rounded-lg hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
@@ -5480,6 +5535,20 @@ function AISidePanel({
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+      
+      {/* Panel sélecteur de voix */}
+      <AnimatePresence>
+        {showVoiceSelector && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-b border-midnight-700/50 overflow-hidden"
+          >
+            <VoiceSelector className="rounded-none border-0" />
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto space-y-3">

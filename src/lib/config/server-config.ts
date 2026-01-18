@@ -6,10 +6,11 @@ import { createClient } from '@/lib/supabase/server';
 
 export interface FamilyApiConfig {
   family_id: string | null;
-  elevenlabs_key: string | null;
-  midjourney_key: string | null;
-  runway_key: string | null;
-  gemini_key: string | null;
+  // Nouvelles clés
+  fal_key: string | null;        // Images (Flux), Vidéos (Kling), Voix (ElevenLabs)
+  gemini_key: string | null;     // Chat IA
+  assemblyai_key: string | null; // Transcription voix
+  // Voix par défaut
   default_narration_voice_fr: string | null;
   default_narration_voice_en: string | null;
   default_narration_voice_ru: string | null;
@@ -21,10 +22,9 @@ interface FamilyConfigRow {
   family_name: string;
   family_code: string;
   user_role: string;
-  elevenlabs_key: string | null;
-  midjourney_key: string | null;
-  runway_key: string | null;
+  fal_key: string | null;
   gemini_key: string | null;
+  assemblyai_key: string | null;
   default_narration_voice_fr: string | null;
   default_narration_voice_en: string | null;
   default_narration_voice_ru: string | null;
@@ -49,10 +49,9 @@ export async function getUserFamilyConfig(): Promise<FamilyApiConfig | null> {
       const fc = familyConfig[0];
       return {
         family_id: fc.family_id,
-        elevenlabs_key: fc.elevenlabs_key,
-        midjourney_key: fc.midjourney_key,
-        runway_key: fc.runway_key,
+        fal_key: fc.fal_key,
         gemini_key: fc.gemini_key,
+        assemblyai_key: fc.assemblyai_key,
         default_narration_voice_fr: fc.default_narration_voice_fr,
         default_narration_voice_en: fc.default_narration_voice_en,
         default_narration_voice_ru: fc.default_narration_voice_ru,
@@ -71,22 +70,20 @@ export async function getUserFamilyConfig(): Promise<FamilyApiConfig | null> {
  * Récupère une clé API avec fallback sur les variables d'environnement
  */
 export async function getApiKeyForRequest(
-  keyType: 'elevenlabs' | 'midjourney' | 'runway' | 'gemini'
+  keyType: 'fal' | 'gemini' | 'assemblyai'
 ): Promise<string | null> {
   const familyConfig = await getUserFamilyConfig();
   
   const keyMap: Record<string, keyof FamilyApiConfig> = {
-    elevenlabs: 'elevenlabs_key',
-    midjourney: 'midjourney_key',
-    runway: 'runway_key',
+    fal: 'fal_key',
     gemini: 'gemini_key',
+    assemblyai: 'assemblyai_key',
   };
   
   const envMap: Record<string, string | undefined> = {
-    elevenlabs: process.env.ELEVENLABS_API_KEY,
-    midjourney: process.env.MIDJOURNEY_API_KEY || process.env.IMAGINE_API_KEY,
-    runway: process.env.RUNWAY_API_KEY,
+    fal: process.env.FAL_API_KEY,
     gemini: process.env.GEMINI_API_KEY,
+    assemblyai: process.env.ASSEMBLYAI_API_KEY,
   };
   
   // Priorité à la config famille

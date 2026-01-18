@@ -1,30 +1,36 @@
 /**
- * API Route - Génération de narration
+ * API Route - Génération de narration (ElevenLabs via fal.ai)
  * 
  * POST /api/ai/narration
  * 
- * Génère une narration audio via ElevenLabs.
- * Si ElevenLabs échoue ou n'est pas configuré, retourne les infos
+ * Génère une narration audio via ElevenLabs (fal.ai).
+ * Si fal.ai échoue ou n'est pas configuré, retourne les infos
  * pour que le client utilise Apple Voice (TTS système).
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  generateNarrationWithFallback,
-  getNarrationVoices,
-  type VoiceType,
-} from '@/lib/ai/elevenlabs'
-import { getApiKeyForRequest, getDefaultNarrationVoice } from '@/lib/config/server-config'
+import { generateVoiceElevenLabs, isFalAvailable } from '@/lib/ai/fal'
+import { getNarrationVoices, type VoiceType } from '@/lib/ai/elevenlabs'
+
+// Voix par défaut selon le type
+const DEFAULT_VOICES: Record<string, string> = {
+  narrator: 'kwhMCf63M8O3rCfnQ3oQ', // La Conteuse (FR)
+  young_girl: 'FvmvwvObRqIHojkEGh5N',
+  young_boy: '5Qfm4RqcAer0xoyWtoHC',
+  grandma: 'M9RTtrzRACmbUzsEMq8p',
+  grandpa: '1wg2wOjdEWKA7yQD8Kca',
+}
 
 interface NarrationRequestBody {
   text: string
   voiceType?: VoiceType
+  voiceId?: string
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: NarrationRequestBody = await request.json()
-    const { text, voiceType = 'narrator' } = body
+    const { text, voiceType = 'narrator', voiceId } = body
 
     if (!text || text.trim().length === 0) {
       return NextResponse.json(
@@ -34,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Limiter la longueur du texte (sécurité + coût)
-    const maxLength = 5000 // ~5000 caractères max par requête
+    const maxLength = 5000
     if (text.length > maxLength) {
       return NextResponse.json(
         { error: `Le texte est trop long (max ${maxLength} caractères)` },
@@ -42,43 +48,55 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Récupérer la clé API depuis la config famille (priorité) ou env var
-    const apiKey = await getApiKeyForRequest('elevenlabs')
-
-    // Générer la narration avec fallback automatique
-    const result = await generateNarrationWithFallback(text, voiceType, apiKey || undefined)
-
-    // Si ElevenLabs a généré un audio, on doit le convertir en base64
-    // car on ne peut pas retourner un Blob directement
-    if (result.source === 'elevenlabs' && result.audioBlob) {
-      const arrayBuffer = await result.audioBlob.arrayBuffer()
-      const base64Audio = Buffer.from(arrayBuffer).toString('base64')
-      
+    // Si fal.ai n'est pas configuré, fallback Apple Voice
+    if (!isFalAvailable()) {
+      console.log('⚠️ fal.ai non configuré, fallback Apple Voice')
       return NextResponse.json({
-        source: 'elevenlabs',
-        audioBase64: base64Audio,
-        audioMimeType: 'audio/mpeg',
-        text: result.text,
-        voiceType: result.voiceType,
-        estimatedDuration: result.estimatedDuration,
+        source: 'apple_fallback',
+        audioBase64: null,
+        text,
+        voiceType,
+        estimatedDuration: Math.ceil(text.length / 15), // ~15 chars/sec
       })
     }
 
-    // Fallback Apple Voice - retourner les infos pour le client
-    return NextResponse.json({
-      source: 'apple_fallback',
-      audioBase64: null,
-      text: result.text,
-      voiceType: result.voiceType,
-      estimatedDuration: result.estimatedDuration,
-    })
+    // Sélectionner la voix
+    const selectedVoiceId = voiceId || DEFAULT_VOICES[voiceType] || DEFAULT_VOICES.narrator
+
+    console.log('🎤 Génération narration ElevenLabs via fal.ai:', { voiceType, voiceId: selectedVoiceId })
+
+    try {
+      const result = await generateVoiceElevenLabs({
+        text,
+        voiceId: selectedVoiceId,
+      })
+
+      return NextResponse.json({
+        source: 'elevenlabs',
+        audioUrl: result.audioUrl,
+        audioMimeType: 'audio/mpeg',
+        text,
+        voiceType,
+        estimatedDuration: Math.ceil(text.length / 15),
+      })
+    } catch (genError) {
+      console.error('❌ Erreur génération ElevenLabs:', genError)
+      // Fallback Apple Voice
+      return NextResponse.json({
+        source: 'apple_fallback',
+        audioBase64: null,
+        text,
+        voiceType,
+        estimatedDuration: Math.ceil(text.length / 15),
+      })
+    }
 
   } catch (error) {
     console.error('Erreur API narration:', error)
     return NextResponse.json(
       { 
         error: 'Erreur lors de la génération de la narration',
-        source: 'apple_fallback', // Fallback en cas d'erreur
+        source: 'apple_fallback',
       },
       { status: 500 }
     )

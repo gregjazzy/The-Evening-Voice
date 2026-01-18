@@ -49,7 +49,7 @@ interface UseNarrationReturn {
   error: string | null
 }
 
-export function useNarration(locale: 'fr' | 'en' | 'ru' = 'fr'): UseNarrationReturn {
+export function useNarration(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoice?: string): UseNarrationReturn {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentSource, setCurrentSource] = useState<'elevenlabs' | 'apple_fallback' | null>(null)
@@ -58,8 +58,8 @@ export function useNarration(locale: 'fr' | 'en' | 'ru' = 'fr'): UseNarrationRet
   // Ref pour l'audio ElevenLabs
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  // TTS Apple pour le fallback
-  const tts = useTTS(locale)
+  // TTS Apple pour le fallback (utilise la voix préférée de l'utilisateur)
+  const tts = useTTS(locale, preferredVoice)
 
   /**
    * Génère la narration via l'API

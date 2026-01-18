@@ -5,20 +5,24 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { AssemblyAI, TranscriptWord } from 'assemblyai'
+import { getApiKeyForRequest } from '@/lib/config/server-config'
 
-const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY
+// Cache pour les clients AssemblyAI (par clé)
+const assemblyClients = new Map<string, AssemblyAI>()
 
-let assemblyClient: AssemblyAI | null = null
-function getAssemblyAI(): AssemblyAI | null {
-  if (!assemblyClient && ASSEMBLYAI_API_KEY) {
-    assemblyClient = new AssemblyAI({ apiKey: ASSEMBLYAI_API_KEY })
+function getAssemblyAI(apiKey: string): AssemblyAI {
+  if (!assemblyClients.has(apiKey)) {
+    assemblyClients.set(apiKey, new AssemblyAI({ apiKey }))
   }
-  return assemblyClient
+  return assemblyClients.get(apiKey)!
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!ASSEMBLYAI_API_KEY) {
+    // Récupérer la clé API (famille > env var)
+    const apiKey = await getApiKeyForRequest('assemblyai')
+    
+    if (!apiKey) {
       console.log('⚠️ Clé API AssemblyAI non configurée, utilisation du fallback')
       return handleFallback(request)
     }
@@ -35,11 +39,7 @@ export async function POST(request: NextRequest) {
 
     const expectedPhrases: string[] = phrasesJson ? JSON.parse(phrasesJson) : []
 
-    const client = getAssemblyAI()
-    if (!client) {
-      console.log('⚠️ Client AssemblyAI non initialisé, utilisation du fallback')
-      return handleFallback(request)
-    }
+    const client = getAssemblyAI(apiKey)
 
     const arrayBuffer = await audioFile.arrayBuffer()
     const audioBuffer = Buffer.from(arrayBuffer)

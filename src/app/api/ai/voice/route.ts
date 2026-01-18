@@ -1,15 +1,20 @@
 /**
- * API Route - Génération de voix (ElevenLabs)
+ * API Route - Génération de voix (ElevenLabs via fal.ai)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { 
-  generateVoice, 
-  generatePageNarration,
-  generateAIFriendVoice,
-  checkQuota,
-  AVAILABLE_VOICES 
-} from '@/lib/ai/elevenlabs'
+import { generateVoiceElevenLabs, isFalAvailable } from '@/lib/ai/fal'
+import { AVAILABLE_VOICES } from '@/lib/ai/elevenlabs'
+
+// Voix par défaut selon le type
+const DEFAULT_VOICES: Record<string, string> = {
+  narrator: 'kwhMCf63M8O3rCfnQ3oQ', // La Conteuse (FR)
+  ai_friend: 'FvmvwvObRqIHojkEGh5N', // Jeune française
+  young_girl: 'FvmvwvObRqIHojkEGh5N',
+  young_boy: '5Qfm4RqcAer0xoyWtoHC',
+  grandma: 'M9RTtrzRACmbUzsEMq8p',
+  grandpa: '1wg2wOjdEWKA7yQD8Kca',
+}
 
 // POST - Générer de l'audio
 export async function POST(request: NextRequest) {
@@ -17,7 +22,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       text, 
-      type = 'narration', // 'narration' | 'ai_friend' | 'custom'
+      type = 'narration',
       voiceType = 'narrator',
       voiceId 
     } = body
@@ -29,28 +34,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let result
-    switch (type) {
-      case 'ai_friend':
-        result = await generateAIFriendVoice(text)
-        break
-      case 'narration':
-        result = await generatePageNarration(text, voiceType)
-        break
-      case 'custom':
-        result = await generateVoice({ text, voiceType, voiceId })
-        break
-      default:
-        result = await generatePageNarration(text, voiceType)
+    if (!isFalAvailable()) {
+      return NextResponse.json(
+        { error: 'Clé API fal.ai non configurée' },
+        { status: 500 }
+      )
     }
 
-    // Convertir le blob en base64 pour le transport
-    const buffer = await result.audioBlob.arrayBuffer()
-    const base64Audio = Buffer.from(buffer).toString('base64')
+    // Sélectionner la voix
+    const selectedVoiceId = voiceId || DEFAULT_VOICES[voiceType] || DEFAULT_VOICES.narrator
+
+    console.log('🎤 Génération voix ElevenLabs via fal.ai:', { type, voiceType, voiceId: selectedVoiceId })
+
+    const result = await generateVoiceElevenLabs({
+      text,
+      voiceId: selectedVoiceId,
+    })
 
     return NextResponse.json({
       audioUrl: result.audioUrl,
-      audioData: base64Audio,
       mimeType: 'audio/mpeg',
     })
   } catch (error) {
@@ -62,15 +64,19 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Récupérer les voix disponibles et le quota
+// GET - Récupérer les voix disponibles
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action')
 
     if (action === 'quota') {
-      const quota = await checkQuota()
-      return NextResponse.json(quota)
+      // Avec fal.ai, le quota est géré différemment
+      return NextResponse.json({
+        character_count: 0,
+        character_limit: 100000,
+        can_generate: true,
+      })
     }
 
     // Par défaut, retourner les voix disponibles

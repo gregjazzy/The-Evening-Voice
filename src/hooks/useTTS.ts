@@ -31,23 +31,35 @@ interface UseTTSReturn {
 const getIsElectron = () => typeof window !== 'undefined' && !!window.electronAPI?.isElectron
 const getHasWebSpeech = () => typeof window !== 'undefined' && 'speechSynthesis' in window
 
-// Voix RECOMMANDÉES par langue (les meilleures en premier)
-// Note: Les voix Google sont prioritaires car toujours disponibles dans Chrome
-// Les voix Apple (Audrey, Amélie...) nécessitent un téléchargement manuel sur macOS
-const RECOMMENDED_VOICES: Record<string, string[]> = {
+// Voix RECOMMANDÉES par langue selon l'environnement
+// Chrome/Web : Google d'abord (toujours disponible)
+// Electron/macOS : Apple d'abord (meilleure qualité, native)
+
+const RECOMMENDED_VOICES_WEB: Record<string, string[]> = {
   fr: ['Google français', 'Audrey', 'Amélie', 'Thomas', 'Marie'],
   en: ['Google US English', 'Google UK English Female', 'Samantha', 'Karen', 'Daniel'],
   ru: ['Google русский', 'Milena', 'Yuri'],
 }
 
+const RECOMMENDED_VOICES_ELECTRON: Record<string, string[]> = {
+  fr: ['Audrey', 'Amélie', 'Thomas', 'Marie', 'Google français'],
+  en: ['Samantha', 'Karen', 'Daniel', 'Google US English', 'Google UK English Female'],
+  ru: ['Milena', 'Yuri', 'Google русский'],
+}
+
+// Fonction pour obtenir les voix recommandées selon l'environnement
+const getRecommendedVoices = () => {
+  return getIsElectron() ? RECOMMENDED_VOICES_ELECTRON : RECOMMENDED_VOICES_WEB
+}
+
 // Voix premium (haute qualité, souvent téléchargées)
 const PREMIUM_VOICES = ['Audrey', 'Amélie', 'Thomas', 'Samantha', 'Karen', 'Daniel', 'Milena']
 
-// Paramètres de voix par langue (rate, pitch)
+// Paramètres de voix par langue (rate, pitch) - Adaptés pour enfants 6-10 ans
 const VOICE_SETTINGS: Record<string, { rate: number; pitch: number }> = {
-  fr: { rate: 1.15, pitch: 1.1 },   // Français plus rapide
-  en: { rate: 1.05, pitch: 1.1 },   // Anglais normal
-  ru: { rate: 1.0, pitch: 1.05 },   // Russe normal
+  fr: { rate: 0.92, pitch: 1.1 },   // Français légèrement plus lent pour enfants
+  en: { rate: 0.92, pitch: 1.1 },   // Anglais légèrement plus lent pour enfants
+  ru: { rate: 0.90, pitch: 1.05 },  // Russe un peu plus lent
 }
 
 // Classifier la qualité d'une voix
@@ -59,7 +71,8 @@ function getVoiceQuality(voiceName: string): 'premium' | 'standard' | 'basic' {
 
 // Vérifier si une voix est recommandée pour une langue
 function isVoiceRecommended(voiceName: string, locale: string): boolean {
-  const recommended = RECOMMENDED_VOICES[locale] || RECOMMENDED_VOICES.fr
+  const voices = getRecommendedVoices()
+  const recommended = voices[locale] || voices.fr
   return recommended.some(r => voiceName.includes(r))
 }
 
@@ -88,11 +101,12 @@ function findBestVoice(locale: string, preferredVoiceName?: string): SpeechSynth
     if (preferred) return preferred
   }
   
-  // 2. Chercher parmi les voix recommandées DANS L'ORDRE de préférence
-  const recommendedNames = RECOMMENDED_VOICES[locale] || RECOMMENDED_VOICES.fr
+  // 2. Chercher parmi les voix recommandées DANS L'ORDRE de préférence (selon environnement)
+  const voices_config = getRecommendedVoices()
+  const recommendedNames = voices_config[locale] || voices_config.fr
   let selectedVoice: SpeechSynthesisVoice | undefined
   
-  // Parcourir NOS préférences dans l'ordre (Google d'abord, puis Apple)
+  // Parcourir NOS préférences dans l'ordre (adapté à l'environnement)
   for (const preferredName of recommendedNames) {
     const found = voices.find(v => v.name.includes(preferredName))
     if (found) {

@@ -1,15 +1,11 @@
 /**
- * API Route - Génération d'images
+ * API Route - Génération d'images avec Flux 1 Pro (via fal.ai)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { 
-  generateImage, 
-  checkGenerationStatus, 
-  adaptChildPrompt 
-} from '@/lib/ai/midjourney'
+import { generateImageFlux, adaptChildPrompt, isFalAvailable } from '@/lib/ai/fal'
 
-// POST - Lancer une génération
+// POST - Générer une image
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -27,49 +23,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!isFalAvailable()) {
+      return NextResponse.json(
+        { error: 'Clé API fal.ai non configurée' },
+        { status: 500 }
+      )
+    }
+
     // Adapter le prompt enfantin
     const prompt = adaptChildPrompt(description, style, ambiance)
 
-    // Lancer la génération
-    const job = await generateImage({
+    console.log('🎨 Génération image Flux 1 Pro:', prompt.substring(0, 100) + '...')
+
+    // Générer l'image avec Flux 1 Pro
+    const result = await generateImageFlux({
       prompt,
-      aspectRatio,
-      style: style === 'dessin' ? 'cute' : 'expressive',
+      aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
+      numImages: 1,
     })
 
     return NextResponse.json({
-      jobId: job.id,
-      status: job.status,
-      prompt, // Retourner le prompt pour transparence
+      status: 'completed',
+      imageUrl: result.images[0]?.url,
+      prompt: result.prompt,
+      seed: result.seed,
     })
   } catch (error) {
     console.error('Erreur API image:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la génération de l\'image' },
-      { status: 500 }
-    )
-  }
-}
-
-// GET - Vérifier le statut
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const jobId = searchParams.get('jobId')
-
-    if (!jobId) {
-      return NextResponse.json(
-        { error: 'jobId requis' },
-        { status: 400 }
-      )
-    }
-
-    const status = await checkGenerationStatus(jobId)
-    return NextResponse.json(status)
-  } catch (error) {
-    console.error('Erreur vérification statut:', error)
-    return NextResponse.json(
-      { error: 'Erreur lors de la vérification du statut' },
       { status: 500 }
     )
   }

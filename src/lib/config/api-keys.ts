@@ -6,10 +6,9 @@
 import { supabase } from '@/lib/supabase/client';
 
 export interface ApiKeys {
-  elevenlabs: string | null;
-  midjourney: string | null;
-  runway: string | null;
-  gemini: string | null;
+  fal: string | null;        // Images (Flux), Vidéos (Kling), Voix (ElevenLabs)
+  gemini: string | null;     // Chat IA
+  assemblyai: string | null; // Transcription voix
 }
 
 // Cache local pour éviter des requêtes répétées
@@ -38,10 +37,9 @@ export async function getApiKeys(): Promise<ApiKeys> {
       if (familyConfig && familyConfig.length > 0) {
         const fc = familyConfig[0];
         cachedKeys = {
-          elevenlabs: fc.elevenlabs_key || process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || null,
-          midjourney: fc.midjourney_key || null,
-          runway: fc.runway_key || null,
+          fal: fc.fal_key || process.env.NEXT_PUBLIC_FAL_API_KEY || null,
           gemini: fc.gemini_key || process.env.NEXT_PUBLIC_GEMINI_API_KEY || null,
+          assemblyai: fc.assemblyai_key || null,
         };
         cacheTimestamp = Date.now();
         return cachedKeys;
@@ -53,10 +51,9 @@ export async function getApiKeys(): Promise<ApiKeys> {
   
   // Fallback sur les variables d'environnement
   cachedKeys = {
-    elevenlabs: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || null,
-    midjourney: null,
-    runway: null,
+    fal: process.env.NEXT_PUBLIC_FAL_API_KEY || null,
     gemini: process.env.NEXT_PUBLIC_GEMINI_API_KEY || null,
+    assemblyai: null,
   };
   cacheTimestamp = Date.now();
   
@@ -84,16 +81,15 @@ export function invalidateApiKeysCache(): void {
  * Lit depuis les headers de la requête ou les variables d'environnement
  */
 export function getServerApiKey(
-  keyType: 'elevenlabs' | 'midjourney' | 'runway' | 'gemini',
+  keyType: 'fal' | 'gemini' | 'assemblyai',
   familyConfig?: Record<string, string | null>
 ): string | null {
   // Si config famille fournie, l'utiliser en priorité
   if (familyConfig) {
     const keyMap: Record<string, string> = {
-      elevenlabs: 'elevenlabs_key',
-      midjourney: 'midjourney_key',
-      runway: 'runway_key',
+      fal: 'fal_key',
       gemini: 'gemini_key',
+      assemblyai: 'assemblyai_key',
     };
     
     const configKey = familyConfig[keyMap[keyType]];
@@ -102,10 +98,9 @@ export function getServerApiKey(
   
   // Fallback sur les variables d'environnement serveur
   const envMap: Record<string, string | undefined> = {
-    elevenlabs: process.env.ELEVENLABS_API_KEY,
-    midjourney: process.env.MIDJOURNEY_API_KEY,
-    runway: process.env.RUNWAY_API_KEY,
+    fal: process.env.FAL_API_KEY,
     gemini: process.env.GEMINI_API_KEY,
+    assemblyai: process.env.ASSEMBLYAI_API_KEY,
   };
   
   return envMap[keyType] || null;

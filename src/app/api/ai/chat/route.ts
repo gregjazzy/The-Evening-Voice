@@ -12,10 +12,11 @@ import { getApiKeyForRequest } from '@/lib/config/server-config'
 
 interface ChatRequestBody {
   message: string
-  context?: 'diary' | 'book' | 'studio' | 'general'
+  context?: 'diary' | 'book' | 'studio' | 'montage' | 'general'
   currentMode?: string // Mode actuel de l'interface (pour le guidage visuel)
   locale?: 'fr' | 'en' | 'ru'
   aiName?: string // Nom personnalisé de l'IA
+  userName?: string // Prénom de l'enfant
   chatHistory?: ChatMessage[]
   emotionalContext?: string[]
   promptingProgress?: PromptingProgress
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
       currentMode,
       locale = 'fr',
       aiName,
+      userName,
       chatHistory = [], 
       emotionalContext = [],
       promptingProgress,
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
       mode: context,
       locale,
       aiName, // Nom personnalisé transmis au prompt
+      userName, // Prénom de l'enfant pour personnaliser les réponses
       apiKey: apiKey || undefined, // Clé API dynamique
       promptingProgress,
       writingProgress,

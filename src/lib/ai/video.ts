@@ -1,6 +1,8 @@
 /**
  * Service Vidéo - Génération d'animations (Runway/Luma)
  * Pour créer des fonds animés pour le mode Theater
+ * 
+ * Priorité clés API : Clé passée en paramètre > Variable d'environnement
  */
 
 const RUNWAY_API_URL = 'https://api.runwayml.com/v1'
@@ -13,6 +15,9 @@ interface GenerateVideoParams {
   aspectRatio?: '16:9' | '9:16' | '1:1'
   motion?: 'subtle' | 'moderate' | 'dynamic'
   loop?: boolean
+  // Clés API optionnelles (priorité sur env var)
+  runwayApiKey?: string
+  lumaApiKey?: string
 }
 
 interface VideoGenerationJob {
@@ -32,9 +37,9 @@ interface VideoGenerationJob {
  * Lance une génération vidéo avec Runway Gen-2
  */
 export async function generateVideoRunway(params: GenerateVideoParams): Promise<VideoGenerationJob> {
-  const apiKey = process.env.RUNWAY_API_KEY
+  const apiKey = params.runwayApiKey || process.env.RUNWAY_API_KEY
   if (!apiKey) {
-    throw new Error('Clé API Runway non configurée')
+    throw new Error('Clé API Runway non configurée. Configurez-la dans les paramètres de votre famille.')
   }
 
   const {
@@ -89,16 +94,16 @@ export async function generateVideoRunway(params: GenerateVideoParams): Promise<
 /**
  * Vérifie le statut d'une génération Runway
  */
-export async function checkRunwayStatus(taskId: string): Promise<VideoGenerationJob> {
-  const apiKey = process.env.RUNWAY_API_KEY
-  if (!apiKey) {
+export async function checkRunwayStatus(taskId: string, apiKey?: string): Promise<VideoGenerationJob> {
+  const key = apiKey || process.env.RUNWAY_API_KEY
+  if (!key) {
     throw new Error('Clé API Runway non configurée')
   }
 
   try {
     const response = await fetch(`${RUNWAY_API_URL}/tasks/${taskId}`, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${key}`,
         'X-Runway-Version': '2024-09-13',
       },
     })
@@ -137,7 +142,7 @@ export async function checkRunwayStatus(taskId: string): Promise<VideoGeneration
  * Lance une génération vidéo avec Luma Dream Machine
  */
 export async function generateVideoLuma(params: GenerateVideoParams): Promise<VideoGenerationJob> {
-  const apiKey = process.env.LUMA_API_KEY
+  const apiKey = params.lumaApiKey || process.env.LUMA_API_KEY
   if (!apiKey) {
     throw new Error('Clé API Luma non configurée')
   }
@@ -188,16 +193,16 @@ export async function generateVideoLuma(params: GenerateVideoParams): Promise<Vi
 /**
  * Vérifie le statut d'une génération Luma
  */
-export async function checkLumaStatus(generationId: string): Promise<VideoGenerationJob> {
-  const apiKey = process.env.LUMA_API_KEY
-  if (!apiKey) {
+export async function checkLumaStatus(generationId: string, apiKey?: string): Promise<VideoGenerationJob> {
+  const key = apiKey || process.env.LUMA_API_KEY
+  if (!key) {
     throw new Error('Clé API Luma non configurée')
   }
 
   try {
     const response = await fetch(`${LUMA_API_URL}/generations/${generationId}`, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${key}`,
       },
     })
 
@@ -231,14 +236,22 @@ export async function checkLumaStatus(generationId: string): Promise<VideoGenera
 // FONCTIONS UTILITAIRES
 // ============================================
 
+interface BackgroundVideoOptions {
+  runwayApiKey?: string
+  lumaApiKey?: string
+  onProgress?: (progress: number) => void
+}
+
 /**
  * Génère une vidéo de fond pour une page (utilise le service disponible)
  */
 export async function generateBackgroundVideo(
   imageUrl: string,
   ambiance: string,
-  onProgress?: (progress: number) => void
+  options?: BackgroundVideoOptions
 ): Promise<{ videoUrl: string; service: 'runway' | 'luma' }> {
+  const { runwayApiKey, lumaApiKey, onProgress } = options || {}
+  
   // Prompt adapté à l'ambiance
   const ambiancePrompts: Record<string, string> = {
     jour: 'gentle sunlight rays, soft clouds moving, peaceful daytime scene',
@@ -261,9 +274,10 @@ export async function generateBackgroundVideo(
       prompt,
       duration: 4,
       motion: 'subtle',
+      runwayApiKey,
     })
 
-    const result = await waitForVideoGeneration(runwayJob.id, 'runway', onProgress)
+    const result = await waitForVideoGeneration(runwayJob.id, 'runway', { apiKey: runwayApiKey, onProgress })
     return { videoUrl: result.videoUrl!, service: 'runway' }
   } catch (runwayError) {
     console.warn('Runway échoué, tentative avec Luma:', runwayError)
@@ -273,11 +287,18 @@ export async function generateBackgroundVideo(
       imageUrl,
       prompt,
       loop: true,
+      lumaApiKey,
     })
 
-    const result = await waitForVideoGeneration(lumaJob.id, 'luma', onProgress)
+    const result = await waitForVideoGeneration(lumaJob.id, 'luma', { apiKey: lumaApiKey, onProgress })
     return { videoUrl: result.videoUrl!, service: 'luma' }
   }
+}
+
+interface WaitOptions {
+  apiKey?: string
+  onProgress?: (progress: number) => void
+  maxWaitMs?: number
 }
 
 /**
@@ -286,16 +307,16 @@ export async function generateBackgroundVideo(
 export async function waitForVideoGeneration(
   jobId: string,
   service: 'runway' | 'luma',
-  onProgress?: (progress: number) => void,
-  maxWaitMs: number = 180000 // 3 minutes
+  options?: WaitOptions
 ): Promise<VideoGenerationJob> {
+  const { apiKey, onProgress, maxWaitMs = 180000 } = options || {}
   const startTime = Date.now()
   const pollInterval = 5000 // 5 secondes
 
-  const checkStatus = service === 'runway' ? checkRunwayStatus : checkLumaStatus
-
   while (Date.now() - startTime < maxWaitMs) {
-    const status = await checkStatus(jobId)
+    const status = service === 'runway' 
+      ? await checkRunwayStatus(jobId, apiKey)
+      : await checkLumaStatus(jobId, apiKey)
     
     if (onProgress && status.progress) {
       onProgress(status.progress)
