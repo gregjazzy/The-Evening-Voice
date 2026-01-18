@@ -27,17 +27,17 @@ interface UseTTSReturn {
   setVoice: (voiceName: string) => void
 }
 
-// Vérifier si on est dans Electron
-const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron
-
-// Vérifier si Web Speech API est disponible
-const hasWebSpeech = typeof window !== 'undefined' && 'speechSynthesis' in window
+// Helpers pour vérifier l'environnement (appelés dynamiquement, pas au chargement du module)
+const getIsElectron = () => typeof window !== 'undefined' && !!window.electronAPI?.isElectron
+const getHasWebSpeech = () => typeof window !== 'undefined' && 'speechSynthesis' in window
 
 // Voix RECOMMANDÉES par langue (les meilleures en premier)
+// Note: Les voix Google sont prioritaires car toujours disponibles dans Chrome
+// Les voix Apple (Audrey, Amélie...) nécessitent un téléchargement manuel sur macOS
 const RECOMMENDED_VOICES: Record<string, string[]> = {
-  fr: ['Audrey', 'Amélie', 'Thomas', 'Google français', 'Marie'],
-  en: ['Samantha', 'Karen', 'Google US English', 'Google UK English Female', 'Daniel'],
-  ru: ['Milena', 'Yuri', 'Google русский'],
+  fr: ['Google français', 'Audrey', 'Amélie', 'Thomas', 'Marie'],
+  en: ['Google US English', 'Google UK English Female', 'Samantha', 'Karen', 'Daniel'],
+  ru: ['Google русский', 'Milena', 'Yuri'],
 }
 
 // Voix premium (haute qualité, souvent téléchargées)
@@ -88,11 +88,18 @@ function findBestVoice(locale: string, preferredVoiceName?: string): SpeechSynth
     if (preferred) return preferred
   }
   
-  // 2. Chercher parmi les voix recommandées pour cette langue
+  // 2. Chercher parmi les voix recommandées DANS L'ORDRE de préférence
   const recommendedNames = RECOMMENDED_VOICES[locale] || RECOMMENDED_VOICES.fr
-  let selectedVoice = voices.find(v => 
-    recommendedNames.some(name => v.name.includes(name))
-  )
+  let selectedVoice: SpeechSynthesisVoice | undefined
+  
+  // Parcourir NOS préférences dans l'ordre (Google d'abord, puis Apple)
+  for (const preferredName of recommendedNames) {
+    const found = voices.find(v => v.name.includes(preferredName))
+    if (found) {
+      selectedVoice = found
+      break
+    }
+  }
   
   // 3. Fallback : n'importe quelle voix de la langue
   if (!selectedVoice) {
@@ -138,7 +145,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
 
   // Charger les voix disponibles pour Web Speech
   useEffect(() => {
-    if (!hasWebSpeech || isElectron) return
+    if (!getHasWebSpeech() || getIsElectron()) return
 
     const loadVoices = () => {
       // Obtenir toutes les voix disponibles
@@ -189,7 +196,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
     if (!cleanText) return // Ne rien lire si le texte est vide après nettoyage
 
     // Mode Electron : TTS macOS natif
-    if (isElectron && window.electronAPI?.tts) {
+    if (getIsElectron() && window.electronAPI?.tts) {
       try {
         setIsSpeaking(true)
         await window.electronAPI.tts.speak(cleanText, locale)
@@ -202,7 +209,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
     }
 
     // Mode Web : Web Speech API
-    if (hasWebSpeech) {
+    if (getHasWebSpeech()) {
       try {
         // Arrêter toute lecture en cours SEULEMENT si elle parle vraiment
         if (window.speechSynthesis.speaking) {
@@ -226,6 +233,9 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
         
         if (voiceToUse) {
           utterance.voice = voiceToUse
+          console.log('🎤 Utilisation voix:', voiceToUse.name, '| Lang:', voiceToUse.lang)
+        } else {
+          console.warn('⚠️ Aucune voix trouvée, utilisation voix par défaut')
         }
         
         // Définir la langue explicitement (important si pas de voix)
@@ -238,7 +248,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
         utterance.volume = 1
         
         utterance.onstart = () => {
-          console.log('🔊 TTS démarré:', cleanText.slice(0, 50) + '...')
+          console.log('🔊 TTS démarré avec voix:', voiceToUse?.name || 'défaut')
           setIsSpeaking(true)
         }
         utterance.onend = () => {
@@ -246,9 +256,17 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
           setIsSpeaking(false)
         }
         utterance.onerror = (e) => {
-          // Ignorer 'canceled' si c'est juste une interruption normale
-          if (e.error !== 'canceled') {
-            console.error('❌ Erreur TTS:', e.error)
+          console.error('❌ Erreur TTS:', e.error, '| Voix:', voiceToUse?.name)
+          // Essayer avec la voix par défaut si la voix sélectionnée échoue
+          if (voiceToUse && e.error !== 'canceled') {
+            console.log('🔄 Tentative avec voix par défaut...')
+            const fallbackUtterance = new SpeechSynthesisUtterance(cleanText)
+            fallbackUtterance.lang = locale === 'fr' ? 'fr-FR' : locale === 'ru' ? 'ru-RU' : 'en-US'
+            fallbackUtterance.onstart = () => setIsSpeaking(true)
+            fallbackUtterance.onend = () => setIsSpeaking(false)
+            fallbackUtterance.onerror = () => setIsSpeaking(false)
+            window.speechSynthesis.speak(fallbackUtterance)
+            return
           }
           setIsSpeaking(false)
         }
@@ -266,7 +284,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
 
   const stop = useCallback(async () => {
     // Mode Electron
-    if (isElectron && window.electronAPI?.tts) {
+    if (getIsElectron() && window.electronAPI?.tts) {
       try {
         await window.electronAPI.tts.stop()
         setIsSpeaking(false)
@@ -277,7 +295,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
     }
 
     // Mode Web
-    if (hasWebSpeech) {
+    if (getHasWebSpeech()) {
       window.speechSynthesis.cancel()
       setIsSpeaking(false)
     }
@@ -287,7 +305,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
     speak,
     stop,
     isSpeaking,
-    isAvailable: isElectron || hasWebSpeech,
+    isAvailable: getIsElectron() || getHasWebSpeech(),
     // Gestion des voix
     availableVoices,
     currentVoice,

@@ -50,10 +50,12 @@ import {
   Gem,
 } from 'lucide-react'
 import { useAppStore, type Story } from '@/store/useAppStore'
+import { useHighlightStore } from '@/store/useHighlightStore'
 import { useTTS } from '@/hooks/useTTS'
 import { STORY_TEMPLATES, type StoryStructure } from '@/lib/ai/prompting-pedagogy'
 import { cn } from '@/lib/utils'
 import { MediaPicker } from '@/components/editor/MediaPicker'
+import { Highlightable } from '@/components/ui/Highlightable'
 
 // ============================================================================
 // TYPES
@@ -3152,144 +3154,154 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
   return (
     <div className="flex items-center gap-2 p-2 bg-midnight-900/50 rounded-xl border border-midnight-700/30 flex-wrap">
       {/* Sélecteur de police */}
-      <div className="relative">
-        <button
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setShowFonts(!showFonts)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-midnight-800/50 hover:bg-midnight-800 text-white transition-colors min-w-[120px]"
-          title="Police"
-        >
-          <span style={{ fontFamily: currentFont.family }} className="text-lg">
-            {currentFont.preview}
-          </span>
-          <span className="text-sm text-midnight-300">{currentFont.name}</span>
-          <ChevronRight className={cn("w-4 h-4 ml-auto transition-transform", showFonts && "rotate-90")} />
-        </button>
-        
-        <AnimatePresence>
-          {showFonts && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute top-full left-0 mt-2 p-2 bg-midnight-900 rounded-xl border border-midnight-700/50 shadow-xl z-50 w-48"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              {FONTS.map((font) => (
-                <button
-                  key={font.id}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => applyFontFamily(font.family)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left',
-                    detectedFontFamily === font.family 
-                      ? 'bg-aurora-500/20 text-aurora-300' 
-                      : 'hover:bg-midnight-800 text-white'
-                  )}
-                >
-                  <span style={{ fontFamily: font.family }} className="text-xl w-8">
-                    {font.preview}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium">{font.name}</p>
-                    <p className="text-xs text-midnight-400">{font.description}</p>
-                  </div>
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      <Highlightable id="book-font-family">
+        <div className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowFonts(!showFonts)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-midnight-800/50 hover:bg-midnight-800 text-white transition-colors min-w-[120px]"
+            title="Police"
+          >
+            <span style={{ fontFamily: currentFont.family }} className="text-lg">
+              {currentFont.preview}
+            </span>
+            <span className="text-sm text-midnight-300">{currentFont.name}</span>
+            <ChevronRight className={cn("w-4 h-4 ml-auto transition-transform", showFonts && "rotate-90")} />
+          </button>
+          
+          <AnimatePresence>
+            {showFonts && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-full left-0 mt-2 p-2 bg-midnight-900 rounded-xl border border-midnight-700/50 shadow-xl z-50 w-48"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {FONTS.map((font) => (
+                  <button
+                    key={font.id}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => applyFontFamily(font.family)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left',
+                      detectedFontFamily === font.family 
+                        ? 'bg-aurora-500/20 text-aurora-300' 
+                        : 'hover:bg-midnight-800 text-white'
+                    )}
+                  >
+                    <span style={{ fontFamily: font.family }} className="text-xl w-8">
+                      {font.preview}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">{font.name}</p>
+                      <p className="text-xs text-midnight-400">{font.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </Highlightable>
       
       {/* Séparateur */}
       <div className="w-px h-6 bg-midnight-700/50" />
       
       {/* Taille */}
-      <div className="relative">
-        <button
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setShowFontSizes(!showFontSizes)}
-          className="flex items-center gap-1 px-2 py-1 rounded text-sm hover:bg-midnight-800 text-midnight-300 min-w-[50px] justify-center"
-          title="Taille (sélection)"
-        >
-          <span>{lastUsedSize}</span>
-          <ChevronDown className="w-3 h-3" />
-        </button>
-        
-        <AnimatePresence>
-          {showFontSizes && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              className="absolute top-full left-0 mt-1 glass rounded-lg shadow-xl z-50 p-1 max-h-48 overflow-y-auto"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              {FONT_SIZES.map((size) => (
+      <Highlightable id="book-font-size">
+        <div className="relative">
           <button
-            key={size}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => applyFontSize(size)}
-            className={cn(
-                    'w-full px-3 py-1 text-left text-sm rounded transition-colors',
-                    lastUsedSize === size
-                ? 'bg-aurora-500/20 text-aurora-300'
-                      : 'hover:bg-midnight-800 text-midnight-300'
-            )}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowFontSizes(!showFontSizes)}
+            className="flex items-center gap-1 px-2 py-1 rounded text-sm hover:bg-midnight-800 text-midnight-300 min-w-[50px] justify-center"
+            title="Taille (sélection)"
           >
-                  {size}
+            <span>{lastUsedSize}</span>
+            <ChevronDown className="w-3 h-3" />
           </button>
-        ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          
+          <AnimatePresence>
+            {showFontSizes && (
+              <motion.div
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                className="absolute top-full left-0 mt-1 glass rounded-lg shadow-xl z-50 p-1 max-h-48 overflow-y-auto"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {FONT_SIZES.map((size) => (
+                  <button
+                    key={size}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => applyFontSize(size)}
+                    className={cn(
+                      'w-full px-3 py-1 text-left text-sm rounded transition-colors',
+                      lastUsedSize === size
+                        ? 'bg-aurora-500/20 text-aurora-300'
+                        : 'hover:bg-midnight-800 text-midnight-300'
+                    )}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </Highlightable>
       
       
       {/* Gras / Italique */}
       <div className="flex items-center gap-1">
-        <button
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={applyBold}
-          className="w-8 h-8 rounded flex items-center justify-center font-bold transition-colors hover:bg-midnight-800 text-midnight-400 hover:text-aurora-300"
-          title="Gras"
-        >
-          B
-        </button>
-        <button
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={applyItalic}
-          className="w-8 h-8 rounded flex items-center justify-center italic transition-colors hover:bg-midnight-800 text-midnight-400 hover:text-aurora-300"
-          title="Italique"
-        >
-          I
-        </button>
+        <Highlightable id="book-bold">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={applyBold}
+            className="w-8 h-8 rounded flex items-center justify-center font-bold transition-colors hover:bg-midnight-800 text-midnight-400 hover:text-aurora-300"
+            title="Gras"
+          >
+            B
+          </button>
+        </Highlightable>
+        <Highlightable id="book-italic">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={applyItalic}
+            className="w-8 h-8 rounded flex items-center justify-center italic transition-colors hover:bg-midnight-800 text-midnight-400 hover:text-aurora-300"
+            title="Italique"
+          >
+            I
+          </button>
+        </Highlightable>
       </div>
       
       {/* Séparateur */}
       <div className="w-px h-6 bg-midnight-700/50" />
       
       {/* Alignement */}
-      <div className="flex items-center gap-1">
-        {[
-          { id: 'left' as const, icon: AlignLeft },
-          { id: 'center' as const, icon: AlignCenter },
-          { id: 'right' as const, icon: AlignRight },
-        ].map(({ id, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => onStyleChange({ ...style, textAlign: id })}
-            className={cn(
-              'w-7 h-7 rounded flex items-center justify-center transition-colors',
-              style.textAlign === id
-                ? 'bg-aurora-500/20 text-aurora-300'
-                : 'hover:bg-midnight-800 text-midnight-400'
-            )}
-          >
-            <Icon className="w-4 h-4" />
-          </button>
-        ))}
-      </div>
+      <Highlightable id="book-text-align">
+        <div className="flex items-center gap-1">
+          {[
+            { id: 'left' as const, icon: AlignLeft },
+            { id: 'center' as const, icon: AlignCenter },
+            { id: 'right' as const, icon: AlignRight },
+          ].map(({ id, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => onStyleChange({ ...style, textAlign: id })}
+              className={cn(
+                'w-7 h-7 rounded flex items-center justify-center transition-colors',
+                style.textAlign === id
+                  ? 'bg-aurora-500/20 text-aurora-300'
+                  : 'hover:bg-midnight-800 text-midnight-400'
+              )}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
+        </div>
+      </Highlightable>
       
       {/* Séparateur */}
       <div className="w-px h-6 bg-midnight-700/50" />
@@ -3332,6 +3344,7 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
       <div className="w-px h-6 bg-midnight-700/50" />
       
       {/* Couleur */}
+      <Highlightable id="book-text-color">
       <div className="relative">
           <button
           onMouseDown={(e) => e.preventDefault()}
@@ -3412,12 +3425,14 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
           )}
         </AnimatePresence>
       </div>
+      </Highlightable>
       
       {/* Séparateur */}
       <div className="w-px h-6 bg-midnight-700/50" />
       
       {/* Bouton lignes de cahier */}
       {onToggleLines && (
+        <Highlightable id="book-lines">
         <button
           onMouseDown={(e) => e.preventDefault()}
           onClick={onToggleLines}
@@ -3436,10 +3451,12 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
             <line x1="4" y1="16" x2="20" y2="16" />
           </svg>
         </button>
+        </Highlightable>
       )}
       
       {/* Sélecteur de couleur du livre */}
       {onBookColorChange && (
+        <Highlightable id="book-color">
         <div className="relative">
           <button
             onMouseDown={(e) => e.preventDefault()}
@@ -3488,10 +3505,12 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
             )}
           </AnimatePresence>
         </div>
+        </Highlightable>
       )}
       
       {/* Bouton fond de page */}
       {onBackgroundAdd && (
+        <Highlightable id="book-add-background">
         <div className="relative">
           <button
             onMouseDown={(e) => e.preventDefault()}
@@ -3646,6 +3665,7 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
             )}
           </AnimatePresence>
         </div>
+        </Highlightable>
       )}
     </div>
   )
@@ -4303,6 +4323,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 >
                   {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
+                <Highlightable id="book-add-image">
                 <button
                   onClick={onImageAdd}
                   className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
@@ -4310,6 +4331,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 >
                   <ImageIcon className="w-5 h-5" />
                 </button>
+                </Highlightable>
+                <Highlightable id="book-add-background">
                 <button
                   onClick={() => onBackgroundAdd?.(zPageIndex)}
                   className={cn(
@@ -4322,6 +4345,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 >
                   <Layers className="w-5 h-5" />
                 </button>
+                </Highlightable>
                 {zPage.backgroundMedia && (
                   <button
                     onClick={() => setEditingBackgroundPage(editingBackgroundPage === 'zoom' ? null : 'zoom')}
@@ -4642,6 +4666,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   >
                     {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
+                  <Highlightable id="book-add-image">
                   <button
                     onClick={(e) => { e.stopPropagation(); onImageAdd(); }}
                     className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
@@ -4649,6 +4674,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   >
                     <ImageIcon className="w-4 h-4" />
                   </button>
+                  </Highlightable>
+                  <Highlightable id="book-add-background">
                   <button
                     onClick={(e) => { 
                       e.stopPropagation(); 
@@ -4666,6 +4693,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   >
                     <Layers className="w-4 h-4" />
                   </button>
+                  </Highlightable>
+                  <Highlightable id="book-decorations">
                   <button
                     onClick={(e) => { 
                       e.stopPropagation(); 
@@ -4683,6 +4712,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   >
                     <Gem className="w-4 h-4" />
                   </button>
+                  </Highlightable>
               </div>
             </div>
             )}
@@ -4982,6 +5012,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 >
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
+            <Highlightable id="book-add-image">
             <button
               onClick={(e) => { e.stopPropagation(); onImageAdd(); }}
                   className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
@@ -4989,6 +5020,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             >
               <ImageIcon className="w-4 h-4" />
             </button>
+            </Highlightable>
+            <Highlightable id="book-add-background">
             <button
               onClick={(e) => { e.stopPropagation(); onBackgroundAdd?.(pageIndex); }}
               className={cn(
@@ -5001,6 +5034,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             >
               <Layers className="w-4 h-4" />
             </button>
+            </Highlightable>
+            <Highlightable id="book-decorations">
             <button
               onClick={(e) => { e.stopPropagation(); onDecorationAdd?.(pageIndex); }}
               className={cn(
@@ -5013,6 +5048,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             >
               <Gem className="w-4 h-4" />
             </button>
+            </Highlightable>
           </div>
         </div>
             
@@ -5094,6 +5130,11 @@ function AISidePanel({
   
   // TTS
   const { speak, stop, isSpeaking, isAvailable: isTTSAvailable } = useTTS(locale)
+  
+  // Debug TTS availability
+  useEffect(() => {
+    console.log('🎤 TTS disponible:', isTTSAvailable, '| Navigateur:', typeof window !== 'undefined' && 'speechSynthesis' in window)
+  }, [isTTSAvailable])
   
   // Speech recognition for voice input to AI
   const { 
@@ -5188,6 +5229,9 @@ function AISidePanel({
     }
   }, [])
 
+  // Highlight store pour faire briller les éléments UI
+  const { highlightMultiple } = useHighlightStore()
+
   // sendToAI avec message visible (court) et message complet (pour l'API)
   const sendToAI = async (userMessage: string, hiddenContext?: string) => {
     if (!userMessage.trim() || isLoading) return
@@ -5212,6 +5256,7 @@ function AISidePanel({
         body: JSON.stringify({
           message: fullMessage,
           context: 'book',
+          currentMode: 'ecriture', // Pour le guidage visuel (highlights)
           aiName, // Transmettre le nom personnalisé de l'IA
           chatHistory: messages.slice(-10),
         }),
@@ -5222,8 +5267,15 @@ function AISidePanel({
       if (data.text) {
         setMessages(prev => [...prev, { role: 'assistant', content: data.text }])
         
+        // Déclencher les highlights si présents dans la réponse
+        if (data.highlights && data.highlights.length > 0) {
+          highlightMultiple(data.highlights)
+        }
+        
         // Speak the response if autoSpeak is enabled
+        console.log('🔊 TTS Check:', { autoSpeak, isTTSAvailable, textLength: data.text?.length })
         if (autoSpeak && isTTSAvailable) {
+          console.log('🔊 Speaking:', data.text?.slice(0, 50) + '...')
           speak(data.text)
         }
       }
@@ -5401,6 +5453,7 @@ function AISidePanel({
         {isTTSAvailable && (
           <button
             onClick={() => {
+              console.log('🔊 Toggle autoSpeak:', !autoSpeak, 'isTTSAvailable:', isTTSAvailable)
               if (isSpeaking) stop()
               setAutoSpeak(!autoSpeak)
             }}

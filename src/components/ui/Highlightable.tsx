@@ -30,11 +30,15 @@ export function Highlightable({
   fill = false,
   onHighlightClick,
 }: HighlightableProps) {
-  const { isHighlighted, getHighlightConfig, stopHighlight } = useHighlightStore()
-  const [showPulse, setShowPulse] = useState(false)
+  // Sélection RÉACTIVE du Map - le composant se re-render quand activeHighlights change
+  const activeHighlights = useHighlightStore(state => state.activeHighlights)
+  const stopHighlight = useHighlightStore(state => state.stopHighlight)
   
-  const highlighted = isHighlighted(id)
-  const config = getHighlightConfig(id)
+  // Calculer highlighted et config à partir du Map réactif
+  const highlighted = activeHighlights.has(id)
+  const config = activeHighlights.get(id)
+  
+  const [showPulse, setShowPulse] = useState(false)
   
   useEffect(() => {
     if (highlighted) {
@@ -64,8 +68,9 @@ export function Highlightable({
   return (
     <div 
       className={cn(
-        'relative',
+        'relative overflow-visible',
         fill && 'w-full h-full',
+        highlighted && 'z-[9999]', // Élever le z-index quand highlighté
         className
       )}
       onClick={handleClick}
@@ -81,7 +86,7 @@ export function Highlightable({
           <>
             {/* Glow externe pulsant */}
             <motion.div
-              className="absolute inset-0 rounded-xl pointer-events-none z-0"
+              className="absolute inset-[-4px] rounded-xl pointer-events-none z-[9998]"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ 
                 opacity: intensityConfig[intensity].opacity,
@@ -101,7 +106,7 @@ export function Highlightable({
             
             {/* Bordure lumineuse */}
             <motion.div
-              className="absolute inset-0 rounded-xl pointer-events-none z-0"
+              className="absolute inset-[-2px] rounded-xl pointer-events-none z-[9998]"
               initial={{ opacity: 0 }}
               animate={{ opacity: [0.5, 1, 0.5] }}
               exit={{ opacity: 0 }}
@@ -111,8 +116,8 @@ export function Highlightable({
                 ease: 'easeInOut',
               }}
               style={{
-                border: `2px solid ${color}`,
-                boxShadow: `inset 0 0 10px ${color}40`,
+                border: `3px solid ${color}`,
+                boxShadow: `inset 0 0 10px ${color}40, 0 0 15px ${color}`,
               }}
             />
             
@@ -121,18 +126,19 @@ export function Highlightable({
             
             {/* Indicateur "Clique ici !" */}
             <motion.div
-              className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap"
+              className="absolute -top-10 left-1/2 -translate-x-1/2 z-[10000] whitespace-nowrap"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
             >
               <motion.div
-                className="px-3 py-1 rounded-full text-xs font-bold shadow-lg"
+                className="px-3 py-1.5 rounded-full text-xs font-bold shadow-xl"
                 animate={{ y: [0, -4, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 style={{
                   background: color,
                   color: '#000',
+                  boxShadow: `0 4px 20px ${color}80`,
                 }}
               >
                 ✨ Ici !
@@ -152,7 +158,7 @@ function SparkleParticles({ color }: { color: string }) {
   const particles = Array.from({ length: 6 }, (_, i) => i)
   
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-visible">
+    <div className="absolute inset-[-10px] pointer-events-none overflow-visible z-[9997]">
       {particles.map((i) => (
         <motion.div
           key={i}

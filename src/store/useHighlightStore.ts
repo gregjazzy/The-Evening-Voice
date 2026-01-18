@@ -26,6 +26,18 @@ export type HighlightableElement =
   | 'book-save'
   | 'book-color'
   | 'book-lines'
+  | 'book-font-size'
+  | 'book-font-family'
+  | 'book-text-color'
+  | 'book-text-align'
+  | 'book-line-spacing'
+  | 'book-bold'
+  | 'book-italic'
+  | 'book-new-page'
+  | 'book-delete-page'
+  | 'book-page-list'
+  | 'book-chapters'
+  | 'book-ai-chat'
   // Studio
   | 'studio-prompt-input'
   | 'studio-copy-button'
@@ -59,7 +71,7 @@ export type HighlightableElement =
 
 export interface HighlightConfig {
   elementId: HighlightableElement
-  duration?: number // En millisecondes, défaut 5000
+  duration?: number // En millisecondes, défaut 6000
   color?: string // Couleur du glow, défaut doré
   intensity?: 'soft' | 'medium' | 'strong' // Intensité du clignotement
   message?: string // Message à afficher près de l'élément
@@ -103,7 +115,19 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
   'book-text-area': { label: 'Zone de texte', description: 'L\'endroit où tu écris ton histoire', mode: 'ecriture' },
   'book-save': { label: 'Sauvegarder', description: 'Le bouton pour sauvegarder ton travail', mode: 'ecriture' },
   'book-color': { label: 'Couleur livre', description: 'Le bouton pour changer la couleur de ton livre', mode: 'ecriture' },
-  'book-lines': { label: 'Lignes', description: 'Le bouton pour afficher ou cacher les lignes', mode: 'ecriture' },
+  'book-lines': { label: 'Lignes', description: 'Le bouton pour afficher ou cacher les lignes d\'écriture', mode: 'ecriture' },
+  'book-font-size': { label: 'Taille du texte', description: 'Le bouton pour changer la taille de ton écriture (petit, moyen, grand)', mode: 'ecriture' },
+  'book-font-family': { label: 'Style d\'écriture', description: 'Le bouton pour changer la police (manuscrit, imprimé, fantaisie)', mode: 'ecriture' },
+  'book-text-color': { label: 'Couleur du texte', description: 'Le bouton pour changer la couleur de ton texte', mode: 'ecriture' },
+  'book-text-align': { label: 'Alignement', description: 'Le bouton pour aligner ton texte à gauche, au centre ou à droite', mode: 'ecriture' },
+  'book-line-spacing': { label: 'Espacement', description: 'Le bouton pour changer l\'espace entre les lignes de texte', mode: 'ecriture' },
+  'book-bold': { label: 'Gras', description: 'Le bouton B pour mettre du texte en gras', mode: 'ecriture' },
+  'book-italic': { label: 'Italique', description: 'Le bouton I pour mettre du texte en italique', mode: 'ecriture' },
+  'book-new-page': { label: 'Nouvelle page', description: 'Le bouton + pour ajouter une nouvelle page à ton livre', mode: 'ecriture' },
+  'book-delete-page': { label: 'Supprimer page', description: 'Le bouton pour supprimer une page', mode: 'ecriture' },
+  'book-page-list': { label: 'Liste des pages', description: 'La barre qui montre toutes les pages de ton livre', mode: 'ecriture' },
+  'book-chapters': { label: 'Chapitres', description: 'Le bouton pour organiser ton livre en chapitres', mode: 'ecriture' },
+  'book-ai-chat': { label: 'Parler avec moi', description: 'L\'endroit où tu peux me poser des questions', mode: 'ecriture' },
   
   // Studio
   'studio-prompt-input': { label: 'Zone de prompt', description: 'L\'endroit où tu décris l\'image que tu veux créer', mode: 'studio' },
@@ -154,7 +178,7 @@ export const useHighlightStore = create<HighlightState>((set, get) => ({
       : configOrId
     
     const fullConfig: HighlightConfig = {
-      duration: 5000,
+      duration: 6000, // 6 secondes avant arrêt automatique
       color: '#FFD700', // Doré par défaut
       intensity: 'medium',
       ...config,
