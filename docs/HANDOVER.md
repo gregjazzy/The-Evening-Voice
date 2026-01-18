@@ -68,7 +68,7 @@ Tous les services IA passent maintenant par **fal.ai** :
 - Visible même en plein écran (z-index 10001)
 - Explications détaillées des rubans
 
-### 3. 🎙️ Narration IA (ElevenLabs)
+### 3. 🎙️ Narration IA (ElevenLabs via fal.ai)
 
 | Fonctionnalité | Description |
 |----------------|-------------|
@@ -77,12 +77,125 @@ Tous les services IA passent maintenant par **fal.ai** :
 | **Timeline** | Phrases manipulables comme voix enregistrées |
 | **Sélecteur** | Modal avec aperçu audio |
 
-**Voix françaises :**
-- `kwhMCf63M8O3rCfnQ3oQ` - Femme française
-- `FvmvwvObRqIHojkEGh5N` - Jeune française
-- `1wg2wOjdEWKA7yQD8Kca` - Homme âgé
-- `5Qfm4RqcAer0xoyWtoHC` - Jeune garçon
-- `M9RTtrzRACmbUzsEMq8p` - Grand-mère
+#### IDs des voix ElevenLabs
+
+**🇫🇷 Français :**
+| ID | Description |
+|----|-------------|
+| `kwhMCf63M8O3rCfnQ3oQ` | Femme française (narratrice) |
+| `FvmvwvObRqIHojkEGh5N` | Jeune française |
+| `1wg2wOjdEWKA7yQD8Kca` | Homme français âgé |
+| `5Qfm4RqcAer0xoyWtoHC` | Jeune garçon français |
+| `M9RTtrzRACmbUzsEMq8p` | Grand-mère française |
+
+**🇬🇧 Anglais (UK) :**
+| ID | Description |
+|----|-------------|
+| `RILOU7YmBhvwJGDGjNmP` | Femme britannique (narratrice) |
+| `G17SuINrv2H9FC6nvetn` | Homme britannique |
+| `rCmVtv8cYU60uhlsOo1M` | Jeune fille britannique |
+| `kkPJzQOWz2Oz9cUaEaQd` | Vieille femme britannique |
+| `ttNi9wVM8M97tsxE7PFZ` | Méchant britannique |
+| `0lp4RIz96WD1RUtvEu3Q` | Grand-père anglais |
+
+**🇷🇺 Russe :**
+| ID | Description |
+|----|-------------|
+| `GN4wbsbejSnGSa1AzjH5` | Femme russe (narratrice) |
+| `EDpEYNf6XIeKYRzYcx4I` | Jeune femme russe |
+| `re2r5d74PqDzicySNW0I` | Homme russe |
+| `wAGzRVkxKEs8La0lmdrE` | Homme russe intrigant |
+
+#### Architecture Narration
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  FLUX NARRATION IA                                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. Clic "IA raconte" dans MontageEditor                   │
+│     └─→ Ouvre NarrationVoiceSelectorModal                  │
+│                                                             │
+│  2. Sélection voix ElevenLabs                              │
+│     └─→ Aperçu audio disponible                            │
+│                                                             │
+│  3. POST /api/ai/voice/narration                           │
+│     ├─→ Récupère texte de la scène                         │
+│     ├─→ getApiKeyForRequest('fal')                         │
+│     └─→ fal.ai → ElevenLabs TTS avec timestamps            │
+│                                                             │
+│  4. Réponse :                                               │
+│     {                                                       │
+│       audioUrl: "https://...",                             │
+│       duration: 12.5,                                       │
+│       wordTimings: [                                        │
+│         { word: "Il", start: 0.0, end: 0.15 },             │
+│         { word: "était", start: 0.15, end: 0.4 },          │
+│         ...                                                 │
+│       ]                                                     │
+│     }                                                       │
+│                                                             │
+│  5. Création PhraseTiming[] depuis wordTimings              │
+│     └─→ Groupement par phrase (ponctuation)                │
+│                                                             │
+│  6. Stockage dans useMontageStore                          │
+│     ├─→ narrationAudio: audioUrl                           │
+│     └─→ phraseTimings: PhraseTiming[]                      │
+│                                                             │
+│  7. Affichage sur Timeline                                  │
+│     └─→ Phrases draggables (même UX que voix enregistrée)  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Fichiers concernés
+
+```
+src/lib/ai/
+├── fal.ts                      # generateFalElevenLabsVoice()
+└── elevenlabs.ts               # FRENCH_VOICES, ENGLISH_VOICES, RUSSIAN_VOICES
+
+src/app/api/ai/voice/
+└── narration/route.ts          # POST avec timestamps
+
+src/components/montage/
+├── MontageEditor.tsx           # handleGenerateNarration()
+└── ...
+
+src/components/ui/
+└── NarrationVoiceSelector.tsx  # Sélecteur avec preview
+```
+
+#### Évolution prévue : Voix de Personnages
+
+```typescript
+// Structure future pour voix par phrase
+interface PhraseTiming {
+  id: string
+  text: string
+  index: number
+  timeRange: TimeRange
+  voiceType?: string           // ✨ NOUVEAU : "narrator" | "witch" | "dragon" | custom
+  voiceId?: string             // ✨ NOUVEAU : ID ElevenLabs ou Voice Design
+}
+
+// Presets suggérés
+const VOICE_PRESETS = {
+  narrator: { name: "Narrateur", voiceId: "kwhMCf63M8O3rCfnQ3oQ" },
+  witch: { name: "Sorcière", description: "Voix aiguë et grinçante" },
+  dragon: { name: "Dragon", description: "Voix grave et grondante" },
+  princess: { name: "Princesse", description: "Voix douce et mélodieuse" },
+  robot: { name: "Robot", description: "Voix métallique" },
+}
+
+// Création via Voice Design (fal.ai)
+POST /api/ai/voice/design
+{
+  description: "Voix de sorcière méchante, aiguë et grinçante",
+  language: "fr"
+}
+→ { voiceId: "generated-xxx", previewUrl: "..." }
+```
 
 ### 4. ✨ Système de Guidage IA (Highlights)
 
