@@ -1094,8 +1094,9 @@ export function TimelineRubans() {
   const currentPhraseRef = useRef<string | null>(null)
   const playbackStartTimeRef = useRef<number>(0)
   
-  // Refs pour les sons actifs (pour pouvoir les arrêter)
+  // Refs pour les sons et musiques actifs (pour pouvoir les arrêter)
   const activeSoundRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+  const activeMusicRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
 
   // Vérifier et jouer les sons qui doivent démarrer
   const checkAndPlaySounds = useCallback((currentTime: number, previousTime: number) => {
@@ -1168,6 +1169,57 @@ export function TimelineRubans() {
       }
     })
   }, [scene?.soundTracks])
+  
+  // Vérifier et jouer les musiques qui doivent démarrer
+  const checkAndPlayMusic = useCallback((currentTime: number, previousTime: number) => {
+    const musicTracks = (scene as any)?.musicTracks as MusicTrack[] | undefined
+    if (!musicTracks || musicTracks.length === 0) return
+    
+    musicTracks.forEach((music) => {
+      const musicKey = `music-${music.id}`
+      const isInMusicRange = currentTime >= music.timeRange.startTime && currentTime < music.timeRange.endTime
+      const justCrossedStart = currentTime >= music.timeRange.startTime && previousTime < music.timeRange.startTime
+      const isCurrentlyPlaying = activeMusicRefs.current.has(musicKey) && !activeMusicRefs.current.get(musicKey)?.paused
+      
+      // Démarrer la musique si on entre dans sa plage
+      if (isInMusicRange && !isCurrentlyPlaying && music.url) {
+        const offsetInMusic = currentTime - music.timeRange.startTime
+        
+        try {
+          // Réutiliser l'audio existant si possible
+          let audio = activeMusicRefs.current.get(musicKey)
+          if (!audio) {
+            audio = new Audio(music.url)
+            activeMusicRefs.current.set(musicKey, audio)
+          }
+          
+          audio.volume = music.volume ?? 0.5
+          audio.loop = music.loop ?? false
+          
+          // Positionner au bon endroit si on a seeké
+          if (offsetInMusic > 0.1) {
+            audio.currentTime = offsetInMusic
+          }
+          
+          audio.play().then(() => {
+            console.log('🎵 Musique jouée:', music.name, 'à', currentTime.toFixed(2) + 's', 'vol:', music.volume)
+          }).catch((err) => {
+            console.warn('⚠️ Erreur lecture musique:', music.name, err)
+          })
+        } catch (err) {
+          console.warn('⚠️ Erreur création audio musique:', music.name, err)
+        }
+      }
+      
+      // Mettre en pause si on sort de la plage
+      if (!isInMusicRange) {
+        const activeAudio = activeMusicRefs.current.get(musicKey)
+        if (activeAudio && !activeAudio.paused) {
+          activeAudio.pause()
+        }
+      }
+    })
+  }, [scene])
   
   // Trouver quelle phrase jouer à un moment donné sur la timeline
   // Les phrases ont maintenant des positions ABSOLUES sur la timeline
@@ -1244,6 +1296,7 @@ export function TimelineRubans() {
         }
         
         checkAndPlaySounds(timelineTime, lastTimeRef.current + elapsed - (1/60))
+        checkAndPlayMusic(timelineTime, lastTimeRef.current + elapsed - (1/60))
         
         const scrollOffset = scrollContainerRef.current?.scrollLeft || 0
         const playheadLeft = LABEL_WIDTH + (timelineTime * pixelsPerSecond) - scrollOffset
@@ -1265,7 +1318,7 @@ export function TimelineRubans() {
       }
       animationRef.current = requestAnimationFrame(updateTime)
     }
-  }, [setPlaybackTime, isPlaying, setIsPlaying, findPhraseAtTime, duration, checkAndPlaySounds, pixelsPerSecond])
+  }, [setPlaybackTime, isPlaying, setIsPlaying, findPhraseAtTime, duration, checkAndPlaySounds, checkAndPlayMusic, pixelsPerSecond])
   
   // Durée totale AVEC le buffer (pour l'affichage et le placement d'éléments)
   const durationWithBuffer = duration + BUFFER_DURATION
@@ -1339,6 +1392,10 @@ export function TimelineRubans() {
         audio.pause()
       })
       activeSoundRefs.current.clear()
+      // Arrêter toutes les musiques actives
+      activeMusicRefs.current.forEach((audio) => {
+        audio.pause()
+      })
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
@@ -1408,8 +1465,9 @@ export function TimelineRubans() {
           currentPhraseRef.current = null
         }
         
-        // Vérifier si des sons doivent être joués
+        // Vérifier si des sons/musiques doivent être joués
         checkAndPlaySounds(timelineTime, lastTimeRef.current + elapsed - (1/60))
+        checkAndPlayMusic(timelineTime, lastTimeRef.current + elapsed - (1/60))
         
         // Mise à jour DIRECTE du DOM pour le playhead
         const scrollOffset = scrollContainerRef.current?.scrollLeft || 0
@@ -1433,7 +1491,7 @@ export function TimelineRubans() {
       }
       animationRef.current = requestAnimationFrame(updateTime)
     }
-  }, [scene, isPlaying, currentPlaybackTime, setIsPlaying, setPlaybackTime, checkAndPlaySounds, pixelsPerSecond, duration, findPhraseAtTime])
+  }, [scene, isPlaying, currentPlaybackTime, setIsPlaying, setPlaybackTime, checkAndPlaySounds, checkAndPlayMusic, pixelsPerSecond, duration, findPhraseAtTime])
 
   // Cleanup
   useEffect(() => {
@@ -1448,6 +1506,11 @@ export function TimelineRubans() {
         audio.pause()
       })
       activeSoundRefs.current.clear()
+      // Arrêter toutes les musiques actives
+      activeMusicRefs.current.forEach((audio) => {
+        audio.pause()
+      })
+      activeMusicRefs.current.clear()
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
