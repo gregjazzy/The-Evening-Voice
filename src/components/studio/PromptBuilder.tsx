@@ -379,19 +379,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     setDetectedElements(detected)
     
     // Auto-compléter les étapes si détecté (niveau 3+ seulement)
+    // NOTE: On ne coche PAS automatiquement "choose_extra" ici basé sur les mots-clés
+    // du sujet principal. Cette étape ne doit être cochée que si l'utilisateur
+    // remplit explicitement le champ subjectDetails, light, ou additionalNotes.
     if (detected.hasStyle && !completedSteps.includes('choose_style')) {
       completeStep('choose_style')
     }
     if (detected.hasAmbiance && !completedSteps.includes('choose_mood')) {
       completeStep('choose_mood')
-    }
-    // Pour les images : détails suffisent
-    // Pour les vidéos : mouvement OU détails
-    const hasEnoughDetails = creationType === 'video' 
-      ? (detected.hasDetails || detected.hasMovement || detected.hasRhythm)
-      : detected.hasDetails
-    if (hasEnoughDetails && !completedSteps.includes('choose_extra')) {
-      completeStep('choose_extra')
     }
   }, [currentKit?.subject, currentKit?.subjectDetails, isAdvancedLevel, currentCreationType, completeStep, completedSteps])
 
