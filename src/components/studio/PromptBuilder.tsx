@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Sparkles, 
@@ -205,18 +205,37 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [copied, setCopied] = useState(false)
   
-  // Au niveau 4+, on considère le kit complet si la description est assez longue (pas besoin des boutons)
+  // Au niveau 4+, l'enfant doit écrire les éléments dans son texte
   const isAdvancedLevel = currentLevel >= 4
   const baseCompleteness = checkKitCompleteness()
   
-  // Pour les niveaux avancés : 20+ caractères de description = kit complet
+  // Calculer la détection de mots-clés pour les niveaux avancés
+  const advancedDetection = useMemo(() => {
+    if (!isAdvancedLevel || !currentKit?.subject) {
+      return { hasStyle: false, hasAmbiance: false, hasEnoughText: false }
+    }
+    const fullText = (currentKit.subject + ' ' + (currentKit.subjectDetails || '')).toLowerCase()
+    const hasStyle = STYLE_KEYWORDS.some(kw => fullText.includes(kw))
+    const hasAmbiance = AMBIANCE_KEYWORDS.some(kw => fullText.includes(kw))
+    const hasEnoughText = fullText.length >= 20
+    return { hasStyle, hasAmbiance, hasEnoughText }
+  }, [isAdvancedLevel, currentKit?.subject, currentKit?.subjectDetails])
+  
+  // Pour les niveaux avancés : description longue + mots-clés style/ambiance
   const complete = isAdvancedLevel 
-    ? (currentKit?.subject?.length ?? 0) >= 20 
+    ? advancedDetection.hasEnoughText && advancedDetection.hasStyle && advancedDetection.hasAmbiance
     : baseCompleteness.complete
     
-  const missing = isAdvancedLevel 
-    ? ((currentKit?.subject?.length ?? 0) < 20 ? ['description détaillée'] : [])
-    : baseCompleteness.missing
+  // Construire la liste des éléments manquants
+  const missing = useMemo(() => {
+    if (!isAdvancedLevel) return baseCompleteness.missing
+    
+    const missingItems: string[] = []
+    if (!advancedDetection.hasEnoughText) missingItems.push('description plus détaillée')
+    if (!advancedDetection.hasStyle) missingItems.push('style visuel (dessin, photo, magique...)')
+    if (!advancedDetection.hasAmbiance) missingItems.push('ambiance (jour, nuit, orage...)')
+    return missingItems
+  }, [isAdvancedLevel, baseCompleteness.missing, advancedDetection])
   
   // Refs pour tracker les changements
   const prevSubjectRef = useRef('')
