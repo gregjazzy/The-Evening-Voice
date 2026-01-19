@@ -221,9 +221,10 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const showStyleButtons = currentLevel < 4    // Visible niveaux 1-3 (avant: < 3)
   const showAmbianceButtons = currentLevel < 4 // Visible niveaux 1-3 (avant: < 3)
   const showLightOptions = currentLevel < 5    // Visible niveaux 1-4 (avant: < 4)
-  // Format visible niveau 4 (nouveau concept) mais pas niveau 5 (l'enfant le décrit)
-  // SEULEMENT pour les images (les vidéos sont toujours en 16:9)
-  const showFormatButtons = currentLevel >= 4 && currentLevel < 5 && currentCreationType === 'image'
+  // Format TOUJOURS visible pour les images (important pour livre vs montage)
+  // Au niveau 5, l'enfant peut aussi le décrire dans le texte
+  // Les vidéos sont toujours en 16:9 (pas de choix)
+  const showFormatButtons = currentCreationType === 'image'
 
   const { currentProject } = useAppStore()
   
@@ -251,12 +252,15 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   }, [isAdvancedLevel, currentKit?.subject, currentKit?.subjectDetails, currentKit?.additionalNotes])
   
   // Pour les niveaux avancés : description longue + mots-clés
-  // Niveau 4 : style + ambiance requis, format via bouton (pour images)
-  // Niveau 5 : style + ambiance + détails requis, format dans le texte (pour images)
+  // Niveau 4 : style + ambiance requis
+  // Niveau 5 : style + ambiance + détails requis
   const isImageCreation = currentCreationType === 'image'
+  
+  // Format toujours requis pour les images (livre vs montage)
+  // Au niveau 5, peut aussi être détecté dans le texte
   const formatOk = !isImageCreation || // Vidéos: pas besoin de format
-    (isAdvancedLevel && !isExpertLevel && currentKit?.format) || // Niveau 4: format via bouton
-    (isExpertLevel && advancedDetection.hasFormat) // Niveau 5: format dans le texte
+    currentKit?.format || // Format sélectionné via bouton (tous niveaux)
+    (isExpertLevel && advancedDetection.hasFormat) // Niveau 5: aussi accepté dans le texte
     
   const complete = isAdvancedLevel 
     ? advancedDetection.hasEnoughText && 
@@ -264,7 +268,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       advancedDetection.hasAmbiance &&
       (isExpertLevel ? advancedDetection.hasDetails : true) &&
       formatOk
-    : baseCompleteness.complete
+    : baseCompleteness.complete && formatOk // Format requis même pour débutants (images)
     
   // Construire la liste des éléments manquants
   const missing = useMemo(() => {
@@ -275,10 +279,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     if (!advancedDetection.hasStyle) missingItems.push('style visuel (dessin, photo, magique...)')
     if (!advancedDetection.hasAmbiance) missingItems.push('ambiance (jour, nuit, orage...)')
     if (isExpertLevel && !advancedDetection.hasDetails) missingItems.push('détails (couleurs, lumière, textures...)')
-    // Format requis seulement pour les images
-    if (isImageCreation) {
-      if (isAdvancedLevel && !isExpertLevel && !currentKit?.format) missingItems.push('format d\'image (bouton)')
-      if (isExpertLevel && !advancedDetection.hasFormat) missingItems.push('format (portrait, paysage, carré...)')
+    // Format requis pour toutes les images (tous niveaux)
+    if (isImageCreation && !currentKit?.format && !(isExpertLevel && advancedDetection.hasFormat)) {
+      missingItems.push('format d\'image (📖 livre ou 🎬 vidéo)')
     }
     return missingItems
   }, [isAdvancedLevel, isExpertLevel, baseCompleteness.missing, advancedDetection, isImageCreation, currentKit?.format])
@@ -734,9 +737,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         )}
       </AnimatePresence>
 
-      {/* Section Format - VISIBLE NIVEAU 4 UNIQUEMENT (pour images seulement) */}
+      {/* Section Format - TOUJOURS VISIBLE pour les images (livre vs montage) */}
       <AnimatePresence>
-        {showFormatButtons && currentKit.light && (
+        {showFormatButtons && currentKit.style && (
           <motion.section
             className="glass rounded-2xl p-6"
             initial={{ opacity: 0, y: 20, height: 0 }}
@@ -746,15 +749,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           >
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">📐</span>
-              <h3 className="font-semibold text-white">Format de l&apos;image</h3>
-              <span className="text-xs text-midnight-400 ml-2">(pour l&apos;impression du livre)</span>
+              <h3 className="font-semibold text-white">C&apos;est pour quoi ?</h3>
               {currentKit.format && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
             
             <p className="text-sm text-midnight-300 mb-4">
-              Choisis le format de ton image selon son utilisation :
+              Ton image, c&apos;est pour ton livre 📖 ou pour une vidéo 🎬 ?
             </p>
             
             <div className="grid grid-cols-3 gap-3">
@@ -781,7 +783,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             </div>
             
             <p className="text-xs text-midnight-400 mt-3 text-center">
-              💡 Portrait (📖) est recommandé pour les pages de ton livre
+              💡 Livre = Portrait (📖) &nbsp;|&nbsp; Montage vidéo = Paysage (🎬)
             </p>
           </motion.section>
         )}
