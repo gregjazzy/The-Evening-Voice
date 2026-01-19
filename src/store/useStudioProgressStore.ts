@@ -37,15 +37,15 @@ export const LEVEL_EMOJIS: Record<StudioLevel, string> = {
 }
 
 // Nombre de créations pour passer au niveau suivant
-// Formation plus progressive pour un enfant de 8 ans
+// Équilibre entre formation solide et progression motivante pour un enfant de 8 ans
 export const CREATIONS_PER_LEVEL: Record<StudioLevel, number> = {
   1: 5,   // 5 créations pour passer au niveau 2 (découverte guidée)
-  2: 10,  // 10 créations pour passer au niveau 3 (maîtrise du contenu)
-  3: 15,  // 15 créations pour passer au niveau 4 (enrichissement naturel)
-  4: 20,  // 20 créations pour passer au niveau 5 (autonomie technique)
+  2: 8,   // 8 créations pour passer au niveau 3 (maîtrise du contenu)
+  3: 10,  // 10 créations pour passer au niveau 4 (enrichissement naturel)
+  4: 12,  // 12 créations pour passer au niveau 5 (autonomie technique)
   5: 0,   // Niveau max - Expert 👑
 }
-// Total : 50 créations pour devenir expert (vs 25 avant)
+// Total : 35 créations pour devenir expert (~3-4 semaines à 1-2 créations/jour)
 
 // Étapes du guide selon le niveau
 export type GuideStep = 
