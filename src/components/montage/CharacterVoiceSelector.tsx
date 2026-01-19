@@ -254,9 +254,9 @@ export function CharacterVoiceSelector({
     try {
       // Upload vers Supabase
       const file = new File([recordedBlob], `phrase-${phrase.id}.webm`, { type: 'audio/webm' })
-      const uploadedUrl = await upload(file, 'audio')
+      const result = await upload(file, { type: 'audio', source: 'upload' })
       
-      if (!uploadedUrl) throw new Error('Échec upload')
+      if (!result || !result.url) throw new Error('Échec upload')
       
       // Mettre à jour la phrase
       updatePhraseVoice(phrase.id, {
@@ -264,7 +264,7 @@ export function CharacterVoiceSelector({
         voiceType: 'recorded',
         characterName: 'Ma voix',
         characterEmoji: '🎤',
-        customAudioUrl: uploadedUrl,
+        customAudioUrl: result.url,
       })
       
       onClose()
