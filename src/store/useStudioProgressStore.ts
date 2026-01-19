@@ -37,13 +37,15 @@ export const LEVEL_EMOJIS: Record<StudioLevel, string> = {
 }
 
 // Nombre de créations pour passer au niveau suivant
+// Formation plus progressive pour un enfant de 8 ans
 export const CREATIONS_PER_LEVEL: Record<StudioLevel, number> = {
-  1: 3,   // 3 créations pour passer au niveau 2
-  2: 5,   // 5 créations pour passer au niveau 3
-  3: 7,   // 7 créations pour passer au niveau 4
-  4: 10,  // 10 créations pour passer au niveau 5
-  5: 0,   // Niveau max
+  1: 5,   // 5 créations pour passer au niveau 2 (découverte guidée)
+  2: 10,  // 10 créations pour passer au niveau 3 (maîtrise du contenu)
+  3: 15,  // 15 créations pour passer au niveau 4 (enrichissement naturel)
+  4: 20,  // 20 créations pour passer au niveau 5 (autonomie technique)
+  5: 0,   // Niveau max - Expert 👑
 }
+// Total : 50 créations pour devenir expert (vs 25 avant)
 
 // Étapes du guide selon le niveau
 export type GuideStep = 

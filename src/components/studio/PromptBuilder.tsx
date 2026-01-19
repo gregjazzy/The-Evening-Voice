@@ -193,18 +193,20 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   // Récupérer le niveau actuel pour savoir quoi afficher
   const currentLevel = currentCreationType ? getLevel(currentCreationType) : 1
   
-  // Niveau 3+ = l'enfant décrit tout dans son texte, on cache les boutons style/ambiance
-  const showStyleButtons = currentLevel < 3
-  const showAmbianceButtons = currentLevel < 3
-  const showLightOptions = currentLevel < 4
+  // Formation progressive : les boutons restent visibles plus longtemps
+  // Niveau 4+ = l'enfant décrit style/ambiance dans son texte
+  // Niveau 5  = l'enfant décrit tout (détails inclus) dans son texte
+  const showStyleButtons = currentLevel < 4    // Visible niveaux 1-3 (avant: < 3)
+  const showAmbianceButtons = currentLevel < 4 // Visible niveaux 1-3 (avant: < 3)
+  const showLightOptions = currentLevel < 5    // Visible niveaux 1-4 (avant: < 4)
 
   const { currentProject } = useAppStore()
   
   const [showPreview, setShowPreview] = useState(false)
   const [copied, setCopied] = useState(false)
   
-  // Au niveau 3+, on considère le kit complet si la description est assez longue (pas besoin des boutons)
-  const isAdvancedLevel = currentLevel >= 3
+  // Au niveau 4+, on considère le kit complet si la description est assez longue (pas besoin des boutons)
+  const isAdvancedLevel = currentLevel >= 4
   const baseCompleteness = checkKitCompleteness()
   
   // Pour les niveaux avancés : 20+ caractères de description = kit complet
