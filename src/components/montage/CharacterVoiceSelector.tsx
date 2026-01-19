@@ -411,11 +411,21 @@ export function CharacterVoiceSelector({
               </h3>
               
               <div className="bg-midnight-800/50 rounded-xl p-4 border border-midnight-700/50">
+                {/* 📖 PHRASE À LIRE - toujours visible */}
+                <div className="mb-4 p-3 bg-midnight-900/50 rounded-lg border border-dream-500/30">
+                  <p className="text-xs text-dream-400 mb-1 flex items-center gap-1">
+                    📖 Phrase à lire :
+                  </p>
+                  <p className="text-white text-base leading-relaxed">
+                    "{phrase.text}"
+                  </p>
+                </div>
+                
                 {/* Pas encore enregistré */}
                 {!recordedAudioUrl && !isRecording && (
                   <div className="text-center">
                     <p className="text-xs text-midnight-400 mb-3">
-                      Enregistre cette phrase avec ta propre voix !
+                      Lis cette phrase à voix haute !
                     </p>
                     <motion.button
                       onClick={startRecording}
@@ -438,8 +448,8 @@ export function CharacterVoiceSelector({
                         {formatTime(recordingTime)}
                       </span>
                     </div>
-                    <p className="text-xs text-midnight-400 mb-3">
-                      Lis la phrase à voix haute...
+                    <p className="text-xs text-aurora-400 mb-3 animate-pulse">
+                      🎙️ Lis la phrase ci-dessus...
                     </p>
                     <motion.button
                       onClick={stopRecording}
