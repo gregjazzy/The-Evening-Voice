@@ -28,7 +28,7 @@ export interface GenerationJob {
 
 export interface FluxImageParams {
   prompt: string
-  aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
+  aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '2:3' | '3:2' // 3:4 = portrait livre (défaut)
   numImages?: number
   safetyTolerance?: number // 1-6, plus haut = plus permissif
 }
@@ -45,11 +45,13 @@ export interface FluxImageResult {
 
 /**
  * Génère une image avec Flux 1 Pro
+ * Format par défaut: portrait 3:4 (adapté aux livres d'enfants)
+ * Résolution: HD pour qualité impression
  */
 export async function generateImageFlux(params: FluxImageParams): Promise<FluxImageResult> {
   const {
     prompt,
-    aspectRatio = '16:9',
+    aspectRatio = '3:4', // Format portrait livre par défaut
     numImages = 1,
     safetyTolerance = 2, // Sécurisé pour enfants
   } = params
@@ -57,12 +59,13 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
   // Ajouter des termes de sécurité au prompt
   const safePrompt = `${prompt}, child-friendly, safe for kids, no violence, no scary elements`
 
-  const imageSize = aspectRatioToSize(aspectRatio) as 'square' | 'square_hd' | 'portrait_4_3' | 'portrait_16_9' | 'landscape_4_3' | 'landscape_16_9'
+  // Utiliser des dimensions HD personnalisées pour qualité impression
+  const imageDimensions = aspectRatioToDimensions(aspectRatio)
 
   const result = await fal.subscribe('fal-ai/flux-pro/v1.1', {
     input: {
       prompt: safePrompt,
-      image_size: imageSize,
+      image_size: imageDimensions, // Dimensions HD personnalisées
       num_images: numImages,
       safety_tolerance: String(safetyTolerance) as '1' | '2' | '3' | '4' | '5' | '6',
       output_format: 'jpeg',
@@ -77,6 +80,51 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
     images: data.images,
     seed: data.seed,
     prompt: safePrompt,
+  }
+}
+
+// ============================================
+// UPSCALE - Pour qualité impression livre
+// ============================================
+
+export interface UpscaleParams {
+  imageUrl: string
+  scale?: 2 | 4  // x2 ou x4
+}
+
+export interface UpscaleResult {
+  imageUrl: string
+  width: number
+  height: number
+}
+
+/**
+ * Upscale une image pour qualité impression (livre Legato)
+ * Utilise Real-ESRGAN via fal.ai
+ * 
+ * Coût: ~$0.01 par image
+ * 
+ * Exemple:
+ * - Image 1152×1536 → x2 → 2304×3072 (suffisant A5 300 DPI)
+ */
+export async function upscaleImageForPrint(params: UpscaleParams): Promise<UpscaleResult> {
+  const { imageUrl, scale = 2 } = params
+
+  const result = await fal.subscribe('fal-ai/real-esrgan', {
+    input: {
+      image_url: imageUrl,
+      scale: scale,
+    },
+    logs: true,
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = result.data as any
+
+  return {
+    imageUrl: data.image?.url || data.url,
+    width: data.image?.width || 0,
+    height: data.image?.height || 0,
   }
 }
 
@@ -264,15 +312,37 @@ export async function transcribeAudio(params: TranscriptionParams): Promise<Tran
 // UTILITAIRES
 // ============================================
 
+/**
+ * Convertit un ratio en dimensions HD pour qualité impression livre
+ * Résolutions optimisées pour impression A5 à 300 DPI (1748×2480 px minimum)
+ */
+function aspectRatioToDimensions(ratio: string): { width: number; height: number } {
+  const dimensions: Record<string, { width: number; height: number }> = {
+    // Portrait livre (recommandé) - proche du format A5
+    '3:4': { width: 1152, height: 1536 },   // HD portrait livre
+    '2:3': { width: 1024, height: 1536 },   // HD portrait allongé
+    '9:16': { width: 864, height: 1536 },   // HD portrait très allongé
+    // Paysage (double page ou illustrations)
+    '4:3': { width: 1536, height: 1152 },   // HD paysage
+    '16:9': { width: 1536, height: 864 },   // HD paysage cinéma
+    '3:2': { width: 1536, height: 1024 },   // HD paysage photo
+    // Carré
+    '1:1': { width: 1440, height: 1440 },   // HD carré
+  }
+  // Par défaut: portrait livre 3:4
+  return dimensions[ratio] || dimensions['3:4']
+}
+
+// Ancienne fonction pour compatibilité (si nécessaire)
 function aspectRatioToSize(ratio: string): string {
   const sizes: Record<string, string> = {
-    '1:1': 'square',
+    '1:1': 'square_hd',
     '16:9': 'landscape_16_9',
     '9:16': 'portrait_16_9',
     '4:3': 'landscape_4_3',
     '3:4': 'portrait_4_3',
   }
-  return sizes[ratio] || 'landscape_16_9'
+  return sizes[ratio] || 'portrait_4_3'
 }
 
 /**
