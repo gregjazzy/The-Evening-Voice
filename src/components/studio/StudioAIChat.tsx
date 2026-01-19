@@ -287,8 +287,9 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const tts = useTTS('fr', aiVoice || undefined)
   
   // Détecter ce qui manque pour guider l'enfant
-  const showStyleButtons = level < 3
-  const showAmbianceButtons = level < 3
+  // Synchronisé avec PromptBuilder.tsx
+  const showStyleButtons = level < 4    // Boutons visibles niveaux 1-3
+  const showAmbianceButtons = level < 4 // Boutons visibles niveaux 1-3
   
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
