@@ -169,6 +169,7 @@ interface StudioProgressState {
   // Actions
   startCreation: (type: CreationType) => void
   completeStep: (step: GuideStep) => void
+  uncompleteStep: (step: GuideStep) => void // Invalider une étape (quand l'enfant efface)
   resetCurrentCreation: () => void
   requestHelp: () => void
   
@@ -238,6 +239,19 @@ export const useStudioProgressStore = create<StudioProgressState>()(
         set({
           completedSteps: newCompletedSteps,
           currentStep: nextStep,
+        })
+      },
+      
+      // Invalider une étape (quand l'enfant efface son travail)
+      uncompleteStep: (step) => {
+        const { completedSteps } = get()
+        if (!completedSteps.includes(step)) return
+        
+        const newCompletedSteps = completedSteps.filter(s => s !== step)
+        
+        set({
+          completedSteps: newCompletedSteps,
+          currentStep: step, // Revenir à cette étape
         })
       },
       

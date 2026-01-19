@@ -375,19 +375,26 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   }, [currentKit?.ambiance, completeStep, completedSteps])
 
   // Étape 4 : Détails ajoutés (subjectDetails, light, ou additionalNotes)
+  // IMPORTANT: On doit aussi INVALIDER l'étape si l'enfant efface tout
+  const { uncompleteStep } = useStudioProgressStore()
+  
   useEffect(() => {
     if (!currentKit) return
     
-    // Si l'enfant a ajouté des détails supplémentaires
-    const hasDetails = 
-      (currentKit.subjectDetails && currentKit.subjectDetails.length >= 3) ||
-      currentKit.light ||
-      (currentKit.additionalNotes && currentKit.additionalNotes.length >= 3)
+    // Si l'enfant a ajouté des détails supplémentaires (minimum 5 caractères significatifs)
+    const hasSubjectDetails = currentKit.subjectDetails && currentKit.subjectDetails.trim().length >= 5
+    const hasLight = !!currentKit.light
+    const hasNotes = currentKit.additionalNotes && currentKit.additionalNotes.trim().length >= 5
+    
+    const hasDetails = hasSubjectDetails || hasLight || hasNotes
     
     if (hasDetails && !completedSteps.includes('choose_extra')) {
       completeStep('choose_extra')
+    } else if (!hasDetails && completedSteps.includes('choose_extra')) {
+      // L'enfant a effacé → invalider l'étape
+      uncompleteStep('choose_extra')
     }
-  }, [currentKit?.subjectDetails, currentKit?.light, currentKit?.additionalNotes, completeStep, completedSteps])
+  }, [currentKit?.subjectDetails, currentKit?.light, currentKit?.additionalNotes, completeStep, uncompleteStep, completedSteps])
 
   // Copier le prompt
   const handleCopyPrompt = async () => {
@@ -677,7 +684,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             <div className="flex items-center gap-2 mb-4">
               <Sun className="w-5 h-5 text-stardust-400" />
               <h3 className="font-semibold text-white">✨ Enrichir les détails</h3>
-              {(currentKit.subjectDetails || currentKit.light || currentKit.additionalNotes) && (
+              {((currentKit.subjectDetails?.trim().length ?? 0) >= 5 || 
+                currentKit.light || 
+                (currentKit.additionalNotes?.trim().length ?? 0) >= 5) && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
