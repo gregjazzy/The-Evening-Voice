@@ -443,16 +443,21 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     detectedRhythm: [],
   })
   
-  // Attendre 1 seconde après avoir écrit assez de texte avant d'afficher Style
+  // Attendre 1 seconde après avoir écrit assez de texte VALIDE avant d'afficher Style
   useEffect(() => {
-    if (currentKit && currentKit.subject.length >= 10 && !showNextSections) {
+    if (!currentKit) return
+    
+    const contentCheck = isContentAppropriate(currentKit.subject)
+    const isValidAndLongEnough = currentKit.subject.length >= 10 && contentCheck.valid
+    
+    if (isValidAndLongEnough && !showNextSections) {
       const timer = setTimeout(() => {
         setShowNextSections(true)
       }, 800) // 800ms de délai
       return () => clearTimeout(timer)
     }
-    // Reset si on efface le texte
-    if (currentKit && currentKit.subject.length < 10 && showNextSections) {
+    // Reset si on efface le texte OU si le contenu devient invalide/inapproprié
+    if (!isValidAndLongEnough && showNextSections) {
       setShowNextSections(false)
     }
   }, [currentKit?.subject, showNextSections])
