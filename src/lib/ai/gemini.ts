@@ -1115,7 +1115,6 @@ Pose UNE question à la fois, de manière naturelle et enjouée. Par exemple:
 NE LISTE PAS tout ce qui manque d'un coup ! Guide progressivement.
 `
             }
-          }
           } else if (context.studioKit?.subject && context.studioKit.subject.length > 20) {
             systemPrompt += `
 ✅ L'enfant a une description complète ! Tu peux:
