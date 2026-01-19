@@ -144,17 +144,25 @@ export function useAI(): UseAIReturn {
   const generateImage = useCallback(async (
     description: string,
     style: string,
-    ambiance: string
+    ambiance: string,
+    options?: { forVideo?: boolean; aspectRatio?: string }
   ): Promise<string | null> => {
     setIsGeneratingImage(true)
     setImageProgress(0)
     
     try {
       // Lancer la génération
+      // forVideo=true → format 16:9 (vidéo), forVideo=false → format 3:4 (livre)
       const response = await fetch('/api/ai/image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description, style, ambiance }),
+        body: JSON.stringify({ 
+          description, 
+          style, 
+          ambiance,
+          forVideo: options?.forVideo ?? false,
+          aspectRatio: options?.aspectRatio,
+        }),
       })
       
       if (!response.ok) {

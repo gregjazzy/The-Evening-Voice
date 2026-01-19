@@ -13,8 +13,14 @@ export async function POST(request: NextRequest) {
       description, 
       style = 'magique', 
       ambiance = 'jour',
-      aspectRatio = '16:9'
+      aspectRatio,
+      forVideo = false, // Si true, format vidéo (16:9), sinon format livre (3:4)
     } = body
+    
+    // Format par défaut selon l'usage
+    // - Image livre : 3:4 portrait (pour impression)
+    // - Image pour vidéo : 16:9 paysage (standard vidéo)
+    const finalAspectRatio = aspectRatio || (forVideo ? '16:9' : '3:4')
 
     if (!description) {
       return NextResponse.json(
@@ -38,7 +44,7 @@ export async function POST(request: NextRequest) {
     // Générer l'image avec Flux 1 Pro
     const result = await generateImageFlux({
       prompt,
-      aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
+      aspectRatio: finalAspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '2:3' | '3:2',
       numImages: 1,
     })
 
