@@ -39,7 +39,6 @@ import {
   RotateCcw
 } from 'lucide-react'
 import { AddElementModal } from './AddElementModal'
-import { CharacterVoiceSelector } from './CharacterVoiceSelector'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { type HighlightableElement } from '@/store/useHighlightStore'
 
@@ -953,7 +952,7 @@ function PhraseRuban({
         // Double-clic pour changer la voix
         onDoubleClick()
       }}
-      title={`${phrase.characterName ? `${phrase.characterEmoji} ${phrase.characterName}: ` : ''}${phrase.text}\n⏱ ${phrase.timeRange.startTime.toFixed(1)}s → ${phrase.timeRange.endTime.toFixed(1)}s\n🎭 Double-clic pour changer la voix`}
+      title={`${phrase.text}\n⏱ ${phrase.timeRange.startTime.toFixed(1)}s → ${phrase.timeRange.endTime.toFixed(1)}s`}
     >
       {/* Handle resize gauche */}
       <div
@@ -1090,10 +1089,6 @@ export function TimelineRubans() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalType, setModalType] = useState<ModalElementType>('media')
   
-  // État du modal sélecteur de voix
-  const [voiceSelectorOpen, setVoiceSelectorOpen] = useState(false)
-  const [selectedPhraseForVoice, setSelectedPhraseForVoice] = useState<PhraseTiming | null>(null)
-  
   // État plein écran
   const [isFullscreen, setIsFullscreen] = useState(false)
   
@@ -1122,15 +1117,6 @@ export function TimelineRubans() {
     setModalType(type)
     setModalOpen(true)
   }, [])
-  
-  // Ouvrir le sélecteur de voix pour une phrase
-  const openVoiceSelector = useCallback((phraseId: string) => {
-    const phrase = scene?.narration?.phrases?.find(p => p.id === phraseId)
-    if (phrase) {
-      setSelectedPhraseForVoice(phrase)
-      setVoiceSelectorOpen(true)
-    }
-  }, [scene?.narration?.phrases])
 
   // Durées intro/outro/narration
   const introDuration = scene?.introDuration || 0
@@ -1982,7 +1968,7 @@ export function TimelineRubans() {
               updatePhraseTiming(phraseId, { timeRange })
             }
             onSelectPhrase={(phraseId) => setSelectedTrack(phraseId, 'phrase')}
-            onDoubleClickPhrase={openVoiceSelector}
+            onDoubleClickPhrase={(phraseId) => setSelectedTrack(phraseId, 'phrase')}
           />
         )}
 
@@ -2273,19 +2259,6 @@ export function TimelineRubans() {
         onClose={() => setModalOpen(false)}
         elementType={modalType}
       />
-      
-      {/* Modal sélecteur de voix de personnage */}
-      {selectedPhraseForVoice && (
-        <CharacterVoiceSelector
-          isOpen={voiceSelectorOpen}
-          onClose={() => {
-            setVoiceSelectorOpen(false)
-            setSelectedPhraseForVoice(null)
-          }}
-          phrase={selectedPhraseForVoice}
-          locale="fr"
-        />
-      )}
     </div>
   )
 

@@ -303,16 +303,6 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
         >
           {phrase.text.length > 50 ? phrase.text.substring(0, 50) + '...' : phrase.text}
         </div>
-        {/* Indication pour changer la voix */}
-        {(phrase.voiceId || phrase.customAudioUrl) && (
-          <div className="mt-2 text-xs text-midnight-400 flex items-center gap-1">
-            <span>{phrase.characterEmoji || '🎤'}</span>
-            <span>{phrase.characterName || 'Voix personnalisée'}</span>
-          </div>
-        )}
-        <p className="mt-2 text-[10px] text-midnight-500 text-center">
-          💡 Double-clique pour changer la voix
-        </p>
       </Section>
       
       {/* Position à l'écran */}
