@@ -301,6 +301,10 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const [showQuickHelp, setShowQuickHelp] = useState(false)
   const [showVoiceSelector, setShowVoiceSelector] = useState(false)
   
+  // Tracker les blocages répétés (mêmes éléments manquants plusieurs fois)
+  const [consecutiveStruggles, setConsecutiveStruggles] = useState(0)
+  const lastMissingElementsRef = useRef<string[]>([])
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const lastStepRef = useRef<string | null>(null)
@@ -489,6 +493,25 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
         missingElements.push('ambiance')
       }
       
+      // Tracker les blocages répétés (mêmes éléments manquent plusieurs fois de suite)
+      let struggles = consecutiveStruggles
+      if (missingElements.length > 0) {
+        const sameAsBefore = missingElements.length === lastMissingElementsRef.current.length &&
+          missingElements.every(e => lastMissingElementsRef.current.includes(e))
+        if (sameAsBefore) {
+          struggles = consecutiveStruggles + 1
+          setConsecutiveStruggles(struggles)
+        } else {
+          struggles = 1
+          setConsecutiveStruggles(1)
+        }
+        lastMissingElementsRef.current = [...missingElements]
+      } else {
+        // Plus rien ne manque, reset
+        setConsecutiveStruggles(0)
+        lastMissingElementsRef.current = []
+      }
+      
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -512,6 +535,8 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             } : null,
             missingElements,
             completedSteps,
+            // Nombre de fois où l'enfant bloque sur les mêmes éléments
+            consecutiveStruggles: struggles,
           },
         }),
       })

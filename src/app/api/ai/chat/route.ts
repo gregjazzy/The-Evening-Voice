@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
       studioKit: studioContext?.kit,
       studioMissingElements: studioContext?.missingElements,
       studioLevel: studioContext?.level,
+      studioConsecutiveStruggles: studioContext?.consecutiveStruggles, // Blocages répétés
       // Nouveau : connaissance de l'interface pour le guidage visuel
       interfaceKnowledge,
     }

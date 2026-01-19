@@ -1077,7 +1077,30 @@ export async function generateLunaResponse(
           }
           
           if (context.studioMissingElements && context.studioMissingElements.length > 0) {
-            systemPrompt += `
+            const struggles = context.studioConsecutiveStruggles || 0
+            
+            if (struggles >= 3) {
+              // L'enfant bloque depuis 3+ messages - être TRÈS explicite
+              systemPrompt += `
+⚠️ ATTENTION: L'enfant bloque depuis ${struggles} messages sur les mêmes éléments !
+CE QUI MANQUE ENCORE:
+${context.studioMissingElements.map(e => `- ${e}`).join('\n')}
+
+🆘 MODE AIDE EXPLICITE ACTIVÉ - Sois très clair et direct:
+1. Explique exactement ce qu'il faut faire, avec des exemples concrets
+2. Donne des mots précis qu'il peut utiliser
+3. Sois encourageant mais explicite
+
+EXEMPLES D'AIDE EXPLICITE:
+- Si le style manque: "Je vais t'aider ! Pour que ça marche, il faut dire comment tu vois l'image. Essaie d'ajouter un de ces mots dans ta description: 'comme un dessin animé', 'comme une photo', 'style aquarelle', ou 'magique et brillant'. Lequel tu préfères ?"
+- Si l'ambiance manque: "Il manque juste une chose ! Dis-moi quand ça se passe. Ajoute par exemple: 'la nuit', 'au coucher de soleil', 'par temps d'orage' ou 'dans la brume'. Qu'est-ce qui irait bien avec ton idée ?"
+- Si les détails manquent: "Presque parfait ! Ajoute des couleurs dans ta phrase. Par exemple: 'rouge', 'bleu brillant', 'doré', 'vert forêt'. Quelle couleur tu imagines ?"
+
+Tu peux aussi proposer: "Tu veux que je t'aide à compléter ta phrase ?"
+`
+            } else {
+              // Blocage récent (1-2 messages) - guidance progressive normale
+              systemPrompt += `
 ⚠️ CE QUI MANQUE (guide l'enfant naturellement vers ces éléments):
 ${context.studioMissingElements.map(e => `- ${e}`).join('\n')}
 
@@ -1089,6 +1112,8 @@ Pose UNE question à la fois, de manière naturelle et enjouée. Par exemple:
 
 NE LISTE PAS tout ce qui manque d'un coup ! Guide progressivement.
 `
+            }
+          }
           } else if (context.studioKit?.subject && context.studioKit.subject.length > 20) {
             systemPrompt += `
 ✅ L'enfant a une description complète ! Tu peux:
