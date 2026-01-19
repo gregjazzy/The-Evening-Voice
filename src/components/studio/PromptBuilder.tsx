@@ -63,56 +63,8 @@ const formatOptions: { id: FormatType; label: string; emoji: string; description
 ]
 
 // ============================================================================
-// VALIDATION DU CONTENU (éviter les entrées absurdes et inappropriées)
+// VALIDATION DU CONTENU (éviter les entrées absurdes)
 // ============================================================================
-
-/**
- * Liste de mots inappropriés pour les enfants (gros mots, violence, etc.)
- * Cette liste est volontairement incomplète pour ne pas être un "dictionnaire"
- * Elle couvre les termes les plus courants en français
- */
-const INAPPROPRIATE_WORDS = [
-  // Gros mots courants
-  'merde', 'putain', 'bordel', 'connard', 'connasse', 'salaud', 'salope',
-  'enculé', 'nique', 'niquer', 'baise', 'baiser', 'foutre', 'foutaise',
-  'chier', 'chiotte', 'pute', 'pétasse', 'cul', 'couille', 'bite', 'queue',
-  'con', 'conne', 'débile', 'crétin', 'idiot', 'abruti', 'taré',
-  // Violence
-  'tuer', 'mort', 'mourir', 'sang', 'cadavre', 'assassin', 'meurtre',
-  'torture', 'torturer', 'massacrer', 'égorger', 'poignarder',
-  'fusil', 'pistolet', 'arme', 'bombe', 'explosion', 'exploser',
-  // Contenu adulte
-  'sexe', 'sexy', 'nu', 'nue', 'nudité', 'porn', 'érotique',
-  // Drogue/alcool
-  'drogue', 'cocaïne', 'héroïne', 'cannabis', 'fumer', 'alcool', 'saoul', 'bourré',
-  // Discrimination
-  'nazi', 'hitler', 'raciste', 'négro', 'pédé', 'gouine', 'tapette',
-  // Versions avec accents manquants ou leetspeak basique
-  'p*tain', 'm*rde', 'n*que', 'b*te', 'c*l',
-]
-
-/**
- * Vérifie si le texte contient des mots inappropriés pour les enfants
- */
-function containsInappropriateContent(text: string): { inappropriate: boolean; word?: string } {
-  if (!text) return { inappropriate: false }
-  
-  const lower = text.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Enlever accents
-    .replace(/[0-9]/g, '') // Enlever chiffres
-    .replace(/[*@#$%]/g, '') // Enlever caractères de censure
-  
-  for (const word of INAPPROPRIATE_WORDS) {
-    const normalizedWord = word.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    // Vérifier le mot entier ou comme partie d'un mot
-    const regex = new RegExp(`\\b${normalizedWord}\\b|${normalizedWord}`, 'i')
-    if (regex.test(lower)) {
-      return { inappropriate: true, word }
-    }
-  }
-  
-  return { inappropriate: false }
-}
 
 /**
  * Vérifie si un texte contient des mots réels (pas juste "asdfgh")
@@ -156,17 +108,12 @@ function looksLikeSpam(text: string): boolean {
 }
 
 /**
- * Validation complète du contenu pour enfants
+ * Validation basique du contenu (spam, gibberish)
+ * La validation du contenu inapproprié est faite par l'IA
  */
 function isContentAppropriate(text: string): { valid: boolean; reason?: string } {
   if (!text || text.trim().length < 3) {
     return { valid: false, reason: 'Texte trop court' }
-  }
-  
-  // Vérifier le contenu inapproprié
-  const inappropriateCheck = containsInappropriateContent(text)
-  if (inappropriateCheck.inappropriate) {
-    return { valid: false, reason: 'Contenu inapproprié détecté' }
   }
   
   // Vérifier si c'est du spam
@@ -351,6 +298,55 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [copied, setCopied] = useState(false)
   
+  // Modération IA du contenu
+  const [isContentBlocked, setIsContentBlocked] = useState(false)
+  const [isCheckingContent, setIsCheckingContent] = useState(false)
+  const lastCheckedText = useRef('')
+  
+  // Vérification du contenu via l'IA (avec debounce)
+  useEffect(() => {
+    const textToCheck = currentKit?.subject || ''
+    
+    // Ne pas revérifier le même texte
+    if (textToCheck === lastCheckedText.current) return
+    
+    // Si texte trop court, pas besoin de vérifier
+    if (textToCheck.length < 10) {
+      setIsContentBlocked(false)
+      return
+    }
+    
+    // Debounce de 1 seconde pour éviter trop d'appels
+    const timer = setTimeout(async () => {
+      lastCheckedText.current = textToCheck
+      setIsCheckingContent(true)
+      
+      try {
+        const response = await fetch('/api/ai/moderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: textToCheck })
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setIsContentBlocked(!data.appropriate)
+          if (!data.appropriate) {
+            console.log('🛡️ Contenu bloqué par l\'IA')
+          }
+        }
+      } catch (error) {
+        console.error('Erreur modération:', error)
+        // En cas d'erreur, on laisse passer
+        setIsContentBlocked(false)
+      } finally {
+        setIsCheckingContent(false)
+      }
+    }, 1000)
+    
+    return () => clearTimeout(timer)
+  }, [currentKit?.subject])
+  
   // Au niveau 4+, l'enfant doit écrire les éléments dans son texte
   const isAdvancedLevel = currentLevel >= 4
   const baseCompleteness = checkKitCompleteness()
@@ -382,13 +378,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     currentKit?.format || // Format sélectionné via bouton (tous niveaux)
     (isExpertLevel && advancedDetection.hasFormat) // Niveau 5: aussi accepté dans le texte
     
-  const complete = isAdvancedLevel 
+  // Le prompt n'est JAMAIS complet si le contenu est bloqué par l'IA
+  const complete = !isContentBlocked && (isAdvancedLevel 
     ? advancedDetection.hasEnoughText && 
       advancedDetection.hasStyle && 
       advancedDetection.hasAmbiance &&
       (isExpertLevel ? advancedDetection.hasDetails : true) &&
       formatOk
-    : baseCompleteness.complete && formatOk // Format requis même pour débutants (images)
+    : baseCompleteness.complete && formatOk) // Format requis même pour débutants (images)
     
   // Construire la liste des éléments manquants
   const missing = useMemo(() => {
@@ -448,7 +445,8 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     if (!currentKit) return
     
     const contentCheck = isContentAppropriate(currentKit.subject)
-    const isValidAndLongEnough = currentKit.subject.length >= 10 && contentCheck.valid
+    // Texte valide ET non bloqué par l'IA
+    const isValidAndLongEnough = currentKit.subject.length >= 10 && contentCheck.valid && !isContentBlocked
     
     if (isValidAndLongEnough && !showNextSections) {
       const timer = setTimeout(() => {
@@ -456,11 +454,11 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       }, 800) // 800ms de délai
       return () => clearTimeout(timer)
     }
-    // Reset si on efface le texte OU si le contenu devient invalide/inapproprié
+    // Reset si on efface le texte OU si le contenu devient invalide/inapproprié OU bloqué par IA
     if (!isValidAndLongEnough && showNextSections) {
       setShowNextSections(false)
     }
-  }, [currentKit?.subject, showNextSections])
+  }, [currentKit?.subject, showNextSections, isContentBlocked])
 
   // Fonction pour invalider une étape (déplacée ici pour être disponible dans tous les useEffect)
   const { uncompleteStep } = useStudioProgressStore()
