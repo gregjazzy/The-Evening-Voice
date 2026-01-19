@@ -41,6 +41,11 @@ export interface PhraseStyle {
 }
 
 /**
+ * Type de voix pour une phrase
+ */
+export type PhraseVoiceType = 'narrator' | 'preset' | 'custom' | 'recorded'
+
+/**
  * Une phrase avec son timing
  */
 export interface PhraseTiming {
@@ -51,6 +56,15 @@ export interface PhraseTiming {
   audioTimeRange?: TimeRange // Timing ORIGINAL dans le fichier audio (immuable, pour lecture)
   style?: PhraseStyle       // Style d'affichage personnalisé
   volume?: number           // Volume audio de cette phrase (0-1, défaut: 1)
+  
+  // === VOIX DE PERSONNAGE ===
+  voiceType?: PhraseVoiceType    // Type de voix (narrator par défaut)
+  voiceId?: string               // ID de la voix ElevenLabs (pour preset/custom)
+  characterId?: string           // ID du personnage (ex: "princess-fr", "dragon-en")
+  characterName?: string         // Nom affiché du personnage (ex: "La Princesse")
+  characterEmoji?: string        // Emoji du personnage (ex: "👸")
+  characterColor?: string        // Couleur du personnage (hex, pour l'UI)
+  customAudioUrl?: string        // URL audio si voix régénérée pour ce personnage
 }
 
 /**
@@ -455,6 +469,15 @@ interface MontageState {
   setPhraseTimings: (timings: PhraseTiming[]) => void
   updatePhraseTiming: (phraseId: string, updates: Partial<PhraseTiming>) => void
   updatePhraseStyle: (phraseId: string, style: Partial<PhraseStyle>) => void
+  updatePhraseVoice: (phraseId: string, voiceData: {
+    voiceType?: PhraseVoiceType
+    voiceId?: string
+    characterId?: string
+    characterName?: string
+    characterEmoji?: string
+    characterColor?: string
+    customAudioUrl?: string
+  }) => void
   
   // === ACTIONS MÉDIAS ===
   addMediaTrack: (track: Omit<MediaTrack, 'id'>) => void
@@ -824,6 +847,33 @@ export const useMontageStore = create<MontageState>()(
                   ...phrase.style, 
                   ...styleUpdates 
                 } 
+              }
+            : phrase
+        )
+        
+        get().updateCurrentScene({
+          narration: {
+            ...scene.narration,
+            phrases: updatedPhrases,
+          },
+        })
+      },
+
+      updatePhraseVoice: (phraseId, voiceData) => {
+        const scene = get().getCurrentScene()
+        if (!scene) return
+        
+        const updatedPhrases = scene.narration.phrases.map((phrase) => 
+          phrase.id === phraseId 
+            ? { 
+                ...phrase,
+                voiceType: voiceData.voiceType ?? phrase.voiceType,
+                voiceId: voiceData.voiceId ?? phrase.voiceId,
+                characterId: voiceData.characterId ?? phrase.characterId,
+                characterName: voiceData.characterName ?? phrase.characterName,
+                characterEmoji: voiceData.characterEmoji ?? phrase.characterEmoji,
+                characterColor: voiceData.characterColor ?? phrase.characterColor,
+                customAudioUrl: voiceData.customAudioUrl ?? phrase.customAudioUrl,
               }
             : phrase
         )

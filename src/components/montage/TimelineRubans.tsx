@@ -39,6 +39,7 @@ import {
   RotateCcw
 } from 'lucide-react'
 import { AddElementModal } from './AddElementModal'
+import { CharacterVoiceSelector } from './CharacterVoiceSelector'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { type HighlightableElement } from '@/store/useHighlightStore'
 
@@ -808,6 +809,7 @@ interface PhraseRubanProps {
   isActive: boolean
   onTimeRangeChange: (timeRange: TimeRange) => void
   onSelect: () => void  // Sélectionner la narration pour ouvrir le panneau de volume
+  onDoubleClick: () => void  // Double-clic pour ouvrir le sélecteur de voix
 }
 
 function PhraseRuban({
@@ -817,6 +819,7 @@ function PhraseRuban({
   isActive,
   onTimeRangeChange,
   onSelect,
+  onDoubleClick,
 }: PhraseRubanProps) {
   const rubanRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -914,20 +917,28 @@ function PhraseRuban({
     }
   }, [isDragging, isResizingLeft, isResizingRight, pixelsPerSecond, maxDuration, phrase.timeRange, onTimeRangeChange])
 
+  // Couleur basée sur le personnage ou défaut
+  const bgColor = phrase.characterColor 
+    ? `${phrase.characterColor}${isActive ? '99' : '4D'}` // 60% ou 30% opacity
+    : undefined
+
   return (
     <div
       ref={rubanRef}
       className={cn(
         'absolute h-full flex items-center px-2 rounded-md text-xs cursor-grab transition-shadow group',
-        isActive 
+        !phrase.characterColor && (isActive 
           ? 'bg-amber-500/60 text-white font-medium ring-2 ring-amber-400' 
-          : 'bg-amber-500/30 text-amber-200 hover:bg-amber-500/40',
+          : 'bg-amber-500/30 text-amber-200 hover:bg-amber-500/40'),
+        phrase.characterColor && (isActive ? 'ring-2 ring-white' : ''),
         isDragging && 'cursor-grabbing opacity-80 ring-2 ring-white'
       )}
       style={{
         left: leftPx,
         width: Math.max(40, widthPx),
         minWidth: 40,
+        ...(bgColor && { backgroundColor: bgColor }),
+        ...(phrase.characterColor && { color: 'white' }),
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => {
@@ -937,13 +948,23 @@ function PhraseRuban({
           onSelect()
         }
       }}
-      title={`${phrase.text}\n⏱ ${phrase.timeRange.startTime.toFixed(1)}s → ${phrase.timeRange.endTime.toFixed(1)}s\n🎤 Cliquer pour régler le volume`}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        // Double-clic pour changer la voix
+        onDoubleClick()
+      }}
+      title={`${phrase.characterName ? `${phrase.characterEmoji} ${phrase.characterName}: ` : ''}${phrase.text}\n⏱ ${phrase.timeRange.startTime.toFixed(1)}s → ${phrase.timeRange.endTime.toFixed(1)}s\n🎭 Double-clic pour changer la voix`}
     >
       {/* Handle resize gauche */}
       <div
         className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-l-md"
         onMouseDown={handleResizeLeftStart}
       />
+      
+      {/* Emoji du personnage (si défini) */}
+      {phrase.characterEmoji && (
+        <span className="mr-1 text-sm">{phrase.characterEmoji}</span>
+      )}
       
       {/* Contenu */}
       <span className="truncate flex-1 select-none">{phrase.text}</span>
@@ -969,6 +990,7 @@ function PhrasesTrackScrollable({
   maxDuration,
   onPhraseTimeRangeChange,
   onSelectPhrase,
+  onDoubleClickPhrase,
 }: { 
   phrases: PhraseTiming[]
   pixelsPerSecond: number
@@ -977,6 +999,7 @@ function PhrasesTrackScrollable({
   maxDuration: number  // Durée max de la timeline
   onPhraseTimeRangeChange: (phraseId: string, timeRange: TimeRange) => void
   onSelectPhrase: (phraseId: string) => void  // Ouvrir le panneau de style de la phrase
+  onDoubleClickPhrase: (phraseId: string) => void  // Double-clic pour changer la voix
 }) {
   return (
     <div className="flex items-center h-8">
@@ -1000,6 +1023,7 @@ function PhrasesTrackScrollable({
             isActive={index === activePhraseIndex}
             onTimeRangeChange={(timeRange) => onPhraseTimeRangeChange(phrase.id, timeRange)}
             onSelect={() => onSelectPhrase(phrase.id)}
+            onDoubleClick={() => onDoubleClickPhrase(phrase.id)}
           />
         ))}
       </div>
@@ -1066,6 +1090,10 @@ export function TimelineRubans() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalType, setModalType] = useState<ModalElementType>('media')
   
+  // État du modal sélecteur de voix
+  const [voiceSelectorOpen, setVoiceSelectorOpen] = useState(false)
+  const [selectedPhraseForVoice, setSelectedPhraseForVoice] = useState<PhraseTiming | null>(null)
+  
   // État plein écran
   const [isFullscreen, setIsFullscreen] = useState(false)
   
@@ -1094,6 +1122,15 @@ export function TimelineRubans() {
     setModalType(type)
     setModalOpen(true)
   }, [])
+  
+  // Ouvrir le sélecteur de voix pour une phrase
+  const openVoiceSelector = useCallback((phraseId: string) => {
+    const phrase = scene?.narration?.phrases?.find(p => p.id === phraseId)
+    if (phrase) {
+      setSelectedPhraseForVoice(phrase)
+      setVoiceSelectorOpen(true)
+    }
+  }, [scene?.narration?.phrases])
 
   // Durées intro/outro/narration
   const introDuration = scene?.introDuration || 0
@@ -1616,22 +1653,44 @@ export function TimelineRubans() {
           if (currentPhraseRef.current !== activePhrase.id) {
             currentPhraseRef.current = activePhrase.id
             
-            // Utiliser audioTimeRange si disponible, sinon timeRange
-            const audioRange = activePhrase.audioTimeRange || activePhrase.timeRange
-            
-            // Offset dans la phrase = temps actuel - début de la phrase sur la timeline
-            const phraseOffset = timelineTime - activePhrase.timeRange.startTime
-            
-            // Calculer où commencer dans l'audio original
-            const audioStartTime = audioRange.startTime + phraseOffset
-            
-            // Appliquer le volume de la phrase (combiné avec le volume global de narration)
-            const narrationVolume = scene?.narration?.volume ?? 1
-            const phraseVolume = activePhrase.volume ?? 1
-            audioRef.current.volume = Math.min(1, narrationVolume * phraseVolume)
-            
-            audioRef.current.currentTime = Math.max(0, audioStartTime)
-            audioRef.current.play().catch(() => {})
+            // Si la phrase a un audio personnalisé (voix de personnage), l'utiliser
+            if (activePhrase.customAudioUrl) {
+              // Créer un nouvel audio pour la phrase avec voix personnalisée
+              const customAudio = new Audio(activePhrase.customAudioUrl)
+              const narrationVolume = scene?.narration?.volume ?? 1
+              const phraseVolume = activePhrase.volume ?? 1
+              customAudio.volume = Math.min(1, narrationVolume * phraseVolume)
+              customAudio.play().catch(() => {})
+              
+              // Stocker la référence pour pouvoir l'arrêter
+              const prevAudioRef = audioRef.current
+              audioRef.current = customAudio
+              
+              // Quand l'audio personnalisé se termine, revenir à l'audio original
+              customAudio.onended = () => {
+                if (audioRef.current === customAudio) {
+                  audioRef.current = prevAudioRef
+                  currentPhraseRef.current = null
+                }
+              }
+            } else {
+              // Utiliser l'audio original avec audioTimeRange
+              const audioRange = activePhrase.audioTimeRange || activePhrase.timeRange
+              
+              // Offset dans la phrase = temps actuel - début de la phrase sur la timeline
+              const phraseOffset = timelineTime - activePhrase.timeRange.startTime
+              
+              // Calculer où commencer dans l'audio original
+              const audioStartTime = audioRange.startTime + phraseOffset
+              
+              // Appliquer le volume de la phrase (combiné avec le volume global de narration)
+              const narrationVolume = scene?.narration?.volume ?? 1
+              const phraseVolume = activePhrase.volume ?? 1
+              audioRef.current.volume = Math.min(1, narrationVolume * phraseVolume)
+              
+              audioRef.current.currentTime = Math.max(0, audioStartTime)
+              audioRef.current.play().catch(() => {})
+            }
           }
           
           // Vérifier si on a dépassé la fin de la phrase
@@ -1923,6 +1982,7 @@ export function TimelineRubans() {
               updatePhraseTiming(phraseId, { timeRange })
             }
             onSelectPhrase={(phraseId) => setSelectedTrack(phraseId, 'phrase')}
+            onDoubleClickPhrase={openVoiceSelector}
           />
         )}
 
@@ -2213,6 +2273,19 @@ export function TimelineRubans() {
         onClose={() => setModalOpen(false)}
         elementType={modalType}
       />
+      
+      {/* Modal sélecteur de voix de personnage */}
+      {selectedPhraseForVoice && (
+        <CharacterVoiceSelector
+          isOpen={voiceSelectorOpen}
+          onClose={() => {
+            setVoiceSelectorOpen(false)
+            setSelectedPhraseForVoice(null)
+          }}
+          phrase={selectedPhraseForVoice}
+          locale="fr"
+        />
+      )}
     </div>
   )
 

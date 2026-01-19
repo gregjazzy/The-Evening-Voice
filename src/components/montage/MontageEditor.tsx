@@ -407,12 +407,12 @@ function NarrationPanel() {
 
       const data = await response.json()
       
-      // Convertir base64 en blob pour upload
-      const audioBlob = base64ToBlob(data.audioData, 'audio/mpeg')
+      // L'API retourne directement une URL audio (fal.ai héberge le fichier)
+      const audioUrl = data.audioUrl
       
-      // Uploader l'audio
-      const uploadResult = await upload(audioBlob, { type: 'audio', source: 'upload' })
-      const audioUrl = uploadResult?.url || `data:audio/mpeg;base64,${data.audioData}`
+      if (!audioUrl) {
+        throw new Error('Pas d\'URL audio dans la réponse')
+      }
       
       // Créer les PhraseTiming à partir des timestamps
       // scene.phrases est string[] - on le transforme en structure avec index

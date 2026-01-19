@@ -159,22 +159,22 @@ export interface ElevenLabsVoiceResult {
 
 /**
  * Génère une voix avec ElevenLabs via fal.ai
+ * Utilise le modèle multilingual-v2 pour un support multilingue optimal
  */
 export async function generateVoiceElevenLabs(params: ElevenLabsVoiceParams): Promise<ElevenLabsVoiceResult> {
   const {
     text,
     voiceId,
-    modelId = 'eleven_multilingual_v2',
   } = params
 
-  const result = await fal.subscribe('fal-ai/elevenlabs/tts', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await fal.subscribe('fal-ai/elevenlabs/tts/multilingual-v2', {
     input: {
       text,
-      voice_id: voiceId,
-      model_id: modelId,
+      voice: voiceId,
     },
     logs: true,
-  })
+  }) as any
 
   return {
     audioUrl: result.data.audio.url,
