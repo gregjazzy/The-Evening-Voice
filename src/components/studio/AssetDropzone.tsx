@@ -17,12 +17,17 @@ import {
   CloudOff,
   Loader2,
   Eraser,
+  ZoomIn,
 } from 'lucide-react'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import { useStudioProgressStore } from '@/store/useStudioProgressStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { removeBackground, isBackgroundRemovalSupported } from '@/lib/background-removal'
 import { cn } from '@/lib/utils'
+
+// Résolution minimale pour impression A5 à 300 DPI
+const MIN_PRINT_WIDTH = 1748
+const MIN_PRINT_HEIGHT = 1748 // Carré minimum acceptable
 
 interface AssetDropzoneProps {
   onAssetImported?: (asset: ImportedAsset) => void
@@ -37,6 +42,7 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [removingBgId, setRemovingBgId] = useState<string | null>(null)
   const [bgRemovalProgress, setBgRemovalProgress] = useState(0)
+  const [upscalingId, setUpscalingId] = useState<string | null>(null)
   
   // Mémoriser le support WebGL (calculé une seule fois)
   const canRemoveBackground = useMemo(() => isBackgroundRemovalSupported(), [])
@@ -131,6 +137,45 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
           isUploading: false,
         })
         console.log(`✅ Asset uploadé: ${result.url}`)
+        
+        // Pour les images: vérifier si upscaling nécessaire pour qualité impression
+        if (type === 'image' && result.url) {
+          // Obtenir les dimensions de l'image
+          const img = new window.Image()
+          img.onload = async () => {
+            const needsUpscale = img.width < MIN_PRINT_WIDTH || img.height < MIN_PRINT_HEIGHT
+            
+            if (needsUpscale) {
+              console.log(`🔍 Image trop petite (${img.width}x${img.height}), upscaling automatique...`)
+              setUpscalingId(assetId)
+              
+              try {
+                const upscaleResponse = await fetch('/api/ai/image/upscale', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ imageUrl: result.url }),
+                })
+                
+                if (upscaleResponse.ok) {
+                  const upscaled = await upscaleResponse.json()
+                  updateAsset(assetId, {
+                    cloudUrl: upscaled.imageUrl,
+                  })
+                  console.log(`✅ Image upscalée: ${upscaled.width}x${upscaled.height}`)
+                } else {
+                  console.warn('⚠️ Upscaling échoué, image conservée telle quelle')
+                }
+              } catch (upscaleError) {
+                console.warn('⚠️ Erreur upscaling:', upscaleError)
+              } finally {
+                setUpscalingId(null)
+              }
+            } else {
+              console.log(`✅ Image déjà en qualité impression (${img.width}x${img.height})`)
+            }
+          }
+          img.src = result.url
+        }
       } else {
         // Erreur d'upload (garde l'URL temporaire)
         updateAsset(assetId, {
@@ -355,16 +400,21 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
                           {sourceBadge.label}
                         </span>
                         
-                        {/* Indicateur de statut cloud */}
+                        {/* Indicateur de statut */}
                         {asset.isUploading ? (
                           <span className="flex items-center gap-1 text-xs text-aurora-400">
                             <Loader2 className="w-3 h-3 animate-spin" />
                             Upload...
                           </span>
+                        ) : upscalingId === asset.id ? (
+                          <span className="flex items-center gap-1 text-xs text-dream-400">
+                            <ZoomIn className="w-3 h-3 animate-pulse" />
+                            HD...
+                          </span>
                         ) : asset.cloudUrl ? (
-                          <span className="flex items-center gap-1 text-xs text-emerald-400" title="Sauvegardé dans le cloud">
+                          <span className="flex items-center gap-1 text-xs text-emerald-400" title="Sauvegardé dans le cloud (qualité impression)">
                             <Cloud className="w-3 h-3" />
-                            Cloud
+                            Cloud HD
                           </span>
                         ) : asset.uploadError ? (
                           <span className="flex items-center gap-1 text-xs text-amber-400" title={asset.uploadError}>
