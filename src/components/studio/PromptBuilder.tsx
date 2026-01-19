@@ -382,6 +382,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     }
   }, [currentKit?.subject, showNextSections])
 
+  // Fonction pour invalider une étape (déplacée ici pour être disponible dans tous les useEffect)
+  const { uncompleteStep } = useStudioProgressStore()
+  
   // Mettre à jour les étapes du guide automatiquement
   useEffect(() => {
     if (!currentKit) return
@@ -431,8 +434,6 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
 
   // Étape 4 : Détails ajoutés (subjectDetails, light, ou additionalNotes)
   // IMPORTANT: On doit aussi INVALIDER l'étape si l'enfant efface tout ou met du spam
-  const { uncompleteStep } = useStudioProgressStore()
-  
   useEffect(() => {
     if (!currentKit) return
     
