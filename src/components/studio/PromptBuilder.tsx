@@ -21,7 +21,7 @@ import {
   ExternalLink,
   Rocket
 } from 'lucide-react'
-import { useStudioStore, type StyleType, type AmbianceType, type LightType } from '@/store/useStudioStore'
+import { useStudioStore, type StyleType, type AmbianceType, type LightType, type FormatType } from '@/store/useStudioStore'
 import { useStudioProgressStore } from '@/store/useStudioProgressStore'
 import { useAppStore } from '@/store/useAppStore'
 import { cn } from '@/lib/utils'
@@ -53,6 +53,13 @@ const lightOptions: { id: LightType; label: string; icon: React.ReactNode; color
   { id: 'bougie', label: 'Bougie', icon: <Flame className="w-5 h-5" />, color: 'from-orange-500 to-red-600' },
   { id: 'neon', label: 'Néon', icon: <Zap className="w-5 h-5" />, color: 'from-pink-500 to-cyan-500' },
   { id: 'aurore', label: 'Aurore', icon: <Stars className="w-5 h-5" />, color: 'from-green-400 to-purple-500' },
+]
+
+// Options de format (pour impression livre ou vidéo)
+const formatOptions: { id: FormatType; label: string; emoji: string; description: string; color: string }[] = [
+  { id: 'portrait', label: 'Portrait', emoji: '📖', description: 'Page de livre', color: 'from-amber-500 to-orange-600' },
+  { id: 'paysage', label: 'Paysage', emoji: '🎬', description: 'Format vidéo', color: 'from-blue-500 to-cyan-600' },
+  { id: 'carre', label: 'Carré', emoji: '⬜', description: 'Instagram', color: 'from-pink-500 to-rose-600' },
 ]
 
 // ============================================================================
@@ -126,8 +133,18 @@ const VIDEO_RHYTHM_KEYWORDS = [
   'fondu', 'transition', 'ralenti', 'accéléré', 'boucle', 'loop',
 ]
 
+// Mots-clés pour le FORMAT d'image
+const FORMAT_KEYWORDS = [
+  // Portrait (livre)
+  'portrait', 'vertical', 'page', 'livre', 'book', 'a5', 'a4',
+  // Paysage (vidéo)
+  'paysage', 'horizontal', 'landscape', 'cinéma', 'cinema', '16:9', 'vidéo', 'video', 'écran', 'wide',
+  // Carré
+  'carré', 'square', 'instagram', '1:1',
+]
+
 /**
- * Analyse le texte pour détecter style, ambiance et détails
+ * Analyse le texte pour détecter style, ambiance, détails et format
  * @param text - Le texte à analyser
  * @param creationType - 'image' ou 'video' pour adapter les mots-clés
  */
@@ -135,11 +152,13 @@ function detectElementsInText(text: string, creationType: 'image' | 'video' = 'i
   hasStyle: boolean
   hasAmbiance: boolean
   hasDetails: boolean
+  hasFormat: boolean
   hasMovement: boolean // Spécifique vidéo
   hasRhythm: boolean // Spécifique vidéo
   detectedStyle: string[]
   detectedAmbiance: string[]
   detectedDetails: string[]
+  detectedFormat: string[]
   detectedMovement: string[]
   detectedRhythm: string[]
 } {
@@ -148,6 +167,7 @@ function detectElementsInText(text: string, creationType: 'image' | 'video' = 'i
   const detectedStyle = STYLE_KEYWORDS.filter(kw => lowerText.includes(kw))
   const detectedAmbiance = AMBIANCE_KEYWORDS.filter(kw => lowerText.includes(kw))
   const detectedDetails = DETAIL_KEYWORDS.filter(kw => lowerText.includes(kw))
+  const detectedFormat = FORMAT_KEYWORDS.filter(kw => lowerText.includes(kw))
   
   // Détection spécifique aux vidéos
   const detectedMovement = creationType === 'video' 
@@ -161,11 +181,13 @@ function detectElementsInText(text: string, creationType: 'image' | 'video' = 'i
     hasStyle: detectedStyle.length > 0,
     hasAmbiance: detectedAmbiance.length > 0,
     hasDetails: detectedDetails.length > 0,
+    hasFormat: detectedFormat.length > 0,
     hasMovement: detectedMovement.length > 0,
     hasRhythm: detectedRhythm.length > 0,
     detectedStyle,
     detectedAmbiance,
     detectedDetails,
+    detectedFormat,
     detectedMovement,
     detectedRhythm,
   }
@@ -195,10 +217,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   
   // Formation progressive : les boutons restent visibles plus longtemps
   // Niveau 4+ = l'enfant décrit style/ambiance dans son texte
-  // Niveau 5  = l'enfant décrit tout (détails inclus) dans son texte
+  // Niveau 5  = l'enfant décrit tout (détails + format inclus) dans son texte
   const showStyleButtons = currentLevel < 4    // Visible niveaux 1-3 (avant: < 3)
   const showAmbianceButtons = currentLevel < 4 // Visible niveaux 1-3 (avant: < 3)
   const showLightOptions = currentLevel < 5    // Visible niveaux 1-4 (avant: < 4)
+  // Format visible niveau 4 (nouveau concept) mais pas niveau 5 (l'enfant le décrit)
+  // SEULEMENT pour les images (les vidéos sont toujours en 16:9)
+  const showFormatButtons = currentLevel >= 4 && currentLevel < 5 && currentCreationType === 'image'
 
   const { currentProject } = useAppStore()
   
@@ -214,24 +239,31 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   
   const advancedDetection = useMemo(() => {
     if (!isAdvancedLevel || !currentKit?.subject) {
-      return { hasStyle: false, hasAmbiance: false, hasDetails: false, hasEnoughText: false }
+      return { hasStyle: false, hasAmbiance: false, hasDetails: false, hasFormat: false, hasEnoughText: false }
     }
     const fullText = (currentKit.subject + ' ' + (currentKit.subjectDetails || '') + ' ' + (currentKit.additionalNotes || '')).toLowerCase()
     const hasStyle = STYLE_KEYWORDS.some(kw => fullText.includes(kw))
     const hasAmbiance = AMBIANCE_KEYWORDS.some(kw => fullText.includes(kw))
     const hasDetails = DETAIL_KEYWORDS.some(kw => fullText.includes(kw))
+    const hasFormat = FORMAT_KEYWORDS.some(kw => fullText.includes(kw))
     const hasEnoughText = fullText.length >= 20
-    return { hasStyle, hasAmbiance, hasDetails, hasEnoughText }
+    return { hasStyle, hasAmbiance, hasDetails, hasFormat, hasEnoughText }
   }, [isAdvancedLevel, currentKit?.subject, currentKit?.subjectDetails, currentKit?.additionalNotes])
   
   // Pour les niveaux avancés : description longue + mots-clés
-  // Niveau 4 : style + ambiance requis
-  // Niveau 5 : style + ambiance + détails requis
+  // Niveau 4 : style + ambiance requis, format via bouton (pour images)
+  // Niveau 5 : style + ambiance + détails requis, format dans le texte (pour images)
+  const isImageCreation = currentCreationType === 'image'
+  const formatOk = !isImageCreation || // Vidéos: pas besoin de format
+    (isAdvancedLevel && !isExpertLevel && currentKit?.format) || // Niveau 4: format via bouton
+    (isExpertLevel && advancedDetection.hasFormat) // Niveau 5: format dans le texte
+    
   const complete = isAdvancedLevel 
     ? advancedDetection.hasEnoughText && 
       advancedDetection.hasStyle && 
       advancedDetection.hasAmbiance &&
-      (isExpertLevel ? advancedDetection.hasDetails : true)
+      (isExpertLevel ? advancedDetection.hasDetails : true) &&
+      formatOk
     : baseCompleteness.complete
     
   // Construire la liste des éléments manquants
@@ -243,8 +275,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     if (!advancedDetection.hasStyle) missingItems.push('style visuel (dessin, photo, magique...)')
     if (!advancedDetection.hasAmbiance) missingItems.push('ambiance (jour, nuit, orage...)')
     if (isExpertLevel && !advancedDetection.hasDetails) missingItems.push('détails (couleurs, lumière, textures...)')
+    // Format requis seulement pour les images
+    if (isImageCreation) {
+      if (isAdvancedLevel && !isExpertLevel && !currentKit?.format) missingItems.push('format d\'image (bouton)')
+      if (isExpertLevel && !advancedDetection.hasFormat) missingItems.push('format (portrait, paysage, carré...)')
+    }
     return missingItems
-  }, [isAdvancedLevel, isExpertLevel, baseCompleteness.missing, advancedDetection])
+  }, [isAdvancedLevel, isExpertLevel, baseCompleteness.missing, advancedDetection, isImageCreation, currentKit?.format])
   
   // Refs pour tracker les changements
   const prevSubjectRef = useRef('')
@@ -259,22 +296,26 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     hasStyle: boolean
     hasAmbiance: boolean
     hasDetails: boolean
+    hasFormat: boolean
     hasMovement: boolean
     hasRhythm: boolean
     detectedStyle: string[]
     detectedAmbiance: string[]
     detectedDetails: string[]
+    detectedFormat: string[]
     detectedMovement: string[]
     detectedRhythm: string[]
   }>({
     hasStyle: false,
     hasAmbiance: false,
     hasDetails: false,
+    hasFormat: false,
     hasMovement: false,
     hasRhythm: false,
     detectedStyle: [],
     detectedAmbiance: [],
     detectedDetails: [],
+    detectedFormat: [],
     detectedMovement: [],
     detectedRhythm: [],
   })
@@ -689,6 +730,59 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 data-mentor-target="studio-notes"
               />
             </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* Section Format - VISIBLE NIVEAU 4 UNIQUEMENT (pour images seulement) */}
+      <AnimatePresence>
+        {showFormatButtons && currentKit.light && (
+          <motion.section
+            className="glass rounded-2xl p-6"
+            initial={{ opacity: 0, y: 20, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -10, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-2xl">📐</span>
+              <h3 className="font-semibold text-white">Format de l&apos;image</h3>
+              <span className="text-xs text-midnight-400 ml-2">(pour l&apos;impression du livre)</span>
+              {currentKit.format && (
+                <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
+              )}
+            </div>
+            
+            <p className="text-sm text-midnight-300 mb-4">
+              Choisis le format de ton image selon son utilisation :
+            </p>
+            
+            <div className="grid grid-cols-3 gap-3">
+              {formatOptions.map((format) => (
+                <motion.button
+                  key={format.id}
+                  onClick={() => updateKit({ 
+                    format: currentKit.format === format.id ? null : format.id 
+                  })}
+                  className={cn(
+                    'p-4 rounded-xl flex flex-col items-center gap-2 transition-all',
+                    currentKit.format === format.id
+                      ? 'bg-gradient-to-r ' + format.color + ' text-white ring-2 ring-white/30'
+                      : 'bg-midnight-800/50 hover:bg-midnight-700/50'
+                  )}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span className="text-3xl">{format.emoji}</span>
+                  <span className="text-sm font-medium">{format.label}</span>
+                  <span className="text-xs opacity-70">{format.description}</span>
+                </motion.button>
+              ))}
+            </div>
+            
+            <p className="text-xs text-midnight-400 mt-3 text-center">
+              💡 Portrait (📖) est recommandé pour les pages de ton livre
+            </p>
           </motion.section>
         )}
       </AnimatePresence>

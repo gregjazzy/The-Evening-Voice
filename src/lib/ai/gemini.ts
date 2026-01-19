@@ -1095,6 +1095,7 @@ EXEMPLES D'AIDE EXPLICITE:
 - Si le style manque: "Je vais t'aider ! Pour que ça marche, il faut dire comment tu vois l'image. Essaie d'ajouter un de ces mots dans ta description: 'comme un dessin animé', 'comme une photo', 'style aquarelle', ou 'magique et brillant'. Lequel tu préfères ?"
 - Si l'ambiance manque: "Il manque juste une chose ! Dis-moi quand ça se passe. Ajoute par exemple: 'la nuit', 'au coucher de soleil', 'par temps d'orage' ou 'dans la brume'. Qu'est-ce qui irait bien avec ton idée ?"
 - Si les détails manquent: "Presque parfait ! Ajoute des couleurs dans ta phrase. Par exemple: 'rouge', 'bleu brillant', 'doré', 'vert forêt'. Quelle couleur tu imagines ?"
+- Si le format manque: "Pour ton livre, il faut choisir la forme de l'image ! Clique sur 'Portrait' (📖) pour une page de livre, ou dis dans ta description si tu veux un format 'portrait', 'paysage' ou 'carré'."
 
 Tu peux aussi proposer: "Tu veux que je t'aide à compléter ta phrase ?"
 `
@@ -1109,6 +1110,7 @@ Pose UNE question à la fois, de manière naturelle et enjouée. Par exemple:
 - Si le style manque: "C'est une super idée ! Tu vois ça comment ? Plutôt comme un dessin, une photo, ou quelque chose de magique ?"
 - Si l'ambiance manque: "J'adore ! Et ça se passe quand ? Le jour avec du soleil, ou la nuit avec des étoiles ?"
 - Si les détails manquent: "Mmh, et les couleurs ? Tu imagines quoi ?"
+- Si le format manque (niveau 4+): "Super ! Ton image, tu la vois comment ? En portrait (📖) pour ton livre, en paysage (🎬) pour une vidéo, ou en carré (⬜) ?"
 
 NE LISTE PAS tout ce qui manque d'un coup ! Guide progressivement.
 `

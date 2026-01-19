@@ -6,6 +6,8 @@ export type CreationType = 'image' | 'voice' | 'video'
 export type StyleType = 'dessin' | 'photo' | 'magique' | 'anime' | 'aquarelle' | 'pixel'
 export type AmbianceType = 'jour' | 'nuit' | 'orage' | 'brume' | 'feerique' | 'mystere'
 export type LightType = 'soleil' | 'lune' | 'bougie' | 'neon' | 'aurore'
+// Format d'image pour impression livre ou vidéo
+export type FormatType = 'portrait' | 'paysage' | 'carre'
 
 export interface PromptKit {
   id: string
@@ -15,6 +17,7 @@ export interface PromptKit {
   style: StyleType | null
   ambiance: AmbianceType | null
   light: LightType | null
+  format: FormatType | null  // Format d'image (portrait livre, paysage vidéo, carré)
   sounds: string[]
   additionalNotes: string
   generatedPrompt: string
@@ -186,6 +189,7 @@ export const useStudioStore = create<StudioState>()(
           style: null,
           ambiance: null,
           light: null,
+          format: null, // Format par défaut selon le type (image→portrait, vidéo→paysage)
           sounds: [],
           additionalNotes: '',
           generatedPrompt: '',
