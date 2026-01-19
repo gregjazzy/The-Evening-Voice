@@ -63,8 +63,56 @@ const formatOptions: { id: FormatType; label: string; emoji: string; description
 ]
 
 // ============================================================================
-// VALIDATION DU CONTENU (éviter les entrées absurdes)
+// VALIDATION DU CONTENU (éviter les entrées absurdes et inappropriées)
 // ============================================================================
+
+/**
+ * Liste de mots inappropriés pour les enfants (gros mots, violence, etc.)
+ * Cette liste est volontairement incomplète pour ne pas être un "dictionnaire"
+ * Elle couvre les termes les plus courants en français
+ */
+const INAPPROPRIATE_WORDS = [
+  // Gros mots courants
+  'merde', 'putain', 'bordel', 'connard', 'connasse', 'salaud', 'salope',
+  'enculé', 'nique', 'niquer', 'baise', 'baiser', 'foutre', 'foutaise',
+  'chier', 'chiotte', 'pute', 'pétasse', 'cul', 'couille', 'bite', 'queue',
+  'con', 'conne', 'débile', 'crétin', 'idiot', 'abruti', 'taré',
+  // Violence
+  'tuer', 'mort', 'mourir', 'sang', 'cadavre', 'assassin', 'meurtre',
+  'torture', 'torturer', 'massacrer', 'égorger', 'poignarder',
+  'fusil', 'pistolet', 'arme', 'bombe', 'explosion', 'exploser',
+  // Contenu adulte
+  'sexe', 'sexy', 'nu', 'nue', 'nudité', 'porn', 'érotique',
+  // Drogue/alcool
+  'drogue', 'cocaïne', 'héroïne', 'cannabis', 'fumer', 'alcool', 'saoul', 'bourré',
+  // Discrimination
+  'nazi', 'hitler', 'raciste', 'négro', 'pédé', 'gouine', 'tapette',
+  // Versions avec accents manquants ou leetspeak basique
+  'p*tain', 'm*rde', 'n*que', 'b*te', 'c*l',
+]
+
+/**
+ * Vérifie si le texte contient des mots inappropriés pour les enfants
+ */
+function containsInappropriateContent(text: string): { inappropriate: boolean; word?: string } {
+  if (!text) return { inappropriate: false }
+  
+  const lower = text.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Enlever accents
+    .replace(/[0-9]/g, '') // Enlever chiffres
+    .replace(/[*@#$%]/g, '') // Enlever caractères de censure
+  
+  for (const word of INAPPROPRIATE_WORDS) {
+    const normalizedWord = word.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    // Vérifier le mot entier ou comme partie d'un mot
+    const regex = new RegExp(`\\b${normalizedWord}\\b|${normalizedWord}`, 'i')
+    if (regex.test(lower)) {
+      return { inappropriate: true, word }
+    }
+  }
+  
+  return { inappropriate: false }
+}
 
 /**
  * Vérifie si un texte contient des mots réels (pas juste "asdfgh")
@@ -105,6 +153,33 @@ function looksLikeSpam(text: string): boolean {
   if (letterCount > 5 && vowelCount / letterCount < 0.15) return true
   
   return false
+}
+
+/**
+ * Validation complète du contenu pour enfants
+ */
+function isContentAppropriate(text: string): { valid: boolean; reason?: string } {
+  if (!text || text.trim().length < 3) {
+    return { valid: false, reason: 'Texte trop court' }
+  }
+  
+  // Vérifier le contenu inapproprié
+  const inappropriateCheck = containsInappropriateContent(text)
+  if (inappropriateCheck.inappropriate) {
+    return { valid: false, reason: 'Contenu inapproprié détecté' }
+  }
+  
+  // Vérifier si c'est du spam
+  if (looksLikeSpam(text)) {
+    return { valid: false, reason: 'Texte invalide' }
+  }
+  
+  // Vérifier si c'est une vraie description
+  if (!isValidDescription(text)) {
+    return { valid: false, reason: 'Description invalide' }
+  }
+  
+  return { valid: true }
 }
 
 // ============================================================================
@@ -389,13 +464,11 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   useEffect(() => {
     if (!currentKit) return
     
-    // Étape 1 : Description (au moins 10 caractères + contenu valide, pas du spam)
-    const subjectIsValid = currentKit.subject.length >= 10 && 
-      isValidDescription(currentKit.subject) && 
-      !looksLikeSpam(currentKit.subject)
-    const prevWasValid = prevSubjectRef.current.length >= 10 && 
-      isValidDescription(prevSubjectRef.current) && 
-      !looksLikeSpam(prevSubjectRef.current)
+    // Étape 1 : Description (au moins 10 caractères + contenu valide et approprié)
+    const subjectCheck = isContentAppropriate(currentKit.subject)
+    const subjectIsValid = currentKit.subject.length >= 10 && subjectCheck.valid
+    const prevCheck = isContentAppropriate(prevSubjectRef.current)
+    const prevWasValid = prevSubjectRef.current.length >= 10 && prevCheck.valid
     
     if (subjectIsValid && !prevWasValid) {
       if (!completedSteps.includes('describe')) {
@@ -437,16 +510,16 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   useEffect(() => {
     if (!currentKit) return
     
-    // Si l'enfant a ajouté des détails supplémentaires (minimum 5 caractères + contenu valide)
+    // Si l'enfant a ajouté des détails supplémentaires (minimum 5 caractères + contenu valide et approprié)
+    const detailsCheck = isContentAppropriate(currentKit.subjectDetails || '')
     const subjectDetailsValid = currentKit.subjectDetails && 
       currentKit.subjectDetails.trim().length >= 5 &&
-      isValidDescription(currentKit.subjectDetails) &&
-      !looksLikeSpam(currentKit.subjectDetails)
+      detailsCheck.valid
     const hasLight = !!currentKit.light
+    const notesCheck = isContentAppropriate(currentKit.additionalNotes || '')
     const notesValid = currentKit.additionalNotes && 
       currentKit.additionalNotes.trim().length >= 5 &&
-      isValidDescription(currentKit.additionalNotes) &&
-      !looksLikeSpam(currentKit.additionalNotes)
+      notesCheck.valid
     
     const hasValidDetails = subjectDetailsValid || hasLight || notesValid
     
@@ -746,9 +819,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             <div className="flex items-center gap-2 mb-4">
               <Sun className="w-5 h-5 text-stardust-400" />
               <h3 className="font-semibold text-white">✨ Enrichir les détails</h3>
-              {((currentKit.subjectDetails && isValidDescription(currentKit.subjectDetails) && !looksLikeSpam(currentKit.subjectDetails)) || 
+              {((currentKit.subjectDetails && isContentAppropriate(currentKit.subjectDetails).valid) || 
                 currentKit.light || 
-                (currentKit.additionalNotes && isValidDescription(currentKit.additionalNotes) && !looksLikeSpam(currentKit.additionalNotes))) && (
+                (currentKit.additionalNotes && isContentAppropriate(currentKit.additionalNotes).valid)) && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
