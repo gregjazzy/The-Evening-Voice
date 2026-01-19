@@ -10,6 +10,7 @@ import { useTTS } from '@/hooks/useTTS'
 import { useHighlightStore } from '@/store/useHighlightStore'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { NarrationVoiceSelector } from '@/components/ui/NarrationVoiceSelector'
+import { useLocale } from '@/lib/i18n/context'
 import { TimelineRubans } from './TimelineRubans'
 import { GuidedRecording } from './GuidedRecording'
 import { KaraokePlayer } from './KaraokePlayer'
@@ -717,7 +718,7 @@ function NarrationPanel() {
 
                 {/* Sélecteur de voix */}
                 <div className="p-4">
-                  <NarrationVoiceSelector locale="fr" />
+                  <NarrationVoiceSelector locale={locale} />
                 </div>
 
                 {/* Bouton générer */}
@@ -1557,6 +1558,7 @@ export function MontageEditor() {
   const { currentProject, currentSceneIndex, getCurrentScene, setCurrentScene, viewMode, setViewMode, closeProject } = useMontageStore()
   const { stories } = useAppStore()
   const { projects, loadProject, deleteProject, createProject } = useMontageStore()
+  const locale = useLocale()
   
   const [showPlayer, setShowPlayer] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
