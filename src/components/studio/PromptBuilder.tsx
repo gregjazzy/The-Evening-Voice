@@ -57,9 +57,9 @@ const lightOptions: { id: LightType; label: string; icon: React.ReactNode; color
 
 // Options de format d'image
 const formatOptions: { id: FormatType; label: string; emoji: string; description: string; color: string }[] = [
-  { id: 'portrait', label: 'Portrait', emoji: '📖', description: '1 page de livre', color: 'from-amber-500 to-orange-600' },
-  { id: 'paysage', label: 'Paysage', emoji: '🎬', description: 'Double page ou vidéo', color: 'from-blue-500 to-cyan-600' },
-  { id: 'carre', label: 'Carré', emoji: '⬜', description: 'Vignette / médaillon', color: 'from-pink-500 to-rose-600' },
+  { id: 'portrait', label: 'Portrait', emoji: '📐', description: 'Vertical', color: 'from-amber-500 to-orange-600' },
+  { id: 'paysage', label: 'Paysage', emoji: '🖼️', description: 'Horizontal', color: 'from-blue-500 to-cyan-600' },
+  { id: 'carre', label: 'Carré', emoji: '⬜', description: 'Carré', color: 'from-pink-500 to-rose-600' },
 ]
 
 // ============================================================================
@@ -782,9 +782,6 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               ))}
             </div>
             
-            <p className="text-xs text-midnight-400 mt-3 text-center">
-              💡 1 page = Portrait &nbsp;|&nbsp; Double page ou vidéo = Paysage
-            </p>
           </motion.section>
         )}
       </AnimatePresence>
