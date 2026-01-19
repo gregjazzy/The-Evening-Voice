@@ -63,6 +63,51 @@ const formatOptions: { id: FormatType; label: string; emoji: string; description
 ]
 
 // ============================================================================
+// VALIDATION DU CONTENU (éviter les entrées absurdes)
+// ============================================================================
+
+/**
+ * Vérifie si un texte contient des mots réels (pas juste "asdfgh")
+ * Critères: au moins 1 mot de 3+ lettres avec voyelles
+ */
+function isValidDescription(text: string): boolean {
+  if (!text || text.trim().length < 3) return false
+  
+  const words = text.toLowerCase().trim().split(/\s+/)
+  const vowels = /[aeiouyàâäéèêëïîôùûüœæ]/i
+  
+  // Au moins un mot de 3+ lettres contenant une voyelle
+  const validWords = words.filter(word => {
+    const cleanWord = word.replace(/[^a-zàâäéèêëïîôùûüœæ]/gi, '')
+    return cleanWord.length >= 3 && vowels.test(cleanWord)
+  })
+  
+  return validWords.length >= 1
+}
+
+/**
+ * Vérifie si le texte ressemble à du spam (répétitions, touches aléatoires)
+ */
+function looksLikeSpam(text: string): boolean {
+  if (!text) return false
+  const lower = text.toLowerCase().trim()
+  
+  // Répétition de caractères (aaaa, xxxx)
+  if (/(.)\1{3,}/.test(lower)) return true
+  
+  // Séquences clavier (asdf, qwerty, azerty)
+  const keyboardSequences = ['asdf', 'qwerty', 'azerty', 'zxcv', 'hjkl']
+  if (keyboardSequences.some(seq => lower.includes(seq))) return true
+  
+  // Trop peu de voyelles par rapport aux consonnes (ex: "bcdfgh")
+  const vowelCount = (lower.match(/[aeiouyàâäéèêëïîôùûüœæ]/gi) || []).length
+  const letterCount = (lower.match(/[a-zàâäéèêëïîôùûüœæ]/gi) || []).length
+  if (letterCount > 5 && vowelCount / letterCount < 0.15) return true
+  
+  return false
+}
+
+// ============================================================================
 // DÉTECTION PAR MOTS-CLÉS (pour niveaux 3+)
 // ============================================================================
 
@@ -341,14 +386,24 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   useEffect(() => {
     if (!currentKit) return
     
-    // Étape 1 : Description (quand on a écrit au moins 10 caractères = une vraie idée)
-    if (currentKit.subject.length >= 10 && prevSubjectRef.current.length < 10) {
+    // Étape 1 : Description (au moins 10 caractères + contenu valide, pas du spam)
+    const subjectIsValid = currentKit.subject.length >= 10 && 
+      isValidDescription(currentKit.subject) && 
+      !looksLikeSpam(currentKit.subject)
+    const prevWasValid = prevSubjectRef.current.length >= 10 && 
+      isValidDescription(prevSubjectRef.current) && 
+      !looksLikeSpam(prevSubjectRef.current)
+    
+    if (subjectIsValid && !prevWasValid) {
       if (!completedSteps.includes('describe')) {
         completeStep('describe')
       }
+    } else if (!subjectIsValid && completedSteps.includes('describe')) {
+      // L'enfant a effacé ou mis du spam → invalider
+      uncompleteStep('describe')
     }
     prevSubjectRef.current = currentKit.subject
-  }, [currentKit?.subject, completeStep, completedSteps])
+  }, [currentKit?.subject, completeStep, uncompleteStep, completedSteps])
 
   useEffect(() => {
     if (!currentKit) return
@@ -375,23 +430,29 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   }, [currentKit?.ambiance, completeStep, completedSteps])
 
   // Étape 4 : Détails ajoutés (subjectDetails, light, ou additionalNotes)
-  // IMPORTANT: On doit aussi INVALIDER l'étape si l'enfant efface tout
+  // IMPORTANT: On doit aussi INVALIDER l'étape si l'enfant efface tout ou met du spam
   const { uncompleteStep } = useStudioProgressStore()
   
   useEffect(() => {
     if (!currentKit) return
     
-    // Si l'enfant a ajouté des détails supplémentaires (minimum 5 caractères significatifs)
-    const hasSubjectDetails = currentKit.subjectDetails && currentKit.subjectDetails.trim().length >= 5
+    // Si l'enfant a ajouté des détails supplémentaires (minimum 5 caractères + contenu valide)
+    const subjectDetailsValid = currentKit.subjectDetails && 
+      currentKit.subjectDetails.trim().length >= 5 &&
+      isValidDescription(currentKit.subjectDetails) &&
+      !looksLikeSpam(currentKit.subjectDetails)
     const hasLight = !!currentKit.light
-    const hasNotes = currentKit.additionalNotes && currentKit.additionalNotes.trim().length >= 5
+    const notesValid = currentKit.additionalNotes && 
+      currentKit.additionalNotes.trim().length >= 5 &&
+      isValidDescription(currentKit.additionalNotes) &&
+      !looksLikeSpam(currentKit.additionalNotes)
     
-    const hasDetails = hasSubjectDetails || hasLight || hasNotes
+    const hasValidDetails = subjectDetailsValid || hasLight || notesValid
     
-    if (hasDetails && !completedSteps.includes('choose_extra')) {
+    if (hasValidDetails && !completedSteps.includes('choose_extra')) {
       completeStep('choose_extra')
-    } else if (!hasDetails && completedSteps.includes('choose_extra')) {
-      // L'enfant a effacé → invalider l'étape
+    } else if (!hasValidDetails && completedSteps.includes('choose_extra')) {
+      // L'enfant a effacé ou mis du spam → invalider l'étape
       uncompleteStep('choose_extra')
     }
   }, [currentKit?.subjectDetails, currentKit?.light, currentKit?.additionalNotes, completeStep, uncompleteStep, completedSteps])
@@ -684,9 +745,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             <div className="flex items-center gap-2 mb-4">
               <Sun className="w-5 h-5 text-stardust-400" />
               <h3 className="font-semibold text-white">✨ Enrichir les détails</h3>
-              {((currentKit.subjectDetails?.trim().length ?? 0) >= 5 || 
+              {((currentKit.subjectDetails && isValidDescription(currentKit.subjectDetails) && !looksLikeSpam(currentKit.subjectDetails)) || 
                 currentKit.light || 
-                (currentKit.additionalNotes?.trim().length ?? 0) >= 5) && (
+                (currentKit.additionalNotes && isValidDescription(currentKit.additionalNotes) && !looksLikeSpam(currentKit.additionalNotes))) && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
