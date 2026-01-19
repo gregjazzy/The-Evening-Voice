@@ -185,6 +185,80 @@ Génère une narration avec timestamps par mot pour synchronisation Timeline.
 
 ---
 
+### Modération de Contenu (Gemini)
+
+**POST** `/api/ai/moderate`
+
+Vérifie si le contenu est approprié pour un enfant de 4-10 ans via l'IA.
+
+#### Request
+
+```json
+{
+  "text": "Un dragon gentil qui mange des bonbons"
+}
+```
+
+#### Response
+
+```json
+{
+  "appropriate": true
+}
+```
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `appropriate` | boolean | `true` si contenu OK pour enfants |
+
+#### Critères de blocage
+
+- Gros mots et insultes (même déguisés)
+- Violence graphique, armes
+- Contenu sexuel ou nudité
+- Drogue, alcool, tabac
+- Discrimination ou haine
+- Contenu effrayant pour jeunes enfants
+
+> **Note** : Cache de 5 minutes pour éviter les appels répétés. Fail-open en cas d'erreur API.
+
+---
+
+### Upscaling Image (fal.ai - Real-ESRGAN)
+
+**POST** `/api/ai/image/upscale`
+
+Upscale une image pour l'impression (300 DPI A5 minimum).
+
+#### Request
+
+```json
+{
+  "imageUrl": "https://..."
+}
+```
+
+#### Response
+
+```json
+{
+  "status": "completed",
+  "upscaledImageUrl": "https://...",
+  "width": 3496,
+  "height": 4960,
+  "upscaled": true
+}
+```
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `upscaledImageUrl` | string | URL de l'image upscalée |
+| `width` | number | Largeur en pixels |
+| `height` | number | Hauteur en pixels |
+| `upscaled` | boolean | `false` si déjà haute résolution |
+
+---
+
 ### Transcription Audio (AssemblyAI)
 
 **POST** `/api/ai/transcribe`

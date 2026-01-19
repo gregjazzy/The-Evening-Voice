@@ -2,8 +2,8 @@
 
 > Document de passation complet pour la prochaine session de développement
 
-**Date** : 18 janvier 2026  
-**Version** : 5.0.0  
+**Date** : 19 janvier 2026  
+**Version** : 5.1.0  
 **État** : Production-Ready ✅
 
 ---
@@ -39,7 +39,93 @@ Application pour **enfants de 8 ans** permettant de créer des **livres-disques 
 
 ---
 
-## ✅ Ce qui est FAIT (Session 18 janvier - v5.0)
+## ✅ Ce qui est FAIT (Session 19 janvier - v5.1)
+
+### 0. 🛡️ Modération IA du Contenu
+
+L'IA-Amie (Gemini) vérifie automatiquement que le contenu entré par l'enfant est approprié.
+
+| Fonctionnalité | Description |
+|----------------|-------------|
+| **Modération intelligente** | L'IA comprend le contexte (pas juste une liste de mots) |
+| **Debounce 1s** | Attend que l'enfant arrête d'écrire avant de vérifier |
+| **Cache 5min** | Évite les appels répétés pour le même texte |
+| **Fail-open** | Si erreur API, le contenu passe (ne bloque pas l'enfant) |
+
+#### Critères de blocage
+
+- Gros mots et insultes (même déguisés avec * ou chiffres)
+- Violence graphique, armes
+- Contenu sexuel ou nudité
+- Drogue, alcool, tabac
+- Discrimination ou haine
+- Contenu effrayant pour jeunes enfants
+
+#### Fichiers
+
+```
+src/app/api/ai/moderate/route.ts  # POST { text } → { appropriate: boolean }
+src/components/studio/PromptBuilder.tsx  # Appel avec debounce
+```
+
+#### Impact sur le flux
+
+Si contenu inapproprié :
+1. ❌ Les sections suivantes (Style, Ambiance...) ne s'affichent pas
+2. ❌ Le bouton "Générer" reste désactivé
+3. 📝 L'enfant doit modifier son texte
+
+### 1. 📚 Formation Pédagogique Étendue (Studio)
+
+La progression pédagogique a été étendue pour une formation plus complète.
+
+#### Niveaux et créations requises
+
+| Niveau | Créations | Cumul | Boutons visibles |
+|--------|-----------|-------|------------------|
+| 1 (Découverte) | 5 | 5 | Style, Ambiance, Détails, Format |
+| 2 (Exploration) | 8 | 13 | Style, Ambiance, Détails, Format |
+| 3 (Maîtrise) | 10 | 23 | Style, Ambiance, Détails, Format |
+| 4 (Enrichissement) | 12 | 35 | ❌ Style/Ambiance, Détails, Format |
+| 5 (Expert) | ∞ | - | ❌ Tout dans le texte (sauf Format) |
+
+#### Validation au niveau 4+
+
+L'enfant doit inclure dans son texte :
+- **Niveau 4** : style + ambiance (détectés par mots-clés)
+- **Niveau 5** : style + ambiance + détails
+
+#### Aide IA progressive
+
+Après 3 blocages consécutifs, l'IA-Amie donne des exemples plus explicites.
+
+### 2. 🖼️ Format et Résolution Images
+
+#### Format d'image
+
+| Format | Ratio | Usage |
+|--------|-------|-------|
+| Portrait | 3:4 | Pages de livre (défaut) |
+| Paysage | 16:9 | Vidéo, double pages |
+| Carré | 1:1 | Médaillons, vignettes |
+
+Le format est **toujours visible** pour les images (tous niveaux).
+
+#### Upscaling automatique
+
+Toutes les images sont automatiquement upscalées pour l'impression :
+- **Résolution cible** : 1748×2480 px minimum (300 DPI pour A5)
+- **Modèle** : Real-ESRGAN x2 via fal.ai
+- **Images importées** : Upscalées si sous le seuil
+
+```
+src/app/api/ai/image/upscale/route.ts  # POST { imageUrl } → { upscaledImageUrl }
+src/lib/ai/fal.ts  # upscaleImageForPrint()
+```
+
+---
+
+## ✅ Ce qui était FAIT (Session 18 janvier - v5.0)
 
 ### 1. 🔄 Migration fal.ai (API Unifiée)
 
@@ -166,37 +252,6 @@ src/components/ui/
 └── NarrationVoiceSelector.tsx  # Sélecteur avec preview
 ```
 
-#### Évolution prévue : Voix de Personnages
-
-```typescript
-// Structure future pour voix par phrase
-interface PhraseTiming {
-  id: string
-  text: string
-  index: number
-  timeRange: TimeRange
-  voiceType?: string           // ✨ NOUVEAU : "narrator" | "witch" | "dragon" | custom
-  voiceId?: string             // ✨ NOUVEAU : ID ElevenLabs ou Voice Design
-}
-
-// Presets suggérés
-const VOICE_PRESETS = {
-  narrator: { name: "Narrateur", voiceId: "kwhMCf63M8O3rCfnQ3oQ" },
-  witch: { name: "Sorcière", description: "Voix aiguë et grinçante" },
-  dragon: { name: "Dragon", description: "Voix grave et grondante" },
-  princess: { name: "Princesse", description: "Voix douce et mélodieuse" },
-  robot: { name: "Robot", description: "Voix métallique" },
-}
-
-// Création via Voice Design (fal.ai)
-POST /api/ai/voice/design
-{
-  description: "Voix de sorcière méchante, aiguë et grinçante",
-  language: "fr"
-}
-→ { voiceId: "generated-xxx", previewUrl: "..." }
-```
-
 ### 4. ✨ Système de Guidage IA (Highlights)
 
 ```typescript
@@ -308,11 +363,14 @@ src/components/ui/
 ```
 src/app/api/ai/
 ├── chat/route.ts             # + userName, context: montage
-├── image/route.ts            # → fal.ai Flux 1 Pro
+├── image/
+│   ├── route.ts              # → fal.ai Flux 1 Pro + upscale auto
+│   └── upscale/route.ts      # → fal.ai Real-ESRGAN ✨ NOUVEAU
 ├── video/route.ts            # → fal.ai Kling 2.1
 ├── voice/
 │   ├── route.ts              # → fal.ai ElevenLabs
-│   └── narration/route.ts    # + timestamps ✨ NOUVEAU
+│   └── narration/route.ts    # + timestamps AssemblyAI
+├── moderate/route.ts         # → Gemini (modération contenu) ✨ NOUVEAU
 └── transcribe/route.ts       # AssemblyAI (conservé)
 ```
 
@@ -414,6 +472,10 @@ ALTER TABLE family_config DROP COLUMN IF EXISTS midjourney_key;
 | **Séquence accueil** | ✅ | Prénom + nom IA + voix |
 | **TTS adapté enfants** | ✅ | Vitesse 0.92, voix prioritaires |
 | **Clés API centralisées** | ✅ | fal.ai + Gemini + AssemblyAI |
+| **Modération IA** | ✅ | Gemini vérifie contenu enfants |
+| **Formation étendue** | ✅ | 35 créations → niveau Expert |
+| **Upscaling auto** | ✅ | 300 DPI pour impression |
+| **Format images** | ✅ | Portrait/Paysage/Carré |
 | Sync Supabase | ✅ | Histoires, montages, progression |
 | Assets cloud | ✅ | Supabase + R2 |
 | Admin multi-famille | ✅ | Super Admin + Parent |
@@ -429,18 +491,12 @@ ALTER TABLE family_config DROP COLUMN IF EXISTS midjourney_key;
 
 | Fonctionnalité | Modèle | Effort | Impact |
 |----------------|--------|--------|--------|
-| **Voix de personnages** | ElevenLabs Voice Design | Moyen | ⭐⭐⭐⭐⭐ |
 | **Lip-sync vidéo** | Sync Labs | Moyen | ⭐⭐⭐⭐⭐ |
 | **Musique générée** | MusicGen | Faible | ⭐⭐⭐⭐ |
 | **Effets sonores IA** | AudioLDM | Faible | ⭐⭐⭐ |
 | **Coloriage dessins** | Flux ControlNet | Moyen | ⭐⭐⭐ |
 
-### Voix de Personnages (Recommandé)
-
-L'enfant pourrait assigner une voix différente par phrase :
-- Presets : Sorcière, Dragon, Princesse, Robot...
-- Création libre via Patrick (Voice Design)
-- Stockage dans `phraseTimings[].voiceType`
+> **Note** : Les voix de personnages fantaisistes (dragon, sorcière...) ont été explorées mais présentaient des limitations (clonage ElevenLabs non disponible via fal.ai, qualité inconstante). Le système actuel utilise les 21 voix narrateur ElevenLabs préexistantes.
 
 ---
 
