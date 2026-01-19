@@ -26,8 +26,10 @@ import { removeBackground, isBackgroundRemovalSupported } from '@/lib/background
 import { cn } from '@/lib/utils'
 
 // Résolution minimale pour impression A5 à 300 DPI
+// A5 = 14.8 × 21 cm = 5.83 × 8.27 pouces
+// À 300 DPI : 1748 × 2480 pixels
 const MIN_PRINT_WIDTH = 1748
-const MIN_PRINT_HEIGHT = 1748 // Carré minimum acceptable
+const MIN_PRINT_HEIGHT = 2480
 
 interface AssetDropzoneProps {
   onAssetImported?: (asset: ImportedAsset) => void
