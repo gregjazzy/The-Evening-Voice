@@ -11,7 +11,6 @@ import {
   ENGLISH_VOICES,
   RUSSIAN_VOICES,
 } from '@/lib/ai/elevenlabs'
-import { getCharacterVoices, type CharacterVoice } from '@/lib/ai/voice-catalog'
 import { cn } from '@/lib/utils'
 
 interface NarrationVoiceSelectorProps {
@@ -74,16 +73,12 @@ export function NarrationVoiceSelector({
   const { narrationVoiceId, setNarrationVoiceId } = useAppStore()
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null)
   const [loadingVoiceId, setLoadingVoiceId] = useState<string | null>(null)
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const voices = getVoicesForLocale(locale)
-  const characterVoices = getCharacterVoices(locale)
 
-  // Trouver la voix actuelle (dans les voix classiques OU les personnages)
-  const currentVoice = voices.find(v => v.id === narrationVoiceId) 
-    || characterVoices.find(v => v.elevenLabsId === narrationVoiceId) as ElevenLabsVoice | undefined
-    || voices[0]
+  // Trouver la voix actuelle
+  const currentVoice = voices.find(v => v.id === narrationVoiceId) || voices[0]
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -159,18 +154,10 @@ export function NarrationVoiceSelector({
     }
   }
 
-  // Sélectionner une voix (narrateur classique)
+  // Sélectionner une voix
   const handleSelectVoice = (voice: ElevenLabsVoice) => {
     setNarrationVoiceId(voice.id)
-    setSelectedCharacterId(null) // Désélectionner tout personnage
     onVoiceChange?.(voice.id)
-  }
-  
-  // Sélectionner un personnage de conte
-  const handleSelectCharacter = (character: CharacterVoice) => {
-    setNarrationVoiceId(character.elevenLabsId)
-    setSelectedCharacterId(character.id) // Stocker l'ID unique du personnage
-    onVoiceChange?.(character.elevenLabsId)
   }
 
   // Grouper les voix par genre
@@ -212,7 +199,7 @@ export function NarrationVoiceSelector({
             <VoiceItem
               key={voice.id}
               voice={voice}
-              isSelected={narrationVoiceId === voice.id && selectedCharacterId === null}
+              isSelected={narrationVoiceId === voice.id}
               isPlaying={playingVoiceId === voice.id}
               isLoading={loadingVoiceId === voice.id}
               onSelect={() => handleSelectVoice(voice)}
@@ -233,7 +220,7 @@ export function NarrationVoiceSelector({
             <VoiceItem
               key={voice.id}
               voice={voice}
-              isSelected={narrationVoiceId === voice.id && selectedCharacterId === null}
+              isSelected={narrationVoiceId === voice.id}
               isPlaying={playingVoiceId === voice.id}
               isLoading={loadingVoiceId === voice.id}
               onSelect={() => handleSelectVoice(voice)}
@@ -243,28 +230,6 @@ export function NarrationVoiceSelector({
           ))}
         </div>
       </div>
-
-      {/* Personnages de contes */}
-      {characterVoices.length > 0 && (
-        <div className="mb-4 pt-4 border-t border-midnight-700/50">
-          <h4 className="text-xs font-medium text-dream-300 mb-2 flex items-center gap-1">
-            <span>🎭</span> Personnages de contes
-          </h4>
-          <p className="text-[10px] text-midnight-500 mb-3">
-            Pour donner vie aux personnages de ton histoire !
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {characterVoices.map((character) => (
-              <CharacterVoiceItem
-                key={character.id}
-                character={character}
-                isSelected={selectedCharacterId === character.id}
-                onSelect={() => handleSelectCharacter(character)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Note */}
       <p className="text-[10px] text-midnight-500 mt-4 text-center">
@@ -372,54 +337,6 @@ function VoiceItem({
             <Play className="w-4 h-4" />
           )}
         </button>
-      )}
-    </motion.div>
-  )
-}
-
-// Composant pour un personnage de conte
-interface CharacterVoiceItemProps {
-  character: CharacterVoice
-  isSelected: boolean
-  onSelect: () => void
-}
-
-function CharacterVoiceItem({ 
-  character, 
-  isSelected, 
-  onSelect,
-}: CharacterVoiceItemProps) {
-  return (
-    <motion.div
-      className={cn(
-        'flex flex-col items-center gap-1 p-3 rounded-xl cursor-pointer transition-all text-center',
-        isSelected
-          ? 'bg-dream-500/20 border border-dream-500/30 ring-2 ring-dream-500/30'
-          : 'bg-midnight-800/50 hover:bg-midnight-700/50 border border-transparent'
-      )}
-      onClick={onSelect}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      style={isSelected ? { borderColor: character.color } : undefined}
-    >
-      {/* Emoji avec couleur */}
-      <div 
-        className="w-10 h-10 rounded-full flex items-center justify-center text-2xl"
-        style={{ backgroundColor: `${character.color}30` }}
-      >
-        {character.emoji}
-      </div>
-      
-      {/* Nom */}
-      <span className="text-xs font-medium text-white truncate w-full">
-        {character.name}
-      </span>
-      
-      {/* Indicateur de sélection */}
-      {isSelected && (
-        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-dream-500 flex items-center justify-center">
-          <Check className="w-3 h-3 text-white" />
-        </div>
       )}
     </motion.div>
   )

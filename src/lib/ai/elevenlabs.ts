@@ -207,10 +207,8 @@ export function getVoiceByKey(key: string, locale: 'fr' | 'en' | 'ru' = 'fr'): E
 // ============================================
 
 export const AVAILABLE_VOICES = {
-  narrator: FRENCH_VOICES.conteur,
-  fairy: FRENCH_VOICES.fee,
-  dragon: FRENCH_VOICES.dragon,
-  default: FRENCH_VOICES.amelie,
+  narrator: FRENCH_VOICES.narratrice,
+  default: FRENCH_VOICES.narratrice,
 }
 
 // Legacy: Garder ai_friend comme alias de default
