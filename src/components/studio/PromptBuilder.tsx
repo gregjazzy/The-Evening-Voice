@@ -55,11 +55,11 @@ const lightOptions: { id: LightType; label: string; icon: React.ReactNode; color
   { id: 'aurore', label: 'Aurore', icon: <Stars className="w-5 h-5" />, color: 'from-green-400 to-purple-500' },
 ]
 
-// Options de format (pour impression livre ou vidéo)
+// Options de format d'image
 const formatOptions: { id: FormatType; label: string; emoji: string; description: string; color: string }[] = [
-  { id: 'portrait', label: 'Portrait', emoji: '📖', description: 'Page de livre', color: 'from-amber-500 to-orange-600' },
-  { id: 'paysage', label: 'Paysage', emoji: '🎬', description: 'Format vidéo', color: 'from-blue-500 to-cyan-600' },
-  { id: 'carre', label: 'Carré', emoji: '⬜', description: 'Instagram', color: 'from-pink-500 to-rose-600' },
+  { id: 'portrait', label: 'Portrait', emoji: '📖', description: '1 page de livre', color: 'from-amber-500 to-orange-600' },
+  { id: 'paysage', label: 'Paysage', emoji: '🎬', description: 'Double page ou vidéo', color: 'from-blue-500 to-cyan-600' },
+  { id: 'carre', label: 'Carré', emoji: '⬜', description: 'Vignette / médaillon', color: 'from-pink-500 to-rose-600' },
 ]
 
 // ============================================================================
@@ -281,7 +281,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     if (isExpertLevel && !advancedDetection.hasDetails) missingItems.push('détails (couleurs, lumière, textures...)')
     // Format requis pour toutes les images (tous niveaux)
     if (isImageCreation && !currentKit?.format && !(isExpertLevel && advancedDetection.hasFormat)) {
-      missingItems.push('format d\'image (📖 livre ou 🎬 vidéo)')
+      missingItems.push('format d\'image (portrait, paysage ou carré)')
     }
     return missingItems
   }, [isAdvancedLevel, isExpertLevel, baseCompleteness.missing, advancedDetection, isImageCreation, currentKit?.format])
@@ -756,7 +756,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             </div>
             
             <p className="text-sm text-midnight-300 mb-4">
-              Ton image, c&apos;est pour ton livre 📖 ou pour une vidéo 🎬 ?
+              Quelle forme pour ton image ?
             </p>
             
             <div className="grid grid-cols-3 gap-3">
@@ -783,7 +783,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             </div>
             
             <p className="text-xs text-midnight-400 mt-3 text-center">
-              💡 Livre = Portrait (📖) &nbsp;|&nbsp; Montage vidéo = Paysage (🎬)
+              💡 1 page = Portrait &nbsp;|&nbsp; Double page ou vidéo = Paysage
             </p>
           </motion.section>
         )}
