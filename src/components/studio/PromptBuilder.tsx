@@ -210,20 +210,28 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const baseCompleteness = checkKitCompleteness()
   
   // Calculer la détection de mots-clés pour les niveaux avancés
+  const isExpertLevel = currentLevel >= 5 // Niveau expert : tout doit être dans le texte
+  
   const advancedDetection = useMemo(() => {
     if (!isAdvancedLevel || !currentKit?.subject) {
-      return { hasStyle: false, hasAmbiance: false, hasEnoughText: false }
+      return { hasStyle: false, hasAmbiance: false, hasDetails: false, hasEnoughText: false }
     }
-    const fullText = (currentKit.subject + ' ' + (currentKit.subjectDetails || '')).toLowerCase()
+    const fullText = (currentKit.subject + ' ' + (currentKit.subjectDetails || '') + ' ' + (currentKit.additionalNotes || '')).toLowerCase()
     const hasStyle = STYLE_KEYWORDS.some(kw => fullText.includes(kw))
     const hasAmbiance = AMBIANCE_KEYWORDS.some(kw => fullText.includes(kw))
+    const hasDetails = DETAIL_KEYWORDS.some(kw => fullText.includes(kw))
     const hasEnoughText = fullText.length >= 20
-    return { hasStyle, hasAmbiance, hasEnoughText }
-  }, [isAdvancedLevel, currentKit?.subject, currentKit?.subjectDetails])
+    return { hasStyle, hasAmbiance, hasDetails, hasEnoughText }
+  }, [isAdvancedLevel, currentKit?.subject, currentKit?.subjectDetails, currentKit?.additionalNotes])
   
-  // Pour les niveaux avancés : description longue + mots-clés style/ambiance
+  // Pour les niveaux avancés : description longue + mots-clés
+  // Niveau 4 : style + ambiance requis
+  // Niveau 5 : style + ambiance + détails requis
   const complete = isAdvancedLevel 
-    ? advancedDetection.hasEnoughText && advancedDetection.hasStyle && advancedDetection.hasAmbiance
+    ? advancedDetection.hasEnoughText && 
+      advancedDetection.hasStyle && 
+      advancedDetection.hasAmbiance &&
+      (isExpertLevel ? advancedDetection.hasDetails : true)
     : baseCompleteness.complete
     
   // Construire la liste des éléments manquants
@@ -234,8 +242,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     if (!advancedDetection.hasEnoughText) missingItems.push('description plus détaillée')
     if (!advancedDetection.hasStyle) missingItems.push('style visuel (dessin, photo, magique...)')
     if (!advancedDetection.hasAmbiance) missingItems.push('ambiance (jour, nuit, orage...)')
+    if (isExpertLevel && !advancedDetection.hasDetails) missingItems.push('détails (couleurs, lumière, textures...)')
     return missingItems
-  }, [isAdvancedLevel, baseCompleteness.missing, advancedDetection])
+  }, [isAdvancedLevel, isExpertLevel, baseCompleteness.missing, advancedDetection])
   
   // Refs pour tracker les changements
   const prevSubjectRef = useRef('')
