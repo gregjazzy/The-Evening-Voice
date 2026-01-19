@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
       ambiance = 'jour',
       aspectRatio,
       forVideo = false, // Si true, format vidéo (16:9), sinon format livre (3:4)
-      upscale = true,   // Upscaling automatique pour qualité impression (défaut: oui)
     } = body
     
     // Format par défaut selon l'usage
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Upscaling automatique pour qualité impression (x2)
     // ~1152x1536 → ~2304x3072 (suffisant pour A5 à 300 DPI)
-    if (upscale && finalImageUrl) {
+    if (finalImageUrl) {
       try {
         console.log('🔍 Upscaling image pour qualité impression (x2)...')
         const upscaled = await upscaleImageForPrint({
