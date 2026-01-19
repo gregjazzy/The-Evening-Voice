@@ -34,9 +34,7 @@ import {
   Sliders,
   GripVertical,
   Mic,
-  AudioWaveform,
 } from 'lucide-react'
-import { CharacterVoiceSelector } from './CharacterVoiceSelector'
 
 // =============================================================================
 // SLIDER COMPONENT
@@ -245,15 +243,9 @@ function NarrationProperties() {
 // =============================================================================
 function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
   const { updatePhraseStyle, updatePhraseTiming } = useMontageStore()
-  const [isVoiceSelectorOpen, setIsVoiceSelectorOpen] = useState(false)
   
   // Volume de la phrase (défaut: 1)
   const volume = phrase.volume ?? 1
-  
-  // Voix actuelle de la phrase
-  const currentVoiceName = phrase.characterName || 'Voix par défaut'
-  const currentVoiceEmoji = phrase.characterEmoji || '🎤'
-  const hasCustomVoice = !!phrase.voiceId || !!phrase.customAudioUrl
   
   // Style par défaut
   const style: PhraseStyle = {
@@ -311,44 +303,16 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
         >
           {phrase.text.length > 50 ? phrase.text.substring(0, 50) + '...' : phrase.text}
         </div>
-      </Section>
-      
-      {/* 🎤 VOIX - Section pour changer la voix de la phrase */}
-      <Section title="Voix" icon={<AudioWaveform className="w-3.5 h-3.5" />} color="text-dream-400">
-        <div className="space-y-2">
-          {/* Voix actuelle */}
-          <div className="flex items-center gap-2 p-2 bg-midnight-800/50 rounded-lg">
-            <span className="text-lg">{currentVoiceEmoji}</span>
-            <span className="text-sm text-white flex-1">{currentVoiceName}</span>
-            {hasCustomVoice && (
-              <span className="text-[10px] px-1.5 py-0.5 bg-aurora-500/20 text-aurora-400 rounded">
-                Personnalisée
-              </span>
-            )}
+        {/* Indication pour changer la voix */}
+        {(phrase.voiceId || phrase.customAudioUrl) && (
+          <div className="mt-2 text-xs text-midnight-400 flex items-center gap-1">
+            <span>{phrase.characterEmoji || '🎤'}</span>
+            <span>{phrase.characterName || 'Voix personnalisée'}</span>
           </div>
-          
-          {/* Bouton pour changer */}
-          <button
-            onClick={() => setIsVoiceSelectorOpen(true)}
-            className="w-full py-2 px-3 rounded-lg bg-dream-500/20 hover:bg-dream-500/30 text-dream-300 text-sm font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <Mic className="w-4 h-4" />
-            Changer la voix
-          </button>
-          
-          {/* Info */}
-          <p className="text-[10px] text-midnight-500">
-            💡 Tu peux enregistrer ta voix ou choisir une voix IA
-          </p>
-        </div>
-        
-        {/* Modal de sélection de voix */}
-        <CharacterVoiceSelector
-          isOpen={isVoiceSelectorOpen}
-          onClose={() => setIsVoiceSelectorOpen(false)}
-          phrase={phrase}
-          locale="fr"
-        />
+        )}
+        <p className="mt-2 text-[10px] text-midnight-500 text-center">
+          💡 Double-clique pour changer la voix
+        </p>
       </Section>
       
       {/* Position à l'écran */}
