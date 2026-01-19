@@ -228,6 +228,7 @@ function NarrationPanel() {
   const { getCurrentScene, setNarrationAudio, clearNarrationAudio, setPhraseTimings } = useMontageStore()
   const { narrationVoiceId } = useAppStore()
   const { upload, isUploading, progress } = useMediaUpload()
+  const locale = useLocale()
   
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
@@ -1558,7 +1559,6 @@ export function MontageEditor() {
   const { currentProject, currentSceneIndex, getCurrentScene, setCurrentScene, viewMode, setViewMode, closeProject } = useMontageStore()
   const { stories } = useAppStore()
   const { projects, loadProject, deleteProject, createProject } = useMontageStore()
-  const locale = useLocale()
   
   const [showPlayer, setShowPlayer] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
