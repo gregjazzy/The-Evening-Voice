@@ -63,8 +63,34 @@ const formatOptions: { id: FormatType; label: string; emoji: string; description
 ]
 
 // ============================================================================
-// VALIDATION DU CONTENU (éviter les entrées absurdes)
+// VALIDATION DU CONTENU (éviter les entrées absurdes et inappropriées)
 // ============================================================================
+
+/**
+ * Liste de mots/patterns ÉVIDENTS inappropriés pour enfants
+ * Vérification instantanée côté client (l'IA fait une vérification plus complète après)
+ */
+const OBVIOUS_BAD_PATTERNS = [
+  // Anatomie inappropriée
+  /\bsexe\b/i, /\bsex\b/i, /\bpénis\b/i, /\bvagin\b/i, /\bchatte\b/i, /\bbite\b/i,
+  /\bcouille/i, /\bfesse/i, /\bseins?\b/i, /\bnu[es]?\b/i, /\bnudité/i,
+  // Gros mots courants
+  /\bmerde\b/i, /\bputain\b/i, /\bconnard/i, /\bconnasse/i, /\bsalope/i, /\bpute\b/i,
+  /\benculé/i, /\bnique/i, /\bbaiser\b/i, /\bfoutre\b/i,
+  // Violence explicite
+  /\btuer\b/i, /\bmeurtre/i, /\bassassin/i, /\btorture/i, /\bégorger/i,
+  // Contenu adulte
+  /\bporn/i, /\bérotique/i,
+]
+
+/**
+ * Vérification INSTANTANÉE côté client pour patterns évidents
+ * (plus rapide que l'appel API, mais moins intelligent)
+ */
+function containsObviousBadContent(text: string): boolean {
+  if (!text) return false
+  return OBVIOUS_BAD_PATTERNS.some(pattern => pattern.test(text))
+}
 
 /**
  * Vérifie si un texte contient des mots réels (pas juste "asdfgh")
@@ -108,12 +134,17 @@ function looksLikeSpam(text: string): boolean {
 }
 
 /**
- * Validation basique du contenu (spam, gibberish)
- * La validation du contenu inapproprié est faite par l'IA
+ * Validation du contenu (spam, gibberish, contenu inapproprié évident)
+ * Note: L'IA fait une vérification plus complète avec debounce
  */
 function isContentAppropriate(text: string): { valid: boolean; reason?: string } {
   if (!text || text.trim().length < 3) {
     return { valid: false, reason: 'Texte trop court' }
+  }
+  
+  // Vérification INSTANTANÉE pour contenu évident
+  if (containsObviousBadContent(text)) {
+    return { valid: false, reason: 'Contenu inapproprié' }
   }
   
   // Vérifier si c'est du spam
