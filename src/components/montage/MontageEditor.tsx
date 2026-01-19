@@ -381,6 +381,7 @@ function NarrationPanel() {
   }
 
   // Générer la narration avec une voix IA (ElevenLabs)
+  // Process harmonisé : ElevenLabs + AssemblyAI pour timestamps précis
   const generateTTSNarration = async () => {
     if (!scene?.text) return
     
@@ -389,15 +390,15 @@ function NarrationPanel() {
     setShowVoiceSelector(false)
     
     try {
-      // Appeler l'API pour générer l'audio avec timestamps
-      // Note: L'API récupère automatiquement la clé famille via les cookies de session
+      // Appeler l'API pour générer l'audio avec timestamps AssemblyAI
       const response = await fetch('/api/ai/voice/narration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: scene.text,
           voiceId: narrationVoiceId || undefined,
-          locale: 'fr', // TODO: récupérer depuis les préférences
+          locale: locale,
+          phrases: scene.phrases, // Passer les phrases pour l'alignement
           withTimestamps: true,
         }),
       })
@@ -416,22 +417,42 @@ function NarrationPanel() {
         throw new Error('Pas d\'URL audio dans la réponse')
       }
       
-      // Créer les PhraseTiming à partir des timestamps
-      // scene.phrases est string[] - on le transforme en structure avec index
-      const phrasesWithIndex = scene.phrases.map((text, index) => ({ text, index }))
+      const introDuration = scene?.introDuration || 0
       let phraseTimings: PhraseTiming[] = []
       
-      if (data.wordTimestamps && data.wordTimestamps.length > 0) {
-        // Utiliser les timestamps d'ElevenLabs
-        phraseTimings = createPhraseTimingsFromWords(phrasesWithIndex, data.wordTimestamps, data.duration)
+      // Utiliser les timings AssemblyAI si disponibles
+      if (data.timings && data.timings.length > 0) {
+        console.log('✅ Timestamps AssemblyAI reçus:', data.timings.length, 'phrases')
+        
+        phraseTimings = data.timings.map((t: { text: string; index: number; startTime: number; endTime: number }) => ({
+          id: `phrase-${t.index}`,
+          text: scene.phrases[t.index] || t.text,
+          index: t.index,
+          timeRange: {
+            startTime: introDuration + t.startTime,
+            endTime: introDuration + t.endTime,
+          },
+          audioTimeRange: {
+            startTime: t.startTime,
+            endTime: t.endTime,
+          },
+        }))
       } else {
         // Fallback: calculer les timings basé sur la durée et le nombre de mots
+        console.log('⚠️ Fallback: timestamps estimés')
+        const phrasesWithIndex = scene.phrases.map((text, index) => ({ text, index }))
         phraseTimings = createEstimatedPhraseTimings(phrasesWithIndex, data.duration)
       }
       
       // Sauvegarder dans le store
       setNarrationAudio(audioUrl, 'tts', data.duration)
       setPhraseTimings(phraseTimings)
+      
+      console.log('✅ Narration générée:', {
+        duration: data.duration,
+        phrases: phraseTimings.length,
+        hasAccurateTimings: data.hasAccurateTimings,
+      })
       
     } catch (error) {
       console.error('Erreur TTS:', error)
