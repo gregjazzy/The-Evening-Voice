@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from '@/lib/i18n/context'
 import { 
@@ -15,6 +15,11 @@ import {
   Printer,
   Shield,
   Users,
+  Lock,
+  Book,
+  ChevronDown,
+  Plus,
+  Check,
 } from 'lucide-react'
 import { useAppStore, type AppMode } from '@/store/useAppStore'
 import { useMentorStore } from '@/store/useMentorStore'
@@ -68,15 +73,56 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const t = useTranslations('nav')
-  const { currentMode, setCurrentMode } = useAppStore()
+  const { currentMode, setCurrentMode, currentStory, stories, setCurrentStory } = useAppStore()
   const { isConnected, role, connectedUsers, disconnect } = useMentorStore()
   const { isSuperAdmin, userFamilyInfo } = useAdminStore()
   const [showConnectionModal, setShowConnectionModal] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
+  const [showStorySelector, setShowStorySelector] = useState(false)
+  const storySelectorRef = useRef<HTMLDivElement>(null)
+  
+  // Fermer le dropdown quand on clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (storySelectorRef.current && !storySelectorRef.current.contains(event.target as Node)) {
+        setShowStorySelector(false)
+      }
+    }
+    
+    if (showStorySelector) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showStorySelector])
 
   const childrenCount = connectedUsers.filter(u => u.role === 'child').length
   const isParent = userFamilyInfo?.user_role === 'parent'
   const canAccessAdmin = isSuperAdmin || isParent
+  
+  // Modes qui nécessitent une histoire avec titre
+  const modesRequiringStory: AppMode[] = ['studio', 'layout']
+  const hasStoryWithTitle = !!currentStory?.title
+  
+  // Histoires triées par date (plus récentes en premier)
+  const sortedStories = [...stories].sort((a, b) => 
+    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  )
+  
+  // Sélectionner une histoire
+  const handleSelectStory = (story: typeof stories[0]) => {
+    setCurrentStory(story)
+    setShowStorySelector(false)
+  }
+  
+  // Créer nouvelle histoire → aller dans Écriture
+  const handleNewStory = () => {
+    setCurrentStory(null)
+    setCurrentMode('book')
+    setShowStorySelector(false)
+  }
 
   return (
     <>
@@ -88,7 +134,7 @@ export function Sidebar() {
       >
         {/* Logo / Titre */}
         <motion.div 
-          className="mb-4 lg:mb-8 flex flex-col items-center"
+          className="mb-2 lg:mb-4 flex flex-col items-center"
           whileHover={{ scale: 1.05 }}
         >
           <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-aurora-500 to-aurora-700 flex items-center justify-center magic-glow">
@@ -99,49 +145,147 @@ export function Sidebar() {
           </span>
         </motion.div>
 
+        {/* Sélecteur d'histoire */}
+        <div ref={storySelectorRef} className="relative w-full px-2 lg:px-3 mb-2 lg:mb-4">
+          <motion.button
+            onClick={() => setShowStorySelector(!showStorySelector)}
+            className={cn(
+              'w-full p-2 rounded-xl flex items-center gap-2 transition-all text-left',
+              currentStory 
+                ? 'bg-aurora-500/10 border border-aurora-500/30 hover:bg-aurora-500/20'
+                : 'bg-midnight-800/50 border border-midnight-700 hover:bg-midnight-700/50'
+            )}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Book className={cn(
+              'w-4 h-4 flex-shrink-0',
+              currentStory ? 'text-aurora-400' : 'text-midnight-500'
+            )} />
+            <span className={cn(
+              'flex-1 text-[10px] lg:text-xs truncate hidden lg:block',
+              currentStory ? 'text-white' : 'text-midnight-400'
+            )}>
+              {currentStory?.title || 'Choisir...'}
+            </span>
+            <ChevronDown className={cn(
+              'w-3 h-3 flex-shrink-0 transition-transform hidden lg:block',
+              showStorySelector && 'rotate-180',
+              currentStory ? 'text-aurora-400' : 'text-midnight-500'
+            )} />
+          </motion.button>
+          
+          {/* Dropdown */}
+          <AnimatePresence>
+            {showStorySelector && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-2 right-2 lg:left-3 lg:right-3 top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden"
+              >
+                {/* Liste des histoires */}
+                <div className="max-h-48 overflow-y-auto">
+                  {sortedStories.length === 0 ? (
+                    <div className="p-3 text-center text-midnight-500 text-xs">
+                      Aucune histoire
+                    </div>
+                  ) : (
+                    sortedStories.map((story) => (
+                      <button
+                        key={story.id}
+                        onClick={() => handleSelectStory(story)}
+                        className={cn(
+                          'w-full p-2 lg:p-3 flex items-center gap-2 hover:bg-midnight-800 transition-colors text-left',
+                          currentStory?.id === story.id && 'bg-aurora-500/10'
+                        )}
+                      >
+                        <Book className={cn(
+                          'w-3 h-3 flex-shrink-0',
+                          currentStory?.id === story.id ? 'text-aurora-400' : 'text-midnight-500'
+                        )} />
+                        <span className={cn(
+                          'flex-1 text-[10px] lg:text-xs truncate',
+                          currentStory?.id === story.id ? 'text-white' : 'text-midnight-300'
+                        )}>
+                          {story.title || 'Sans titre'}
+                        </span>
+                        {currentStory?.id === story.id && (
+                          <Check className="w-3 h-3 text-aurora-400 flex-shrink-0" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+                
+                {/* Bouton nouvelle histoire */}
+                <div className="border-t border-midnight-700">
+                  <button
+                    onClick={handleNewStory}
+                    className="w-full p-2 lg:p-3 flex items-center gap-2 hover:bg-dream-500/10 transition-colors text-dream-400"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span className="text-[10px] lg:text-xs">Nouvelle histoire</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Navigation */}
         <nav className="flex-1 flex flex-col gap-1 lg:gap-2 w-full px-2 lg:px-3">
-          {navItems.map((item, index) => (
-            <Highlightable key={item.id} id={item.highlightId}>
-              <motion.button
-                onClick={() => setCurrentMode(item.id)}
-                className={cn(
-                  'nav-item w-full',
-                  currentMode === item.id && 'active'
-                )}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.3 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                title={t(item.labelKey)}
-                data-mentor-target={`nav-${item.id}`}
-              >
-                <motion.div
-                  animate={currentMode === item.id ? {
-                    scale: [1, 1.2, 1],
-                    transition: { duration: 0.3 }
-                  } : {}}
+          {navItems.map((item, index) => {
+            const isLocked = modesRequiringStory.includes(item.id) && !hasStoryWithTitle
+            
+            return (
+              <Highlightable key={item.id} id={item.highlightId}>
+                <motion.button
+                  onClick={() => !isLocked && setCurrentMode(item.id)}
+                  className={cn(
+                    'nav-item w-full',
+                    currentMode === item.id && 'active',
+                    isLocked && 'opacity-40 cursor-not-allowed'
+                  )}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.3 }}
+                  whileHover={isLocked ? {} : { scale: 1.05 }}
+                  whileTap={isLocked ? {} : { scale: 0.95 }}
+                  title={isLocked ? 'Crée d\'abord une histoire dans Écriture' : t(item.labelKey)}
+                  data-mentor-target={`nav-${item.id}`}
                 >
-                  {item.icon}
-                </motion.div>
-                <span className="mode-label hidden lg:block">{t(item.labelKey)}</span>
-                
-                {/* Indicateur de mode actif */}
-                {currentMode === item.id && (
                   <motion.div
-                    className="absolute inset-0 rounded-2xl"
-                    layoutId="activeMode"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(233, 121, 249, 0.1) 0%, rgba(99, 102, 170, 0.1) 100%)',
-                      zIndex: -1
-                    }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </motion.button>
-            </Highlightable>
-          ))}
+                    animate={currentMode === item.id ? {
+                      scale: [1, 1.2, 1],
+                      transition: { duration: 0.3 }
+                    } : {}}
+                    className="relative"
+                  >
+                    {item.icon}
+                    {isLocked && (
+                      <Lock className="w-3 h-3 absolute -bottom-1 -right-1 text-midnight-400" />
+                    )}
+                  </motion.div>
+                  <span className="mode-label hidden lg:block">{t(item.labelKey)}</span>
+                  
+                  {/* Indicateur de mode actif */}
+                  {currentMode === item.id && (
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl"
+                      layoutId="activeMode"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(233, 121, 249, 0.1) 0%, rgba(99, 102, 170, 0.1) 100%)',
+                        zIndex: -1
+                      }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </motion.button>
+              </Highlightable>
+            )
+          })}
 
           {/* Bouton Dashboard Mentor (seulement pour les mentors) */}
           <AnimatePresence>

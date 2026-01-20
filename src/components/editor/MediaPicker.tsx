@@ -217,8 +217,8 @@ export function MediaPicker({
                       </h3>
                       <p className="text-midnight-400 text-sm max-w-sm mx-auto">
                         Va dans le <span className="text-aurora-400">Studio</span> pour créer des
-                        images magiques avec Midjourney, des voix avec ElevenLabs ou des vidéos avec
-                        Runway !
+                        images magiques avec fal.ai, des voix avec ElevenLabs ou des vidéos avec
+                        fal.ai !
                       </p>
                     </div>
                   ) : (
@@ -413,9 +413,9 @@ export function MediaPicker({
                   <div>
                     <p className="text-sm font-medium text-white">{selectedAsset.name}</p>
                     <p className="text-xs text-midnight-400">
-                      {selectedAsset.source === 'midjourney' && '🎨 Midjourney'}
+                      {selectedAsset.source === 'midjourney' && '🎨 fal.ai'}
                       {selectedAsset.source === 'elevenlabs' && '🎙️ ElevenLabs'}
-                      {selectedAsset.source === 'runway' && '🎬 Runway'}
+                      {selectedAsset.source === 'runway' && '🎬 fal.ai'}
                       {selectedAsset.source === 'upload' && '📁 Import'}
                     </p>
                   </div>

@@ -38,7 +38,7 @@ interface UseAIReturn {
   
   // Lancement Safari avec prompt
   launchGemini: (searchTopic: string) => void
-  launchMidjourney: (prompt: string) => void
+  launchFalai: (prompt: string) => void
 
   // Progression prompting (nouveau système 5 Clés)
   promptingProgress: PromptingProgress
@@ -285,12 +285,12 @@ export function useAI(): UseAIReturn {
     window.open('https://gemini.google.com/app', '_blank')
   }, [])
 
-  const launchMidjourney = useCallback(async (prompt: string) => {
-    // Copier le prompt formaté
+  const launchFalai = useCallback(async (prompt: string) => {
+    // Copier le prompt
     if (navigator.clipboard) {
-      await navigator.clipboard.writeText(`/imagine prompt: ${prompt}`)
+      await navigator.clipboard.writeText(prompt)
     }
-    // Ouvrir Midjourney
+    // Ouvrir fal.ai
     window.open('https://www.midjourney.com/imagine', '_blank')
   }, [])
 
@@ -307,7 +307,7 @@ export function useAI(): UseAIReturn {
     isGeneratingVideo,
     videoProgress,
     launchGemini,
-    launchMidjourney,
+    launchFalai,
     promptingProgress,
     writingProgress,
   }

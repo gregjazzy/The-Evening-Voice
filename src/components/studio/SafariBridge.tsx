@@ -32,7 +32,7 @@ const tools = [
   },
   {
     id: 'midjourney' as const,
-    name: 'Midjourney',
+    name: 'fal.ai Images',
     description: 'Crée des images incroyables',
     icon: Image,
     color: 'from-aurora-500 to-purple-600',
@@ -50,7 +50,7 @@ const tools = [
   },
   {
     id: 'runway' as const,
-    name: 'Runway',
+    name: 'fal.ai Vidéos',
     description: 'Transforme en vidéo animée',
     icon: Video,
     color: 'from-stardust-500 to-orange-600',

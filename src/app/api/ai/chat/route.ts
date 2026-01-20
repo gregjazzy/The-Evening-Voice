@@ -93,6 +93,7 @@ interface ChatRequestBody {
 interface ChatResponse {
   text: string
   highlights?: HighlightConfig[]
+  isAppropriate?: boolean // Indique si le contenu de l'enfant est approprié
 }
 
 export async function POST(request: NextRequest) {
@@ -126,12 +127,13 @@ export async function POST(request: NextRequest) {
     
     // Modérer le contenu du message de l'enfant
     if (apiKey) {
-      const isAppropriate = await isContentAppropriate(message, apiKey)
-      if (!isAppropriate) {
+      const contentIsAppropriate = await isContentAppropriate(message, apiKey)
+      if (!contentIsAppropriate) {
         console.log(`🛡️ Contenu bloqué dans chat: "${message.substring(0, 50)}..."`)
         return NextResponse.json({
           text: REDIRECT_RESPONSES[locale] || REDIRECT_RESPONSES.fr,
           highlights: undefined,
+          isAppropriate: false, // Signaler que le contenu n'est pas approprié
         })
       }
     }
@@ -176,6 +178,7 @@ export async function POST(request: NextRequest) {
     const response: ChatResponse = {
       text: cleanText,
       highlights: highlights.length > 0 ? highlights : undefined,
+      isAppropriate: true, // Le contenu a passé la modération
     }
 
     return NextResponse.json(response)

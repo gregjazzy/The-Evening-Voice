@@ -584,7 +584,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
                     onKeyDown={(e) => e.key === 'Enter' && handleSubmitName()}
                     placeholder={inputStep.placeholder}
                     maxLength={20}
-                    className="flex-1 px-4 py-3 text-white placeholder-midnight-400 bg-midnight-800 border border-aurora-500/30 rounded-xl focus:border-aurora-500 focus:ring-2 focus:ring-aurora-500/20 outline-none transition-all"
+                    className="flex-1 px-4 py-3 text-white placeholder-midnight-400 bg-midnight-800 border border-aurora-500/30 rounded-xl focus:ring-2 focus:border-aurora-500 focus:ring-aurora-500/20 outline-none transition-all"
                   />
                   <motion.button
                     onClick={handleSubmitName}

@@ -42,7 +42,7 @@ const creationTypes: Array<{
     description: 'Crée des illustrations magiques',
     icon: Image,
     color: 'from-aurora-500 to-aurora-700',
-    tool: 'Midjourney',
+    tool: 'fal.ai',
   },
   {
     id: 'video',
@@ -50,7 +50,7 @@ const creationTypes: Array<{
     description: 'Anime tes scènes',
     icon: Video,
     color: 'from-stardust-500 to-stardust-700',
-    tool: 'Runway',
+    tool: 'fal.ai',
   },
 ]
 
@@ -113,10 +113,14 @@ export function StudioMode() {
   }
 
   const handleSuggestion = (suggestion: string) => {
-    // Mettre à jour le kit avec la suggestion de l'enfant
-    if (currentKit) {
-      useStudioStore.getState().updateKit({ subject: suggestion })
-    }
+    // Ne PAS écraser automatiquement le champ description
+    // L'enfant doit écrire directement dans le champ de description
+    // Le chat est pour discuter avec l'IA, pas pour remplir le formulaire
+    // 
+    // Ancienne logique (causait le bug de double écriture) :
+    // if (currentKit) {
+    //   useStudioStore.getState().updateKit({ subject: suggestion })
+    // }
   }
 
   const openTutorial = (type: 'midjourney' | 'runway') => {
@@ -132,33 +136,33 @@ export function StudioMode() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* En-tête */}
+    <div className="h-full flex flex-col pt-2">
+      {/* En-tête - compact */}
       <motion.header 
-        className="flex items-center justify-between mb-6"
+        className="flex-shrink-0 flex items-center justify-between mb-3"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {view !== 'select' && (
             <motion.button
               onClick={handleBack}
-              className="p-2 rounded-xl bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors"
+              className="p-1.5 rounded-lg bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </motion.button>
           )}
           
           <div>
-            <h1 className="font-display text-3xl text-aurora-300 flex items-center gap-3">
-              <Palette className="w-8 h-8" />
+            <h1 className="font-display text-xl text-aurora-300 flex items-center gap-2">
+              <Palette className="w-5 h-5" />
               Mon Studio de Création
             </h1>
-            <p className="text-midnight-300 mt-1">
+            <p className="text-midnight-300 text-xs">
               {view === 'select' && 'Apprends à créer des images et des vidéos avec l\'IA !'}
               {view === 'create' && selectedType && `Création ${selectedType === 'image' ? "d'image" : 'de vidéo'}`}
               {view === 'gallery' && 'Tes créations'}
@@ -205,7 +209,7 @@ export function StudioMode() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="h-full"
+              className="h-full overflow-y-auto pb-8"
             >
               {/* Progression globale */}
               <div className="grid grid-cols-2 gap-6 mb-8">
@@ -338,29 +342,38 @@ export function StudioMode() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="h-full flex gap-4"
+              className="h-full flex-1 min-h-0 flex gap-4 items-start overflow-hidden"
             >
               {/* Panneau gauche : IA Chat */}
-              <div className="w-80 flex-shrink-0">
+              <div className="w-80 flex-shrink-0 h-full min-h-0 overflow-hidden">
                 <StudioAIChat 
                   type={selectedType} 
                   onSuggestion={handleSuggestion}
-                  className="h-full"
+                  className="h-full max-h-full"
                 />
               </div>
 
-              {/* Panneau central : Formulaire de prompt */}
-              <div className="flex-1 overflow-y-auto px-2">
+              {/* Panneau central : Formulaire de prompt - SCROLLABLE */}
+              <div 
+                className="flex-1 min-w-0 overflow-y-auto px-2 pb-8"
+                style={{ maxHeight: 'calc(100vh - 120px)' }}
+              >
                 <PromptBuilder />
 
-                {/* Zone d'import - les boutons Copier/Midjourney sont déjà dans PromptBuilder */}
-                <div className="mt-6 glass rounded-2xl p-6">
-                  <AssetDropzone />
-                </div>
+                {/* Zone d'import - seulement pour vidéos ou images niveau 3+ */}
+                {/* Images niveau 1-2 : pas besoin, l'image est générée directement */}
+                {/* Vidéos : juste la zone de drop (la galerie est déjà dans "Choisis une image à animer") */}
+                {(selectedType === 'video' || getLevel(selectedType) >= 3) && (
+                  <div className="mt-4 glass rounded-2xl p-4 mb-4">
+                    <AssetDropzone 
+                      showGallery={selectedType !== 'video'} 
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Panneau droit : Guide */}
-              <div className="flex-shrink-0 flex flex-col gap-3">
+              <div className="flex-shrink-0 h-full min-h-0 overflow-y-auto flex flex-col gap-2">
                 <StudioGuide 
                   type={selectedType} 
                   onHelpRequest={handleHelpRequest}
@@ -374,7 +387,7 @@ export function StudioMode() {
                   whileTap={{ scale: 0.98 }}
                 >
                   <BookOpen className="w-4 h-4" />
-                  Comment utiliser {selectedType === 'image' ? 'Midjourney' : 'Runway'} ?
+                  Comment utiliser fal.ai ?
                 </motion.button>
               </div>
             </motion.div>

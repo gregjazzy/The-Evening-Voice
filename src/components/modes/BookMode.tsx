@@ -3748,6 +3748,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const lastContentRef = useRef<string>(page?.content || '')
   const lastLeftContentRef = useRef<string>(leftPage?.content || '')
   
+  // 🛡️ La modération du contenu est gérée par l'IA-Amie dans le chat
+  
   // Refs pour les conteneurs de page (pour le drag & drop des images)
   const leftPageContainerRef = useRef<HTMLDivElement>(null)
   const rightPageContainerRef = useRef<HTMLDivElement>(null)

@@ -82,7 +82,7 @@ export async function getApiKeyForRequest(
   
   const envMap: Record<string, string | undefined> = {
     fal: process.env.FAL_API_KEY,
-    gemini: process.env.GEMINI_API_KEY,
+    gemini: process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY,
     assemblyai: process.env.ASSEMBLYAI_API_KEY,
   };
   

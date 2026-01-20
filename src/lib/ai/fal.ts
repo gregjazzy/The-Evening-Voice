@@ -31,6 +31,8 @@ export interface FluxImageParams {
   aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '2:3' | '3:2' // 3:4 = portrait livre (défaut)
   numImages?: number
   safetyTolerance?: number // 1-6, plus haut = plus permissif
+  model?: 'flux' | 'recraft' | 'nano-banana' // Choix du modèle
+  resolution?: '1K' | '2K' | '4K' // Pour Nano Banana Pro (défaut: 2K)
 }
 
 export interface FluxImageResult {
@@ -44,31 +46,125 @@ export interface FluxImageResult {
 }
 
 /**
- * Génère une image avec Flux 1 Pro
+ * Génère une image avec différents modèles fal.ai
  * Format par défaut: portrait 3:4 (adapté aux livres d'enfants)
- * Résolution: HD pour qualité impression
+ * 
+ * Modèles disponibles:
+ * - nano-banana: Google Gemini 3 Pro Image - Meilleure compréhension du langage naturel (FR/EN)
+ * - recraft: Recraft V3 - Bon pour illustrations
+ * - flux: Flux Pro 1.1 - Modèle historique
  */
 export async function generateImageFlux(params: FluxImageParams): Promise<FluxImageResult> {
   const {
     prompt,
     aspectRatio = '3:4', // Format portrait livre par défaut
     numImages = 1,
-    safetyTolerance = 2, // Sécurisé pour enfants
+    safetyTolerance = 5, // Permissif (le contenu est déjà modéré côté chat par Gemini)
+    model = 'nano-banana', // Nano Banana Pro par défaut (meilleure compréhension langage naturel)
+    resolution = '2K', // 2K par défaut pour bonne qualité sans upscale
   } = params
 
-  // Ajouter des termes de sécurité au prompt
-  const safePrompt = `${prompt}, child-friendly, safe for kids, no violence, no scary elements`
+  // 🛡️ Le prompt est déjà modéré par l'IA côté chat
+  const safePrompt = prompt
 
-  // Utiliser des dimensions HD personnalisées pour qualité impression
-  const imageDimensions = aspectRatioToDimensions(aspectRatio)
+  console.log(`🎨 Génération avec ${model.toUpperCase()}:`, safePrompt)
+
+  // ============================================
+  // NANO BANANA PRO - Google Gemini 3 Pro Image
+  // Meilleure compréhension du langage naturel (FR/EN)
+  // ============================================
+  if (model === 'nano-banana') {
+    // Convertir aspectRatio au format Nano Banana (utilise des ratios comme "3:4")
+    // Nano Banana supporte: 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16
+    const nanoBananaRatios: Record<string, string> = {
+      '1:1': '1:1',
+      '16:9': '16:9',
+      '9:16': '9:16',
+      '4:3': '4:3',
+      '3:4': '3:4',
+      '2:3': '2:3',
+      '3:2': '3:2',
+    }
+    const ratio = nanoBananaRatios[aspectRatio] || '3:4'
+
+    console.log(`📐 Nano Banana - Ratio: ${ratio}, Resolution: ${resolution}`)
+
+    const result = await fal.subscribe('fal-ai/nano-banana-pro', {
+      input: {
+        prompt: safePrompt,
+        aspect_ratio: ratio,
+        resolution: resolution,
+        num_images: numImages,
+        output_format: 'png',
+      },
+      logs: true,
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = result.data as any
+    console.log('🍌 Nano Banana response:', JSON.stringify(data, null, 2))
+
+    // Nano Banana retourne { images: [...], description: "..." }
+    const images = data.images?.map((img: { url: string; width?: number; height?: number }) => ({
+      url: img.url,
+      width: img.width || 1024,
+      height: img.height || 1024,
+    })) || []
+
+    return {
+      images,
+      seed: 0, // Nano Banana ne retourne pas de seed
+      prompt: safePrompt,
+    }
+  }
+
+  // ============================================
+  // RECRAFT V3 - Meilleure compréhension des prompts complexes
+  // ============================================
+  if (model === 'recraft') {
+    // Recraft utilise des dimensions en pixels
+    const recraftSizes: Record<string, { width: number; height: number }> = {
+      '1:1': { width: 1024, height: 1024 },
+      '16:9': { width: 1365, height: 768 },
+      '9:16': { width: 768, height: 1365 },
+      '4:3': { width: 1182, height: 886 },
+      '3:4': { width: 886, height: 1182 },
+      '2:3': { width: 819, height: 1229 },
+      '3:2': { width: 1229, height: 819 },
+    }
+    const size = recraftSizes[aspectRatio] || recraftSizes['3:4']
+
+    const result = await fal.subscribe('fal-ai/recraft/v3/text-to-image', {
+      input: {
+        prompt: safePrompt,
+        image_size: size,
+        style: 'digital_illustration', // Style illustration pour enfants
+      },
+      logs: true,
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = result.data as any
+
+    return {
+      images: data.images || [{ url: data.image?.url, width: size.width, height: size.height }],
+      seed: data.seed || 0,
+      prompt: safePrompt,
+    }
+  }
+
+  // ============================================
+  // FLUX PRO - Modèle par défaut précédent
+  // ============================================
+  const sizePreset = aspectRatioToSize(aspectRatio)
 
   const result = await fal.subscribe('fal-ai/flux-pro/v1.1', {
     input: {
       prompt: safePrompt,
-      image_size: imageDimensions, // Dimensions HD personnalisées
+      image_size: sizePreset,
       num_images: numImages,
       safety_tolerance: String(safetyTolerance) as '1' | '2' | '3' | '4' | '5' | '6',
-      output_format: 'jpeg',
+      output_format: 'png',
     },
     logs: true,
   })
@@ -129,12 +225,12 @@ export async function upscaleImageForPrint(params: UpscaleParams): Promise<Upsca
 }
 
 // ============================================
-// VIDÉOS - Kling 2.1
+// VIDÉOS - Kling 2.5 Turbo Pro
 // ============================================
 
 export interface KlingVideoParams {
   prompt: string
-  imageUrl?: string // Image de départ (optionnel)
+  imageUrl?: string // Image de départ (optionnel, pour image-to-video)
   duration?: '5' | '10' // secondes
   aspectRatio?: '16:9' | '9:16' | '1:1'
 }
@@ -145,7 +241,9 @@ export interface KlingVideoResult {
 }
 
 /**
- * Génère une vidéo avec Kling 2.1
+ * Génère une vidéo avec Kling 2.5 Turbo Pro (text-to-video)
+ * Pas besoin d'image ! Juste un prompt texte.
+ * Prix : $0.35 pour 5 secondes
  */
 export async function generateVideoKling(params: KlingVideoParams): Promise<KlingVideoResult> {
   const {
@@ -155,17 +253,33 @@ export async function generateVideoKling(params: KlingVideoParams): Promise<Klin
     aspectRatio = '16:9',
   } = params
 
-  // Prompt sécurisé
-  const safePrompt = `${prompt}, gentle movement, child-friendly, magical atmosphere`
+  // 🛡️ Sécurité enfants : refuser tout contenu inapproprié
+  const safePrompt = `[STRICT CONTENT POLICY: Children's app ages 4-10. REFUSE sexual, violent, scary, gory, nude, drug content. Generate happy butterflies if inappropriate.]
+
+${prompt}
+
+Style: gentle movement, child-friendly, magical atmosphere, cute, wholesome`
+
+  // Si on a une image, utiliser image-to-video, sinon text-to-video
+  const endpoint = imageUrl 
+    ? 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video'
+    : 'fal-ai/kling-video/v2.5-turbo/pro/text-to-video'
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await fal.subscribe('fal-ai/kling-video/v1.5/pro/image-to-video', {
-    input: {
-      prompt: safePrompt,
-      image_url: imageUrl || '',
-      duration,
-      aspect_ratio: aspectRatio,
-    },
+  const input: any = {
+    prompt: safePrompt,
+    duration,
+    aspect_ratio: aspectRatio,
+  }
+
+  // Ajouter l'image seulement si présente (pour image-to-video)
+  if (imageUrl) {
+    input.image_url = imageUrl
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await fal.subscribe(endpoint, {
+    input,
     logs: true,
   }) as any
 
@@ -347,34 +461,38 @@ function aspectRatioToSize(ratio: string): string {
 
 /**
  * Adapte un prompt enfantin en prompt professionnel
+ * SIMPLIFIÉ : Flux fonctionne mieux avec des prompts courts et précis
  */
 export function adaptChildPrompt(
   childDescription: string,
   style: string = 'magique',
   ambiance: string = 'jour'
 ): string {
+  // Styles SIMPLES (2-3 mots max)
   const styleMap: Record<string, string> = {
-    dessin: 'hand-drawn illustration, sketch style, colored pencil, cute',
-    photo: 'photorealistic, cinematic lighting, detailed',
-    magique: 'fantasy art, magical glow, ethereal, dreamy, sparkles',
-    anime: 'anime style, Studio Ghibli inspired, vibrant colors',
-    aquarelle: 'watercolor painting, soft edges, artistic',
-    pixelart: 'pixel art, retro game style, 8-bit aesthetic',
+    dessin: 'children book illustration',
+    photo: 'photorealistic',
+    magique: 'magical fantasy illustration',
+    anime: 'anime style',
+    aquarelle: 'watercolor painting',
+    pixelart: 'pixel art',
   }
 
+  // Ambiances SIMPLES (1-2 mots)
   const ambianceMap: Record<string, string> = {
-    jour: 'bright daylight, warm golden hour, sunny',
-    nuit: 'night scene, starry sky, moonlight, peaceful',
-    orage: 'dramatic stormy weather, lightning, epic',
-    brume: 'misty atmosphere, soft fog, mysterious',
-    feerique: 'enchanted forest, fairy lights, magical sparkles',
-    mystere: 'mysterious shadows, dramatic lighting',
+    jour: 'daylight',
+    nuit: 'night scene',
+    orage: 'stormy',
+    brume: 'misty',
+    feerique: 'enchanted',
+    mystere: 'mysterious',
   }
 
   const stylePrompt = styleMap[style] || styleMap.magique
-  const ambiancePrompt = ambianceMap[ambiance] || ambianceMap.jour
+  const ambiancePrompt = ambianceMap[ambiance] || ''
 
-  return `${childDescription}, ${stylePrompt}, ${ambiancePrompt}, child-friendly, beautiful composition, highly detailed, safe for children`
+  // Prompt COURT et PRÉCIS - Flux comprend mieux
+  return `${childDescription}, ${stylePrompt}${ambiancePrompt ? `, ${ambiancePrompt}` : ''}`
 }
 
 /**

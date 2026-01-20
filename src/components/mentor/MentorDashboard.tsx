@@ -41,8 +41,8 @@ const predefinedMissions = [
     description: 'Ouvre Safari et pose une question à Gemini pour trouver des idées',
   },
   {
-    id: 'mission-midjourney',
-    title: '🎨 Créer avec Midjourney',
+    id: 'mission-studio',
+    title: '🎨 Créer avec fal.ai',
     description: 'Utilise ton prompt pour générer une image magique',
   },
   {

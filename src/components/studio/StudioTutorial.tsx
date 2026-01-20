@@ -24,156 +24,120 @@ interface TutorialStep {
   action?: 'copy' | 'open' | 'click' | 'wait'
 }
 
-// Tutoriel Midjourney
-const MIDJOURNEY_TUTORIAL: TutorialStep[] = [
+// Tutoriel fal.ai Images (Flux Pro)
+const IMAGE_TUTORIAL: TutorialStep[] = [
   {
     id: 'intro',
-    title: "Bienvenue sur Midjourney ! 🎨",
-    description: "Midjourney est un outil magique qui transforme tes mots en images. Suis ce tutoriel pour apprendre à l'utiliser !",
+    title: "Bienvenue sur fal.ai ! 🎨",
+    description: "fal.ai est un site magique qui transforme tes mots en images. C'est super simple à utiliser !",
     tip: "C'est comme un peintre magique qui dessine ce que tu lui décris !",
   },
   {
     id: 'open',
-    title: "Ouvre Safari 🚀",
-    description: "Clique sur le bouton pour aller sur Midjourney dans Safari.",
+    title: "Ouvre fal.ai 🚀",
+    description: "Clique sur le bouton pour ouvrir fal.ai dans Safari. La page s'ouvrira toute seule !",
     action: 'open',
-    tip: "Safari, c'est l'application avec la boussole bleue !",
-  },
-  {
-    id: 'discord',
-    title: "Connecte-toi à Discord 💬",
-    description: "Midjourney fonctionne dans Discord. Si tu n'es pas connectée, demande de l'aide à un adulte.",
-    tip: "Discord, c'est un peu comme un salon de discussion magique !",
-  },
-  {
-    id: 'channel',
-    title: "Va dans le bon salon ✨",
-    description: "Cherche un salon qui commence par 'newbies' ou 'general'. Clique dessus pour entrer.",
-    tip: "Les salons sont listés sur le côté gauche de l'écran.",
+    tip: "fal.ai, c'est un site internet tout simple.",
   },
   {
     id: 'prompt',
-    title: "Écris ton prompt 📝",
-    description: "En bas de l'écran, il y a une zone de texte. Écris /imagine puis colle ton prompt.",
+    title: "Trouve la zone de texte 📝",
+    description: "Tu vas voir un grand rectangle blanc où tu peux écrire. C'est là que tu vas coller ton prompt !",
+    tip: "Le prompt, c'est la description magique de ton image.",
+  },
+  {
+    id: 'paste',
+    title: "Colle ton prompt ✨",
+    description: "Appuie sur les touches Cmd + V en même temps pour coller ton texte magique.",
     action: 'copy',
-    tip: "Le prompt, c'est la description de ce que tu veux créer !",
+    tip: "Le texte vient du bouton 'Copier' que tu as cliqué avant !",
   },
   {
-    id: 'imagine',
-    title: "Tape /imagine 🔮",
-    description: "Commence par écrire /imagine (avec le slash !), puis un espace, puis colle ton prompt avec Cmd+V.",
-    tip: "Le slash / est important, c'est lui qui dit à Midjourney que tu veux créer !",
-  },
-  {
-    id: 'send',
-    title: "Envoie ta demande ✉️",
-    description: "Appuie sur Entrée pour envoyer. Midjourney va commencer à créer ton image !",
+    id: 'run',
+    title: "Clique sur Run ! 🎯",
+    description: "Trouve le bouton 'Run' (souvent en bleu ou violet) et clique dessus. C'est parti !",
     action: 'click',
-    tip: "C'est parti pour la magie !",
+    tip: "Run veut dire 'Lancer' en anglais.",
   },
   {
     id: 'wait',
     title: "Attends la magie ⏳",
-    description: "Midjourney travaille... Ça prend environ 1 minute. Tu verras l'image apparaître petit à petit !",
+    description: "fal.ai crée ton image... Ça prend juste quelques secondes ! Tu vas voir l'image apparaître.",
     action: 'wait',
-    tip: "Tu peux voir l'image se construire progressivement, c'est fascinant !",
-  },
-  {
-    id: 'choose',
-    title: "Choisis ton image préférée 🖼️",
-    description: "Midjourney te propose 4 images. Clique sur U1, U2, U3 ou U4 pour agrandir celle que tu préfères.",
-    tip: "U veut dire 'Upscale' (agrandir). V veut dire 'Variation' (faire des variantes).",
+    tip: "C'est super rapide !",
   },
   {
     id: 'save',
-    title: "Sauvegarde ton image 💾",
-    description: "Clique sur l'image agrandie, puis clic droit > 'Enregistrer l'image'. Choisis où la sauvegarder.",
-    tip: "Tu pourras ensuite l'importer dans ton histoire !",
+    title: "Télécharge ton image 💾",
+    description: "Clique sur ton image avec le bouton droit de la souris, puis choisis 'Enregistrer l'image'.",
+    tip: "Mets-la dans un endroit facile à retrouver !",
   },
   {
     id: 'done',
     title: "Bravo ! 🎉",
-    description: "Tu as créé ta première image avec Midjourney ! Retourne dans l'app pour l'importer.",
-    tip: "Tu peux recommencer autant de fois que tu veux !",
+    description: "Tu as créé ta première image avec fal.ai ! Maintenant, glisse-la dans l'app pour l'ajouter à ta galerie.",
+    tip: "Tu peux créer autant d'images que tu veux !",
   },
 ]
 
-// Tutoriel Runway
-const RUNWAY_TUTORIAL: TutorialStep[] = [
+// Tutoriel fal.ai Vidéos (Kling)
+const VIDEO_TUTORIAL: TutorialStep[] = [
   {
     id: 'intro',
-    title: "Bienvenue sur Runway ! 🎬",
-    description: "Runway est un outil magique qui transforme tes mots ou images en vidéos. Suis ce tutoriel pour apprendre à l'utiliser !",
+    title: "Bienvenue sur fal.ai ! 🎬",
+    description: "fal.ai peut aussi créer des vidéos magiques à partir de tes descriptions !",
     tip: "C'est comme un réalisateur de films qui donne vie à ton imagination !",
   },
   {
     id: 'open',
-    title: "Ouvre Safari 🚀",
-    description: "Clique sur le bouton pour aller sur Runway dans Safari.",
+    title: "Ouvre fal.ai 🚀",
+    description: "Clique sur le bouton pour ouvrir fal.ai Vidéos dans Safari.",
     action: 'open',
-    tip: "Safari, c'est l'application avec la boussole bleue !",
-  },
-  {
-    id: 'login',
-    title: "Connecte-toi 🔐",
-    description: "Si tu n'es pas connectée, demande de l'aide à un adulte pour te connecter à Runway.",
-    tip: "Une fois connectée, tu auras accès à tous les outils !",
-  },
-  {
-    id: 'gen2',
-    title: "Choisis Gen-2 🎥",
-    description: "Clique sur 'Gen-2' ou 'Generate Video'. C'est l'outil pour créer des vidéos !",
-    tip: "Gen-2 est le plus puissant pour créer des vidéos à partir de texte.",
-  },
-  {
-    id: 'mode',
-    title: "Choisis ton mode 📸",
-    description: "Tu peux créer une vidéo à partir de texte seul, ou à partir d'une image. Choisis ce que tu préfères !",
-    tip: "Si tu as déjà créé une image, tu peux l'animer !",
+    tip: "C'est le même site, mais une page spéciale pour les vidéos.",
   },
   {
     id: 'prompt',
-    title: "Écris ton prompt 📝",
-    description: "Dans la zone de texte, colle ton prompt qui décrit ce qui se passe dans la vidéo.",
+    title: "Trouve la zone de texte 📝",
+    description: "Tu vas voir un grand rectangle où écrire. C'est ici que tu décris ta vidéo !",
+    tip: "Pour les vidéos, pense à décrire ce qui BOUGE.",
+  },
+  {
+    id: 'paste',
+    title: "Colle ton prompt ✨",
+    description: "Appuie sur Cmd + V pour coller le texte magique qui décrit ta vidéo.",
     action: 'copy',
-    tip: "Décris le mouvement : 'le dragon s'envole', 'la fée danse'...",
+    tip: "Ton prompt décrit le mouvement : 'un chat qui saute', 'des étoiles qui brillent'...",
   },
   {
-    id: 'settings',
-    title: "Ajuste les réglages ⚙️",
-    description: "Tu peux choisir la durée (4 ou 16 secondes) et la qualité de ta vidéo.",
-    tip: "Commence avec 4 secondes, c'est plus rapide pour essayer !",
-  },
-  {
-    id: 'generate',
-    title: "Génère ta vidéo 🚀",
-    description: "Clique sur 'Generate' ou 'Create'. Runway va créer ta vidéo !",
+    id: 'run',
+    title: "Clique sur Run ! 🎯",
+    description: "Trouve le bouton 'Run' et clique dessus pour lancer la création de ta vidéo !",
     action: 'click',
-    tip: "C'est parti pour la magie !",
+    tip: "Les vidéos prennent un peu plus de temps que les images.",
   },
   {
     id: 'wait',
     title: "Attends la magie ⏳",
-    description: "Runway travaille... Ça peut prendre 2-3 minutes. Tu verras la progression !",
+    description: "fal.ai crée ta vidéo... Ça prend environ 1-2 minutes. Patience, ça vaut le coup !",
     action: 'wait',
-    tip: "Patience, la création vidéo prend plus de temps que les images.",
+    tip: "C'est normal que ce soit plus long, il y a plein d'images à créer !",
   },
   {
     id: 'preview',
     title: "Regarde le résultat 👀",
-    description: "Quand c'est prêt, tu peux regarder ta vidéo. Si elle te plaît, on la télécharge !",
+    description: "Quand c'est prêt, ta vidéo va se jouer toute seule. Regarde si elle te plaît !",
     tip: "Si ça ne te plaît pas, tu peux recommencer avec un prompt différent.",
   },
   {
     id: 'download',
     title: "Télécharge ta vidéo 💾",
-    description: "Clique sur le bouton de téléchargement (flèche vers le bas) pour sauvegarder ta vidéo.",
-    tip: "Choisis bien l'endroit où tu la sauvegardes pour la retrouver facilement !",
+    description: "Clique sur le bouton de téléchargement (une flèche vers le bas) pour sauvegarder ta vidéo.",
+    tip: "Choisis bien où tu la mets pour la retrouver facilement !",
   },
   {
     id: 'done',
     title: "Bravo ! 🎉",
-    description: "Tu as créé ta première vidéo avec Runway ! Retourne dans l'app pour l'importer.",
+    description: "Tu as créé ta première vidéo avec fal.ai ! Glisse-la dans l'app pour l'ajouter à ta collection.",
     tip: "Tu peux maintenant animer toutes tes histoires !",
   },
 ]
@@ -189,7 +153,7 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [copied, setCopied] = useState(false)
 
-  const tutorial = type === 'image' ? MIDJOURNEY_TUTORIAL : RUNWAY_TUTORIAL
+  const tutorial = type === 'image' ? IMAGE_TUTORIAL : VIDEO_TUTORIAL
   const currentStep = tutorial[currentStepIndex]
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex === tutorial.length - 1
@@ -335,7 +299,7 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
                 whileTap={{ scale: 0.98 }}
               >
                 <ExternalLink className="w-5 h-5" />
-                Ouvrir {type === 'image' ? 'Midjourney' : 'Runway'} dans Safari
+                Ouvrir fal.ai dans Safari
               </motion.button>
             )}
 
@@ -347,7 +311,7 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
                 >
                   <Sparkles className="w-5 h-5" />
                 </motion.div>
-                <span>La magie opère... Sois patiente ! ✨</span>
+                <span>La magie opère... Sois patient(e) ! ✨</span>
               </div>
             )}
 
@@ -431,7 +395,7 @@ export function TutorialButton({ type, onClick, compact = false }: TutorialButto
       whileTap={{ scale: 0.98 }}
     >
       <Play className={cn(compact ? 'w-3.5 h-3.5' : 'w-4 h-4')} />
-      {compact ? 'Tutoriel' : `Tutoriel ${type === 'image' ? 'Midjourney' : 'Runway'}`}
+      {compact ? 'Tutoriel' : `Tutoriel fal.ai ${type === 'image' ? 'Images' : 'Vidéos'}`}
     </motion.button>
   )
 }

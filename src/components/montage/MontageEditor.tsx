@@ -1228,45 +1228,47 @@ function MontageAIChat() {
       {/* Input */}
       <form 
         onSubmit={(e) => { e.preventDefault(); sendMessage() }}
-        className="p-2 border-t border-midnight-700/50 flex gap-2 flex-shrink-0"
+        className="p-2 border-t border-midnight-700/50 flex flex-col gap-2 flex-shrink-0"
       >
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder={isListening ? 'Écoute...' : 'Ta question...'}
-          className="flex-1 px-2 py-1.5 text-xs text-white placeholder-midnight-500 bg-midnight-800 border border-midnight-700 rounded-lg focus:border-aurora-500 focus:outline-none"
-        />
-        
-        {/* Bouton micro pour parler */}
-        {isSpeechSupported && (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={isListening ? 'Écoute...' : 'Ta question...'}
+            className="flex-1 px-2 py-1.5 text-xs text-white placeholder-midnight-500 bg-midnight-800 border border-midnight-700 rounded-lg focus:outline-none focus:border-aurora-500"
+          />
+          
+          {/* Bouton micro pour parler */}
+          {isSpeechSupported && (
+            <button
+              type="button"
+              onClick={isListening ? stopListening : startListening}
+              className={cn(
+                'p-1.5 rounded-lg transition-colors',
+                isListening
+                  ? 'bg-rose-500 text-white animate-pulse'
+                  : 'bg-midnight-800 text-midnight-400 hover:text-aurora-300 hover:bg-midnight-700'
+              )}
+              title={isListening ? 'Arrêter' : 'Parler'}
+            >
+              <Mic className="w-4 h-4" />
+            </button>
+          )}
+          
           <button
-            type="button"
-            onClick={isListening ? stopListening : startListening}
+            type="submit"
+            disabled={!message.trim() || isLoading}
             className={cn(
               'p-1.5 rounded-lg transition-colors',
-              isListening
-                ? 'bg-rose-500 text-white animate-pulse'
-                : 'bg-midnight-800 text-midnight-400 hover:text-aurora-300 hover:bg-midnight-700'
+              message.trim() && !isLoading
+                ? 'bg-aurora-500 text-white hover:bg-aurora-600'
+                : 'bg-midnight-800 text-midnight-600'
             )}
-            title={isListening ? 'Arrêter' : 'Parler'}
           >
-            <Mic className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" />
           </button>
-        )}
-        
-        <button
-          type="submit"
-          disabled={!message.trim() || isLoading}
-          className={cn(
-            'p-1.5 rounded-lg transition-colors',
-            message.trim() && !isLoading
-              ? 'bg-aurora-500 text-white hover:bg-aurora-600'
-              : 'bg-midnight-800 text-midnight-600'
-          )}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
+        </div>
       </form>
     </motion.div>
   )
@@ -1525,38 +1527,42 @@ function TimelineAIHelp() {
             </div>
 
             {/* Input */}
-            <form onSubmit={(e) => { e.preventDefault(); sendMessage() }} className="p-2 border-t border-midnight-700/50 flex gap-2">
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder={isListening ? 'Écoute...' : 'Ta question...'}
-                className="flex-1 px-2 py-1.5 text-xs text-white placeholder-midnight-500 bg-midnight-800 border border-midnight-700 rounded-lg focus:border-aurora-500 focus:outline-none"
-              />
-              
-              {isSpeechSupported && (
+            <form onSubmit={(e) => { e.preventDefault(); sendMessage() }} className="p-2 border-t border-midnight-700/50 flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder={isListening ? 'Écoute...' : 'Ta question...'}
+                  className="flex-1 px-2 py-1.5 text-xs text-white placeholder-midnight-500 bg-midnight-800 border border-midnight-700 rounded-lg focus:outline-none focus:border-aurora-500"
+                />
+                
+                {isSpeechSupported && (
+                  <button
+                    type="button"
+                    onClick={isListening ? stopListening : startListening}
+                    className={cn(
+                      'p-1.5 rounded-lg transition-colors',
+                      isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-midnight-800 text-midnight-400 hover:text-aurora-300'
+                    )}
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                )}
+                
                 <button
-                  type="button"
-                  onClick={isListening ? stopListening : startListening}
+                  type="submit"
+                  disabled={!message.trim() || isLoading}
                   className={cn(
                     'p-1.5 rounded-lg transition-colors',
-                    isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-midnight-800 text-midnight-400 hover:text-aurora-300'
+                    message.trim() && !isLoading
+                      ? 'bg-aurora-500 text-white' 
+                      : 'bg-midnight-800 text-midnight-600'
                   )}
                 >
-                  <Mic className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
-              )}
-              
-              <button
-                type="submit"
-                disabled={!message.trim() || isLoading}
-                className={cn(
-                  'p-1.5 rounded-lg transition-colors',
-                  message.trim() && !isLoading ? 'bg-aurora-500 text-white' : 'bg-midnight-800 text-midnight-600'
-                )}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              </div>
             </form>
           </motion.div>
         )}

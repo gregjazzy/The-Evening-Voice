@@ -20,9 +20,9 @@ export type MediaType = 'image' | 'audio' | 'video'
 // Source du média (pour tracking)
 export type MediaSource = 
   | 'upload'      // Uploadé par l'utilisateur
-  | 'midjourney'  // Généré par Midjourney
+  | 'midjourney'  // Généré par fal.ai (images) - legacy name
   | 'elevenlabs'  // Généré par ElevenLabs
-  | 'runway'      // Généré par Runway
+  | 'runway'      // Généré par fal.ai (vidéos) - legacy name
   | 'luma'        // Généré par Luma
   | 'gemini'      // Généré par Gemini
   | 'dalle'       // Généré par DALL-E

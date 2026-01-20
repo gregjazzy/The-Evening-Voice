@@ -120,7 +120,7 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
 }> = {
   // Navigation
   'nav-ecriture': { label: 'Écriture', description: 'Le mode pour écrire ton histoire', mode: 'navigation' },
-  'nav-studio': { label: 'Studio', description: 'Le mode pour créer des images avec Midjourney', mode: 'navigation' },
+  'nav-studio': { label: 'Studio', description: 'Le mode pour créer des images et vidéos avec l\'IA', mode: 'navigation' },
   'nav-montage': { label: 'Montage', description: 'Le mode pour assembler ton histoire avec sons et musique', mode: 'navigation' },
   'nav-theatre': { label: 'Théâtre', description: 'Le mode pour regarder ton histoire terminée', mode: 'navigation' },
   'nav-publier': { label: 'Publier', description: 'Le mode pour imprimer ton livre', mode: 'navigation' },
@@ -150,7 +150,7 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
   // Studio
   'studio-prompt-input': { label: 'Zone de prompt', description: 'L\'endroit où tu décris l\'image que tu veux créer', mode: 'studio' },
   'studio-copy-button': { label: 'Copier', description: 'Le bouton pour copier ton prompt', mode: 'studio' },
-  'studio-import-zone': { label: 'Zone d\'import', description: 'L\'endroit pour glisser tes images créées sur Midjourney', mode: 'studio' },
+  'studio-import-zone': { label: 'Zone d\'import', description: 'L\'endroit pour glisser tes images créées sur fal.ai', mode: 'studio' },
   'studio-gallery': { label: 'Galerie', description: 'L\'endroit où tu vois toutes tes images importées', mode: 'studio' },
   'studio-type-image': { label: 'Créer image', description: 'Le bouton pour créer une image', mode: 'studio' },
   'studio-type-video': { label: 'Créer vidéo', description: 'Le bouton pour créer une vidéo', mode: 'studio' },

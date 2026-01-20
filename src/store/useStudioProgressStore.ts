@@ -2,8 +2,8 @@
  * Store pour la progression pédagogique du Studio
  * 
  * Gère :
- * - Progression Images (Midjourney) : 5 niveaux
- * - Progression Vidéos (Runway) : 5 niveaux
+ * - Progression Images (fal.ai Flux) : 5 niveaux
+ * - Progression Vidéos (fal.ai Kling) : 5 niveaux
  * - Créations comptées
  * - Badges obtenus
  * - Étape en cours pour le guide
@@ -49,15 +49,20 @@ export const CREATIONS_PER_LEVEL: Record<StudioLevel, number> = {
 
 // Étapes du guide selon le niveau
 export type GuideStep = 
-  | 'describe'      // Décrire son idée
-  | 'choose_style'  // Choisir le style
-  | 'choose_mood'   // Choisir l'ambiance
-  | 'choose_extra'  // Options supplémentaires
-  | 'review_prompt' // Voir le prompt
-  | 'open_safari'   // Ouvrir Safari
-  | 'paste_prompt'  // Coller le prompt
-  | 'generate'      // Lancer la génération
-  | 'import'        // Importer la création
+  | 'describe'        // Décrire son idée (images) ou action (vidéos)
+  | 'choose_image'    // Choisir une image de base (vidéos uniquement)
+  | 'choose_style'    // Choisir le style
+  | 'choose_mood'     // Choisir l'ambiance
+  | 'choose_light'    // Choisir la lumière
+  | 'choose_format'   // Choisir le format (images)
+  | 'choose_movement' // Choisir le mouvement (vidéos)
+  | 'choose_camera'   // Mouvement de caméra (vidéos, niveaux 3+)
+  | 'choose_extra'    // Options supplémentaires (détails bonus)
+  | 'review_prompt'   // Voir le prompt
+  | 'open_safari'     // Ouvrir Safari
+  | 'paste_prompt'    // Coller le prompt
+  | 'generate'        // Lancer la génération
+  | 'import'          // Importer la création
 
 export interface GuideStepConfig {
   id: GuideStep
@@ -71,26 +76,29 @@ export interface GuideStepConfig {
 // Configuration des étapes pour Images
 export const IMAGE_GUIDE_STEPS: GuideStepConfig[] = [
   { id: 'describe', label: 'Décrire mon idée', emoji: '💭', description: 'Raconte ce que tu veux créer', childDoesFromLevel: 1 },
-  { id: 'choose_style', label: 'Choisir le style', emoji: '🎨', description: 'Dessin, photo, magique...', childDoesFromLevel: 2 },
-  { id: 'choose_mood', label: 'Choisir l\'ambiance', emoji: '🌙', description: 'Jour, nuit, féérique...', childDoesFromLevel: 2 },
-  { id: 'choose_extra', label: 'Ajouter des détails', emoji: '✨', description: 'Lumière, couleurs...', childDoesFromLevel: 3 },
-  { id: 'review_prompt', label: 'Voir mon prompt', emoji: '📋', description: 'Vérifier avant d\'envoyer', childDoesFromLevel: 3 },
-  { id: 'open_safari', label: 'Aller sur Safari', emoji: '🚀', description: 'Ouvrir Midjourney', childDoesFromLevel: 4 },
-  { id: 'paste_prompt', label: 'Coller le prompt', emoji: '📋', description: 'Cmd+V dans Midjourney', childDoesFromLevel: 3 },
-  { id: 'generate', label: 'Créer l\'image', emoji: '🎨', description: 'Lancer la génération', childDoesFromLevel: 4 },
+  { id: 'choose_style', label: 'Choisir le style', emoji: '🎨', description: 'Dessin, photo, magique...', childDoesFromLevel: 1 },
+  { id: 'choose_mood', label: 'Choisir l\'ambiance', emoji: '🌙', description: 'Jour, nuit, féérique...', childDoesFromLevel: 1 },
+  { id: 'choose_light', label: 'Choisir la lumière', emoji: '☀️', description: 'Soleil, lune, bougie...', childDoesFromLevel: 1 },
+  { id: 'choose_format', label: 'Choisir le format', emoji: '📐', description: 'Portrait, paysage, carré', childDoesFromLevel: 1 },
+  { id: 'choose_extra', label: 'Ajouter des détails', emoji: '✨', description: 'Couleurs, textures... (optionnel)', childDoesFromLevel: 3 },
+  { id: 'review_prompt', label: 'Voir mon prompt', emoji: '📋', description: 'Vérifier avant d\'envoyer', childDoesFromLevel: 2 },
+  { id: 'open_safari', label: 'Aller sur Safari', emoji: '🚀', description: 'Ouvrir fal.ai', childDoesFromLevel: 3 },
+  { id: 'paste_prompt', label: 'Coller le prompt', emoji: '📋', description: 'Cmd+V dans fal.ai', childDoesFromLevel: 3 },
+  { id: 'generate', label: 'Créer l\'image', emoji: '🎨', description: 'Lancer la génération', childDoesFromLevel: 1 },
   { id: 'import', label: 'Importer', emoji: '📥', description: 'Récupérer ta création', childDoesFromLevel: 1 },
 ]
 
-// Configuration des étapes pour Vidéos
+// Configuration des étapes pour Vidéos (image-to-video)
 export const VIDEO_GUIDE_STEPS: GuideStepConfig[] = [
-  { id: 'describe', label: 'Décrire mon idée', emoji: '💭', description: 'Raconte ce que tu veux animer', childDoesFromLevel: 1 },
-  { id: 'choose_style', label: 'Choisir le style', emoji: '🎬', description: 'Réaliste, animé...', childDoesFromLevel: 2 },
-  { id: 'choose_mood', label: 'Choisir l\'ambiance', emoji: '🌙', description: 'L\'émotion de la vidéo', childDoesFromLevel: 2 },
-  { id: 'choose_extra', label: 'Choisir le mouvement', emoji: '💫', description: 'Lent, rapide, doux...', childDoesFromLevel: 3 },
-  { id: 'review_prompt', label: 'Voir mon prompt', emoji: '📋', description: 'Vérifier avant d\'envoyer', childDoesFromLevel: 3 },
-  { id: 'open_safari', label: 'Aller sur Safari', emoji: '🚀', description: 'Ouvrir Runway', childDoesFromLevel: 4 },
-  { id: 'paste_prompt', label: 'Coller le prompt', emoji: '📋', description: 'Cmd+V dans Runway', childDoesFromLevel: 3 },
-  { id: 'generate', label: 'Créer la vidéo', emoji: '🎬', description: 'Lancer la génération', childDoesFromLevel: 4 },
+  { id: 'choose_image', label: 'Choisir une image', emoji: '🖼️', description: 'Sélectionne une image de ta galerie', childDoesFromLevel: 1 },
+  { id: 'describe', label: 'Décrire l\'action', emoji: '🎬', description: 'Qu\'est-ce qui se passe ?', childDoesFromLevel: 1 },
+  { id: 'choose_movement', label: 'Choisir le mouvement', emoji: '💫', description: 'Lent, rapide, doux...', childDoesFromLevel: 1 },
+  { id: 'choose_camera', label: 'Mouvement caméra', emoji: '🎥', description: 'Zoom, travelling... (optionnel)', childDoesFromLevel: 3 },
+  { id: 'choose_extra', label: 'Ajouter des effets', emoji: '✨', description: 'Effets spéciaux (optionnel)', childDoesFromLevel: 3 },
+  { id: 'review_prompt', label: 'Voir mon prompt', emoji: '📋', description: 'Vérifier avant d\'envoyer', childDoesFromLevel: 2 },
+  { id: 'open_safari', label: 'Aller sur Safari', emoji: '🚀', description: 'Ouvrir fal.ai', childDoesFromLevel: 3 },
+  { id: 'paste_prompt', label: 'Coller le prompt', emoji: '📋', description: 'Cmd+V dans fal.ai', childDoesFromLevel: 3 },
+  { id: 'generate', label: 'Créer la vidéo', emoji: '🎬', description: 'Lancer la génération', childDoesFromLevel: 1 },
   { id: 'import', label: 'Importer', emoji: '📥', description: 'Récupérer ta création', childDoesFromLevel: 1 },
 ]
 
@@ -144,6 +152,16 @@ export interface StudioCreation {
 // STATE
 // ============================================================================
 
+// Type de réaction de l'IA quand un champ est validé
+export type AIReaction = {
+  id: string
+  type: 'gibberish' | 'inappropriate' | 'success' | 'encouragement' | 'user_input'
+  fieldName: string
+  message: string
+  userMessage?: string // Le texte tapé par l'enfant (pour l'afficher dans le chat)
+  timestamp: number
+}
+
 interface StudioProgressState {
   // Progression par type
   imageLevel: StudioLevel
@@ -160,6 +178,9 @@ interface StudioProgressState {
   completedSteps: GuideStep[]
   needsHelp: boolean
   
+  // Réactions de l'IA (pour communiquer avec le chat)
+  aiReaction: AIReaction | null
+  
   // Historique
   creations: StudioCreation[]
   
@@ -172,6 +193,8 @@ interface StudioProgressState {
   uncompleteStep: (step: GuideStep) => void // Invalider une étape (quand l'enfant efface)
   resetCurrentCreation: () => void
   requestHelp: () => void
+  sendAIReaction: (reaction: Omit<AIReaction, 'id' | 'timestamp'>) => void
+  clearAIReaction: () => void
   
   finishCreation: (creation: Omit<StudioCreation, 'id' | 'createdAt' | 'level'>) => void
   
@@ -210,6 +233,7 @@ export const useStudioProgressStore = create<StudioProgressState>()(
       currentStep: null,
       completedSteps: [],
       needsHelp: false,
+      aiReaction: null,
       
       creations: [],
       badges: [],
@@ -261,11 +285,26 @@ export const useStudioProgressStore = create<StudioProgressState>()(
           currentStep: null,
           completedSteps: [],
           needsHelp: false,
+          aiReaction: null,
         })
       },
       
       requestHelp: () => {
         set({ needsHelp: true })
+      },
+      
+      sendAIReaction: (reaction) => {
+        set({
+          aiReaction: {
+            ...reaction,
+            id: generateId(),
+            timestamp: Date.now(),
+          }
+        })
+      },
+      
+      clearAIReaction: () => {
+        set({ aiReaction: null })
       },
       
       finishCreation: (creationData) => {

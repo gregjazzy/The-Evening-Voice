@@ -475,7 +475,7 @@ export default function SuperAdminPanel({ onClose }: { onClose: () => void }) {
                   {/* Midjourney */}
                   <div className="bg-white/5 rounded-lg p-4 border border-white/10">
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium text-gray-300">Midjourney (via ImagineAPI)</label>
+                      <label className="text-sm font-medium text-gray-300">Images (legacy - non utilisé)</label>
                       <button
                         onClick={() => setShowKeys(p => ({ ...p, midjourney: !p.midjourney }))}
                         className="p-1 hover:bg-white/10 rounded"
@@ -495,7 +495,7 @@ export default function SuperAdminPanel({ onClose }: { onClose: () => void }) {
                   {/* Runway */}
                   <div className="bg-white/5 rounded-lg p-4 border border-white/10">
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium text-gray-300">Runway</label>
+                      <label className="text-sm font-medium text-gray-300">Vidéos (legacy - non utilisé)</label>
                       <button
                         onClick={() => setShowKeys(p => ({ ...p, runway: !p.runway }))}
                         className="p-1 hover:bg-white/10 rounded"

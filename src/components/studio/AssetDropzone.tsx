@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import { useStudioProgressStore } from '@/store/useStudioProgressStore'
+import { useAppStore } from '@/store/useAppStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { removeBackground, isBackgroundRemovalSupported } from '@/lib/background-removal'
 import { cn } from '@/lib/utils'
@@ -33,12 +34,23 @@ const MIN_PRINT_HEIGHT = 2480
 
 interface AssetDropzoneProps {
   onAssetImported?: (asset: ImportedAsset) => void
+  showDropzone?: boolean // Si false, affiche seulement la galerie
+  showGallery?: boolean // Si false, affiche seulement la zone de drop
+  title?: string // Titre personnalisé
 }
 
-export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
+export function AssetDropzone({ onAssetImported, showDropzone = true, showGallery = true, title }: AssetDropzoneProps) {
   const { importedAssets, addImportedAsset, updateAsset, removeImportedAsset, currentKit } = useStudioStore()
   const { completeStep, completedSteps } = useStudioProgressStore()
+  const { currentStory } = useAppStore()
   const { upload, isUploading } = useMediaUpload()
+  
+  // Filtrer les assets par projet actuel
+  const projectAssets = useMemo(() => {
+    return importedAssets.filter(a => 
+      !a.projectId || a.projectId === currentStory?.id // Assets de l'histoire ou sans projet (anciennes)
+    )
+  }, [importedAssets, currentStory?.id])
   
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -120,6 +132,7 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
       source,
       promptUsed: currentKit?.generatedPrompt,
       isUploading: true,
+      projectId: currentStory?.id, // Lier à l'histoire actuelle
     }
 
     const assetId = addImportedAsset(asset)
@@ -212,9 +225,9 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
 
   const getSourceBadge = (source: ImportedAsset['source']) => {
     const badges: Record<ImportedAsset['source'], { label: string; color: string }> = {
-      midjourney: { label: 'Midjourney', color: 'bg-aurora-500' },
+      midjourney: { label: 'fal.ai Flux', color: 'bg-aurora-500' },
       elevenlabs: { label: 'ElevenLabs', color: 'bg-dream-500' },
-      runway: { label: 'Runway', color: 'bg-stardust-500' },
+      runway: { label: 'fal.ai Kling', color: 'bg-stardust-500' },
       gemini: { label: 'Gemini', color: 'bg-blue-500' },
       upload: { label: 'Upload', color: 'bg-midnight-500' },
     }
@@ -242,6 +255,7 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
         source: asset.source,
         promptUsed: asset.promptUsed,
         isUploading: true,
+        projectId: asset.projectId || currentStory?.id, // Garder l'histoire de l'original
       }
       
       const newAssetId = addImportedAsset(detoureedAsset)
@@ -267,15 +281,20 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
     }
   }
 
+  // Si pas de dropzone et pas d'assets du projet, ne rien afficher
+  if (!showDropzone && projectAssets.length === 0) {
+    return null
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <Download className="w-5 h-5 text-dream-400" />
-        <h3 className="font-semibold text-white">Importer tes créations</h3>
+        <h3 className="font-semibold text-white">{title || (showDropzone ? 'Importer tes créations' : 'Mes créations')}</h3>
       </div>
 
-      {/* Zone de drop */}
-      <motion.div
+      {/* Zone de drop - seulement si showDropzone=true */}
+      {showDropzone && <motion.div
         className={cn(
           'relative border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer',
           isDragging
@@ -347,134 +366,116 @@ export function AssetDropzone({ onAssetImported }: AssetDropzoneProps) {
                 Glisse tes fichiers ici
               </p>
               <p className="text-sm text-midnight-400">
-                Images ou vidéos créées sur Midjourney / Runway
+                Images ou vidéos créées sur fal.ai
               </p>
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </motion.div>}
 
-      {/* Liste des assets importés */}
-      {importedAssets.length > 0 && (
+      {/* Grille des assets importés - seulement si showGallery=true */}
+      {showGallery && projectAssets.length > 0 && (
         <div className="space-y-3">
           <h4 className="text-sm text-midnight-400 uppercase tracking-wider">
-            Fichiers importés ({importedAssets.length})
+            Fichiers importés ({projectAssets.length})
           </h4>
           
-          <div className="grid gap-3">
+          {/* Grille de miniatures - scrollable si beaucoup d'images */}
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-48 overflow-y-auto pr-1">
             <AnimatePresence>
-              {importedAssets.map((asset) => {
+              {projectAssets.map((asset) => {
                 const Icon = getAssetIcon(asset.type)
-                const sourceBadge = getSourceBadge(asset.source)
                 
                 return (
                   <motion.div
                     key={asset.id}
-                    className="glass rounded-xl p-4 flex items-center gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
+                    className="relative aspect-square rounded-lg overflow-hidden bg-midnight-800 group cursor-pointer"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
                     layout
+                    title={asset.name}
                   >
-                    {/* Preview */}
-                    <div className="w-16 h-16 rounded-lg bg-midnight-800 flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {asset.type === 'image' && asset.url ? (
-                        <img 
-                          src={asset.url} 
-                          alt={asset.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
+                    {/* Image/Video preview */}
+                    {asset.type === 'image' && asset.url ? (
+                      <img 
+                        src={asset.url} 
+                        alt={asset.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : asset.type === 'video' && asset.url ? (
+                      <video 
+                        src={asset.url}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
                         <Icon className="w-8 h-8 text-midnight-400" />
-                      )}
-                    </div>
-
-                    {/* Infos */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-white truncate">
-                        {asset.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className={cn(
-                          'px-2 py-0.5 rounded-full text-xs text-white',
-                          sourceBadge.color
-                        )}>
-                          {sourceBadge.label}
-                        </span>
-                        
-                        {/* Indicateur de statut */}
-                        {asset.isUploading ? (
-                          <span className="flex items-center gap-1 text-xs text-aurora-400">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            Upload...
-                          </span>
-                        ) : upscalingId === asset.id ? (
-                          <span className="flex items-center gap-1 text-xs text-dream-400">
-                            <ZoomIn className="w-3 h-3 animate-pulse" />
-                            HD...
-                          </span>
-                        ) : asset.cloudUrl ? (
-                          <span className="flex items-center gap-1 text-xs text-emerald-400" title="Sauvegardé dans le cloud (qualité impression)">
-                            <Cloud className="w-3 h-3" />
-                            Cloud HD
-                          </span>
-                        ) : asset.uploadError ? (
-                          <span className="flex items-center gap-1 text-xs text-amber-400" title={asset.uploadError}>
-                            <CloudOff className="w-3 h-3" />
-                            Local
-                          </span>
-                        ) : (
-                          <span className="text-xs text-midnight-400">
-                            {new Date(asset.importedAt).toLocaleTimeString('fr-FR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
-                        )}
                       </div>
-                    </div>
+                    )}
 
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      {/* Bouton détourage (seulement pour images) */}
+                    {/* Indicateur de statut (coin) */}
+                    {asset.isUploading && (
+                      <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80">
+                        <Loader2 className="w-3 h-3 text-aurora-400 animate-spin" />
+                      </div>
+                    )}
+                    {upscalingId === asset.id && (
+                      <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80">
+                        <ZoomIn className="w-3 h-3 text-dream-400 animate-pulse" />
+                      </div>
+                    )}
+                    {asset.cloudUrl && !asset.isUploading && upscalingId !== asset.id && (
+                      <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80">
+                        <Cloud className="w-3 h-3 text-emerald-400" />
+                      </div>
+                    )}
+
+                    {/* Overlay au survol avec actions */}
+                    <div className="absolute inset-0 bg-midnight-900/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                      {/* Bouton détourage */}
                       {asset.type === 'image' && canRemoveBackground && (
                         <motion.button
-                          onClick={() => handleRemoveBackground(asset)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemoveBackground(asset)
+                          }}
                           disabled={removingBgId !== null}
-                          className={cn(
-                            'p-2 rounded-lg transition-colors relative overflow-hidden',
-                            removingBgId === asset.id 
-                              ? 'bg-aurora-500/30 text-aurora-300 cursor-wait'
-                              : 'bg-aurora-500/20 text-aurora-400 hover:bg-aurora-500/30'
-                          )}
-                          whileHover={{ scale: removingBgId ? 1 : 1.1 }}
-                          whileTap={{ scale: removingBgId ? 1 : 0.9 }}
+                          className="p-2 rounded-lg bg-aurora-500/30 text-aurora-300 hover:bg-aurora-500/50 transition-colors"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           title="Enlever le fond"
                         >
                           {removingBgId === asset.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              {/* Barre de progression */}
-                              <div 
-                                className="absolute bottom-0 left-0 h-1 bg-aurora-500 transition-all"
-                                style={{ width: `${bgRemovalProgress}%` }}
-                              />
-                            </>
+                            <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <Eraser className="w-4 h-4" />
                           )}
                         </motion.button>
                       )}
                       
+                      {/* Bouton supprimer */}
                       <motion.button
-                        onClick={() => removeImportedAsset(asset.id)}
-                        className="p-2 rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeImportedAsset(asset.id)
+                        }}
+                        className="p-2 rounded-lg bg-rose-500/30 text-rose-300 hover:bg-rose-500/50 transition-colors"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
+                        title="Supprimer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </motion.button>
                     </div>
+
+                    {/* Badge vidéo */}
+                    {asset.type === 'video' && (
+                      <div className="absolute bottom-1 right-1 p-1 rounded bg-midnight-900/80">
+                        <Video className="w-3 h-3 text-stardust-400" />
+                      </div>
+                    )}
                   </motion.div>
                 )
               })}

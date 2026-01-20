@@ -21,6 +21,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
+import { useLocale } from '@/lib/i18n/context'
 import { VoiceSelector } from '@/components/ui/VoiceSelector'
 import { useStudioStore } from '@/store/useStudioStore'
 import { 
@@ -107,7 +108,22 @@ const getAIMessage = (
   }
 
   switch (step) {
+    // === ÉTAPE VIDÉO : Sélectionner une image ===
+    case 'choose_image':
+      return {
+        content: `Pour créer ta vidéo, il faut d'abord choisir une image ! 🖼️\n\nRegarde dans ta galerie et choisis celle que tu veux animer.\n\n💡 Tu n'as pas encore d'images ? Va d'abord en créer dans le mode Images !`,
+        type: 'question',
+      }
+
     case 'describe':
+      // Pour les vidéos, c'est l'action qu'on décrit
+      if (type === 'video') {
+        return {
+          content: `Super image ! 🎬\n\nMaintenant, qu'est-ce qui se passe dans ta vidéo ?\n\nPar exemple : "Le dragon ouvre ses ailes et s'envole" ou "Les étoiles brillent et tournent"`,
+          type: 'question',
+        }
+      }
+      // Pour les images
       if (level === 1) {
         return {
           content: `Raconte-moi ce que tu imagines ! 💭\n\nPar exemple : "Un dragon qui vole au-dessus d'un château" ou "Une fée dans une forêt magique"`,
@@ -133,15 +149,39 @@ const getAIMessage = (
         type: 'question',
       }
 
+    case 'choose_light':
+      return {
+        content: `Super ambiance ! ☀️\n\nMaintenant, quelle lumière pour ton ${type === 'image' ? 'image' : 'vidéo'} ?\n\nSoleil brillant ? Lune douce ? Bougie chaleureuse ? La lumière change tout !`,
+        type: 'question',
+      }
+
+    case 'choose_format':
+      return {
+        content: `Génial ! 📐\n\nQuelle forme pour ton image ?\n\n• Portrait (vertical) - parfait pour un personnage\n• Paysage (horizontal) - parfait pour un décor\n• Carré - parfait pour tout !`,
+        type: 'question',
+      }
+
+    case 'choose_movement':
+      return {
+        content: `Génial ! 💫\n\nComment ta vidéo va bouger ?\n\n• 🐢 Lent et doux - comme une plume qui tombe\n• 🚀 Rapide et dynamique - comme une fusée !\n• 🌿 Presque fixe - comme une photo qui respire\n\nLe mouvement donne vie à ton image !`,
+        type: 'question',
+      }
+
+    case 'choose_camera':
+      return {
+        content: `Tu es déjà un(e) pro ! 🎥\n\nComment la caméra bouge ?\n\n• Zoom avant - on se rapproche\n• Zoom arrière - on s'éloigne\n• Travelling - on suit le mouvement\n• Fixe - on ne bouge pas\n\nC'est un truc de grand(e) !`,
+        type: 'question',
+      }
+
     case 'choose_extra':
       if (type === 'image') {
         return {
-          content: `On y est presque ! ✨\n\nEst-ce qu'il y a des détails que tu voudrais ajouter ? Des couleurs spéciales, une lumière particulière ?`,
+          content: `On y est presque ! ✨\n\nSi tu veux, tu peux ajouter des détails bonus : des couleurs spéciales, des textures... C'est optionnel !`,
           type: 'question',
         }
       }
       return {
-        content: `Excellent choix ! 🎬\n\nComment tu veux que ça bouge ? Lentement et doucement, ou avec de l'action ?`,
+        content: `Excellent choix ! 🎬\n\nSi tu veux, tu peux préciser le mouvement : lent et doux, ou rapide avec de l'action ? C'est optionnel !`,
         type: 'question',
       }
 
@@ -154,7 +194,7 @@ const getAIMessage = (
     case 'open_safari':
       if (level >= 4) {
         return {
-          content: `Tu es prête ! 🚀\n\nClique sur le bouton pour aller sur ${type === 'image' ? 'Midjourney' : 'Runway'}. Tu sais comment faire maintenant !`,
+          content: `Tu es prête ! 🚀\n\nClique sur le bouton pour aller sur fal.ai. Tu sais comment faire maintenant !`,
           type: 'encouragement',
         }
       }
@@ -284,7 +324,8 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   
   const level = getLevel(type)
   const { aiVoice } = useAppStore()
-  const tts = useTTS('fr', aiVoice || undefined)
+  const locale = useLocale() // Récupérer la locale actuelle
+  const tts = useTTS(locale, aiVoice || undefined)
   
   // Détecter ce qui manque pour guider l'enfant
   // Synchronisé avec PromptBuilder.tsx
@@ -308,6 +349,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const lastStepRef = useRef<string | null>(null)
+  const justValidatedFieldRef = useRef(false) // Pour éviter le double message après validation
 
   // Nom de l'IA (ou défaut)
   const friendName = aiName || 'Mon amie'
@@ -401,6 +443,15 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   }, [type])
 
   // Ajouter un message de l'IA quand l'étape change
+  // Premier message = immédiat, les suivants = avec délai de 3 secondes
+  const stepMessageTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isFirstMessage = useRef(true)
+  
+  useEffect(() => {
+    // Reset le flag quand le type change
+    isFirstMessage.current = true
+  }, [type])
+  
   useEffect(() => {
     // Créer une clé unique pour éviter les doublons
     const stepKey = `${type}-${currentStep}-${level}`
@@ -409,23 +460,54 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
     if (lastStepRef.current === stepKey) {
       return
     }
-    lastStepRef.current = stepKey
     
-    const aiMessage = getAIMessage(currentStep, type, level, friendName)
-    
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      role: 'ai',
-      content: aiMessage.content,
-      timestamp: new Date(),
-      type: aiMessage.type,
+    // Si on vient de valider un champ, l'IA a déjà répondu - pas de message automatique
+    if (justValidatedFieldRef.current) {
+      justValidatedFieldRef.current = false
+      lastStepRef.current = stepKey // Marquer comme traité
+      return
     }
     
-    setMessages(prev => [...prev, newMessage])
+    // Annuler le message précédent si l'étape change vite
+    if (stepMessageTimeoutRef.current) {
+      clearTimeout(stepMessageTimeoutRef.current)
+    }
     
-    // Lire à voix haute si activé
-    if (voiceEnabled && tts.isAvailable) {
-      tts.speak(aiMessage.content)
+    const sendMessage = () => {
+      lastStepRef.current = stepKey
+      
+      const aiMessage = getAIMessage(currentStep, type, level, friendName)
+      
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        role: 'ai',
+        content: aiMessage.content,
+        timestamp: new Date(),
+        type: aiMessage.type,
+      }
+      
+      setMessages(prev => [...prev, newMessage])
+      
+      // Lire à voix haute si activé
+      if (voiceEnabled && tts.isAvailable) {
+        tts.speak(aiMessage.content)
+      }
+    }
+    
+    // Premier message = immédiat, les suivants = délai de 3 secondes
+    if (isFirstMessage.current) {
+      isFirstMessage.current = false
+      sendMessage()
+    } else {
+      // Attendre 3 secondes avant de parler de la nouvelle étape
+      // Ça laisse le temps à l'enfant de finir ce qu'il fait
+      stepMessageTimeoutRef.current = setTimeout(sendMessage, 3000)
+    }
+    
+    return () => {
+      if (stepMessageTimeoutRef.current) {
+        clearTimeout(stepMessageTimeoutRef.current)
+      }
     }
   }, [currentStep, type, level, friendName])
 
@@ -452,6 +534,155 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       }
     }
   }, [needsHelp])
+  
+  // Écouter les réactions de l'IA (validation des champs)
+  const { aiReaction, clearAIReaction } = useStudioProgressStore()
+  const lastReactionIdRef = useRef<string | null>(null)
+  
+  useEffect(() => {
+    if (!aiReaction || aiReaction.id === lastReactionIdRef.current) return
+    
+    lastReactionIdRef.current = aiReaction.id
+    
+    // Si c'est un input utilisateur, l'afficher dans le chat et demander à l'IA de répondre
+    if (aiReaction.type === 'user_input' && aiReaction.userMessage) {
+      // Afficher le message de l'enfant dans le chat
+      const childMessage: Message = {
+        id: `child-${aiReaction.id}`,
+        role: 'child',
+        content: aiReaction.userMessage,
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, childMessage])
+      
+      const fieldName = aiReaction.fieldName
+      
+      // Envoyer à l'IA pour analyse
+      const analyzeInput = async () => {
+        setIsLoading(true)
+        try {
+          const chatHistory = messages.slice(-10).map(m => ({
+            role: m.role === 'ai' ? 'assistant' : 'user',
+            content: m.content,
+          }))
+          
+          // Déterminer l'étape suivante pour que l'IA l'annonce
+          const nextStepMessages: Record<string, string> = {
+            subject: 'choisir un style (dessin, photo, magique...)',
+            action: 'choisir comment ça bouge',
+            details: 'continuer la création',
+            notes: 'continuer la création',
+          }
+          
+          const response = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: `[VALIDATION] L'enfant propose pour son ${type === 'image' ? 'image' : 'vidéo'}: "${aiReaction.userMessage}". Si c'est approprié, valide son idée avec enthousiasme et dis-lui qu'on passe à l'étape suivante: ${nextStepMessages[fieldName] || 'continuer'}. Ne pose pas de questions, juste valide et annonce la suite !`,
+              context: 'studio',
+              locale, // Langue de l'interface
+              chatHistory,
+              aiName: friendName,
+              userName: useAppStore.getState().userName,
+              studioContext: {
+                type,
+                currentStep,
+                level,
+                fieldName,
+                isFieldValidation: true,
+                nextStep: nextStepMessages[fieldName],
+              },
+            }),
+          })
+          
+          if (!response.ok) throw new Error('Erreur API')
+          
+          const data = await response.json()
+          
+          const aiResponse: Message = {
+            id: `ai-response-${aiReaction.id}`,
+            role: 'ai',
+            content: data.text || data.response || "Super ! Continue ! ✨",
+            timestamp: new Date(),
+            type: data.isAppropriate === false ? 'help' : 'question',
+          }
+          setMessages(prev => [...prev, aiResponse])
+          
+          // VALIDER SEULEMENT SI L'IA APPROUVE
+          if (data.isAppropriate !== false) {
+            // Marquer qu'on vient de valider (évite le double message)
+            justValidatedFieldRef.current = true
+            
+            // Valider le champ via le store
+            useStudioProgressStore.getState().completeStep(
+              fieldName === 'subject' || fieldName === 'action' ? 'describe' :
+              fieldName === 'details' || fieldName === 'notes' ? 'choose_extra' : 'describe'
+            )
+          }
+          
+          if (voiceEnabled && tts.isAvailable) {
+            tts.speak(aiResponse.content)
+          }
+        } catch (error) {
+          console.error('Erreur analyse IA:', error)
+          // Fallback simple - on valide quand même en cas d'erreur
+          const fallbackMessage: Message = {
+            id: `fallback-${aiReaction.id}`,
+            role: 'ai',
+            content: "J'ai bien noté ! Continue ! ✨",
+            timestamp: new Date(),
+            type: 'encouragement',
+          }
+          setMessages(prev => [...prev, fallbackMessage])
+          
+          // Marquer qu'on vient de valider (évite le double message)
+          justValidatedFieldRef.current = true
+          
+          // Valider en cas d'erreur (fail-open)
+          useStudioProgressStore.getState().completeStep(
+            fieldName === 'subject' || fieldName === 'action' ? 'describe' :
+            fieldName === 'details' || fieldName === 'notes' ? 'choose_extra' : 'describe'
+          )
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      
+      analyzeInput()
+      
+      // Nettoyer
+      setTimeout(() => clearAIReaction(), 100)
+      return
+    }
+    
+    // Autres types de réactions (ancien comportement)
+    let messageType: Message['type'] = 'encouragement'
+    if (aiReaction.type === 'gibberish' || aiReaction.type === 'inappropriate') {
+      messageType = 'help'
+    } else if (aiReaction.type === 'success') {
+      messageType = 'encouragement'
+    }
+    
+    const newMessage: Message = {
+      id: `reaction-${aiReaction.id}`,
+      role: 'ai',
+      content: aiReaction.message,
+      timestamp: new Date(),
+      type: messageType,
+    }
+    
+    setMessages(prev => [...prev, newMessage])
+    
+    // Lire à voix haute si activé
+    if (voiceEnabled && tts.isAvailable) {
+      tts.speak(aiReaction.message)
+    }
+    
+    // Nettoyer la réaction après l'avoir traitée
+    setTimeout(() => {
+      clearAIReaction()
+    }, 100)
+  }, [aiReaction, voiceEnabled, tts, clearAIReaction, messages, friendName, type, currentStep, level])
 
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return
@@ -518,6 +749,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
         body: JSON.stringify({
           message: userMessage,
           context: 'studio',
+          locale, // Langue de l'interface
           chatHistory,
           aiName: friendName,
           userName: useAppStore.getState().userName, // Prénom de l'enfant
@@ -607,30 +839,30 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   return (
     <motion.div
       className={cn(
-        'glass rounded-2xl flex flex-col h-full',
+        'glass rounded-2xl flex flex-col h-full max-h-full overflow-hidden',
         className
       )}
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-midnight-700/50">
+      {/* Header - compact */}
+      <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-midnight-700/50">
         <div className={cn(
-          "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+          "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
           isOffline 
             ? "bg-gradient-to-br from-amber-500 to-orange-500"
             : "bg-gradient-to-br from-aurora-500 to-dream-500"
         )}>
           {isOffline ? (
-            <WifiOff className="w-5 h-5 text-white" />
+            <WifiOff className="w-4 h-4 text-white" />
           ) : (
-            <Sparkles className="w-5 h-5 text-white" />
+            <Sparkles className="w-4 h-4 text-white" />
           )}
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-white">{friendName}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-white text-sm truncate">{friendName}</h3>
           <p className={cn(
-            "text-xs",
+            "text-xs truncate",
             isOffline ? "text-amber-300" : "text-aurora-300"
           )}>
             {isOffline ? "Mode hors-ligne 🌙" : "Ton amie créative ✨"}
@@ -640,28 +872,28 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
         <button
           onClick={() => setShowVoiceSelector(!showVoiceSelector)}
           className={cn(
-            'p-2 rounded-lg transition-colors',
+            'p-1.5 rounded-lg transition-colors',
             showVoiceSelector
               ? 'bg-aurora-500/20 text-aurora-300'
               : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
           )}
           title="Changer la voix"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-3.5 h-3.5" />
         </button>
         
         {/* Bouton activer/désactiver voix */}
         <button
           onClick={toggleVoice}
           className={cn(
-            'p-2 rounded-lg transition-colors',
+            'p-1.5 rounded-lg transition-colors',
             voiceEnabled 
               ? 'bg-aurora-500/20 text-aurora-300' 
               : 'bg-midnight-800/50 text-midnight-400'
           )}
           title={voiceEnabled ? 'Désactiver la voix' : 'Activer la voix'}
         >
-          {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          {voiceEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
         </button>
       </div>
 
@@ -761,7 +993,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="border-t border-midnight-700/50"
+            className="flex-shrink-0 border-t border-midnight-700/50"
           >
             <div className="p-3">
               <div className="flex items-center justify-between mb-2">
@@ -798,7 +1030,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       </AnimatePresence>
 
       {/* Input */}
-      <div className="p-4 border-t border-midnight-700/50">
+      <div className="flex-shrink-0 p-3 border-t border-midnight-700/50">
         {/* Bouton pour afficher l'aide si masquée */}
         {!showQuickHelp && (isOffline || messages.some(m => m.type === 'encouragement' && m.content.includes('souci'))) && (
           <button
@@ -830,7 +1062,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={isOffline ? "Écris ou utilise l'aide magique..." : "Écris ta réponse..."}
-            className="flex-1 bg-midnight-800/50 rounded-xl px-4 py-3 text-white placeholder:text-midnight-500 text-sm focus:ring-2 focus:ring-aurora-500/30 focus:outline-none"
+            className="flex-1 bg-midnight-800/50 rounded-xl px-4 py-3 text-white placeholder:text-midnight-500 text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500/30"
           />
           
           <motion.button

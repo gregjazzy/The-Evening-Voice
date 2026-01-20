@@ -1,5 +1,7 @@
 /**
- * API Route - Génération de vidéos avec Kling 2.1 (via fal.ai)
+ * API Route - Génération de vidéos avec Kling 2.5 Turbo Pro (via fal.ai)
+ * - Text-to-video : $0.35/5s (pas besoin d'image)
+ * - Image-to-video : si imageUrl fournie
  */
 
 import { NextRequest, NextResponse } from 'next/server'

@@ -8,6 +8,10 @@ export type AmbianceType = 'jour' | 'nuit' | 'orage' | 'brume' | 'feerique' | 'm
 export type LightType = 'soleil' | 'lune' | 'bougie' | 'neon' | 'aurore'
 // Format d'image pour impression livre ou vidéo
 export type FormatType = 'portrait' | 'paysage' | 'carre'
+// Mouvement pour vidéos
+export type MovementType = 'lent' | 'rapide' | 'doux' | 'dynamique' | 'immobile'
+// Mouvement de caméra pour vidéos (niveaux 3+)
+export type CameraType = 'fixe' | 'zoom_in' | 'zoom_out' | 'pan_gauche' | 'pan_droite' | 'travelling'
 
 export interface PromptKit {
   id: string
@@ -18,6 +22,13 @@ export interface PromptKit {
   ambiance: AmbianceType | null
   light: LightType | null
   format: FormatType | null  // Format d'image (portrait livre, paysage vidéo, carré)
+  movement: MovementType | null  // Mouvement pour vidéos
+  // Champs spécifiques vidéo
+  sourceImageUrl: string | null  // URL de l'image de base (pour vidéos)
+  sourceImageId: string | null   // ID de l'asset source (pour vidéos)
+  action: string                 // Scénario : qu'est-ce qui se passe dans la vidéo
+  camera: CameraType | null      // Mouvement de caméra (niveaux 3+)
+  effects: string                // Effets spéciaux (optionnel)
   sounds: string[]
   additionalNotes: string
   generatedPrompt: string
@@ -39,6 +50,7 @@ export interface ImportedAsset {
   importedAt: Date
   isUploading?: boolean
   uploadError?: string
+  projectId?: string             // ID du projet associé (pour filtrer par projet)
 }
 
 export interface SafariBridge {
@@ -74,9 +86,10 @@ interface StudioState {
   validateKitByMentor: () => void
   
   // Actions Assets
-  addImportedAsset: (asset: Omit<ImportedAsset, 'id' | 'importedAt'>) => void
+  addImportedAsset: (asset: Omit<ImportedAsset, 'id' | 'importedAt'>) => string
   updateAsset: (id: string, updates: Partial<ImportedAsset>) => void
   removeImportedAsset: (id: string) => void
+  getProjectAssets: (projectId: string | undefined) => ImportedAsset[]
   
   // Actions Bridge
   prepareBridge: (tool: SafariBridge['tool']) => string
@@ -135,7 +148,6 @@ const promptTemplates = {
       parts.push(lightMap[kit.light])
     }
     if (kit.additionalNotes) parts.push(kit.additionalNotes)
-    parts.push('--ar 16:9 --v 6')
     return parts.join(', ')
   },
   
@@ -144,10 +156,56 @@ const promptTemplates = {
   },
   
   runway: (kit: PromptKit) => {
-    const parts = [kit.subject]
-    if (kit.ambiance) parts.push(`ambiance ${kit.ambiance}`)
+    const parts = []
+    
+    // Action/Scénario (ce qui se passe dans la vidéo)
+    if (kit.action) parts.push(kit.action)
+    
+    // Type de mouvement
+    if (kit.movement) {
+      const movementMap: Record<MovementType, string> = {
+        lent: 'slow gentle movement',
+        rapide: 'fast dynamic movement',
+        doux: 'soft smooth movement',
+        dynamique: 'energetic movement',
+        immobile: 'subtle breathing motion, almost still'
+      }
+      parts.push(movementMap[kit.movement])
+    }
+    
+    // Mouvement de caméra (niveaux avancés)
+    if (kit.camera) {
+      const cameraMap: Record<CameraType, string> = {
+        fixe: 'static camera',
+        zoom_in: 'slow zoom in',
+        zoom_out: 'slow zoom out',
+        pan_gauche: 'pan left',
+        pan_droite: 'pan right',
+        travelling: 'tracking shot'
+      }
+      parts.push(cameraMap[kit.camera])
+    }
+    
+    // Effets spéciaux
+    if (kit.effects) {
+      const effectsMap: Record<string, string> = {
+        sparkles: 'magical sparkles and particles',
+        glow: 'soft glowing halo effect',
+        smoke: 'gentle smoke and mist',
+        stars: 'twinkling stars',
+        fire: 'warm flames and embers',
+        snow: 'falling snowflakes',
+        magic: 'magical fairy dust particles',
+      }
+      if (effectsMap[kit.effects]) {
+        parts.push(effectsMap[kit.effects])
+      }
+    }
+    
+    // Notes additionnelles
     if (kit.additionalNotes) parts.push(kit.additionalNotes)
-    return parts.join(', ') + ' --motion smooth --duration 4s'
+    
+    return parts.join(', ')
   },
   
   gemini: (kit: PromptKit) => {
@@ -161,9 +219,9 @@ Donne-moi des suggestions créatives pour enrichir la description.`
 // URLs des outils externes
 export const toolUrls = {
   gemini: 'https://gemini.google.com/app',
-  midjourney: 'https://www.midjourney.com/imagine',
+  midjourney: 'https://fal.ai/models/fal-ai/flux-pro/v1.1/playground', // Images via fal.ai
   elevenlabs: 'https://elevenlabs.io/app/speech-synthesis',
-  runway: 'https://app.runwayml.com/video-tools/teams/personal/ai-tools/generate'
+  runway: 'https://fal.ai/models/fal-ai/kling-video/v2.5-turbo/pro/text-to-video/playground' // Vidéos via fal.ai
 }
 
 export const useStudioStore = create<StudioState>()(
@@ -190,6 +248,13 @@ export const useStudioStore = create<StudioState>()(
           ambiance: null,
           light: null,
           format: null, // Format par défaut selon le type (image→portrait, vidéo→paysage)
+          movement: null, // Mouvement pour vidéos
+          // Champs spécifiques vidéo
+          sourceImageUrl: null,
+          sourceImageId: null,
+          action: '',
+          camera: null,
+          effects: '',
           sounds: [],
           additionalNotes: '',
           generatedPrompt: '',
@@ -262,6 +327,12 @@ export const useStudioStore = create<StudioState>()(
         set((state) => ({
           importedAssets: state.importedAssets.filter((a) => a.id !== id),
         }))
+      },
+
+      getProjectAssets: (projectId) => {
+        const { importedAssets } = get()
+        if (!projectId) return importedAssets // Si pas de projet, retourner tout
+        return importedAssets.filter((a) => a.projectId === projectId)
       },
 
       // === ACTIONS BRIDGE ===
@@ -353,14 +424,50 @@ export const useStudioStore = create<StudioState>()(
         
         const missing: string[] = []
         
-        if (!currentKit.subject || currentKit.subject.length < 5) {
-          missing.push('sujet')
+        // === IMAGES ===
+        if (currentKit.creationType === 'image') {
+          // Sujet requis (minimum 15 caractères pour une vraie description)
+          if (!currentKit.subject || currentKit.subject.length < 15) {
+            missing.push('description')
+          }
+          
+          // Style requis
+          if (!currentKit.style) {
+            missing.push('style')
+          }
+          
+          // Ambiance requise
+          if (!currentKit.ambiance) {
+            missing.push('ambiance')
+          }
+          
+          // Lumière requise (important pour apprendre le prompting)
+          if (!currentKit.light) {
+            missing.push('lumière')
+          }
+          
+          // Format requis pour les images
+          if (!currentKit.format) {
+            missing.push('format')
+          }
         }
-        if (!currentKit.style) {
-          missing.push('style')
-        }
-        if (currentKit.creationType === 'image' && !currentKit.ambiance) {
-          missing.push('ambiance')
+        
+        // === VIDÉOS ===
+        if (currentKit.creationType === 'video') {
+          // Image de base requise (l'enfant doit d'abord créer une image)
+          if (!currentKit.sourceImageUrl) {
+            missing.push('image de base')
+          }
+          
+          // Action/Scénario requis (qu'est-ce qui se passe)
+          if (!currentKit.action || currentKit.action.length < 10) {
+            missing.push('action')
+          }
+          
+          // Mouvement requis (comment ça bouge)
+          if (!currentKit.movement) {
+            missing.push('mouvement')
+          }
         }
         
         return {

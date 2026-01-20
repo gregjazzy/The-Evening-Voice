@@ -1,28 +1,28 @@
 'use client'
 
 /**
- * TutorialGuide - Tutoriels visuels pour Midjourney et Runway
+ * TutorialGuide - Tutoriels visuels pour fal.ai
  * 
  * Affiche des guides étape par étape avec :
- * - Images/GIFs de démonstration (placeholders à remplacer)
+ * - Images/GIFs de démonstration
  * - Textes explicatifs adaptés aux enfants
  * - Navigation entre les étapes
  * 
  * SCREENSHOTS À CAPTURER :
  * 
- * 📸 MIDJOURNEY (5 images) :
- * 1. midjourney-01-discord.png - Page d'accueil Discord avec bouton Midjourney
- * 2. midjourney-02-channel.png - Canal #newbies ou #général  
- * 3. midjourney-03-imagine.png - Commande /imagine dans le chat
- * 4. midjourney-04-prompt.png - Zone de texte avec prompt collé
- * 5. midjourney-05-result.png - Résultat avec les 4 images générées
+ * 📸 FAL.AI IMAGES - Flux Pro (5 images) :
+ * 1. falai-image-01-home.png - Page d'accueil fal.ai Flux playground
+ * 2. falai-image-02-prompt.png - Zone de texte pour le prompt
+ * 3. falai-image-03-run.png - Bouton "Run" mis en évidence
+ * 4. falai-image-04-loading.png - Écran de chargement
+ * 5. falai-image-05-result.png - Image générée avec bouton download
  * 
- * 📸 RUNWAY (5 images) :
- * 1. runway-01-home.png - Page d'accueil Runway ML
- * 2. runway-02-create.png - Bouton "Create" ou "Gen-3"
- * 3. runway-03-prompt.png - Zone de texte du prompt
- * 4. runway-04-generate.png - Bouton de génération
- * 5. runway-05-result.png - Vidéo générée en preview
+ * 📸 FAL.AI VIDEOS - Kling (5 images) :
+ * 1. falai-video-01-home.png - Page d'accueil fal.ai Kling playground
+ * 2. falai-video-02-prompt.png - Zone de texte pour le prompt
+ * 3. falai-video-03-run.png - Bouton "Run" mis en évidence  
+ * 4. falai-video-04-loading.png - Écran de chargement
+ * 5. falai-video-05-result.png - Vidéo générée avec bouton download
  */
 
 import { useState } from 'react'
@@ -50,12 +50,12 @@ interface TutorialStep {
   title: string
   description: string
   tip?: string            // Conseil pour l'enfant
-  imageUrl: string        // URL de l'image/GIF (placeholder si non fourni)
+  imageUrl: string        // URL de l'image/GIF
   imagePlaceholder: string // Description du screenshot à capturer
 }
 
 interface Tutorial {
-  id: 'midjourney' | 'runway'
+  id: 'image' | 'video'
   name: string
   emoji: string
   color: string
@@ -69,100 +69,100 @@ interface Tutorial {
 
 const TUTORIALS: Tutorial[] = [
   {
-    id: 'midjourney',
-    name: 'Midjourney',
+    id: 'image',
+    name: 'fal.ai Images',
     emoji: '🎨',
-    color: 'from-purple-500 to-indigo-600',
-    url: 'https://discord.com/channels/@me',
+    color: 'from-aurora-500 to-aurora-700',
+    url: 'https://fal.ai/models/fal-ai/flux-pro/v1.1/playground',
     steps: [
       {
-        id: 'mj-1',
-        title: 'Ouvre Discord',
-        description: 'Midjourney fonctionne sur Discord. Clique sur l\'icône Midjourney dans la barre de gauche.',
-        tip: '💡 Si tu n\'as pas Discord, demande à un adulte de t\'aider à créer un compte.',
-        imageUrl: '/tutorials/midjourney-01-discord.png',
-        imagePlaceholder: 'Screenshot de Discord avec le serveur Midjourney visible dans la sidebar',
+        id: 'img-1',
+        title: 'Ouvre fal.ai',
+        description: 'Clique sur le lien pour ouvrir la page fal.ai. C\'est là que tu vas créer tes images !',
+        tip: '💡 fal.ai est un site magique qui transforme tes idées en images.',
+        imageUrl: '/tutorials/falai-image-01-home.png',
+        imagePlaceholder: 'Screenshot de la page fal.ai Flux Pro playground',
       },
       {
-        id: 'mj-2',
-        title: 'Va dans un salon',
-        description: 'Choisis un salon comme #newbies ou #general pour créer tes images.',
-        tip: '💡 Les salons "newbies" sont parfaits pour débuter !',
-        imageUrl: '/tutorials/midjourney-02-channel.png',
-        imagePlaceholder: 'Screenshot montrant la liste des canaux avec #newbies surligné',
+        id: 'img-2',
+        title: 'Trouve la zone de texte',
+        description: 'Tu vas voir un grand rectangle où tu peux écrire. C\'est là que tu colles ton prompt !',
+        tip: '💡 Le prompt, c\'est la description magique de ton image.',
+        imageUrl: '/tutorials/falai-image-02-prompt.png',
+        imagePlaceholder: 'Screenshot de la zone de prompt sur fal.ai',
       },
       {
-        id: 'mj-3',
-        title: 'Tape /imagine',
-        description: 'Dans la zone de texte en bas, écris /imagine puis appuie sur Entrée.',
-        tip: '💡 Le slash / est très important, c\'est une commande magique !',
-        imageUrl: '/tutorials/midjourney-03-imagine.png',
-        imagePlaceholder: 'Screenshot de la zone de chat avec /imagine tapé',
-      },
-      {
-        id: 'mj-4',
+        id: 'img-3',
         title: 'Colle ton prompt',
-        description: 'Maintenant, colle le texte magique que tu as copié (Cmd+V sur Mac).',
-        tip: '💡 C\'est le prompt que ton amie IA t\'a aidé à créer !',
-        imageUrl: '/tutorials/midjourney-04-prompt.png',
-        imagePlaceholder: 'Screenshot montrant le prompt collé après /imagine prompt:',
+        description: 'Appuie sur Cmd+V (ou Ctrl+V sur PC) pour coller le texte magique que ton amie IA t\'a aidé à créer.',
+        tip: '💡 Le texte vient du bouton "Copier" que tu as cliqué avant !',
+        imageUrl: '/tutorials/falai-image-03-paste.png',
+        imagePlaceholder: 'Screenshot du prompt collé dans la zone de texte',
       },
       {
-        id: 'mj-5',
-        title: 'Admire le résultat !',
-        description: 'Midjourney va créer 4 images. Clique sur celle que tu préfères, puis sur "U1" à "U4" pour la télécharger.',
-        tip: '💡 U = Upscale (agrandir). V = Variation (créer des variantes).',
-        imageUrl: '/tutorials/midjourney-05-result.png',
-        imagePlaceholder: 'Screenshot des 4 images générées avec les boutons U1-U4 et V1-V4',
+        id: 'img-4',
+        title: 'Clique sur Run !',
+        description: 'Trouve le bouton "Run" (souvent en bleu ou violet) et clique dessus. La magie commence !',
+        tip: '💡 Ça peut prendre quelques secondes, sois patient(e) !',
+        imageUrl: '/tutorials/falai-image-04-run.png',
+        imagePlaceholder: 'Screenshot avec le bouton Run mis en évidence',
+      },
+      {
+        id: 'img-5',
+        title: 'Télécharge ton image !',
+        description: 'Ton image apparaît ! Clique dessus avec le bouton droit, puis "Enregistrer l\'image sous..." pour la télécharger.',
+        tip: '💡 Ensuite, glisse ton image dans La Voix du Soir pour l\'ajouter à ta galerie !',
+        imageUrl: '/tutorials/falai-image-05-result.png',
+        imagePlaceholder: 'Screenshot de l\'image générée avec menu contextuel',
       },
     ],
   },
   {
-    id: 'runway',
-    name: 'Runway',
+    id: 'video',
+    name: 'fal.ai Vidéos',
     emoji: '🎬',
-    color: 'from-orange-500 to-red-600',
-    url: 'https://app.runwayml.com/',
+    color: 'from-stardust-500 to-stardust-700',
+    url: 'https://fal.ai/models/fal-ai/kling-video/v2.5-turbo/pro/text-to-video/playground',
     steps: [
       {
-        id: 'rw-1',
-        title: 'Ouvre Runway',
-        description: 'Va sur le site de Runway et connecte-toi à ton compte.',
-        tip: '💡 Demande à un adulte de t\'aider pour le compte si besoin.',
-        imageUrl: '/tutorials/runway-01-home.png',
-        imagePlaceholder: 'Screenshot de la page d\'accueil Runway avec le bouton de connexion',
+        id: 'vid-1',
+        title: 'Ouvre fal.ai',
+        description: 'Clique sur le lien pour ouvrir la page fal.ai Vidéos. C\'est parti pour créer des vidéos magiques !',
+        tip: '💡 Kling est le moteur qui anime tes idées en vidéo.',
+        imageUrl: '/tutorials/falai-video-01-home.png',
+        imagePlaceholder: 'Screenshot de la page fal.ai Kling playground',
       },
       {
-        id: 'rw-2',
-        title: 'Choisis Gen-3',
-        description: 'Clique sur "Create" puis choisis "Gen-3 Alpha" pour créer des vidéos magiques.',
-        tip: '💡 Gen-3 crée les plus belles vidéos !',
-        imageUrl: '/tutorials/runway-02-create.png',
-        imagePlaceholder: 'Screenshot du menu avec Gen-3 Alpha sélectionné',
+        id: 'vid-2',
+        title: 'Trouve la zone de texte',
+        description: 'Cherche le grand rectangle pour écrire. C\'est ici que tu décris ta vidéo !',
+        tip: '💡 Pour une vidéo, décris ce qui BOUGE : "un chat qui saute", "des étoiles qui brillent"...',
+        imageUrl: '/tutorials/falai-video-02-prompt.png',
+        imagePlaceholder: 'Screenshot de la zone de prompt vidéo sur fal.ai',
       },
       {
-        id: 'rw-3',
+        id: 'vid-3',
         title: 'Colle ton prompt',
-        description: 'Dans la grande zone de texte, colle le texte que ton amie IA t\'a aidé à créer.',
-        tip: '💡 Tu peux aussi ajouter une image de départ pour guider Runway !',
-        imageUrl: '/tutorials/runway-03-prompt.png',
-        imagePlaceholder: 'Screenshot de la zone de prompt avec du texte',
+        description: 'Appuie sur Cmd+V (ou Ctrl+V sur PC) pour coller ton texte magique.',
+        tip: '💡 Ton prompt décrit le mouvement et l\'ambiance de ta vidéo.',
+        imageUrl: '/tutorials/falai-video-03-paste.png',
+        imagePlaceholder: 'Screenshot du prompt vidéo collé',
       },
       {
-        id: 'rw-4',
-        title: 'Lance la création',
-        description: 'Clique sur le gros bouton "Generate" et attends la magie !',
-        tip: '💡 La génération prend environ 1-2 minutes.',
-        imageUrl: '/tutorials/runway-04-generate.png',
-        imagePlaceholder: 'Screenshot avec le bouton Generate mis en évidence',
+        id: 'vid-4',
+        title: 'Clique sur Run !',
+        description: 'Trouve le bouton "Run" et clique dessus. La création d\'une vidéo prend un peu plus de temps !',
+        tip: '💡 Une vidéo peut mettre 1-2 minutes à se créer. C\'est normal !',
+        imageUrl: '/tutorials/falai-video-04-run.png',
+        imagePlaceholder: 'Screenshot avec le bouton Run mis en évidence',
       },
       {
-        id: 'rw-5',
-        title: 'Télécharge ta vidéo',
-        description: 'Quand c\'est prêt, clique sur le bouton de téléchargement pour récupérer ta vidéo.',
-        tip: '💡 Tu peux faire plusieurs essais pour trouver le meilleur résultat !',
-        imageUrl: '/tutorials/runway-05-result.png',
-        imagePlaceholder: 'Screenshot de la vidéo générée avec le bouton download',
+        id: 'vid-5',
+        title: 'Télécharge ta vidéo !',
+        description: 'Ta vidéo est prête ! Clique sur le bouton de téléchargement (souvent une flèche vers le bas).',
+        tip: '💡 Glisse ta vidéo dans La Voix du Soir pour l\'ajouter à ta collection !',
+        imageUrl: '/tutorials/falai-video-05-result.png',
+        imagePlaceholder: 'Screenshot de la vidéo générée avec bouton download',
       },
     ],
   },
@@ -172,8 +172,11 @@ const TUTORIALS: Tutorial[] = [
 // COMPOSANT PRINCIPAL
 // ============================================================================
 
+// Pour compatibilité avec l'ancien code qui utilise 'midjourney' | 'runway'
+type TutorialType = 'midjourney' | 'runway' | 'image' | 'video'
+
 interface TutorialGuideProps {
-  type: 'midjourney' | 'runway'
+  type: TutorialType
   isOpen: boolean
   onClose: () => void
   onCopyPrompt?: () => void
@@ -183,7 +186,10 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
   const [currentStep, setCurrentStep] = useState(0)
   const [copied, setCopied] = useState(false)
   
-  const tutorial = TUTORIALS.find(t => t.id === type)
+  // Mapper les anciens types vers les nouveaux
+  const mappedType = type === 'midjourney' ? 'image' : type === 'runway' ? 'video' : type
+  
+  const tutorial = TUTORIALS.find(t => t.id === mappedType)
   if (!tutorial) return null
   
   const step = tutorial.steps[currentStep]
@@ -277,10 +283,10 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
                   {/* Placeholder si pas d'image */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
                     <div className="w-16 h-16 rounded-full bg-midnight-700 flex items-center justify-center mb-4">
-                      {type === 'midjourney' ? (
-                        <ImageIcon className="w-8 h-8 text-purple-400" />
+                      {mappedType === 'image' ? (
+                        <ImageIcon className="w-8 h-8 text-aurora-400" />
                       ) : (
-                        <Video className="w-8 h-8 text-orange-400" />
+                        <Video className="w-8 h-8 text-stardust-400" />
                       )}
                     </div>
                     <p className="text-midnight-400 text-sm">
@@ -366,7 +372,7 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    Copier et ouvrir {tutorial.name}
+                    Copier et ouvrir fal.ai
                     <ExternalLink className="w-4 h-4" />
                   </>
                 )}
@@ -396,13 +402,15 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
 // ============================================================================
 
 interface TutorialButtonProps {
-  type: 'midjourney' | 'runway'
+  type: TutorialType
   onOpen: () => void
   className?: string
 }
 
 export function TutorialButton({ type, onOpen, className }: TutorialButtonProps) {
-  const tutorial = TUTORIALS.find(t => t.id === type)
+  // Mapper les anciens types vers les nouveaux
+  const mappedType = type === 'midjourney' ? 'image' : type === 'runway' ? 'video' : type
+  const tutorial = TUTORIALS.find(t => t.id === mappedType)
   if (!tutorial) return null
   
   return (
