@@ -81,6 +81,9 @@ export function TheaterMode() {
     return (scene.introDuration || 0) + (scene.narration?.duration || scene.duration || 10) + (scene.outroDuration || 0)
   }
 
+  // Durée de la scène actuelle (déclaré tôt pour être utilisé dans les useEffects)
+  const sceneDuration = currentScene ? getSceneDuration(currentScene) : 10
+
   // Auto-hide des contrôles
   useEffect(() => {
     if (isFullscreen && showControls) {
@@ -106,21 +109,36 @@ export function TheaterMode() {
     }
   }, [currentScene?.id, homeKit.isConnected])
 
-  // Gérer la lecture audio (narration + musique + sons)
+  // Gérer la lecture audio (narration + musique + sons) - synchronisé avec timeRanges
   useEffect(() => {
     if (!currentScene || !isPlaying) return
 
-    // Jouer la narration
-    if (currentScene.narration?.audioUrl) {
+    // Jouer la narration si on est dans son timeRange
+    const introDuration = currentScene.introDuration || 0
+    const narrationStart = introDuration
+    const narrationEnd = narrationStart + (currentScene.narration?.duration || 0)
+    
+    if (currentScene.narration?.audioUrl && 
+        currentPlaybackTime >= narrationStart && 
+        currentPlaybackTime <= narrationEnd) {
       if (!narrationRef.current) {
         narrationRef.current = new Audio(currentScene.narration.audioUrl)
+        narrationRef.current.currentTime = currentPlaybackTime - narrationStart
       }
       narrationRef.current.volume = isMuted ? 0 : volume / 100
-      narrationRef.current.play().catch(console.error)
+      if (narrationRef.current.paused) {
+        narrationRef.current.play().catch(console.error)
+      }
+    } else if (narrationRef.current && !narrationRef.current.paused) {
+      narrationRef.current.pause()
     }
 
-    // Jouer les pistes musique
+    // Jouer les pistes musique (filtrées par timeRange)
     currentScene.musicTracks?.forEach((track) => {
+      const trackStart = track.timeRange?.startTime || 0
+      const trackEnd = track.timeRange?.endTime || sceneDuration
+      const isInRange = currentPlaybackTime >= trackStart && currentPlaybackTime <= trackEnd
+      
       if (!audioRefs.current[track.id]) {
         const audio = new Audio(track.url)
         audio.volume = (track.volume * volume) / 100
@@ -130,11 +148,21 @@ export function TheaterMode() {
       
       const audio = audioRefs.current[track.id]
       audio.volume = isMuted ? 0 : (track.volume * volume) / 100
-      audio.play().catch(console.error)
+      
+      if (isInRange && audio.paused) {
+        audio.currentTime = currentPlaybackTime - trackStart
+        audio.play().catch(console.error)
+      } else if (!isInRange && !audio.paused) {
+        audio.pause()
+      }
     })
 
-    // Jouer les effets sonores
+    // Jouer les effets sonores (filtrés par timeRange)
     currentScene.soundTracks?.forEach((track) => {
+      const trackStart = track.timeRange?.startTime || 0
+      const trackEnd = track.timeRange?.endTime || sceneDuration
+      const isInRange = currentPlaybackTime >= trackStart && currentPlaybackTime <= trackEnd
+      
       if (!audioRefs.current[track.id]) {
         const audio = new Audio(track.url)
         audio.volume = (track.volume * volume) / 100
@@ -144,11 +172,16 @@ export function TheaterMode() {
       
       const audio = audioRefs.current[track.id]
       audio.volume = isMuted ? 0 : (track.volume * volume) / 100
-      audio.play().catch(console.error)
+      
+      if (isInRange && audio.paused) {
+        audio.play().catch(console.error)
+      } else if (!isInRange && !audio.paused) {
+        audio.pause()
+      }
     })
 
     return () => {
-      // Arrêter les audios de cette scène
+      // Arrêter les audios de cette scène quand on change
       narrationRef.current?.pause()
       currentScene.musicTracks?.forEach((track) => {
         audioRefs.current[track.id]?.pause()
@@ -157,7 +190,7 @@ export function TheaterMode() {
         audioRefs.current[track.id]?.pause()
       })
     }
-  }, [currentScene?.id, isPlaying, volume, isMuted])
+  }, [currentScene?.id, isPlaying, volume, isMuted, currentPlaybackTime, sceneDuration])
 
   // Auto-avance et playback timer
   useEffect(() => {
@@ -668,7 +701,20 @@ export function TheaterMode() {
 
   // Vue Spectacle (Plein écran) - rendu via Portal pour passer au-dessus de tout
   const activePhrase = getActivePhrase()
-  const sceneDuration = currentScene ? getSceneDuration(currentScene) : 10
+  
+  // Filtrer les éléments visibles au temps actuel (comme PreviewCanvas)
+  const visibleMedia = (currentScene?.mediaTracks || []).filter(
+    (t) => currentPlaybackTime >= (t.timeRange?.startTime || 0) && 
+           currentPlaybackTime <= (t.timeRange?.endTime || sceneDuration)
+  )
+  const visibleDecorations = (currentScene?.decorationTracks || []).filter(
+    (t) => currentPlaybackTime >= (t.timeRange?.startTime || 0) && 
+           currentPlaybackTime <= (t.timeRange?.endTime || sceneDuration)
+  )
+  const visibleAnimations = (currentScene?.animationTracks || []).filter(
+    (t) => currentPlaybackTime >= (t.timeRange?.startTime || 0) && 
+           currentPlaybackTime <= (t.timeRange?.endTime || sceneDuration)
+  )
 
   // Rendu via Portal pour s'assurer que le spectacle est au-dessus de tout (y compris la sidebar)
   const spectacleContent = (
@@ -700,31 +746,84 @@ export function TheaterMode() {
             exit={{ opacity: 0 }}
             transition={{ duration: 1 }}
           >
-            {/* Médias de fond (images/vidéos) */}
-            {currentScene.mediaTracks?.map((media) => (
-              <div key={media.id} className="absolute inset-0">
+            {/* Médias de fond (images/vidéos) - filtrés par temps */}
+            {visibleMedia.map((media) => (
+              <motion.div 
+                key={media.id} 
+                className="absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: media.opacity ?? 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                style={{
+                  left: media.position?.x ? `${media.position.x}%` : 0,
+                  top: media.position?.y ? `${media.position.y}%` : 0,
+                  width: media.position?.width ? `${media.position.width}%` : '100%',
+                  height: media.position?.height ? `${media.position.height}%` : '100%',
+                  transform: media.position?.rotation ? `rotate(${media.position.rotation}deg)` : undefined,
+                  zIndex: media.zIndex || 1,
+                }}
+              >
                 {media.type === 'video' ? (
                   <video
                     src={media.url}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="w-full h-full object-cover"
                     autoPlay
                     loop={media.loop}
                     muted={media.muted !== false}
-                    style={{ opacity: media.opacity ?? 1 }}
+                    playsInline
                   />
                 ) : (
                   <img
                     src={media.url}
                     alt=""
-                    className="absolute inset-0 w-full h-full object-cover"
-                    style={{ opacity: media.opacity ?? 1 }}
+                    className="w-full h-full object-cover"
                   />
                 )}
-              </div>
+              </motion.div>
             ))}
 
-            {/* Si pas de média, afficher un fond par défaut */}
-            {(!currentScene.mediaTracks || currentScene.mediaTracks.length === 0) && (
+            {/* Décorations visibles */}
+            {visibleDecorations.map((deco) => (
+              <motion.div
+                key={deco.id}
+                className="absolute flex items-center justify-center pointer-events-none"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: deco.opacity ?? 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.3 }}
+                style={{
+                  left: `${deco.position?.x || 50}%`,
+                  top: `${deco.position?.y || 50}%`,
+                  width: `${deco.position?.width || 10}%`,
+                  height: `${deco.position?.height || 10}%`,
+                  transform: `translate(-50%, -50%) ${deco.position?.rotation ? `rotate(${deco.position.rotation}deg)` : ''}`,
+                  zIndex: deco.zIndex || 30,
+                }}
+              >
+                {deco.type === 'emoji' && deco.emoji && (
+                  <span 
+                    className="select-none"
+                    style={{ 
+                      fontSize: `min(${(deco.position?.width || 10) * 3}vw, ${(deco.position?.height || 10) * 3}vh)`,
+                      filter: deco.glow?.enabled ? `drop-shadow(0 0 ${deco.glow.intensity || 10}px ${deco.glow.color || '#fff'})` : undefined,
+                    }}
+                  >
+                    {deco.emoji}
+                  </span>
+                )}
+                {deco.type === 'sticker' && deco.assetUrl && (
+                  <img
+                    src={deco.assetUrl}
+                    alt={deco.name}
+                    className="w-full h-full object-contain"
+                  />
+                )}
+              </motion.div>
+            ))}
+
+            {/* Si pas de média visible, afficher un fond par défaut */}
+            {visibleMedia.length === 0 && (
               <div className="absolute inset-0 bg-gradient-to-br from-midnight-900 to-aurora-900" />
             )}
 
@@ -762,18 +861,30 @@ export function TheaterMode() {
               </div>
             </div>
 
-            {/* Animations (si présentes) */}
-            {currentScene.animationTracks?.map((animation) => (
-              <div 
+            {/* Animations visibles (filtrées par temps) */}
+            {visibleAnimations.map((animation) => (
+              <motion.div 
                 key={animation.id}
                 className="absolute inset-0 pointer-events-none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: animation.opacity ?? 0.7 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
                 style={{
-                  opacity: animation.opacity ?? 0.7,
+                  left: animation.position?.x ? `${animation.position.x}%` : 0,
+                  top: animation.position?.y ? `${animation.position.y}%` : 0,
+                  width: animation.position?.width ? `${animation.position.width}%` : '100%',
+                  height: animation.position?.height ? `${animation.position.height}%` : '100%',
+                  zIndex: animation.zIndex || 50,
                 }}
               >
-                {/* Les animations seraient rendues ici via un composant dédié */}
-                {/* Pour l'instant, on affiche un placeholder */}
-              </div>
+                {/* Animation particles/effects would be rendered here */}
+                {animation.preset === 'stars' && (
+                  <div className="absolute inset-0 animate-pulse">
+                    <Sparkles className="w-full h-full text-yellow-300/30" />
+                  </div>
+                )}
+              </motion.div>
             ))}
 
             {/* Numéro de scène */}

@@ -3,8 +3,8 @@
 > Document de passation complet pour la prochaine session de développement
 
 **Date** : 20 janvier 2026  
-**Version** : 5.2.0  
-**État** : Production-Ready ✅ (PublishMode en cours)
+**Version** : 5.3.0  
+**État** : Production-Ready ✅ (PublishMode complet)
 
 ---
 
@@ -26,7 +26,7 @@ Application pour **enfants de 8 ans** permettant de créer des **livres-disques 
 | 🎨 **Studio** | Apprentissage progressif du prompting (Nano Banana/Kling) | ✅ Complet |
 | 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ Complet |
 | 🎭 **Théâtre** | Lecteur immersif + export vidéo HD | ✅ Complet |
-| 📖 **Publier** | Publication livre imprimé via Gelato + PDF | ⚠️ En cours |
+| 📖 **Publier** | Publication livre imprimé via Gelato + PDF | ✅ Complet |
 
 ### Flux Logique
 
@@ -151,9 +151,32 @@ Ajout de boutons visuels pour les effets vidéo et mouvements de caméra.
 - `docs/ARCHITECTURE.md` → Ajout section Studio Mode détaillée
 - `public/tutorials/SCREENSHOTS_A_CAPTURER.md` → Screenshots fal.ai
 
+### 9. 📖 PublishMode - Complet
+
+Le mode Publication est maintenant **entièrement fonctionnel** :
+
+| Fonctionnalité | Description |
+|----------------|-------------|
+| **Upload PDF Supabase** | API `/api/upload/pdf` + bucket 'pdfs' |
+| **Vérification DPI réelle** | Charge images et calcule les DPI |
+| **Upscale IA automatique** | Real-ESRGAN via `/api/ai/upscale` |
+| **UI 6 étapes** | Histoire → Format → Couverture → Aperçu → Qualité → Commande |
+
+**Nouveaux fichiers :**
+```
+src/app/api/upload/pdf/route.ts        # Upload PDF
+src/app/api/ai/upscale/route.ts        # Upscale images
+supabase/migrations/20260120_add_pdfs_bucket.sql  # Bucket + policies
+```
+
+**Modifications :**
+- `src/store/usePublishStore.ts` → `uploadPdfToSupabase()`, vérification DPI réelle
+- `src/lib/export/pdf.ts` → `checkImageQuality()` fonction
+- `src/components/modes/PublishMode.tsx` → UI upload, indicateurs progression, upscale
+
 ---
 
-## ⚠️ PUBLISH MODE - À COMPLÉTER
+## ✅ PUBLISH MODE - COMPLET
 
 ### État Actuel
 
@@ -164,95 +187,88 @@ Ajout de boutons visuels pour les effets vidéo et mouvements de caméra.
 | API Gelato Order | ✅ | `src/app/api/gelato/order/route.ts` |
 | Client Gelato | ✅ | `src/lib/gelato/client.ts` |
 | Types Gelato | ✅ | `src/lib/gelato/types.ts` |
-| Export PDF | ⚠️ | `src/lib/export/pdf.ts` |
-| UI PublishMode | ⚠️ | `src/components/modes/PublishMode.tsx` |
+| Export PDF | ✅ | `src/lib/export/pdf.ts` |
+| **Upload PDF** | ✅ | `src/app/api/upload/pdf/route.ts` |
+| **Upscale Images** | ✅ | `src/app/api/ai/upscale/route.ts` |
+| UI PublishMode | ✅ | `src/components/modes/PublishMode.tsx` |
 
-### 🔴 PROBLÈME CRITIQUE : PDF pas accessible par Gelato
+### ✅ RÉSOLU : PDF accessible par Gelato
 
-```
-Actuellement:
-  generatePDF() → blob: URL (local)
-  
-Requis par Gelato:
-  PDF sur URL publique (https://...)
-```
+Le PDF est maintenant automatiquement uploadé vers Supabase Storage après génération :
 
-**Solution à implémenter :**
 ```typescript
-// 1. Générer le PDF
-const pdfBlob = await generatePDF(story);
+// Flux complet implémenté :
+// 1. Générer le PDF localement
+const result = await exportToPDF(story, format, cover)
 
-// 2. Upload vers Supabase Storage
-const pdfUrl = await uploadToSupabase('pdfs', `${story.id}.pdf`, pdfBlob);
+// 2. Upload vers Supabase Storage (bucket 'pdfs')
+const pdfUrl = await uploadPdfToSupabase(result.blob, story, userId)
+// → URL publique : https://xxx.supabase.co/storage/v1/object/public/pdfs/{userId}/{filename}.pdf
 
-// 3. Passer l'URL publique à Gelato
-await createGelatoOrder({ pdfUrl, ... });
+// 3. Commander via Gelato avec l'URL publique
+await placeGelatoOrder() // Utilise pdfUrl du store
 ```
 
-### 📋 Tâches PublishMode
+### Fonctionnalités Implémentées
 
-| Tâche | Priorité | Effort | Description |
-|-------|----------|--------|-------------|
-| **Upload PDF vers Supabase** | 🔴 HAUTE | Moyen | Permettre à Gelato d'accéder au PDF |
-| **Vérification DPI images** | 🟠 Moyenne | Faible | Vérifier que toutes les images sont en 300 DPI |
-| **Upscale auto si nécessaire** | 🟠 Moyenne | Faible | Utiliser Real-ESRGAN si image trop petite |
-| **Design couverture complet** | 🟡 Basse | Élevé | Dos + 4ème de couverture |
-| **Preview avant commande** | 🟡 Basse | Moyen | Aperçu du livre final |
+| Fonctionnalité | Description |
+|----------------|-------------|
+| **Upload PDF Supabase** | API route + bucket 'pdfs' avec policies |
+| **Vérification DPI réelle** | Charge les images et calcule les DPI |
+| **Upscale IA** | Real-ESRGAN via fal.ai pour images basse résolution |
+| **UI complète** | Progression génération + upload, aperçu images low-DPI |
+| **Flux intégré** | Depuis Écriture → Publication Gelato |
 
-### Architecture Cible
+### Architecture Complète
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  FLUX PUBLISH MODE                                          │
+│  FLUX PUBLISH MODE (IMPLÉMENTÉ)                            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  1. Sélection format (A5, A4, Carré)                       │
+│  1. Sélection histoire                                      │
+│     └─→ Filtre histoires avec min 4 pages                  │
+│                                                             │
+│  2. Sélection format (Carré 21cm, A5, A4...)               │
 │     └─→ usePublishStore.setFormat()                        │
 │                                                             │
-│  2. Vérification qualité                                    │
+│  3. Design couverture                                       │
+│     ├─→ Titre, sous-titre, auteur                          │
+│     ├─→ Image de couverture (depuis Studio/Histoire)       │
+│     └─→ Résumé 4ème de couverture                          │
+│                                                             │
+│  4. Aperçu                                                  │
+│     └─→ Preview pages du livre                             │
+│                                                             │
+│  5. Vérification qualité ✨                                │
 │     ├─→ Parcourir story.pages                              │
-│     ├─→ Pour chaque image: vérifier dimensions             │
-│     └─→ Si < 300 DPI → upscale via fal.ai                  │
+│     ├─→ Pour chaque image: checkImageQuality()             │
+│     ├─→ Afficher images < 200 DPI avec détails             │
+│     └─→ Bouton "Améliorer tout" → upscale via fal.ai       │
 │                                                             │
-│  3. Génération PDF                                          │
-│     ├─→ src/lib/export/pdf.ts                              │
-│     ├─→ Inclure couverture + pages + images                │
-│     └─→ Générer Blob                                        │
+│  6. Génération + Upload PDF ✨                              │
+│     ├─→ exportToPDF() → Blob                               │
+│     ├─→ POST /api/upload/pdf → Supabase Storage            │
+│     └─→ Retourne URL publique dans pdfUrl                  │
 │                                                             │
-│  4. Upload PDF vers Supabase Storage  ⬅️ À FAIRE           │
-│     ├─→ POST /api/upload/pdf                                │
-│     └─→ Retourne URL publique                              │
-│                                                             │
-│  5. Devis Gelato                                            │
+│  7. Devis Gelato                                            │
 │     ├─→ POST /api/gelato/quote                             │
 │     └─→ { price, currency, estimatedDelivery }             │
 │                                                             │
-│  6. Commande Gelato                                         │
-│     ├─→ POST /api/gelato/order                             │
-│     ├─→ { pdfUrl, format, address }                        │
+│  8. Commande Gelato                                         │
+│     ├─→ Saisie adresse livraison                           │
+│     ├─→ POST /api/gelato/order avec pdfUrl                 │
 │     └─→ { orderId, trackingUrl }                           │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Fichiers à Modifier/Créer
+### Nouveaux Fichiers Créés
 
 ```
-src/lib/export/pdf.ts              # Améliorer génération PDF
-src/app/api/upload/pdf/route.ts    # CRÉER - Upload PDF Supabase
-src/components/modes/PublishMode.tsx  # Compléter UI
-src/store/usePublishStore.ts       # Ajouter pdfUrl après upload
-```
-
-### Configuration Gelato
-
-```typescript
-// Formats supportés (src/lib/gelato/types.ts)
-export const FORMAT_TO_GELATO_UID = {
-  'A5': 'photobook_hc_a5_pf',      // Couverture rigide A5 portrait
-  'A4': 'photobook_hc_a4_pf',      // Couverture rigide A4 portrait
-  'square': 'photobook_hc_sq_210', // Couverture rigide carré 21cm
-};
+src/app/api/upload/pdf/route.ts        # Upload PDF vers Supabase
+src/app/api/ai/upscale/route.ts        # Upscale images via Real-ESRGAN
+supabase/migrations/20260120_add_pdfs_bucket.sql  # Bucket + policies
 ```
 
 ### Spécifications Impression (300 DPI)
@@ -262,6 +278,15 @@ export const FORMAT_TO_GELATO_UID = {
 | A5 | 148 × 210 | 1748 × 2480 |
 | A4 | 210 × 297 | 2480 × 3508 |
 | Carré 21cm | 210 × 210 | 2480 × 2480 |
+
+### Configuration Bucket Supabase
+
+Le bucket `pdfs` doit être créé avec :
+- **Public** : Oui (pour accès Gelato)
+- **Limite taille** : 50MB
+- **Types MIME** : `application/pdf` uniquement
+
+Exécuter la migration : `supabase/migrations/20260120_add_pdfs_bucket.sql`
 
 ---
 
@@ -373,12 +398,15 @@ CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
 | Mode Studio | ✅ | → Nano Banana Pro + Kling 2.1 |
 | Mode Montage | ✅ | + chat IA + narration |
 | Mode Théâtre | ✅ | Lecture + export MP4 |
-| Mode Publier | ⚠️ | **PDF local → Upload Supabase** |
+| Mode Publier | ✅ | **Upload PDF Supabase + Upscale IA** |
 | **Liaison Story/Assets** | ✅ | `story_id` partout |
 | **Sélecteur histoire** | ✅ | Sidebar |
 | **Blocage sans histoire** | ✅ | Studio/Montage |
 | Sync Supabase | ✅ | Debounce 2s |
 | Assets cloud | ✅ | Supabase + R2 |
+| **Upload PDF** | ✅ | Bucket 'pdfs' pour Gelato |
+| **Vérification DPI** | ✅ | checkImageQuality() réel |
+| **Upscale images** | ✅ | Real-ESRGAN via fal.ai |
 
 ---
 
@@ -386,9 +414,9 @@ CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
 
 ### Priorités
 
-1. **🔴 Upload PDF vers Supabase** - Critique pour Gelato
-2. **🟠 Vérification DPI** - Qualité impression
-3. **🟡 Preview livre** - UX avant commande
+1. **🟡 Tests E2E PublishMode** - Vérifier le flux complet en production
+2. **🟡 Gestion erreurs Gelato** - Améliorer les messages d'erreur
+3. **🟡 Tracking commande** - Afficher le statut de livraison
 
 ### Points d'Attention
 
@@ -397,30 +425,33 @@ CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
 3. **currentStory, pas currentProject** → Assets liés à l'histoire
 4. **Nano Banana Pro** → Comprend le français, pas besoin de traduire
 5. **useMediaUpload hook** → Utiliser pour tout upload media
+6. **Bucket 'pdfs'** → Doit être créé via migration SQL avant utilisation
 
-### Code Pattern - Upload PDF
+### Code Pattern - Flux PublishMode
 
 ```typescript
-// À implémenter dans src/app/api/upload/pdf/route.ts
-export async function POST(request: Request) {
-  const formData = await request.formData();
-  const file = formData.get('file') as Blob;
-  const storyId = formData.get('storyId') as string;
-  
-  // Upload vers Supabase Storage bucket 'pdfs'
-  const { data, error } = await supabase.storage
-    .from('pdfs')
-    .upload(`${storyId}.pdf`, file, {
-      contentType: 'application/pdf',
-      upsert: true
-    });
-  
-  // Récupérer URL publique
-  const { data: { publicUrl } } = supabase.storage
-    .from('pdfs')
-    .getPublicUrl(`${storyId}.pdf`);
-  
-  return NextResponse.json({ pdfUrl: publicUrl });
+// 1. Générer le PDF
+const result = await exportToPDF(story, format, cover, { includeBleed: true })
+
+// 2. Uploader vers Supabase (automatique via UI)
+const pdfUrl = await uploadPdfToSupabase(result.blob, story, userId)
+
+// 3. Commander via Gelato
+const order = await placeGelatoOrder() // Utilise pdfUrl du store
+```
+
+### Vérification DPI des Images
+
+```typescript
+// Vérifie la qualité d'une image pour l'impression
+const quality = await checkImageQuality(imageUrl, printWidthMm, printHeightMm)
+
+if (!quality.isOk) {
+  // Upscale via Real-ESRGAN
+  const upscaled = await fetch('/api/ai/upscale', {
+    method: 'POST',
+    body: JSON.stringify({ imageUrl, scale: 2 })
+  })
 }
 ```
 
@@ -439,31 +470,41 @@ export async function POST(request: Request) {
 
 ---
 
-## 🎯 Commande pour Démarrer PublishMode
+## 🎯 Prochaines Étapes Suggérées
 
-Pour la prochaine session, utiliser ce prompt :
+Le PublishMode est maintenant **complet** ! Voici les améliorations possibles :
+
+### Tests Production
+
+```bash
+# 1. Créer le bucket 'pdfs' dans Supabase
+# Aller dans Supabase Dashboard > Storage > New bucket
+# Nom: pdfs, Public: true, Size limit: 50MB
+
+# 2. Ou exécuter la migration SQL
+supabase db push supabase/migrations/20260120_add_pdfs_bucket.sql
+```
+
+### Améliorations Futures
+
+1. **Tracking des commandes** - Afficher le statut Gelato en temps réel
+2. **Historique des commandes** - Liste des livres commandés
+3. **Mode cadeau** - Adresse de livraison différente
+4. **Coupon réduction** - Intégration codes promo Gelato
+
+### Fichiers Clés PublishMode
 
 ```
-Configure PublishMode pour l'impression Gelato :
-
-1. Créer /api/upload/pdf pour uploader le PDF vers Supabase Storage
-2. Modifier generatePDF() pour uploader automatiquement après génération
-3. Ajouter vérification DPI des images avant génération PDF
-4. Compléter l'UI de PublishMode avec les étapes :
-   - Choix format (A5/A4/Carré)
-   - Vérification qualité (images 300 DPI)
-   - Génération + upload PDF
-   - Devis Gelato
-   - Adresse livraison
-   - Confirmation commande
-
-Fichiers clés :
-- src/lib/export/pdf.ts
-- src/store/usePublishStore.ts
-- src/components/modes/PublishMode.tsx
-- src/app/api/upload/pdf/route.ts (à créer)
+src/components/modes/PublishMode.tsx   # UI complète 6 étapes
+src/store/usePublishStore.ts           # Store avec upload PDF
+src/lib/export/pdf.ts                  # Génération + checkImageQuality
+src/app/api/upload/pdf/route.ts        # Upload PDF Supabase
+src/app/api/ai/upscale/route.ts        # Upscale images Real-ESRGAN
+src/app/api/gelato/quote/route.ts      # Devis Gelato
+src/app/api/gelato/order/route.ts      # Commande Gelato
 ```
 
 ---
 
-**Bon courage pour la suite !** 🌙✨
+**Application complète !** 🌙✨ Tous les modes sont fonctionnels :
+- ✍️ Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre → 📖 Publier

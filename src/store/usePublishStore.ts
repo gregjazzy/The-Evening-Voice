@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Story } from './useAppStore'
-import { exportToPDF } from '@/lib/export/pdf'
+import { exportToPDF, checkImageQuality, type ImageQualityResult } from '@/lib/export/pdf'
 
 // ============================================================================
 // FORMATS DE LIVRE DISPONIBLES
@@ -287,7 +287,11 @@ interface PublishState {
   isExporting: boolean
   exportProgress: number
   pdfUrl: string | null
+  pdfFilePath: string | null  // Chemin du fichier sur Supabase
+  isUploadingPdf: boolean
+  uploadPdfProgress: number
   exportToPdf: (story: Story, format: BookFormatConfig, cover: BookCover) => Promise<string | null>
+  uploadPdfToSupabase: (pdfBlob: Blob, story: Story, userId: string) => Promise<string | null>
   
   // Prix estimé (local)
   estimatedPrice: number | null
@@ -353,6 +357,9 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   isExporting: false,
   exportProgress: 0,
   pdfUrl: null,
+  pdfFilePath: null,
+  isUploadingPdf: false,
+  uploadPdfProgress: 0,
   estimatedPrice: null,
   gelatoQuote: null,
   isLoadingQuote: false,
@@ -436,21 +443,97 @@ export const usePublishStore = create<PublishState>((set, get) => ({
       }
     })
     
-    // 3. Vérifier la résolution des images (simulation - en vrai il faudrait charger les images)
+    // 3. Vérifier la résolution des images (VRAIE vérification DPI)
+    let lowDpiCount = 0
     for (const [pageIndex, page] of story.pages.entries()) {
+      // Vérifier les images sur la page
       if (page.images) {
         for (const img of page.images) {
-          // Pour l'instant on met un placeholder - en vrai on chargerait l'image
-          imageInfos.push({
-            pageIndex,
-            imageId: img.id,
-            url: img.url,
-            currentDpi: null, // Sera calculé lors du chargement réel
-            requiredDpi: 300,
-            isOk: true, // Optimiste par défaut
-          })
+          try {
+            // Calculer la taille d'impression de l'image
+            const printWidthMm = (format.widthMm * (img.position.width / 100))
+            const printHeightMm = (format.heightMm * (img.position.height / 100))
+            
+            // Vérifier la qualité de l'image
+            const quality = await checkImageQuality(
+              img.url,
+              printWidthMm,
+              printHeightMm
+            )
+            
+            imageInfos.push({
+              pageIndex,
+              imageId: img.id,
+              url: img.url,
+              currentDpi: quality.currentDpi,
+              requiredDpi: 300,
+              isOk: quality.isOk,
+              widthPx: quality.widthPx,
+              heightPx: quality.heightPx,
+              printWidthMm,
+              printHeightMm,
+            })
+            
+            if (!quality.isOk) {
+              lowDpiCount++
+            }
+          } catch (error) {
+            console.warn(`Impossible de vérifier l'image ${img.id}:`, error)
+            imageInfos.push({
+              pageIndex,
+              imageId: img.id,
+              url: img.url,
+              currentDpi: null,
+              requiredDpi: 300,
+              isOk: true, // Optimiste si on ne peut pas vérifier
+            })
+          }
         }
       }
+      
+      // Vérifier le fond de page
+      if (page.backgroundMedia?.url) {
+        try {
+          const quality = await checkImageQuality(
+            page.backgroundMedia.url,
+            format.widthMm,
+            format.heightMm
+          )
+          
+          if (!quality.isOk) {
+            lowDpiCount++
+            imageInfos.push({
+              pageIndex,
+              imageId: `bg-${pageIndex}`,
+              url: page.backgroundMedia.url,
+              currentDpi: quality.currentDpi,
+              requiredDpi: 300,
+              isOk: false,
+              widthPx: quality.widthPx,
+              heightPx: quality.heightPx,
+              printWidthMm: format.widthMm,
+              printHeightMm: format.heightMm,
+            })
+          }
+        } catch (error) {
+          console.warn(`Impossible de vérifier le fond de page ${pageIndex}:`, error)
+        }
+      }
+    }
+    
+    // Ajouter le résultat de la vérification DPI
+    if (lowDpiCount > 0) {
+      checks.push({
+        id: 'low-dpi',
+        type: 'warning',
+        message: `${lowDpiCount} image(s) en basse résolution (< 300 DPI)`,
+      })
+    } else if (imageInfos.length > 0) {
+      checks.push({
+        id: 'dpi-ok',
+        type: 'success',
+        message: `${imageInfos.length} image(s) vérifiée(s) - Qualité OK`,
+      })
     }
     
     // 4. Vérifier le titre
@@ -488,22 +571,70 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   },
   
   exportToPdf: async (story, format, cover) => {
-    set({ isExporting: true, exportProgress: 0 })
+    set({ isExporting: true, exportProgress: 0, pdfUrl: null, pdfFilePath: null })
     
     try {
       const result = await exportToPDF(story, format, cover, {
         onProgress: (progress) => {
-          set({ exportProgress: progress })
+          // La génération PDF utilise 70% de la barre de progression
+          set({ exportProgress: Math.round(progress * 0.7) })
         },
-        includeBleed: false, // Pour impression maison
+        includeBleed: true, // Avec fond perdu pour impression pro
       })
       
-      set({ pdfUrl: result.url, isExporting: false, exportProgress: 100 })
+      set({ exportProgress: 70 })
       console.log(`✅ PDF généré: ${result.pageCount} pages, ${Math.round(result.fileSize / 1024)}KB`)
+      
+      // Créer un URL local temporaire pour le téléchargement direct
+      set({ pdfUrl: result.url, isExporting: false, exportProgress: 100 })
+      
       return result.url
     } catch (error) {
       console.error('Erreur export PDF:', error)
       set({ isExporting: false, exportProgress: 0 })
+      return null
+    }
+  },
+  
+  uploadPdfToSupabase: async (pdfBlob: Blob, story: Story, userId: string) => {
+    set({ isUploadingPdf: true, uploadPdfProgress: 0 })
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', pdfBlob, `${story.title || 'livre'}.pdf`)
+      formData.append('userId', userId)
+      formData.append('storyId', story.id)
+      formData.append('storyTitle', story.title || 'livre')
+      
+      set({ uploadPdfProgress: 30 })
+      
+      const response = await fetch('/api/upload/pdf', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      set({ uploadPdfProgress: 80 })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Erreur upload PDF')
+      }
+      
+      const result = await response.json()
+      
+      set({ 
+        pdfUrl: result.pdfUrl,
+        pdfFilePath: result.filePath,
+        isUploadingPdf: false,
+        uploadPdfProgress: 100,
+      })
+      
+      console.log(`✅ PDF uploadé: ${result.pdfUrl}`)
+      return result.pdfUrl
+      
+    } catch (error) {
+      console.error('Erreur upload PDF:', error)
+      set({ isUploadingPdf: false, uploadPdfProgress: 0 })
       return null
     }
   },
@@ -660,6 +791,9 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     isExporting: false,
     exportProgress: 0,
     pdfUrl: null,
+    pdfFilePath: null,
+    isUploadingPdf: false,
+    uploadPdfProgress: 0,
     estimatedPrice: null,
     gelatoQuote: null,
     isLoadingQuote: false,

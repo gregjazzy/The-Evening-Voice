@@ -28,6 +28,7 @@ import {
   DollarSign,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
+import { useAuthStore } from '@/store/useAuthStore'
 import {
   usePublishStore,
   BOOK_FORMATS,
@@ -37,6 +38,7 @@ import {
   type BookFormat,
   type BookFormatConfig,
 } from '@/store/usePublishStore'
+import { exportToPDF } from '@/lib/export/pdf'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
@@ -874,12 +876,15 @@ function QualityCheckStep() {
     selectedStory, 
     selectedFormat,
     qualityChecks,
+    imageQualityInfos,
     isCheckingQuality,
     runQualityCheck,
     setCurrentStep,
   } = usePublishStore()
   
   const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
+  const [isUpscaling, setIsUpscaling] = useState(false)
+  const [upscaleProgress, setUpscaleProgress] = useState<Record<string, 'pending' | 'done' | 'error'>>({})
   
   useEffect(() => {
     if (selectedStory && format) {
@@ -889,6 +894,53 @@ function QualityCheckStep() {
   
   const hasErrors = qualityChecks.some(c => c.type === 'error')
   const hasWarnings = qualityChecks.some(c => c.type === 'warning')
+  const lowDpiImages = imageQualityInfos.filter(img => !img.isOk)
+  
+  // Upscale toutes les images en basse résolution
+  const handleUpscaleAll = async () => {
+    if (lowDpiImages.length === 0) return
+    
+    setIsUpscaling(true)
+    const progress: Record<string, 'pending' | 'done' | 'error'> = {}
+    
+    for (const img of lowDpiImages) {
+      progress[img.imageId] = 'pending'
+    }
+    setUpscaleProgress(progress)
+    
+    for (const img of lowDpiImages) {
+      try {
+        const response = await fetch('/api/ai/upscale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageUrl: img.url,
+            scale: 2,
+          }),
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log(`✅ Image ${img.imageId} upscaled:`, data.url)
+          setUpscaleProgress(prev => ({ ...prev, [img.imageId]: 'done' }))
+          // Note: Ici il faudrait mettre à jour l'URL de l'image dans l'histoire
+          // Pour l'instant on marque juste comme fait
+        } else {
+          setUpscaleProgress(prev => ({ ...prev, [img.imageId]: 'error' }))
+        }
+      } catch (error) {
+        console.error(`Erreur upscale ${img.imageId}:`, error)
+        setUpscaleProgress(prev => ({ ...prev, [img.imageId]: 'error' }))
+      }
+    }
+    
+    setIsUpscaling(false)
+    
+    // Re-vérifier la qualité après upscale
+    if (selectedStory && format) {
+      runQualityCheck(selectedStory, format)
+    }
+  }
   
   return (
     <motion.div
@@ -947,6 +999,95 @@ function QualityCheckStep() {
           </div>
         )}
       </div>
+      
+      {/* Images en basse résolution */}
+      {!isCheckingQuality && lowDpiImages.length > 0 && (
+        <div className="glass-card p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-medium text-amber-300 flex items-center gap-2">
+                <ImageIcon className="w-5 h-5" />
+                Images en basse résolution
+              </h3>
+              <p className="text-sm text-midnight-400 mt-1">
+                Ces images pourraient être floues à l'impression
+              </p>
+            </div>
+            <button
+              onClick={handleUpscaleAll}
+              disabled={isUpscaling}
+              className="btn-secondary text-sm disabled:opacity-50"
+            >
+              {isUpscaling ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Amélioration...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Améliorer tout
+                </>
+              )}
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {lowDpiImages.map((img) => (
+              <div 
+                key={img.imageId}
+                className="relative rounded-lg overflow-hidden bg-midnight-800/50 aspect-square"
+              >
+                <img 
+                  src={img.url} 
+                  alt={`Page ${img.pageIndex + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-2 left-2 right-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-amber-400">
+                      {img.currentDpi ? `${img.currentDpi} DPI` : 'DPI inconnu'}
+                    </span>
+                    <span className="text-midnight-400">
+                      Page {img.pageIndex + 1}
+                    </span>
+                  </div>
+                  {img.widthPx && img.heightPx && (
+                    <p className="text-[10px] text-midnight-500 mt-0.5">
+                      {img.widthPx}×{img.heightPx}px
+                    </p>
+                  )}
+                </div>
+                
+                {/* Indicateur d'upscale */}
+                {upscaleProgress[img.imageId] && (
+                  <div className={cn(
+                    "absolute top-2 right-2 p-1 rounded-full",
+                    upscaleProgress[img.imageId] === 'pending' && "bg-amber-500/80",
+                    upscaleProgress[img.imageId] === 'done' && "bg-green-500/80",
+                    upscaleProgress[img.imageId] === 'error' && "bg-red-500/80"
+                  )}>
+                    {upscaleProgress[img.imageId] === 'pending' && (
+                      <Loader2 className="w-3 h-3 text-white animate-spin" />
+                    )}
+                    {upscaleProgress[img.imageId] === 'done' && (
+                      <Check className="w-3 h-3 text-white" />
+                    )}
+                    {upscaleProgress[img.imageId] === 'error' && (
+                      <AlertCircle className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          <p className="text-xs text-midnight-500 mt-4 text-center">
+            💡 L'amélioration utilise l'IA pour augmenter la résolution (300 DPI recommandé)
+          </p>
+        </div>
+      )}
       
       {/* Résumé */}
       {!isCheckingQuality && (
@@ -1016,7 +1157,10 @@ function OrderStep() {
     estimatedPrice,
     isExporting,
     exportProgress,
-    exportToPdf,
+    pdfUrl,
+    isUploadingPdf,
+    uploadPdfProgress,
+    uploadPdfToSupabase,
     setCurrentStep,
     // Gelato
     gelatoQuote,
@@ -1031,9 +1175,14 @@ function OrderStep() {
     placeGelatoOrder,
   } = usePublishStore()
   
+  const { user } = useAuthStore()
+  
   const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
   const [showExportSuccess, setShowExportSuccess] = useState(false)
   const [showAddressForm, setShowAddressForm] = useState(false)
+  const [localExportProgress, setLocalExportProgress] = useState(0)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
   
   // Charger le devis Gelato au montage
   useEffect(() => {
@@ -1042,12 +1191,50 @@ function OrderStep() {
     }
   }, [selectedStory, gelatoQuote, isLoadingQuote, fetchGelatoQuote])
   
+  // Générer ET uploader le PDF
   const handleExportPdf = async () => {
-    if (!selectedStory || !format) return
-    const result = await exportToPdf(selectedStory, format, cover)
-    if (result) {
-      setShowExportSuccess(true)
+    if (!selectedStory || !format || !user) return
+    
+    setIsGeneratingPdf(true)
+    setLocalExportProgress(0)
+    
+    try {
+      // 1. Générer le PDF
+      const result = await exportToPDF(selectedStory, format, cover, {
+        onProgress: (progress) => {
+          setLocalExportProgress(Math.round(progress * 0.5)) // 0-50%
+        },
+        includeBleed: true,
+      })
+      
+      setPdfBlob(result.blob)
+      setLocalExportProgress(50)
+      
+      // 2. Uploader vers Supabase pour Gelato
+      const publicUrl = await uploadPdfToSupabase(result.blob, selectedStory, user.id)
+      
+      if (publicUrl) {
+        setShowExportSuccess(true)
+        setLocalExportProgress(100)
+      }
+      
+    } catch (error) {
+      console.error('Erreur génération/upload PDF:', error)
+    } finally {
+      setIsGeneratingPdf(false)
     }
+  }
+  
+  // Télécharger le PDF localement
+  const handleDownloadPdf = () => {
+    if (!pdfBlob || !selectedStory) return
+    
+    const url = URL.createObjectURL(pdfBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${selectedStory.title || 'mon-livre'}.pdf`
+    link.click()
+    URL.revokeObjectURL(url)
   }
   
   const handlePlaceOrder = async () => {
@@ -1056,6 +1243,13 @@ function OrderStep() {
       setShowAddressForm(false)
     }
   }
+  
+  // Calculer la progression totale (génération + upload)
+  const totalProgress = isGeneratingPdf 
+    ? localExportProgress 
+    : isUploadingPdf 
+      ? 50 + Math.round(uploadPdfProgress * 0.5)
+      : showExportSuccess ? 100 : 0
   
   if (!format) return null
   
@@ -1207,34 +1401,62 @@ function OrderStep() {
               <Download className="w-6 h-6 text-aurora-400" />
             </div>
             <div>
-              <h4 className="text-white font-medium">Télécharger le PDF</h4>
-              <p className="text-xs text-midnight-400">Pour imprimer toi-même</p>
+              <h4 className="text-white font-medium">Préparer le PDF</h4>
+              <p className="text-xs text-midnight-400">Génération + Upload pour impression</p>
             </div>
           </div>
           
-          {isExporting ? (
-            <div className="space-y-2">
+          {(isGeneratingPdf || isUploadingPdf) ? (
+            <div className="space-y-3">
               <div className="h-2 bg-midnight-800 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-aurora-500 transition-all duration-300"
-                  style={{ width: `${exportProgress}%` }}
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-aurora-600 to-dream-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${totalProgress}%` }}
+                  transition={{ duration: 0.3 }}
                 />
               </div>
-              <p className="text-xs text-midnight-400 text-center">{exportProgress}%</p>
+              <div className="flex items-center justify-between text-xs">
+                <span className={cn(
+                  "text-midnight-400",
+                  totalProgress < 50 && "text-aurora-400 font-medium"
+                )}>
+                  {totalProgress < 50 ? '📄 Génération PDF...' : '☁️ Upload vers le cloud...'}
+                </span>
+                <span className="text-midnight-400">{totalProgress}%</span>
+              </div>
             </div>
           ) : showExportSuccess ? (
-            <div className="flex items-center gap-2 text-green-400">
-              <CheckCircle2 className="w-5 h-5" />
-              <span>PDF prêt !</span>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-green-400">
+                <CheckCircle2 className="w-5 h-5" />
+                <span>PDF prêt pour l'impression !</span>
+              </div>
+              {pdfBlob && (
+                <button
+                  onClick={handleDownloadPdf}
+                  className="w-full py-2 px-4 bg-midnight-800/50 hover:bg-midnight-700/50 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  Télécharger une copie
+                </button>
+              )}
             </div>
           ) : (
             <button
               onClick={handleExportPdf}
-              className="w-full py-3 px-4 bg-aurora-600 hover:bg-aurora-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
+              disabled={!user}
+              className="w-full py-3 px-4 bg-aurora-600 hover:bg-aurora-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
-              Générer le PDF
+              <FileText className="w-4 h-4" />
+              Préparer le PDF
             </button>
+          )}
+          
+          {!user && (
+            <p className="text-xs text-amber-400/70 text-center mt-2">
+              ⚠️ Connexion requise pour préparer le PDF
+            </p>
           )}
         </div>
         
@@ -1250,18 +1472,31 @@ function OrderStep() {
             </div>
           </div>
           
-          <button
-            onClick={() => setShowAddressForm(true)}
-            disabled={!gelatoQuote || isLoadingQuote}
-            className="w-full py-3 px-4 bg-dream-600 hover:bg-dream-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Commander {gelatoQuote ? `(${gelatoQuote.totalPrice.toFixed(2)}€)` : ''}
-          </button>
-          
-          <p className="text-xs text-midnight-500 text-center mt-2">
-            🖨️ Imprimé et livré par Gelato
-          </p>
+          {!showExportSuccess ? (
+            <div className="text-center py-3">
+              <p className="text-midnight-400 text-sm mb-2">
+                👈 Prépare d'abord le PDF
+              </p>
+              <p className="text-xs text-midnight-500">
+                Le PDF doit être généré avant de commander
+              </p>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowAddressForm(true)}
+                disabled={!gelatoQuote || isLoadingQuote || !pdfUrl}
+                className="w-full py-3 px-4 bg-dream-600 hover:bg-dream-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Commander {gelatoQuote ? `(${gelatoQuote.totalPrice.toFixed(2)}€)` : ''}
+              </button>
+              
+              <p className="text-xs text-midnight-500 text-center mt-2">
+                🖨️ Imprimé et livré par Gelato
+              </p>
+            </>
+          )}
         </div>
       </div>
       

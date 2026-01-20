@@ -69,6 +69,14 @@ export interface ExportResult {
   fileSize: number
 }
 
+// Résultat de la vérification qualité d'une image
+export interface ImageQualityResult {
+  widthPx: number
+  heightPx: number
+  currentDpi: number
+  isOk: boolean // true si >= 300 DPI
+}
+
 /**
  * Génère le HTML d'une page du livre
  */
@@ -378,6 +386,99 @@ export function estimatePDFSize(story: Story, format: BookFormatConfig): number 
   const baseSize = format.id.includes('A5') ? 500 : 1000
   const pageCount = story.pages.length + 2
   return pageCount * baseSize * 1024 // en bytes
+}
+
+/**
+ * Vérifie la qualité (DPI) d'une image pour l'impression
+ * 
+ * @param imageUrl URL de l'image à vérifier
+ * @param printWidthMm Largeur d'impression en mm
+ * @param printHeightMm Hauteur d'impression en mm
+ * @returns Résultat avec les DPI calculés et si c'est OK pour l'impression
+ */
+export async function checkImageQuality(
+  imageUrl: string,
+  printWidthMm: number,
+  printHeightMm: number
+): Promise<ImageQualityResult> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    
+    img.onload = () => {
+      const widthPx = img.naturalWidth
+      const heightPx = img.naturalHeight
+      
+      // Calculer les DPI dans chaque dimension
+      // DPI = pixels / (mm / 25.4)
+      const dpiWidth = widthPx / (printWidthMm / 25.4)
+      const dpiHeight = heightPx / (printHeightMm / 25.4)
+      
+      // Prendre le DPI minimum (la plus faible qualité)
+      const currentDpi = Math.min(dpiWidth, dpiHeight)
+      
+      // OK si >= 300 DPI (ou acceptable si >= 200 DPI avec warning)
+      const isOk = currentDpi >= 200
+      
+      resolve({
+        widthPx,
+        heightPx,
+        currentDpi: Math.round(currentDpi),
+        isOk,
+      })
+    }
+    
+    img.onerror = () => {
+      reject(new Error(`Impossible de charger l'image: ${imageUrl}`))
+    }
+    
+    // Ajouter un timeout de 10 secondes
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timeout lors du chargement de l'image: ${imageUrl}`))
+    }, 10000)
+    
+    img.onload = () => {
+      clearTimeout(timeout)
+      const widthPx = img.naturalWidth
+      const heightPx = img.naturalHeight
+      
+      const dpiWidth = widthPx / (printWidthMm / 25.4)
+      const dpiHeight = heightPx / (printHeightMm / 25.4)
+      const currentDpi = Math.min(dpiWidth, dpiHeight)
+      
+      resolve({
+        widthPx,
+        heightPx,
+        currentDpi: Math.round(currentDpi),
+        isOk: currentDpi >= 200,
+      })
+    }
+    
+    img.src = imageUrl
+  })
+}
+
+/**
+ * Upscale une image via fal.ai Real-ESRGAN si nécessaire
+ */
+export async function upscaleImage(imageUrl: string, scale: number = 2): Promise<string> {
+  try {
+    const response = await fetch('/api/ai/upscale', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl, scale }),
+    })
+    
+    if (!response.ok) {
+      throw new Error('Erreur upscale')
+    }
+    
+    const data = await response.json()
+    return data.url
+  } catch (error) {
+    console.error('Erreur upscale:', error)
+    throw error
+  }
 }
 
 export default exportToPDF
