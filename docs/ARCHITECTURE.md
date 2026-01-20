@@ -54,14 +54,18 @@
 │                     fal.ai API                               │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │  Flux 1 Pro │  │  Kling 2.1  │  │ ElevenLabs  │         │
-│  │  (Images)   │  │  (Vidéos)   │  │  (Voix IA)  │         │
+│  │Nano Banana  │  │  Kling 2.1  │  │ ElevenLabs  │         │
+│  │Pro (Images) │  │  (Vidéos)   │  │  (Voix IA)  │         │
 │  └─────────────┘  └─────────────┘  └─────────────┘         │
+│        │                                                    │
+│        └── + Real-ESRGAN (upscale 300 DPI pour impression) │
 └─────────────────────────────────────────────────────────────┘
           │                  │                  │
           ▼                  ▼                  ▼
    /api/ai/image      /api/ai/video    /api/ai/voice/narration
 ```
+
+> **Note** : Nano Banana Pro remplace Flux 1 Pro car il comprend mieux le français.
 
 ### Services Séparés
 
@@ -85,7 +89,140 @@ export async function generateFalElevenLabsVoice(text: string, voiceId: string, 
 
 ---
 
+## Mode Studio
+
+### Vue d'ensemble
+
+Le Studio permet de créer des images et vidéos avec un système pédagogique progressif sur 5 niveaux.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    STUDIO MODE                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │ StudioAIChat │  │PromptBuilder │  │ StudioGuide  │       │
+│  │   (Chat IA)  │  │ (Kit prompt) │  │  (Étapes)    │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│                           │                                  │
+│         ┌─────────────────┼─────────────────┐               │
+│         ▼                 ▼                 ▼               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │ Niveaux 1-2 │  │ Niveaux 3-5 │  │  Tutoriels  │         │
+│  │ Auto génère │  │ fal.ai web  │  │   visuels   │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Système de niveaux
+
+| Niveau | Autonomie | Interface | Génération |
+|--------|-----------|-----------|------------|
+| **1** | Guidé | Boutons style/ambiance | API automatique |
+| **2** | Assisté | + Boutons lumière/format | API automatique |
+| **3** | Semi-autonome | + Texte libre | fal.ai playground |
+| **4** | Autonome | Moins de boutons | fal.ai playground |
+| **5** | Expert | Prompt libre | fal.ai playground |
+
+### Composants principaux
+
+```
+src/components/studio/
+├── PromptBuilder.tsx      # Construction du prompt (kit)
+├── StudioAIChat.tsx       # Chat avec Luna (validation)
+├── StudioGuide.tsx        # Guide des étapes
+├── AssetDropzone.tsx      # Import/galerie d'assets
+├── TutorialGuide.tsx      # Tutoriels visuels fal.ai
+├── SafariBridge.tsx       # Pont vers Safari (niv. 3+)
+└── StudioTutorial.tsx     # Tutoriel pas à pas
+```
+
+### Flux de création (niveaux 1-2)
+
+```
+1. Enfant décrit son sujet → Chat IA valide
+                              ↓
+2. Sélection style/ambiance/lumière/format
+                              ↓
+3. Clic "Générer !" → /api/ai/image ou /api/ai/video
+                              ↓
+4. Nano Banana Pro génère l'image
+   (+ upscale 300 DPI si format livre)
+                              ↓
+5. Boutons : Garder! / Supprimer / Refaire
+                              ↓
+6. "Garder!" → Upload Supabase (images) ou R2 (vidéos)
+```
+
+### Flux de création (niveaux 3-5)
+
+```
+1. Enfant construit son prompt avec aide IA
+                              ↓
+2. Clic "Copier + Ouvrir fal.ai"
+   → Prompt copié dans presse-papier
+   → Safari s'ouvre sur fal.ai playground
+                              ↓
+3. Tutoriel visuel guide l'enfant :
+   - Coller le prompt (Cmd+V)
+   - Cliquer sur "Run"
+   - Attendre la génération
+   - Télécharger le résultat
+                              ↓
+4. Glisser-déposer l'image/vidéo dans l'app
+```
+
+### URLs fal.ai playground
+
+| Type | URL |
+|------|-----|
+| **Images** | https://fal.ai/models/fal-ai/flux-pro/v1.1/playground |
+| **Vidéos** | https://fal.ai/models/fal-ai/kling-video/v2.5-turbo/pro/text-to-video/playground |
+
+### Liaison avec l'histoire
+
+Tous les assets sont liés à `currentStory.id` :
+- **Local** : `useStudioStore.importedAssets[].projectId`
+- **Supabase** : `assets.story_id`
+
+```typescript
+// Génération
+addImportedAsset({ ..., projectId: currentStory?.id })
+
+// Upload "Garder!"
+uploadFromUrl(url, { storyId: currentStory?.id })
+```
+
+### Qualité d'impression
+
+Pour les images destinées à l'impression (format livre 3:4) :
+- Génération native ~2K
+- Upscale via Real-ESRGAN → 300 DPI
+- Coût : ~$0.16 par image
+
+---
+
 ## Mode Écriture (BookMode)
+
+### Flux utilisateur
+
+```
+1. Créer une histoire (titre + structure)
+                     ↓
+2. Écrire sur les pages (avec aide IA)
+                     ↓
+3. Ajouter images, décorations, fond
+                     ↓
+4. Cliquer "Terminer mon histoire" ✓
+                     ↓
+5. Modal de célébration 🎉
+   ├── Aller dans Studio (créer des images)
+   ├── Aller dans Montage (créer une vidéo)
+   └── Continuer à écrire
+                     ↓
+6. Histoire marquée isComplete: true
+```
 
 ### Architecture du composant
 
@@ -348,7 +485,7 @@ src/lib/config/
 src/store/
 ├── useAppStore.ts            # État global, histoires, préférences, userName
 ├── useStudioStore.ts         # Kits de création, assets importés
-├── useStudioProgressStore.ts # Progression pédagogique
+├── useStudioProgressStore.ts # Progression pédagogique (niveaux 1-5)
 ├── useMontageStore.ts        # Projets montage (sync Supabase)
 ├── usePublishStore.ts        # Publication Gelato
 ├── useMentorStore.ts         # Session mentor
@@ -356,6 +493,50 @@ src/store/
 ├── useHighlightStore.ts      # Guidage visuel IA ✨
 └── useAdminStore.ts          # Administration multi-famille
 ```
+
+### Liaison des données (Story comme clé centrale)
+
+```
+                    ┌─────────────────────┐
+                    │  currentStory (id)  │
+                    │     useAppStore     │
+                    └──────────┬──────────┘
+                               │
+         ┌─────────────────────┼─────────────────────┐
+         │                     │                     │
+         ▼                     ▼                     ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  useStudioStore │  │ useMontageStore │  │ usePublishStore │
+│  importedAssets │  │ MontageProject  │  │  selectedStory  │
+│   └─projectId   │  │   └─storyId     │  │                 │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+         │                     │
+         ▼                     ▼
+┌─────────────────────────────────────────────────────────┐
+│                    Supabase                              │
+│  assets.story_id  │  montage_projects.story_id          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Sélecteur d'histoire (Sidebar)
+
+L'utilisateur peut changer d'histoire à tout moment via le dropdown dans la sidebar :
+
+```
+┌──────────────────┐
+│   📖 Mon titre   │  ← Dropdown
+│        ▼         │
+├──────────────────┤
+│ Histoire 1    ✓  │
+│ Histoire 2       │
+│ ─────────────────│
+│ + Nouvelle       │
+└──────────────────┘
+```
+
+**Comportement :**
+- Studio et Montage sont **bloqués** sans histoire
+- Changer d'histoire filtre automatiquement les assets
 
 ### useHighlightStore
 

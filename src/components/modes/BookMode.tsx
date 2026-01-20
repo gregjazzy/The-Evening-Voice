@@ -48,6 +48,8 @@ import {
   FlipVertical,
   RotateCcw,
   Gem,
+  PartyPopper,
+  Clapperboard,
   Edit3,
   Settings,
 } from 'lucide-react'
@@ -5823,6 +5825,8 @@ export function BookMode() {
     addStoryChapter,
     deleteStoryChapter,
     updateStoryChapters,
+    completeStory,
+    setCurrentMode,
   } = useAppStore()
   
   const [storyTitle, setStoryTitle] = useState('')
@@ -5830,6 +5834,7 @@ export function BookMode() {
   const [showOverview, setShowOverview] = useState(false)
   const [showStructureSelector, setShowStructureSelector] = useState(false)
   const [showStructureView, setShowStructureView] = useState(false)
+  const [showCompletionModal, setShowCompletionModal] = useState(false)
   
   // État local pour les pages (plus flexible)
   const [pages, setPages] = useState<StoryPageLocal[]>([
@@ -7070,8 +7075,144 @@ export function BookMode() {
           <span className="text-sm text-midnight-400 font-medium">
             {currentSpread + 1} / {totalSpreads}
           </span>
+          
+          {/* Bouton Terminer */}
+          {currentStory && !currentStory.isComplete && pages.some(p => p.content?.trim()) && (
+            <motion.button
+              onClick={() => setShowCompletionModal(true)}
+              className="ml-4 px-4 py-2 rounded-xl bg-gradient-to-r from-aurora-500 to-dream-500 text-white text-sm font-medium hover:from-aurora-600 hover:to-dream-600 transition-all flex items-center gap-2 shadow-lg shadow-aurora-500/20"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Check className="w-4 h-4" />
+              <span className="hidden sm:inline">Terminer mon histoire</span>
+              <span className="sm:hidden">Terminer</span>
+            </motion.button>
+          )}
+          
+          {/* Badge histoire terminée */}
+          {currentStory?.isComplete && (
+            <div className="ml-4 px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 text-xs font-medium flex items-center gap-1.5 border border-green-500/30">
+              <Check className="w-3 h-3" />
+              Terminée
+            </div>
+          )}
         </div>
       </div>
+      
+      {/* Modal de célébration */}
+      <AnimatePresence>
+        {showCompletionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCompletionModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 20 }}
+              className="glass-card p-8 max-w-lg w-full text-center relative overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Confettis animés */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {[...Array(20)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-3 h-3 rounded-full"
+                    style={{
+                      backgroundColor: ['#f472b6', '#a78bfa', '#60a5fa', '#34d399', '#fbbf24'][i % 5],
+                      left: `${Math.random() * 100}%`,
+                      top: -20,
+                    }}
+                    animate={{
+                      y: [0, 500],
+                      x: [0, (Math.random() - 0.5) * 100],
+                      rotate: [0, 360 * (Math.random() > 0.5 ? 1 : -1)],
+                      opacity: [1, 0],
+                    }}
+                    transition={{
+                      duration: 2 + Math.random() * 2,
+                      delay: Math.random() * 0.5,
+                      repeat: Infinity,
+                      repeatDelay: Math.random() * 2,
+                    }}
+                  />
+                ))}
+              </div>
+              
+              {/* Contenu */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', delay: 0.2 }}
+              >
+                <PartyPopper className="w-20 h-20 text-yellow-400 mx-auto mb-4" />
+              </motion.div>
+              
+              <h2 className="text-3xl font-display text-white mb-2">
+                🎉 Bravo !
+              </h2>
+              <p className="text-xl text-aurora-300 mb-6">
+                Tu as terminé ton histoire !
+              </p>
+              
+              <p className="text-midnight-300 mb-8">
+                "{currentStory?.title}" est maintenant prête. 
+                Que veux-tu faire ensuite ?
+              </p>
+              
+              {/* Options */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <motion.button
+                  onClick={() => {
+                    if (currentStory) completeStory(currentStory.id)
+                    setShowCompletionModal(false)
+                    setCurrentMode('studio')
+                  }}
+                  className="p-4 rounded-xl bg-aurora-500/20 border border-aurora-500/30 hover:bg-aurora-500/30 transition-all group"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Palette className="w-8 h-8 text-aurora-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <div className="text-white font-medium">Créer des images</div>
+                  <div className="text-midnight-400 text-sm">Illustrer mon histoire</div>
+                </motion.button>
+                
+                <motion.button
+                  onClick={() => {
+                    if (currentStory) completeStory(currentStory.id)
+                    setShowCompletionModal(false)
+                    setCurrentMode('layout')
+                  }}
+                  className="p-4 rounded-xl bg-dream-500/20 border border-dream-500/30 hover:bg-dream-500/30 transition-all group"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Clapperboard className="w-8 h-8 text-dream-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <div className="text-white font-medium">Créer une vidéo</div>
+                  <div className="text-midnight-400 text-sm">Animer mon histoire</div>
+                </motion.button>
+              </div>
+              
+              {/* Continuer l'écriture */}
+              <button
+                onClick={() => {
+                  if (currentStory) completeStory(currentStory.id)
+                  setShowCompletionModal(false)
+                }}
+                className="text-midnight-400 hover:text-white transition-colors text-sm"
+              >
+                Continuer à écrire pour l'instant
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Vue d'ensemble */}
       <AnimatePresence>
