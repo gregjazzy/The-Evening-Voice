@@ -2,9 +2,9 @@
 
 > Document de passation complet pour la prochaine session de développement
 
-**Date** : 19 janvier 2026  
-**Version** : 5.1.0  
-**État** : Production-Ready ✅
+**Date** : 20 janvier 2026  
+**Version** : 5.2.0  
+**État** : Production-Ready ✅ (PublishMode en cours)
 
 ---
 
@@ -23,293 +23,245 @@ Application pour **enfants de 8 ans** permettant de créer des **livres-disques 
 | Mode | Fonction | État |
 |------|----------|------|
 | ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Complet |
-| 🎨 **Studio** | Apprentissage progressif du prompting (Flux/Kling) | ✅ Complet |
+| 🎨 **Studio** | Apprentissage progressif du prompting (Nano Banana/Kling) | ✅ Complet |
 | 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ Complet |
 | 🎭 **Théâtre** | Lecteur immersif + export vidéo HD | ✅ Complet |
-| 📖 **Publier** | Publication livre imprimé via Gelato + PDF | ✅ Complet |
+| 📖 **Publier** | Publication livre imprimé via Gelato + PDF | ⚠️ En cours |
 
 ### Flux Logique
 
 ```
 📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
    (texte)    (assets)    (assemblage)  (lecture)
-                              ↓
-                         📖 Publier + Export MP4/PDF
+      ↓                        ↓
+   "Terminer"              📖 Publier
+   mon histoire           + Export MP4/PDF
 ```
 
 ---
 
-## ✅ Ce qui est FAIT (Session 19 janvier - v5.1)
+## ✅ Ce qui est FAIT (Session 20 janvier - v5.2)
 
-### 0. 🛡️ Modération IA du Contenu
+### 1. 🎨 Studio - Migration vers Nano Banana Pro
 
-L'IA-Amie (Gemini) vérifie automatiquement que le contenu entré par l'enfant est approprié.
+Le modèle de génération d'images a été changé pour **Nano Banana Pro** (fal.ai).
+
+| Aspect | Avant | Maintenant |
+|--------|-------|------------|
+| **Modèle** | Flux 1 Pro | Nano Banana Pro |
+| **Français** | Traduit vers EN | Compris nativement ✅ |
+| **Qualité native** | 1024px | 2048px |
+| **Prix** | ~$0.05/image | ~$0.03/image |
+| **Upscale** | Systématique | Format "book" (3:4) uniquement |
+
+**Fichiers modifiés :**
+```
+src/lib/ai/fal.ts              # generateImageNanoBanana()
+src/app/api/ai/image/route.ts  # Modèle par défaut = nano-banana
+```
+
+### 2. 💬 Studio - Validation IA du Contenu
+
+La validation des champs texte passe maintenant par l'IA dans le chat.
+
+| Ancien comportement | Nouveau comportement |
+|---------------------|----------------------|
+| Validation client (regex) | IA valide via `/api/ai/chat` |
+| Message générique | IA confirme et annonce l'étape suivante |
+| Double message après validation | Un seul message (flag `justValidated`) |
+
+**Flux :**
+```
+Enfant tape "toupie jaune avec des ailes"
+    ↓
+Texte envoyé au chat [VALIDATION]
+    ↓
+IA valide avec enthousiasme
+    ↓
+Étape suivante s'affiche
+```
+
+### 3. 🔗 Liaison Histoire/Assets
+
+Tous les assets (images, vidéos) sont maintenant liés à `currentStory.id`.
+
+```typescript
+// Avant
+addImportedAsset({ ..., projectId: currentProject?.id })
+
+// Maintenant
+addImportedAsset({ ..., projectId: currentStory?.id })
+```
+
+**Impact :**
+- Chaque histoire a sa propre galerie d'assets
+- Les assets sont filtrés par `story_id` dans les composants
+
+### 4. 🚫 Blocage Studio/Montage sans Histoire
+
+Les modes Studio et Montage sont **bloqués** si aucune histoire n'a de titre.
+
+**Dans `Sidebar.tsx` :**
+```typescript
+const canAccessStudioMontage = currentStory?.title?.trim();
+
+// Si pas de titre → désactivé + tooltip
+```
+
+### 5. 📚 Sélecteur d'Histoire (Sidebar)
+
+Ajout d'un **sélecteur d'histoire** dans la sidebar sous le logo.
 
 | Fonctionnalité | Description |
 |----------------|-------------|
-| **Modération intelligente** | L'IA comprend le contexte (pas juste une liste de mots) |
-| **Debounce 1s** | Attend que l'enfant arrête d'écrire avant de vérifier |
-| **Cache 5min** | Évite les appels répétés pour le même texte |
-| **Fail-open** | Si erreur API, le contenu passe (ne bloque pas l'enfant) |
+| **Dropdown** | Liste des histoires existantes |
+| **Création** | Option "+ Nouvelle histoire" |
+| **Visuel** | Indicateur de l'histoire active |
+| **Persistance** | `setCurrentStory()` dans `useAppStore` |
 
-#### Critères de blocage
+**Fichier :** `src/components/navigation/Sidebar.tsx`
 
-- Gros mots et insultes (même déguisés avec * ou chiffres)
-- Violence graphique, armes
-- Contenu sexuel ou nudité
-- Drogue, alcool, tabac
-- Discrimination ou haine
-- Contenu effrayant pour jeunes enfants
+### 6. ✅ Bouton "Terminer mon Histoire"
 
-#### Fichiers
+Ajout d'un bouton dans **BookMode** pour marquer une histoire comme terminée.
 
-```
-src/app/api/ai/moderate/route.ts  # POST { text } → { appropriate: boolean }
-src/components/studio/PromptBuilder.tsx  # Appel avec debounce
-```
+| Élément | Description |
+|---------|-------------|
+| **Bouton** | "Terminer mon histoire 🎉" |
+| **Modal** | Célébration avec confettis |
+| **Actions** | → Studio (créer images) ou → Montage (créer vidéos) |
+| **État** | `story.isComplete = true` |
 
-#### Impact sur le flux
+**Fichier :** `src/components/modes/BookMode.tsx`
 
-Si contenu inapproprié :
-1. ❌ Les sections suivantes (Style, Ambiance...) ne s'affichent pas
-2. ❌ Le bouton "Générer" reste désactivé
-3. 📝 L'enfant doit modifier son texte
+### 7. 🎬 Vidéos - Boutons Effets/Caméra
 
-### 1. 📚 Formation Pédagogique Étendue (Studio)
+Ajout de boutons visuels pour les effets vidéo et mouvements de caméra.
 
-La progression pédagogique a été étendue pour une formation plus complète.
+**Effets disponibles :**
+- Aucun, Ralenti, Accéléré, Boucle, Fondu, Inversé
 
-#### Niveaux et créations requises
+**Mouvements caméra :**
+- Statique, Zoom avant, Zoom arrière, Panoramique, Travelling
 
-| Niveau | Créations | Cumul | Boutons visibles |
-|--------|-----------|-------|------------------|
-| 1 (Découverte) | 5 | 5 | Style, Ambiance, Détails, Format |
-| 2 (Exploration) | 8 | 13 | Style, Ambiance, Détails, Format |
-| 3 (Maîtrise) | 10 | 23 | Style, Ambiance, Détails, Format |
-| 4 (Enrichissement) | 12 | 35 | ❌ Style/Ambiance, Détails, Format |
-| 5 (Expert) | ∞ | - | ❌ Tout dans le texte (sauf Format) |
+**Fichier :** `src/components/studio/PromptBuilder.tsx`
 
-#### Validation au niveau 4+
+### 8. 📝 Documentation Mise à Jour
 
-L'enfant doit inclure dans son texte :
-- **Niveau 4** : style + ambiance (détectés par mots-clés)
-- **Niveau 5** : style + ambiance + détails
-
-#### Aide IA progressive
-
-Après 3 blocages consécutifs, l'IA-Amie donne des exemples plus explicites.
-
-### 2. 🖼️ Format et Résolution Images
-
-#### Format d'image
-
-| Format | Ratio | Usage |
-|--------|-------|-------|
-| Portrait | 3:4 | Pages de livre (défaut) |
-| Paysage | 16:9 | Vidéo, double pages |
-| Carré | 1:1 | Médaillons, vignettes |
-
-Le format est **toujours visible** pour les images (tous niveaux).
-
-#### Upscaling automatique
-
-Toutes les images sont automatiquement upscalées pour l'impression :
-- **Résolution cible** : 1748×2480 px minimum (300 DPI pour A5)
-- **Modèle** : Real-ESRGAN x2 via fal.ai
-- **Images importées** : Upscalées si sous le seuil
-
-```
-src/app/api/ai/image/upscale/route.ts  # POST { imageUrl } → { upscaledImageUrl }
-src/lib/ai/fal.ts  # upscaleImageForPrint()
-```
+- `docs/ARCHITECTURE.md` → Ajout section Studio Mode détaillée
+- `public/tutorials/SCREENSHOTS_A_CAPTURER.md` → Screenshots fal.ai
 
 ---
 
-## ✅ Ce qui était FAIT (Session 18 janvier - v5.0)
+## ⚠️ PUBLISH MODE - À COMPLÉTER
 
-### 1. 🔄 Migration fal.ai (API Unifiée)
+### État Actuel
 
-Tous les services IA passent maintenant par **fal.ai** :
+| Composant | État | Fichier |
+|-----------|------|---------|
+| Store | ✅ | `src/store/usePublishStore.ts` |
+| API Gelato Quote | ✅ | `src/app/api/gelato/quote/route.ts` |
+| API Gelato Order | ✅ | `src/app/api/gelato/order/route.ts` |
+| Client Gelato | ✅ | `src/lib/gelato/client.ts` |
+| Types Gelato | ✅ | `src/lib/gelato/types.ts` |
+| Export PDF | ⚠️ | `src/lib/export/pdf.ts` |
+| UI PublishMode | ⚠️ | `src/components/modes/PublishMode.tsx` |
 
-| Service | Ancien | Nouveau (fal.ai) |
-|---------|--------|------------------|
-| **Images** | Midjourney (ImagineAPI) | Flux 1 Pro |
-| **Vidéos** | Runway/Luma | Kling 2.1 |
-| **Voix IA** | ElevenLabs direct | ElevenLabs via fal.ai |
-| **Transcription** | AssemblyAI | AssemblyAI (conservé) |
+### 🔴 PROBLÈME CRITIQUE : PDF pas accessible par Gelato
 
-**Fichier central** : `src/lib/ai/fal.ts`
+```
+Actuellement:
+  generatePDF() → blob: URL (local)
+  
+Requis par Gelato:
+  PDF sur URL publique (https://...)
+```
 
-### 2. 🎤 Chat IA dans Montage
+**Solution à implémenter :**
+```typescript
+// 1. Générer le PDF
+const pdfBlob = await generatePDF(story);
 
-#### Vue Cartes
-- Chat IA intégré (panneau latéral)
-- TTS activé par défaut
-- Reconnaissance vocale (micro)
-- Guidage visuel (highlights)
+// 2. Upload vers Supabase Storage
+const pdfUrl = await uploadToSupabase('pdfs', `${story.id}.pdf`, pdfBlob);
 
-#### Vue Timeline
-- Bouton d'aide IA flottant
-- Panneau chat **draggable** (déplaçable)
-- Visible même en plein écran (z-index 10001)
-- Explications détaillées des rubans
+// 3. Passer l'URL publique à Gelato
+await createGelatoOrder({ pdfUrl, ... });
+```
 
-### 3. 🎙️ Narration IA (ElevenLabs via fal.ai)
+### 📋 Tâches PublishMode
 
-| Fonctionnalité | Description |
-|----------------|-------------|
-| **21 voix** | 7 par langue (FR, EN, RU) |
-| **Timestamps** | Synchronisation mot par mot |
-| **Timeline** | Phrases manipulables comme voix enregistrées |
-| **Sélecteur** | Modal avec aperçu audio |
+| Tâche | Priorité | Effort | Description |
+|-------|----------|--------|-------------|
+| **Upload PDF vers Supabase** | 🔴 HAUTE | Moyen | Permettre à Gelato d'accéder au PDF |
+| **Vérification DPI images** | 🟠 Moyenne | Faible | Vérifier que toutes les images sont en 300 DPI |
+| **Upscale auto si nécessaire** | 🟠 Moyenne | Faible | Utiliser Real-ESRGAN si image trop petite |
+| **Design couverture complet** | 🟡 Basse | Élevé | Dos + 4ème de couverture |
+| **Preview avant commande** | 🟡 Basse | Moyen | Aperçu du livre final |
 
-#### IDs des voix ElevenLabs
-
-**🇫🇷 Français :**
-| ID | Description |
-|----|-------------|
-| `kwhMCf63M8O3rCfnQ3oQ` | Femme française (narratrice) |
-| `FvmvwvObRqIHojkEGh5N` | Jeune française |
-| `1wg2wOjdEWKA7yQD8Kca` | Homme français âgé |
-| `5Qfm4RqcAer0xoyWtoHC` | Jeune garçon français |
-| `M9RTtrzRACmbUzsEMq8p` | Grand-mère française |
-
-**🇬🇧 Anglais (UK) :**
-| ID | Description |
-|----|-------------|
-| `RILOU7YmBhvwJGDGjNmP` | Femme britannique (narratrice) |
-| `G17SuINrv2H9FC6nvetn` | Homme britannique |
-| `rCmVtv8cYU60uhlsOo1M` | Jeune fille britannique |
-| `kkPJzQOWz2Oz9cUaEaQd` | Vieille femme britannique |
-| `ttNi9wVM8M97tsxE7PFZ` | Méchant britannique |
-| `0lp4RIz96WD1RUtvEu3Q` | Grand-père anglais |
-
-**🇷🇺 Russe :**
-| ID | Description |
-|----|-------------|
-| `GN4wbsbejSnGSa1AzjH5` | Femme russe (narratrice) |
-| `EDpEYNf6XIeKYRzYcx4I` | Jeune femme russe |
-| `re2r5d74PqDzicySNW0I` | Homme russe |
-| `wAGzRVkxKEs8La0lmdrE` | Homme russe intrigant |
-
-#### Architecture Narration
+### Architecture Cible
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  FLUX NARRATION IA                                          │
+│  FLUX PUBLISH MODE                                          │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  1. Clic "IA raconte" dans MontageEditor                   │
-│     └─→ Ouvre NarrationVoiceSelectorModal                  │
+│  1. Sélection format (A5, A4, Carré)                       │
+│     └─→ usePublishStore.setFormat()                        │
 │                                                             │
-│  2. Sélection voix ElevenLabs                              │
-│     └─→ Aperçu audio disponible                            │
+│  2. Vérification qualité                                    │
+│     ├─→ Parcourir story.pages                              │
+│     ├─→ Pour chaque image: vérifier dimensions             │
+│     └─→ Si < 300 DPI → upscale via fal.ai                  │
 │                                                             │
-│  3. POST /api/ai/voice/narration                           │
-│     ├─→ Récupère texte de la scène                         │
-│     ├─→ getApiKeyForRequest('fal')                         │
-│     └─→ fal.ai → ElevenLabs TTS avec timestamps            │
+│  3. Génération PDF                                          │
+│     ├─→ src/lib/export/pdf.ts                              │
+│     ├─→ Inclure couverture + pages + images                │
+│     └─→ Générer Blob                                        │
 │                                                             │
-│  4. Réponse :                                               │
-│     {                                                       │
-│       audioUrl: "https://...",                             │
-│       duration: 12.5,                                       │
-│       wordTimings: [                                        │
-│         { word: "Il", start: 0.0, end: 0.15 },             │
-│         { word: "était", start: 0.15, end: 0.4 },          │
-│         ...                                                 │
-│       ]                                                     │
-│     }                                                       │
+│  4. Upload PDF vers Supabase Storage  ⬅️ À FAIRE           │
+│     ├─→ POST /api/upload/pdf                                │
+│     └─→ Retourne URL publique                              │
 │                                                             │
-│  5. Création PhraseTiming[] depuis wordTimings              │
-│     └─→ Groupement par phrase (ponctuation)                │
+│  5. Devis Gelato                                            │
+│     ├─→ POST /api/gelato/quote                             │
+│     └─→ { price, currency, estimatedDelivery }             │
 │                                                             │
-│  6. Stockage dans useMontageStore                          │
-│     ├─→ narrationAudio: audioUrl                           │
-│     └─→ phraseTimings: PhraseTiming[]                      │
-│                                                             │
-│  7. Affichage sur Timeline                                  │
-│     └─→ Phrases draggables (même UX que voix enregistrée)  │
+│  6. Commande Gelato                                         │
+│     ├─→ POST /api/gelato/order                             │
+│     ├─→ { pdfUrl, format, address }                        │
+│     └─→ { orderId, trackingUrl }                           │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-#### Fichiers concernés
+### Fichiers à Modifier/Créer
 
 ```
-src/lib/ai/
-├── fal.ts                      # generateFalElevenLabsVoice()
-└── elevenlabs.ts               # FRENCH_VOICES, ENGLISH_VOICES, RUSSIAN_VOICES
-
-src/app/api/ai/voice/
-└── narration/route.ts          # POST avec timestamps
-
-src/components/montage/
-├── MontageEditor.tsx           # handleGenerateNarration()
-└── ...
-
-src/components/ui/
-└── NarrationVoiceSelector.tsx  # Sélecteur avec preview
+src/lib/export/pdf.ts              # Améliorer génération PDF
+src/app/api/upload/pdf/route.ts    # CRÉER - Upload PDF Supabase
+src/components/modes/PublishMode.tsx  # Compléter UI
+src/store/usePublishStore.ts       # Ajouter pdfUrl après upload
 ```
 
-### 4. ✨ Système de Guidage IA (Highlights)
+### Configuration Gelato
 
 ```typescript
-// L'IA peut guider visuellement
-"Clique sur le bouton qui clignote ! [HIGHLIGHT:book-add-image]"
-→ Le bouton brille pendant 6 secondes
+// Formats supportés (src/lib/gelato/types.ts)
+export const FORMAT_TO_GELATO_UID = {
+  'A5': 'photobook_hc_a5_pf',      // Couverture rigide A5 portrait
+  'A4': 'photobook_hc_a4_pf',      // Couverture rigide A4 portrait
+  'square': 'photobook_hc_sq_210', // Couverture rigide carré 21cm
+};
 ```
 
-**Éléments highlightables :**
-- Mode Écriture : `book-text-color`, `book-add-image`, `book-decorations`, etc.
-- Mode Montage : `montage-record-voice`, `montage-view-timeline`, etc.
-- Timeline : `montage-timeline-structure`, `montage-timeline-media`, etc.
+### Spécifications Impression (300 DPI)
 
-**Fix appliqué :** Animations s'arrêtent correctement après 6 secondes.
-
-### 5. 🎙️ Harmonisation Assistant Vocal
-
-| Aspect | Comportement |
-|--------|--------------|
-| **Défaut** | Activé au démarrage |
-| **Voix** | Priorité Google (web) / Audrey (macOS) |
-| **Vitesse** | Réduite (0.92) pour enfants |
-| **Sync** | Paramètres partagés entre modes |
-
-### 6. 👋 Séquence d'Accueil Complète
-
-```
-1. Prénom enfant → "Comment tu t'appelles ?"
-2. Nom de l'IA → "Je suis ton amie magique, comment veux-tu m'appeler ?"
-3. Voix de l'IA → "Quelle voix tu préfères ?" (voix premium du navigateur)
-```
-
-Si changement de navigateur → Redemander la voix (pas le nom).
-
-### 7. 🔑 Gestion Centralisée des Clés API
-
-| Clé | Variable env | Supabase |
-|-----|-------------|----------|
-| fal.ai | `FAL_API_KEY` | `fal_key` |
-| Gemini | `GOOGLE_GEMINI_API_KEY` | `gemini_key` |
-| AssemblyAI | `ASSEMBLYAI_API_KEY` | `assemblyai_key` |
-
-**Architecture :**
-```
-API Route → getApiKeyForRequest('fal')
-         → 1. Clé famille Supabase
-         → 2. Fallback: process.env
-```
-
-### 8. 🐛 Corrections
-
-| Bug | Fix |
-|-----|-----|
-| Safari double-page | Remplacement `aspect-ratio` par `calc()` |
-| Highlights infinis | Suppression `AnimatePresence` + conditional render |
-| TTS non dispo (Chrome) | Vérification côté client (pas SSR) |
-| Voix trop rapide | Rate réduit à 0.92 |
-| IA parle du "jeu de rythme" | Prompt mis à jour (sync automatique) |
+| Format | Dimensions (mm) | Pixels requis |
+|--------|-----------------|---------------|
+| A5 | 148 × 210 | 1748 × 2480 |
+| A4 | 210 × 297 | 2480 × 3508 |
+| Carré 21cm | 210 × 210 | 2480 × 2480 |
 
 ---
 
@@ -319,67 +271,63 @@ API Route → getApiKeyForRequest('fal')
 
 ```
 src/lib/ai/
-├── fal.ts              # Service unifié fal.ai ✨ NOUVEAU
-├── gemini.ts           # Chat IA (prompts par mode)
+├── fal.ts              # Service unifié fal.ai (Nano Banana, Kling, Real-ESRGAN)
+├── gemini.ts           # Chat IA (prompts par mode) + traduction
 ├── elevenlabs.ts       # Voix (IDs, helpers) - via fal.ai
-├── midjourney.ts       # (Legacy - via fal.ai maintenant)
-└── video.ts            # (Legacy - via fal.ai maintenant)
-```
-
-### Configuration
-
-```
-src/lib/config/
-├── api-keys.ts         # Client-side helpers
-└── server-config.ts    # getApiKeyForRequest() ✨ MIS À JOUR
+└── prompting-pedagogy.ts # Logique pédagogique Studio
 ```
 
 ### Stores
 
 ```
 src/store/
-├── useAppStore.ts            # + userName, aiName, aiVoiceId
-├── useHighlightStore.ts      # Guidage visuel IA ✨ MIS À JOUR
-├── useAdminStore.ts          # + fal_key, assemblyai_key
-└── ...
+├── useAppStore.ts            # stories[], currentStory, userName, aiName
+├── useStudioStore.ts         # currentKit, importedAssets, savedKits
+├── useStudioProgressStore.ts # level, creations, completedSteps
+├── usePublishStore.ts        # format, pdfUrl, gelatoOrder
+├── useMontageStore.ts        # scenes, timeline, narration
+└── useHighlightStore.ts      # Guidage visuel IA
 ```
 
-### Composants Montage
+### Composants Studio
 
 ```
-src/components/montage/
-├── MontageEditor.tsx         # + MontageAIChat, TimelineAIHelp
-├── MontageAIChat.tsx         # Chat IA vue Cartes ✨ NOUVEAU
-└── ...
-
-src/components/ui/
-├── Highlightable.tsx         # Wrapper guidage IA ✨ MIS À JOUR
-├── AIWelcomeSequence.tsx     # Séquence d'accueil ✨ MIS À JOUR
-└── NarrationVoiceSelector.tsx # Sélecteur voix ElevenLabs
+src/components/studio/
+├── StudioAIChat.tsx     # Chat avec validation IA
+├── PromptBuilder.tsx    # Construction du prompt + génération
+├── StudioGuide.tsx      # Guide pédagogique
+└── AssetDropzone.tsx    # Galerie d'assets par histoire
 ```
 
 ### API Routes
 
 ```
-src/app/api/ai/
-├── chat/route.ts             # + userName, context: montage
-├── image/
-│   ├── route.ts              # → fal.ai Flux 1 Pro + upscale auto
-│   └── upscale/route.ts      # → fal.ai Real-ESRGAN ✨ NOUVEAU
-├── video/route.ts            # → fal.ai Kling 2.1
-├── voice/
-│   ├── route.ts              # → fal.ai ElevenLabs
-│   └── narration/route.ts    # + timestamps AssemblyAI
-├── moderate/route.ts         # → Gemini (modération contenu) ✨ NOUVEAU
-└── transcribe/route.ts       # AssemblyAI (conservé)
+src/app/api/
+├── ai/
+│   ├── chat/route.ts         # Chat Gemini + validation
+│   ├── image/route.ts        # → Nano Banana Pro
+│   ├── video/route.ts        # → Kling 2.1
+│   └── moderate/route.ts     # Modération contenu
+├── upload/
+│   └── video/route.ts        # Upload vidéo R2
+├── gelato/
+│   ├── quote/route.ts        # Devis impression
+│   └── order/route.ts        # Commande impression
 ```
 
-### Migrations SQL
+### Upload Media
 
-```
-supabase/migrations/
-├── add_assemblyai_key.sql    # Ajout colonne assemblyai_key
-└── migrate_to_fal_ai.sql     # fal_key + suppression anciennes clés
+```typescript
+// Hook centralisé pour upload (images → Supabase, vidéos → R2)
+src/hooks/useMediaUpload.ts
+
+// Usage:
+const { uploadFromUrl, isUploading } = useMediaUpload();
+const result = await uploadFromUrl(tempUrl, {
+  type: 'image',  // ou 'video'
+  storyId: currentStory.id,
+  name: 'mon-image.png'
+});
 ```
 
 ---
@@ -394,7 +342,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
 SUPABASE_SERVICE_ROLE_KEY=xxx
 
-# fal.ai (images, vidéos, voix IA) ✨ NOUVEAU
+# fal.ai (images, vidéos, voix IA)
 FAL_API_KEY=xxx
 
 # Google AI (chat)
@@ -413,45 +361,6 @@ R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
 R2_BUCKET_NAME=lavoixdusoir-videos
 CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
-
-# Mux (export vidéo)
-MUX_TOKEN_ID=xxx
-MUX_TOKEN_SECRET=xxx
-```
-
-> ⚠️ **Clés dépréciées** : `ELEVENLABS_API_KEY`, `RUNWAY_API_KEY`, `LUMA_API_KEY`, `IMAGINEAPI_API_KEY` ne sont plus utilisées. Tout passe par `FAL_API_KEY`.
-
----
-
-## 🚀 Pour Démarrer
-
-```bash
-# Installer
-npm install
-
-# Dev (web)
-npm run dev
-# → http://localhost:3000
-
-# Dev Electron
-npm run dev:electron
-```
-
-### Appliquer les migrations
-
-```sql
--- Dans Supabase SQL Editor
-
--- 1. Ajouter fal_key
-ALTER TABLE family_config ADD COLUMN IF NOT EXISTS fal_key TEXT;
-
--- 2. Ajouter assemblyai_key
-ALTER TABLE family_config ADD COLUMN IF NOT EXISTS assemblyai_key TEXT;
-
--- 3. (Optionnel) Supprimer anciennes colonnes
-ALTER TABLE family_config DROP COLUMN IF EXISTS elevenlabs_key;
-ALTER TABLE family_config DROP COLUMN IF EXISTS runway_key;
-ALTER TABLE family_config DROP COLUMN IF EXISTS midjourney_key;
 ```
 
 ---
@@ -460,56 +369,60 @@ ALTER TABLE family_config DROP COLUMN IF EXISTS midjourney_key;
 
 | Composant | État | Notes |
 |-----------|------|-------|
-| Mode Écriture | ✅ | + guidage IA visuel |
-| Mode Studio | ✅ | → fal.ai (Flux 1 Pro, Kling 2.1) |
-| Mode Montage | ✅ | + chat IA (Cards + Timeline) |
+| Mode Écriture | ✅ | + bouton "Terminer" |
+| Mode Studio | ✅ | → Nano Banana Pro + Kling 2.1 |
+| Mode Montage | ✅ | + chat IA + narration |
 | Mode Théâtre | ✅ | Lecture + export MP4 |
-| Mode Publier | ✅ | Gelato + PDF |
-| **IA unifiée (fal.ai)** | ✅ | Images, vidéos, voix ElevenLabs |
-| **Chat IA Montage** | ✅ | Vue Cartes + Timeline |
-| **Narration timestamps** | ✅ | ElevenLabs word-level |
-| **Guidage visuel IA** | ✅ | Highlights 6s auto-stop |
-| **Séquence accueil** | ✅ | Prénom + nom IA + voix |
-| **TTS adapté enfants** | ✅ | Vitesse 0.92, voix prioritaires |
-| **Clés API centralisées** | ✅ | fal.ai + Gemini + AssemblyAI |
-| **Modération IA** | ✅ | Gemini vérifie contenu enfants |
-| **Formation étendue** | ✅ | 35 créations → niveau Expert |
-| **Upscaling auto** | ✅ | 300 DPI pour impression |
-| **Format images** | ✅ | Portrait/Paysage/Carré |
-| Sync Supabase | ✅ | Histoires, montages, progression |
+| Mode Publier | ⚠️ | **PDF local → Upload Supabase** |
+| **Liaison Story/Assets** | ✅ | `story_id` partout |
+| **Sélecteur histoire** | ✅ | Sidebar |
+| **Blocage sans histoire** | ✅ | Studio/Montage |
+| Sync Supabase | ✅ | Debounce 2s |
 | Assets cloud | ✅ | Supabase + R2 |
-| Admin multi-famille | ✅ | Super Admin + Parent |
-| Bibliothèque sons | ✅ | 98 fichiers |
-| Sécurité Electron | ✅ | Shell injection fixé |
-| Responsive iPad | ✅ | Adaptatif |
-
----
-
-## 🔮 Prochaines Évolutions Possibles
-
-### Avec fal.ai
-
-| Fonctionnalité | Modèle | Effort | Impact |
-|----------------|--------|--------|--------|
-| **Lip-sync vidéo** | Sync Labs | Moyen | ⭐⭐⭐⭐⭐ |
-| **Musique générée** | MusicGen | Faible | ⭐⭐⭐⭐ |
-| **Effets sonores IA** | AudioLDM | Faible | ⭐⭐⭐ |
-| **Coloriage dessins** | Flux ControlNet | Moyen | ⭐⭐⭐ |
-
-> **Note** : Les voix de personnages fantaisistes (dragon, sorcière...) ont été explorées mais présentaient des limitations (clonage ElevenLabs non disponible via fal.ai, qualité inconstante). Le système actuel utilise les 21 voix narrateur ElevenLabs préexistantes.
 
 ---
 
 ## 💡 Notes pour le Prochain Dev
 
-1. **L'enfant cible a 8 ans** → Tout doit être simple et encourageant
+### Priorités
+
+1. **🔴 Upload PDF vers Supabase** - Critique pour Gelato
+2. **🟠 Vérification DPI** - Qualité impression
+3. **🟡 Preview livre** - UX avant commande
+
+### Points d'Attention
+
+1. **L'enfant cible a 8 ans** → Tout doit être simple
 2. **Budget illimité** → Pas d'hésitation sur les services payants
-3. **Clés API dynamiques** → Utiliser `getApiKeyForRequest('fal')`
-4. **Pas de nom IA hardcodé** → Le nom est choisi par l'enfant
-5. **Highlights IA** → Utiliser `[HIGHLIGHT:id]` dans les réponses
-6. **fal.ai unifié** → Tout passe par `src/lib/ai/fal.ts`
-7. **AssemblyAI conservé** → Meilleure précision que Whisper pour timestamps
-8. **Vitesse TTS** → 0.92 pour FR/EN, 0.90 pour RU
+3. **currentStory, pas currentProject** → Assets liés à l'histoire
+4. **Nano Banana Pro** → Comprend le français, pas besoin de traduire
+5. **useMediaUpload hook** → Utiliser pour tout upload media
+
+### Code Pattern - Upload PDF
+
+```typescript
+// À implémenter dans src/app/api/upload/pdf/route.ts
+export async function POST(request: Request) {
+  const formData = await request.formData();
+  const file = formData.get('file') as Blob;
+  const storyId = formData.get('storyId') as string;
+  
+  // Upload vers Supabase Storage bucket 'pdfs'
+  const { data, error } = await supabase.storage
+    .from('pdfs')
+    .upload(`${storyId}.pdf`, file, {
+      contentType: 'application/pdf',
+      upsert: true
+    });
+  
+  // Récupérer URL publique
+  const { data: { publicUrl } } = supabase.storage
+    .from('pdfs')
+    .getPublicUrl(`${storyId}.pdf`);
+  
+  return NextResponse.json({ pdfUrl: publicUrl });
+}
+```
 
 ---
 
@@ -523,6 +436,33 @@ ALTER TABLE family_config DROP COLUMN IF EXISTS midjourney_key;
 | `docs/API.md` | Documentation API |
 | `docs/HANDOVER.md` | Ce document |
 | `README.md` | Documentation générale |
+
+---
+
+## 🎯 Commande pour Démarrer PublishMode
+
+Pour la prochaine session, utiliser ce prompt :
+
+```
+Configure PublishMode pour l'impression Gelato :
+
+1. Créer /api/upload/pdf pour uploader le PDF vers Supabase Storage
+2. Modifier generatePDF() pour uploader automatiquement après génération
+3. Ajouter vérification DPI des images avant génération PDF
+4. Compléter l'UI de PublishMode avec les étapes :
+   - Choix format (A5/A4/Carré)
+   - Vérification qualité (images 300 DPI)
+   - Génération + upload PDF
+   - Devis Gelato
+   - Adresse livraison
+   - Confirmation commande
+
+Fichiers clés :
+- src/lib/export/pdf.ts
+- src/store/usePublishStore.ts
+- src/components/modes/PublishMode.tsx
+- src/app/api/upload/pdf/route.ts (à créer)
+```
 
 ---
 
