@@ -21,6 +21,7 @@
   "nav": {
     "book": "Écriture",
     "studio": "Studio",
+    "challenge": "Défis",
     "layout": "Montage",
     "theater": "Théâtre",
     "publish": "Publier",
@@ -55,6 +56,7 @@
     "magicCode": "Code magique",
     "enterMagicCode": "Entre ton code magique",
     "willBeCreatedWith": "sera créé avec le rôle",
+    "accountWillBeCreated": "Ton compte sera créé avec le rôle",
     "errors": {
       "invalidEmail": "Email invalide",
       "passwordTooShort": "Le mot de passe doit faire au moins 6 caractères",

@@ -42,7 +42,7 @@ export async function GET(
     }
     
     // Vérifier accès : Super admin OU parent de cette famille
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin } = await (supabase as any)
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
@@ -51,7 +51,7 @@ export async function GET(
     const isSuperAdmin = !!superAdmin;
     
     if (!isSuperAdmin) {
-      const { data: membership } = await supabase
+      const { data: membership } = await (supabase as any)
         .from('family_members')
         .select('role')
         .eq('family_id', familyId)
@@ -64,7 +64,7 @@ export async function GET(
     }
     
     // Récupérer tous les membres enfants de la famille
-    const { data: childMembers, error: membersError } = await supabase
+    const { data: childMembers, error: membersError } = await (supabase as any)
       .from('family_members')
       .select('id, name, avatar_emoji, email, user_id')
       .eq('family_id', familyId)
@@ -93,7 +93,7 @@ export async function GET(
       }
       
       // Récupérer le profil de l'enfant
-      const { data: profile } = await supabase
+      const { data: profile } = await (supabase as any)
         .from('profiles')
         .select('id')
         .eq('user_id', member.user_id)
@@ -104,7 +104,7 @@ export async function GET(
       
       if (profile) {
         // Récupérer les histoires
-        const { data: storiesData } = await supabase
+        const { data: storiesData } = await (supabase as any)
           .from('stories')
           .select('id, title, status, total_pages, cover_image_url, created_at, updated_at')
           .eq('profile_id', profile.id)
@@ -114,14 +114,14 @@ export async function GET(
         stories = storiesData || [];
         
         // Récupérer les montages
-        const { data: montagesData } = await supabase
+        const { data: montagesData } = await (supabase as any)
           .from('montage_projects')
           .select('id, title, scenes, created_at, updated_at')
           .eq('user_id', member.user_id)
           .order('updated_at', { ascending: false })
           .limit(10);
         
-        montages = (montagesData || []).map(m => ({
+        montages = (montagesData || []).map((m: any) => ({
           id: m.id,
           title: m.title,
           scenes_count: Array.isArray(m.scenes) ? m.scenes.length : 0,

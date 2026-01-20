@@ -8,6 +8,14 @@
     <key>com.apple.security.network.server</key>
     <true/>
     
+    <!-- Accès au microphone pour la saisie vocale -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    
+    <!-- Accès à la caméra (si vidéo mentor) -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
+    
     <!-- Accès accessibilité pour le contrôle à distance -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>

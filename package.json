@@ -33,14 +33,19 @@
       "entitlements": "electron/entitlements.mac.plist",
       "entitlementsInherit": "electron/entitlements.mac.plist",
       "extendInfo": {
+        "NSMicrophoneUsageDescription": "La Voix du Soir utilise le microphone pour la saisie vocale et la dictée de tes histoires.",
+        "NSCameraUsageDescription": "La Voix du Soir utilise la caméra pour les appels vidéo avec ton mentor.",
+        "NSSpeechRecognitionUsageDescription": "La Voix du Soir utilise la reconnaissance vocale pour t'aider à écrire tes histoires.",
         "NSAccessibilityUsageDescription": "La Voix du Soir a besoin de l'accès accessibilité pour le contrôle à distance mentor.",
         "NSScreenCaptureUsageDescription": "La Voix du Soir a besoin de capturer l'écran pour le partage avec le mentor."
       }
     },
     "files": [
       "electron/**/*",
-      "out/**/*",
-      "public/**/*"
+      ".next/**/*",
+      "public/**/*",
+      "package.json",
+      "next.config.mjs"
     ],
     "directories": {
       "output": "dist-electron"
@@ -48,6 +53,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.968.0",
+    "@fal-ai/client": "^1.8.3",
     "@google/generative-ai": "^0.21.0",
     "@imgly/background-removal": "^1.7.0",
     "@mux/mux-node": "^12.8.1",
@@ -62,6 +68,7 @@
     "@tiptap/extension-text-style": "^3.15.3",
     "@tiptap/react": "^3.15.3",
     "@tiptap/starter-kit": "^3.15.3",
+    "assemblyai": "^4.22.1",
     "clsx": "^2.1.0",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.1.0",
@@ -94,7 +101,7 @@
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.0",
     "dotenv": "^17.2.3",
-    "electron": "^39.2.7",
+    "electron": "^40.0.0",
     "electron-builder": "^26.4.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",

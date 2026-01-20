@@ -16,7 +16,7 @@ export async function PATCH(
     }
     
     // Vérifier accès : Super admin OU parent de cette famille
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin } = await (supabase as any)
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
@@ -26,7 +26,7 @@ export async function PATCH(
     
     if (!isSuperAdmin) {
       // Vérifier si l'utilisateur est un parent de cette famille
-      const { data: membership } = await supabase
+      const { data: membership } = await (supabase as any)
         .from('family_members')
         .select('role')
         .eq('family_id', familyId)
@@ -63,7 +63,7 @@ export async function PATCH(
     if (default_ai_voice !== undefined) updates.default_ai_voice = default_ai_voice;
     
     // Vérifier si la config existe
-    const { data: existingConfig } = await supabase
+    const { data: existingConfig } = await (supabase as any)
       .from('family_config')
       .select('id')
       .eq('family_id', familyId)
@@ -73,7 +73,7 @@ export async function PATCH(
     
     if (existingConfig) {
       // Update
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('family_config')
         .update(updates)
         .eq('family_id', familyId)
@@ -84,7 +84,7 @@ export async function PATCH(
       config = data;
     } else {
       // Insert
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('family_config')
         .insert({
           family_id: familyId,
@@ -126,7 +126,7 @@ export async function POST(
     }
     
     // Vérifier accès : Super admin OU parent de cette famille
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin } = await (supabase as any)
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
@@ -135,7 +135,7 @@ export async function POST(
     const isSuperAdmin = !!superAdmin;
     
     if (!isSuperAdmin) {
-      const { data: membership } = await supabase
+      const { data: membership } = await (supabase as any)
         .from('family_members')
         .select('role')
         .eq('family_id', familyId)

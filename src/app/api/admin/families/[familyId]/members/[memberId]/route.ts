@@ -16,14 +16,14 @@ export async function PATCH(
     }
     
     // Vérifier accès
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin } = await (supabase as any)
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
       .single();
     
     if (!superAdmin) {
-      const { data: membership } = await supabase
+      const { data: membership } = await (supabase as any)
         .from('family_members')
         .select('role')
         .eq('family_id', familyId)
@@ -43,7 +43,7 @@ export async function PATCH(
     if (role !== undefined) updates.role = role;
     if (avatar_emoji !== undefined) updates.avatar_emoji = avatar_emoji;
     
-    const { data: member, error } = await supabase
+    const { data: member, error } = await (supabase as any)
       .from('family_members')
       .update(updates)
       .eq('id', memberId)
@@ -79,14 +79,14 @@ export async function DELETE(
     }
     
     // Vérifier accès
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin } = await (supabase as any)
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
       .single();
     
     if (!superAdmin) {
-      const { data: membership } = await supabase
+      const { data: membership } = await (supabase as any)
         .from('family_members')
         .select('role')
         .eq('family_id', familyId)
@@ -99,13 +99,13 @@ export async function DELETE(
     }
     
     // Ne pas permettre la suppression du dernier parent
-    const { data: parentCount } = await supabase
+    const { data: parentCount } = await (supabase as any)
       .from('family_members')
       .select('id', { count: 'exact' })
       .eq('family_id', familyId)
       .eq('role', 'parent');
     
-    const { data: memberToDelete } = await supabase
+    const { data: memberToDelete } = await (supabase as any)
       .from('family_members')
       .select('role')
       .eq('id', memberId)
@@ -118,7 +118,7 @@ export async function DELETE(
       );
     }
     
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('family_members')
       .delete()
       .eq('id', memberId)
@@ -152,14 +152,14 @@ export async function POST(
     }
     
     // Vérifier accès
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin } = await (supabase as any)
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
       .single();
     
     if (!superAdmin) {
-      const { data: membership } = await supabase
+      const { data: membership } = await (supabase as any)
         .from('family_members')
         .select('role')
         .eq('family_id', familyId)
@@ -172,7 +172,7 @@ export async function POST(
     }
     
     // Récupérer le membre
-    const { data: member } = await supabase
+    const { data: member } = await (supabase as any)
       .from('family_members')
       .select('*')
       .eq('id', memberId)
@@ -204,7 +204,7 @@ export async function POST(
     }
     
     // Mettre à jour le timestamp
-    await supabase
+    await (supabase as any)
       .from('family_members')
       .update({
         invitation_sent_at: new Date().toISOString(),

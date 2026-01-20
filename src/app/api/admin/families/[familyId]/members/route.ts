@@ -16,7 +16,7 @@ export async function GET(
     }
     
     // Vérifier accès
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin } = await (supabase as any)
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
@@ -24,7 +24,7 @@ export async function GET(
     
     if (!superAdmin) {
       // Vérifier si membre parent de la famille
-      const { data: membership } = await supabase
+      const { data: membership } = await (supabase as any)
         .from('family_members')
         .select('role')
         .eq('family_id', familyId)
@@ -36,7 +36,7 @@ export async function GET(
       }
     }
     
-    const { data: members, error } = await supabase
+    const { data: members, error } = await (supabase as any)
       .from('family_members')
       .select('*')
       .eq('family_id', familyId)
@@ -70,7 +70,7 @@ export async function POST(
     }
     
     // Vérifier accès (super admin ou parent de la famille)
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin } = await (supabase as any)
       .from('super_admins')
       .select('id')
       .eq('user_id', user.id)
@@ -79,7 +79,7 @@ export async function POST(
     const isSuperAdmin = !!superAdmin;
     
     if (!isSuperAdmin) {
-      const { data: membership } = await supabase
+      const { data: membership } = await (supabase as any)
         .from('family_members')
         .select('role')
         .eq('family_id', familyId)
@@ -102,7 +102,7 @@ export async function POST(
     }
     
     // Vérifier si le membre existe déjà
-    const { data: existingMember } = await supabase
+    const { data: existingMember } = await (supabase as any)
       .from('family_members')
       .select('id')
       .eq('family_id', familyId)
@@ -117,7 +117,7 @@ export async function POST(
     }
     
     // Créer le membre
-    const { data: member, error: memberError } = await supabase
+    const { data: member, error: memberError } = await (supabase as any)
       .from('family_members')
       .insert({
         family_id: familyId,

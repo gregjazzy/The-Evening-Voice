@@ -25,6 +25,7 @@ import { AssetDropzone } from '@/components/studio/AssetDropzone'
 import { StudioGuide, StudioLevelBadge } from '@/components/studio/StudioGuide'
 import { StudioAIChat } from '@/components/studio/StudioAIChat'
 import { TutorialGuide, TutorialButton } from '@/components/studio/TutorialGuide'
+import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { cn } from '@/lib/utils'
 
 // Types de création disponibles (sans Voix - intégré directement)
@@ -57,6 +58,9 @@ const creationTypes: Array<{
 type ViewType = 'select' | 'create' | 'gallery'
 
 export function StudioMode() {
+  // Modale d'introduction (première visite)
+  const { isFirstVisit, markAsSeen } = useFirstVisit('studio')
+  
   const {
     currentKit,
     createNewKit,
@@ -470,6 +474,13 @@ export function StudioMode() {
         isOpen={tutorialOpen}
         onClose={() => setTutorialOpen(false)}
         onCopyPrompt={handleCopyPrompt}
+      />
+      
+      {/* Modale d'introduction - première visite */}
+      <ModeIntroModal
+        mode="studio"
+        isOpen={isFirstVisit}
+        onClose={markAsSeen}
       />
     </div>
   )

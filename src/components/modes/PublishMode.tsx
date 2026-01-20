@@ -39,6 +39,7 @@ import {
   type BookFormatConfig,
 } from '@/store/usePublishStore'
 import { exportToPDF } from '@/lib/export/pdf'
+import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
@@ -1720,6 +1721,9 @@ function OrderStep() {
 export function PublishMode() {
   const { currentStep, reset } = usePublishStore()
   
+  // Modale d'introduction (première visite)
+  const { isFirstVisit, markAsSeen } = useFirstVisit('publish')
+  
   // Reset au montage
   useEffect(() => {
     return () => {
@@ -1763,6 +1767,13 @@ export function PublishMode() {
           {currentStep === 'order' && <OrderStep key="order" />}
         </AnimatePresence>
       </div>
+      
+      {/* Modale d'introduction - première visite */}
+      <ModeIntroModal
+        mode="publish"
+        isOpen={isFirstVisit}
+        onClose={markAsSeen}
+      />
     </div>
   )
 }

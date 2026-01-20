@@ -24,10 +24,16 @@ export function ChildRemoteStatus() {
     role,
   } = useRemoteSession()
 
-  // Ne rien afficher si mentor ou pas dans Electron
-  if (role === 'mentor' || !isElectron) return null
-
+  // Ne rien afficher si :
+  // - C'est un mentor
+  // - Pas dans Electron
+  // - Pas de connexion active ou en cours (évite l'affichage permanent de "Connexion...")
   const isBeingWatched = connectedPeer !== null && connectionState === 'connected'
+  
+  // Ne montrer l'indicateur que si une connexion est établie ou si on est surveillé
+  // Sinon ça affiche "Connexion..." en permanence sans raison
+  if (role === 'mentor' || !isElectron) return null
+  if (!isConnected && !isBeingWatched) return null
 
   return (
     <>

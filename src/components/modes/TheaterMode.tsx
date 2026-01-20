@@ -29,9 +29,13 @@ import {
 import { useMontageStore, type MontageProject, type MontageScene } from '@/store/useMontageStore'
 import { useMentorStore } from '@/store/useMentorStore'
 import { useHomeKit } from '@/hooks/useHomeKit'
+import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { cn } from '@/lib/utils'
 
 export function TheaterMode() {
+  // Modale d'introduction (première visite)
+  const { isFirstVisit, markAsSeen } = useFirstVisit('theater')
+  
   // Pour le portal - s'assurer que le DOM est monté
   const [isMounted, setIsMounted] = useState(false)
   
@@ -196,12 +200,12 @@ export function TheaterMode() {
   useEffect(() => {
     if (!isPlaying || !autoAdvance || !selectedProject || !currentScene) return
 
-    const sceneDuration = getSceneDuration(currentScene)
+    const duration = getSceneDuration(currentScene)
 
     // Timer pour le temps de lecture
     playbackTimer.current = setInterval(() => {
       setCurrentPlaybackTime((prev) => {
-        if (prev >= sceneDuration) {
+        if (prev >= duration) {
           // Passer à la scène suivante
           if (currentSceneIndex < selectedProject.scenes.length - 1) {
             setCurrentSceneIndex((i) => i + 1)
@@ -1129,6 +1133,13 @@ export function TheaterMode() {
           Mentor aux commandes
         </div>
       )}
+      
+      {/* Modale d'introduction - première visite */}
+      <ModeIntroModal
+        mode="theater"
+        isOpen={isFirstVisit}
+        onClose={markAsSeen}
+      />
     </div>
   )
 

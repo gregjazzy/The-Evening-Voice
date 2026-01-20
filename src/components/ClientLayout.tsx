@@ -7,6 +7,7 @@ import { AIWelcomeSequence } from './ui/AIWelcomeSequence'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useAppConfig } from '@/hooks/useAppConfig'
+import { useSyncUserPreferences } from '@/hooks/useSyncUserPreferences'
 
 interface ClientLayoutProps {
   children: ReactNode
@@ -22,6 +23,9 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   
   // Charger la configuration (clés API, famille) au démarrage
   useAppConfig()
+  
+  // Synchroniser les préférences utilisateur avec Supabase
+  useSyncUserPreferences()
 
   // Afficher la séquence d'accueil si pas de nom d'IA
   useEffect(() => {
@@ -71,10 +75,12 @@ export function ClientLayout({ children }: ClientLayoutProps) {
         console.log('🎤 Voix sauvegardée non disponible:', aiVoice)
         console.log('🎤 Voix disponibles:', voices.map(v => v.name).join(', '))
         
-        // Reset la voix et afficher la séquence en mode voix seulement
+        // Reset la voix - NE PAS afficher la séquence si elle est déjà ouverte
         setAiVoice('')
-        setVoiceOnlyMode(true)
-        setShowWelcomeSequence(true)
+        if (!showWelcomeSequence) {
+          setVoiceOnlyMode(true)
+          setShowWelcomeSequence(true)
+        }
       } else {
         console.log('🎤 Voix trouvée:', aiVoice)
       }

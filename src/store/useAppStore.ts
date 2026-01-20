@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { supabase } from '@/lib/supabase/client'
 import type { 
   PromptingLevel, 
   PromptingProgress,
@@ -26,8 +27,99 @@ import {
   completeStory as completeStoryFn,
 } from '@/lib/ai/prompting-pedagogy'
 
+// Fonction pour récupérer le profileId depuis le localStorage de l'auth store
+function getProfileIdFromStorage(): string | null {
+  try {
+    const authData = localStorage.getItem('lavoixdusoir-auth')
+    console.log('🔍 Auth data from localStorage:', authData ? 'found' : 'not found')
+    if (authData) {
+      const parsed = JSON.parse(authData)
+      console.log('🔍 Parsed auth:', JSON.stringify(parsed, null, 2))
+      const profileId = parsed?.state?.profile?.id || null
+      console.log('🔍 Profile ID:', profileId)
+      return profileId
+    }
+  } catch (e) {
+    console.error('Erreur lecture profileId:', e)
+  }
+  return null
+}
+
+// Fonction pour sauvegarder une histoire dans Supabase immédiatement
+async function saveStoryToSupabaseNow(story: Story) {
+  const profileId = getProfileIdFromStorage()
+  if (!profileId) {
+    console.warn('⚠️ Pas de profileId, histoire non sauvegardée dans Supabase')
+    return
+  }
+  
+  try {
+    const storyData = {
+      id: story.id,
+      profile_id: profileId,
+      title: story.title,
+      author: 'Auteur',
+      status: story.isComplete ? 'completed' : 'in_progress',
+      total_pages: story.pages.length,
+      current_page: story.currentStep + 1,
+      metadata: {
+        structure: story.structure,
+        chapters: story.chapters || [],
+      },
+      created_at: story.createdAt instanceof Date ? story.createdAt.toISOString() : story.createdAt,
+      updated_at: story.updatedAt instanceof Date ? story.updatedAt.toISOString() : story.updatedAt,
+    }
+    
+    const { error } = await (supabase as any).from('stories').upsert(storyData)
+    
+    if (error) {
+      console.error('❌ Erreur sauvegarde histoire Supabase:', error)
+    } else {
+      console.log('✅ Histoire sauvegardée dans Supabase:', story.title)
+    }
+  } catch (err) {
+    console.error('❌ Exception sauvegarde histoire:', err)
+  }
+}
+
+// Fonction pour supprimer une histoire de Supabase
+async function deleteStoryFromSupabase(storyId: string) {
+  const profileId = getProfileIdFromStorage()
+  if (!profileId) {
+    console.warn('⚠️ Pas de profileId, suppression Supabase ignorée')
+    return
+  }
+  
+  try {
+    // Supprimer d'abord les pages de l'histoire
+    const { error: pagesError } = await (supabase as any)
+      .from('story_pages')
+      .delete()
+      .eq('story_id', storyId)
+    
+    if (pagesError) {
+      console.error('❌ Erreur suppression pages Supabase:', pagesError)
+    }
+    
+    // Puis supprimer l'histoire elle-même
+    const { error: storyError } = await (supabase as any)
+      .from('stories')
+      .delete()
+      .eq('id', storyId)
+      .eq('profile_id', profileId) // Sécurité: ne supprimer que ses propres histoires
+    
+    if (storyError) {
+      console.error('❌ Erreur suppression histoire Supabase:', storyError)
+    } else {
+      console.log('✅ Histoire supprimée de Supabase:', storyId)
+    }
+  } catch (err) {
+    console.error('❌ Exception suppression histoire:', err)
+  }
+}
+
 // Types pour les différents modes
-export type AppMode = 'book' | 'studio' | 'layout' | 'theater' | 'mentor' | 'publish'
+export type AppMode = 'book' | 'studio' | 'layout' | 'theater' | 'mentor' | 'publish' | 'challenge'
 
 export interface DiaryEntry {
   id: string
@@ -341,6 +433,9 @@ export const useAppStore = create<AppState>()(
           currentStory: newStory,
         }))
         
+        // Sauvegarder immédiatement dans Supabase
+        saveStoryToSupabaseNow(newStory)
+        
         return newStory
       },
       updateStoryPage: (storyId, pageIndex, content, image) => {
@@ -371,10 +466,14 @@ export const useAppStore = create<AppState>()(
       },
       setCurrentStory: (story) => set({ currentStory: story }),
       deleteStory: (storyId) => {
+        // Supprimer localement
         set((state) => ({
           stories: state.stories.filter(s => s.id !== storyId),
           currentStory: state.currentStory?.id === storyId ? null : state.currentStory,
         }))
+        
+        // Supprimer aussi dans Supabase
+        deleteStoryFromSupabase(storyId)
       },
       goToNextStep: (storyId) => {
         set((state) => {
@@ -608,8 +707,8 @@ export const useAppStore = create<AppState>()(
       aiName: '',
       setAiName: (name) => set({ aiName: name }),
       
-      // Voix de l'IA (mémorisée, vide = auto-détection de la meilleure voix)
-      aiVoice: '',
+      // Voix de l'IA (mémorisée, Audrey Premium par défaut)
+      aiVoice: 'Audrey',
       setAiVoice: (voiceName) => set({ aiVoice: voiceName }),
       
       // Voix ElevenLabs pour la narration (vide = voix par défaut selon la langue)

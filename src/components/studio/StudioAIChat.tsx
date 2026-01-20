@@ -33,6 +33,7 @@ import {
 } from '@/store/useStudioProgressStore'
 import { useTTS } from '@/hooks/useTTS'
 import { cn } from '@/lib/utils'
+import { LevelUpModal, type LevelUpContent } from '@/components/ui/LevelUpModal'
 
 // Mots-clés pour détection (copie de PromptBuilder pour cohérence)
 const STYLE_KEYWORDS = ['dessin', 'photo', 'magique', 'anime', 'aquarelle', 'pixel', 'réaliste', 'cartoon', '3d']
@@ -102,7 +103,7 @@ const getAIMessage = (
   
   if (!step) {
     return {
-      content: `Salut ! Je suis ${aiName}, ton amie ! 🌟\n\nQu'est-ce que tu veux créer aujourd'hui ? Une ${type === 'image' ? 'image' : 'vidéo'} magique ?`,
+      content: `Bonjour ! Je suis ${aiName}.\n\nQu'est-ce que tu veux créer aujourd'hui ?`,
       type: 'question',
     }
   }
@@ -111,7 +112,7 @@ const getAIMessage = (
     // === ÉTAPE VIDÉO : Sélectionner une image ===
     case 'choose_image':
       return {
-        content: `Pour créer ta vidéo, il faut d'abord choisir une image ! 🖼️\n\nRegarde dans ta galerie et choisis celle que tu veux animer.\n\n💡 Tu n'as pas encore d'images ? Va d'abord en créer dans le mode Images !`,
+        content: `Pour créer ta vidéo, il faut d'abord choisir une image.\n\nRegarde dans ta galerie et choisis celle que tu veux animer.`,
         type: 'question',
       }
 
@@ -119,117 +120,153 @@ const getAIMessage = (
       // Pour les vidéos, c'est l'action qu'on décrit
       if (type === 'video') {
         return {
-          content: `Super image ! 🎬\n\nMaintenant, qu'est-ce qui se passe dans ta vidéo ?\n\nPar exemple : "Le dragon ouvre ses ailes et s'envole" ou "Les étoiles brillent et tournent"`,
+          content: `Bonne image.\n\nMaintenant, qu'est-ce qui se passe ? Décris l'action.\n\nExemple : "Le dragon ouvre ses ailes" ou "Les étoiles tournent lentement"`,
           type: 'question',
         }
       }
       // Pour les images
       if (level === 1) {
         return {
-          content: `Raconte-moi ce que tu imagines ! 💭\n\nPar exemple : "Un dragon qui vole au-dessus d'un château" ou "Une fée dans une forêt magique"`,
+          content: `Raconte-moi ce que tu imagines.\n\nExemple : "Un dragon qui vole au-dessus d'un château" ou "Une fée dans une forêt"`,
           type: 'question',
         }
       }
       return {
-        content: `Qu'est-ce que tu veux créer ? Décris-moi ton idée ! ✨`,
+        content: `Qu'est-ce que tu veux créer ? Décris-moi ton idée.`,
         type: 'question',
       }
 
     case 'choose_style':
       const styleKey = magicKeys.find(k => k.id === 'style')
       return {
-        content: `Super idée ! 🎨\n\nMaintenant, ${styleKey?.question}\n\nChoisis un style qui te plaît !`,
+        content: `Bien.\n\nMaintenant, ${styleKey?.question}\n\nChoisis un style.`,
         type: 'question',
       }
 
     case 'choose_mood':
       const moodKey = magicKeys.find(k => k.id === 'mood')
       return {
-        content: `J'adore ! 💫\n\n${moodKey?.question}\n\nL'ambiance, c'est l'émotion qu'on ressent en voyant ta création !`,
+        content: `${moodKey?.question}\n\nL'ambiance, c'est l'émotion qu'on ressent en regardant.`,
         type: 'question',
       }
 
     case 'choose_light':
       return {
-        content: `Super ambiance ! ☀️\n\nMaintenant, quelle lumière pour ton ${type === 'image' ? 'image' : 'vidéo'} ?\n\nSoleil brillant ? Lune douce ? Bougie chaleureuse ? La lumière change tout !`,
+        content: `Quelle lumière pour ton ${type === 'image' ? 'image' : 'vidéo'} ?\n\nSoleil, lune, bougie... La lumière change tout.`,
         type: 'question',
       }
 
     case 'choose_format':
       return {
-        content: `Génial ! 📐\n\nQuelle forme pour ton image ?\n\n• Portrait (vertical) - parfait pour un personnage\n• Paysage (horizontal) - parfait pour un décor\n• Carré - parfait pour tout !`,
+        content: `Quelle forme ?\n\n• Portrait — vertical, pour un personnage\n• Paysage — horizontal, pour un décor\n• Carré — polyvalent`,
         type: 'question',
       }
 
     case 'choose_movement':
       return {
-        content: `Génial ! 💫\n\nComment ta vidéo va bouger ?\n\n• 🐢 Lent et doux - comme une plume qui tombe\n• 🚀 Rapide et dynamique - comme une fusée !\n• 🌿 Presque fixe - comme une photo qui respire\n\nLe mouvement donne vie à ton image !`,
+        content: `Comment ta vidéo va bouger ?\n\n• Lent et doux\n• Rapide et dynamique\n• Presque fixe\n\nLe mouvement donne vie à l'image.`,
         type: 'question',
       }
 
     case 'choose_camera':
       return {
-        content: `Tu es déjà un(e) pro ! 🎥\n\nComment la caméra bouge ?\n\n• Zoom avant - on se rapproche\n• Zoom arrière - on s'éloigne\n• Travelling - on suit le mouvement\n• Fixe - on ne bouge pas\n\nC'est un truc de grand(e) !`,
+        content: `Comment la caméra bouge ?\n\n• Zoom avant — on se rapproche\n• Zoom arrière — on s'éloigne\n• Travelling — on suit le mouvement\n• Fixe`,
         type: 'question',
       }
 
     case 'choose_extra':
       if (type === 'image') {
         return {
-          content: `On y est presque ! ✨\n\nSi tu veux, tu peux ajouter des détails bonus : des couleurs spéciales, des textures... C'est optionnel !`,
+          content: `Si tu veux, tu peux ajouter des détails : couleurs, textures... C'est optionnel.`,
           type: 'question',
         }
       }
       return {
-        content: `Excellent choix ! 🎬\n\nSi tu veux, tu peux préciser le mouvement : lent et doux, ou rapide avec de l'action ? C'est optionnel !`,
+        content: `Si tu veux, tu peux préciser le type de mouvement. C'est optionnel.`,
         type: 'question',
       }
 
     case 'review_prompt':
+      if (level >= 4) {
+        return {
+          content: `Voici ton prompt.\n\nC'est toi qui l'as écrit. Tu sais parler aux IA.`,
+          type: 'encouragement',
+        }
+      }
+      if (level >= 2) {
+        return {
+          content: `Voici le prompt.\n\nC'est exactement ce qu'on envoie à l'IA pour créer ta ${type === 'image' ? 'image' : 'vidéo'}. Tu vois comment c'est structuré ? Style, description, ambiance — c'est comme ça qu'on parle aux IA.`,
+          type: 'help',
+        }
+      }
       return {
-        content: `Regarde le prompt que j'ai préparé ! 📋\n\nC'est ça qu'on va envoyer pour créer ta ${type === 'image' ? 'image' : 'vidéo'}. Tu peux le modifier si tu veux !`,
+        content: `Voici le prompt que j'ai préparé.\n\nC'est ce qu'on va envoyer pour créer ta ${type === 'image' ? 'image' : 'vidéo'}. Tu peux le modifier si tu veux.`,
         type: 'help',
       }
 
     case 'open_safari':
-      if (level >= 4) {
+      if (level >= 5) {
         return {
-          content: `Tu es prête ! 🚀\n\nClique sur le bouton pour aller sur fal.ai. Tu sais comment faire maintenant !`,
+          content: `Tu connais le chemin. Fal.ai t'attend.`,
           type: 'encouragement',
         }
       }
+      if (level >= 4) {
+        return {
+          content: `Tu es prête. Clique pour aller sur fal.ai — tu sais comment faire.`,
+          type: 'encouragement',
+        }
+      }
+      if (level === 3) {
+        return {
+          content: `On passe aux choses sérieuses.\n\nFal.ai, c'est l'outil que les vrais créateurs utilisent. Et ce que tu as appris avec moi fonctionne exactement pareil là-bas.`,
+          type: 'help',
+        }
+      }
       return {
-        content: `Maintenant on va sur Safari ! 🚀\n\nRegarde bien, je vais te montrer comment faire...`,
+        content: `Maintenant, direction Safari.\n\nRegarde bien, je vais te montrer.`,
         type: 'help',
       }
 
     case 'paste_prompt':
       if (level >= 3) {
         return {
-          content: `Colle ton prompt avec Cmd+V ! 📋\n\nTu te souviens ? C'est comme quand on colle une image !`,
+          content: `Colle ton prompt avec Cmd+V.`,
           type: 'help',
         }
       }
       return {
-        content: `Je colle le prompt pour toi ! 📋\n\nRegarde bien où je le mets pour la prochaine fois...`,
+        content: `Je colle le prompt pour toi. Regarde bien où je le mets.`,
         type: 'help',
       }
 
     case 'generate':
       return {
-        content: `C'est parti ! 🎨\n\nMaintenant on attend que la magie opère... ✨`,
+        content: `C'est parti. On attend le résultat.`,
         type: 'encouragement',
       }
 
     case 'import':
+      if (level >= 5) {
+        return {
+          content: `Très beau travail. Tu as fait ça toute seule. Importe ta création.`,
+          type: 'celebration',
+        }
+      }
+      if (level >= 3) {
+        return {
+          content: `C'est réussi. Tu viens d'utiliser un vrai outil de création — ce que tu as appris ici, tu pourras le refaire ailleurs.\n\nImporte ta création pour la garder.`,
+          type: 'celebration',
+        }
+      }
       return {
-        content: `Waouh, c'est magnifique ! 🎉\n\nMaintenant, importe ta création pour la garder !`,
+        content: `C'est réussi. Importe ta création pour la garder.`,
         type: 'celebration',
       }
 
     default:
       return {
-        content: `Je suis là si tu as besoin d'aide ! 💜`,
+        content: `Je suis là si tu as besoin.`,
         type: 'help',
       }
   }
@@ -327,6 +364,9 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const locale = useLocale() // Récupérer la locale actuelle
   const tts = useTTS(locale, aiVoice || undefined)
   
+  // Tracker le niveau précédent pour détecter les transitions
+  const previousLevelRef = useRef<number>(level)
+  
   // Détecter ce qui manque pour guider l'enfant
   // Synchronisé avec PromptBuilder.tsx
   const showStyleButtons = level < 4    // Boutons visibles niveaux 1-3
@@ -341,6 +381,12 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const [isOffline, setIsOffline] = useState(false)
   const [showQuickHelp, setShowQuickHelp] = useState(false)
   const [showVoiceSelector, setShowVoiceSelector] = useState(false)
+  
+  // Modale de progression de niveau
+  const [levelUpModal, setLevelUpModal] = useState<{ isOpen: boolean; content: LevelUpContent | null }>({
+    isOpen: false,
+    content: null,
+  })
   
   // Tracker les blocages répétés (mêmes éléments manquants plusieurs fois)
   const [consecutiveStruggles, setConsecutiveStruggles] = useState(0)
@@ -534,6 +580,68 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       }
     }
   }, [needsHelp])
+  
+  // ============================================
+  // MODALE DE TRANSITION DE NIVEAU (conscience de l'apprentissage)
+  // ============================================
+  useEffect(() => {
+    // Détecter si le niveau a changé
+    if (level !== previousLevelRef.current) {
+      const oldLevel = previousLevelRef.current
+      previousLevelRef.current = level
+      
+      // Ne pas afficher de modale si c'est le premier rendu
+      if (oldLevel === level) return
+      
+      // Contenu de la modale selon le niveau
+      let content: LevelUpContent | null = null
+      const creationType = type === 'image' ? 'images' : 'vidéos'
+      
+      if (level === 2) {
+        content = {
+          level: 2,
+          title: 'Nouveau palier',
+          subtitle: 'Tu progresses',
+          message: `Tu vas maintenant pouvoir voir le prompt — c'est le texte qu'on envoie à l'IA pour créer tes ${creationType}.`,
+          highlight: 'Observer comment c\'est écrit t\'aidera à comprendre comment parler aux IA.',
+        }
+      } else if (level === 3) {
+        content = {
+          level: 3,
+          title: 'Prête pour le monde réel',
+          subtitle: 'Une étape importante',
+          message: 'Tu vas maintenant utiliser fal.ai — le même outil que les créateurs professionnels.',
+          highlight: 'Ce que tu as appris ici fonctionne exactement de la même façon là-bas. Tu es prête.',
+        }
+      } else if (level === 4) {
+        content = {
+          level: 4,
+          title: 'Autonomie',
+          subtitle: 'Tu sais décrire',
+          message: 'Tu n\'as plus besoin des boutons pour choisir le style ou l\'ambiance. Tu sais les décrire toi-même dans ton texte.',
+          highlight: 'C\'est exactement comme ça qu\'on communique avec toutes les IA.',
+        }
+      } else if (level === 5) {
+        content = {
+          level: 5,
+          title: 'Experte',
+          subtitle: 'Tu maîtrises l\'art du prompting',
+          message: 'Tu sais maintenant parler à n\'importe quelle IA — ChatGPT, Midjourney, DALL-E, et bien d\'autres.',
+          highlight: 'Les compétences que tu as développées ici te serviront partout. Tu peux même aider les autres à apprendre.',
+        }
+      }
+      
+      if (content) {
+        setLevelUpModal({ isOpen: true, content })
+        
+        // Lire le message à voix haute
+        if (voiceEnabled && tts.isAvailable) {
+          const voiceText = `${content.title}. ${content.message} ${content.highlight || ''}`
+          tts.speak(voiceText)
+        }
+      }
+    }
+  }, [level, type, voiceEnabled, tts])
   
   // Écouter les réactions de l'IA (validation des champs)
   const { aiReaction, clearAIReaction } = useStudioProgressStore()
@@ -1085,6 +1193,13 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
           </motion.button>
         </div>
       </div>
+      
+      {/* Modale de progression de niveau */}
+      <LevelUpModal
+        isOpen={levelUpModal.isOpen}
+        onClose={() => setLevelUpModal({ isOpen: false, content: null })}
+        content={levelUpModal.content}
+      />
     </motion.div>
   )
 }

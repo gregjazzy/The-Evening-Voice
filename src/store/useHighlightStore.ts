@@ -14,6 +14,7 @@ export type HighlightableElement =
   // Navigation
   | 'nav-ecriture'
   | 'nav-studio'
+  | 'nav-challenge'
   | 'nav-montage'
   | 'nav-theatre'
   | 'nav-publier'
@@ -121,6 +122,7 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
   // Navigation
   'nav-ecriture': { label: 'Écriture', description: 'Le mode pour écrire ton histoire', mode: 'navigation' },
   'nav-studio': { label: 'Studio', description: 'Le mode pour créer des images et vidéos avec l\'IA', mode: 'navigation' },
+  'nav-challenge': { label: 'Défis', description: 'Le mode pour s\'entraîner au prompting avec des défis', mode: 'navigation' },
   'nav-montage': { label: 'Montage', description: 'Le mode pour assembler ton histoire avec sons et musique', mode: 'navigation' },
   'nav-theatre': { label: 'Théâtre', description: 'Le mode pour regarder ton histoire terminée', mode: 'navigation' },
   'nav-publier': { label: 'Publier', description: 'Le mode pour imprimer ton livre', mode: 'navigation' },

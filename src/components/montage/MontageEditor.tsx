@@ -1002,11 +1002,28 @@ function useSpeechRecognition(locale: string = 'fr'): UseSpeechRecognitionReturn
     }
   }, [locale])
 
-  const startListening = () => {
+  const startListening = async () => {
     if (recognitionRef.current && !isListening) {
+      // Dans Electron, demander la permission du microphone d'abord
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.requestMicrophoneAccess) {
+        try {
+          const granted = await (window as any).electronAPI.requestMicrophoneAccess()
+          if (!granted) {
+            console.error('Permission microphone refusée')
+            return
+          }
+        } catch (err) {
+          console.error('Erreur permission microphone:', err)
+        }
+      }
+      
       setTranscript('')
-      recognitionRef.current.start()
-      setIsListening(true)
+      try {
+        recognitionRef.current.start()
+        setIsListening(true)
+      } catch (err) {
+        console.error('Erreur démarrage reconnaissance vocale:', err)
+      }
     }
   }
 

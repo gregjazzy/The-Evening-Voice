@@ -61,6 +61,7 @@ import { cn } from '@/lib/utils'
 import { MediaPicker } from '@/components/editor/MediaPicker'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { VoiceSelector } from '@/components/ui/VoiceSelector'
+import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 
 // ============================================================================
 // TYPES
@@ -806,14 +807,20 @@ function useSpeechRecognition(locale: string = 'fr'): UseSpeechRecognitionReturn
       return
     }
     
+    // Check if running in Electron
+    const isElectron = !!(window as any).electronAPI
+    console.log('🎤 Environnement:', isElectron ? 'Electron' : 'Navigateur')
+    
     // Check if browser supports speech recognition
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     
     if (!SpeechRecognition) {
-      console.log('Speech Recognition not supported in this browser')
+      console.log('❌ Speech Recognition non supporté')
       setIsSupported(false)
       return
     }
+    
+    console.log('✅ Speech Recognition disponible')
     
     setIsSupported(true)
     
@@ -863,11 +870,35 @@ function useSpeechRecognition(locale: string = 'fr'): UseSpeechRecognitionReturn
     }
   }, [locale])
 
-  const startListening = () => {
+  const startListening = async () => {
+    console.log('🎤 startListening appelé', { hasRecognition: !!recognitionRef.current, isListening })
+    
     if (recognitionRef.current && !isListening) {
+      // Dans Electron, demander la permission du microphone d'abord
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.requestMicrophoneAccess) {
+        console.log('🎤 Demande permission microphone Electron...')
+        try {
+          const granted = await (window as any).electronAPI.requestMicrophoneAccess()
+          console.log('🎤 Permission microphone:', granted ? 'accordée' : 'refusée')
+          if (!granted) {
+            return
+          }
+        } catch (err) {
+          console.error('❌ Erreur permission microphone:', err)
+        }
+      }
+      
       setTranscript('')
-      recognitionRef.current.start()
-      setIsListening(true)
+      try {
+        console.log('🎤 Démarrage reconnaissance vocale...')
+        recognitionRef.current.start()
+        setIsListening(true)
+        console.log('✅ Reconnaissance vocale démarrée')
+      } catch (err) {
+        console.error('❌ Erreur démarrage reconnaissance vocale:', err)
+      }
+    } else {
+      console.log('⚠️ startListening ignoré:', { hasRecognition: !!recognitionRef.current, isListening })
     }
   }
 
@@ -5759,52 +5790,158 @@ interface StructureSelectorProps {
   locale?: 'fr' | 'en' | 'ru'
 }
 
+// Configuration des structures - avec images générées par IA
+const STRUCTURE_CONFIG: Record<StoryStructure, {
+  icon: string
+  image: string
+}> = {
+  tale: { 
+    icon: '🏰', 
+    image: '/images/structures/structure-tale.jpg',
+  },
+  adventure: { 
+    icon: '🗺️', 
+    image: '/images/structures/structure-adventure.jpg',
+  },
+  problem: { 
+    icon: '🧩', 
+    image: '/images/structures/structure-problem.jpg',
+  },
+  free: { 
+    icon: '✨', 
+    image: '/images/structures/structure-free.jpg',
+  },
+}
+
 function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) {
-  const structures: StoryStructure[] = ['tale', 'adventure', 'problem', 'journal', 'loop', 'free']
-  
-  const icons: Record<StoryStructure, string> = {
-    tale: '🏰',
-    adventure: '🗺️',
-    problem: '🧩',
-    journal: '📔',
-    loop: '🔄',
-    free: '✨',
-  }
-  
-  const titles = {
-    fr: 'Choisis un type d\'histoire',
-    en: 'Choose a story type',
-    ru: 'Выбери тип истории',
-  }
+  const structures: StoryStructure[] = ['tale', 'adventure', 'problem', 'free']
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {structures.map((structureId) => {
-        const template = STORY_TEMPLATES[structureId]
-        
-        return (
-          <motion.button
-            key={structureId}
-            onClick={() => onSelect(structureId)}
-            className={cn(
-              'p-4 rounded-xl text-left transition-all',
-              'bg-midnight-800/30 hover:bg-midnight-800/50',
-              'border border-midnight-700/30 hover:border-aurora-500/30',
-              'group'
-            )}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span className="text-2xl mb-2 block">{icons[structureId]}</span>
-            <h3 className="font-medium text-white text-sm group-hover:text-aurora-300 transition-colors">
-              {template.name[locale]}
-            </h3>
-            <p className="text-xs text-midnight-500 mt-1">
-              {template.description[locale]}
-            </p>
-          </motion.button>
-        )
-      })}
+    <div className="relative max-w-6xl mx-auto">
+      {/* Titre */}
+      <motion.div 
+        className="text-center mb-10"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <h2 className="font-display text-3xl md:text-4xl text-white mb-3">
+          {locale === 'fr' ? 'Quel type d\'histoire ?' : locale === 'en' ? 'What kind of story?' : 'Какой тип истории?'}
+        </h2>
+        <p className="text-white/50 text-base">
+          {locale === 'fr' ? 'Choisis une structure pour commencer' : locale === 'en' ? 'Choose a structure to start' : 'Выбери структуру для начала'}
+        </p>
+      </motion.div>
+
+      {/* Grille 2x2 équilibrée */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 md:gap-12 max-w-5xl mx-auto">
+        {structures.map((structureId, index) => {
+          const template = STORY_TEMPLATES[structureId]
+          const config = STRUCTURE_CONFIG[structureId]
+          
+          return (
+            <motion.button
+              key={structureId}
+              onClick={() => onSelect(structureId)}
+              className="group relative text-left focus:outline-none focus:ring-2 focus:ring-aurora-500/50 rounded-3xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.08 }}
+              whileHover={{ y: -8, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {/* Carte avec image de fond */}
+              <div className="relative overflow-hidden rounded-3xl aspect-[16/11] shadow-[0_8px_32px_0_rgba(0,0,0,0.4)] group-hover:shadow-[0_20px_60px_0_rgba(0,0,0,0.6)] transition-all duration-500">
+                {/* Image de fond générée par IA - lumineuse et colorée */}
+                <div 
+                  className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-105"
+                  style={{
+                    backgroundImage: `url(${config.image})`,
+                    filter: 'brightness(1.08) saturate(1.1) contrast(1.03)',
+                  }}
+                />
+                
+                {/* Overlay gradient très subtil pour lisibilité du texte - SANS flou */}
+                <div 
+                  className="absolute inset-0 transition-all duration-500"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.4) 100%)',
+                  }}
+                />
+                
+                {/* Effet de verre premium - reflet lumineux en haut */}
+                <div 
+                  className="absolute inset-x-0 top-0 h-1/2 opacity-30 group-hover:opacity-40 transition-opacity duration-500"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 30%, transparent 100%)',
+                  }}
+                />
+                
+                {/* Bordure élégante avec glow */}
+                <div 
+                  className="absolute inset-0 rounded-3xl border border-white/30 group-hover:border-white/50 transition-all duration-500"
+                  style={{
+                    boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.3), 0 0 20px rgba(255,255,255,0.1)',
+                  }}
+                />
+                
+                {/* Effet de brillance diagonal au survol */}
+                <div 
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"
+                  style={{
+                    background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.25) 50%, transparent 70%)',
+                    transform: 'translateX(-100%)',
+                    animation: 'shimmer 3s infinite',
+                  }}
+                />
+                
+                {/* Vignette subtile pour la profondeur */}
+                <div 
+                  className="absolute inset-0 rounded-3xl"
+                  style={{
+                    boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3)',
+                  }}
+                />
+                
+                {/* Contenu */}
+                <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8 z-10">
+                  {/* Badge icône avec effet glass */}
+                  <div className="absolute top-5 left-5 w-14 h-14 rounded-2xl bg-black/60 backdrop-blur-xl flex items-center justify-center border border-white/30 shadow-2xl group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-3xl drop-shadow-lg">{config.icon}</span>
+                  </div>
+                  
+                  {/* Texte avec meilleur contraste */}
+                  <div>
+                    <h3 className="font-display text-2xl md:text-3xl text-white mb-2 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] group-hover:scale-105 transition-transform duration-300 origin-left">
+                      {template.name[locale]}
+                    </h3>
+                    <p className="text-base text-white/95 leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+                      {template.description[locale]}
+                    </p>
+                  </div>
+                  
+                  {/* Bouton Commencer premium */}
+                  <div className="mt-5 flex items-center gap-2 text-base font-semibold text-white opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+                    <span className="px-6 py-3 rounded-full bg-white/30 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-white/40 hover:scale-105 transition-all duration-300">
+                      Commencer →
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </motion.button>
+          )
+        })}
+      </div>
+      
+      {/* Note */}
+      <motion.p 
+        className="text-center text-white/40 text-sm mt-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+      >
+        {locale === 'fr' ? 'Tu pourras modifier la structure plus tard' : locale === 'en' ? 'You can change the structure later' : 'Ты сможешь изменить структуру позже'}
+      </motion.p>
     </div>
   )
 }
@@ -5831,6 +5968,9 @@ export function BookMode() {
   
   const [storyTitle, setStoryTitle] = useState('')
   const [showAIPanel, setShowAIPanel] = useState(true) // Panneau IA ouvert par défaut
+  
+  // Modale d'introduction (première visite)
+  const { isFirstVisit, markAsSeen } = useFirstVisit('writing')
   const [showOverview, setShowOverview] = useState(false)
   const [showStructureSelector, setShowStructureSelector] = useState(false)
   const [showStructureView, setShowStructureView] = useState(false)
@@ -6645,21 +6785,42 @@ export function BookMode() {
   // Vue : sélection structure
   if (showStructureSelector) {
     return (
-          <div className="h-full flex flex-col">
-        <motion.header className="mb-6">
+      <div className="h-full flex flex-col relative">
+        {/* Header épuré */}
+        <motion.header 
+          className="mb-6 md:mb-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
           <button
             onClick={() => setShowStructureSelector(false)}
-            className="text-midnight-400 hover:text-white transition-colors flex items-center gap-2 mb-4"
+            className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors mb-4"
           >
             <ChevronLeft className="w-4 h-4" />
-            Retour
+            <span className="text-sm">Retour</span>
           </button>
-          <h1 className="font-display text-2xl text-white">{storyTitle}</h1>
+          
+          <h1 className="font-display text-2xl md:text-3xl text-white/90">
+            {storyTitle}
+          </h1>
         </motion.header>
         
-        <div className="flex-1 glass rounded-3xl p-8">
+        {/* Contenu principal - glass container */}
+        <motion.div 
+          className="flex-1 rounded-2xl p-6 md:p-10 overflow-auto"
+          style={{
+            background: 'rgba(255, 255, 255, 0.02)',
+            backdropFilter: 'blur(40px)',
+            WebkitBackdropFilter: 'blur(40px)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+          }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
           <StructureSelector onSelect={handleSelectStructure} locale={locale} />
-          </div>
+        </motion.div>
       </div>
     )
   }
@@ -7281,6 +7442,13 @@ export function BookMode() {
           />
         )}
       </AnimatePresence>
+      
+      {/* Modale d'introduction - première visite */}
+      <ModeIntroModal
+        mode="writing"
+        isOpen={isFirstVisit}
+        onClose={markAsSeen}
+      />
     </div>
   )
 }

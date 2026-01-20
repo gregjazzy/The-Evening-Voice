@@ -26,7 +26,6 @@ export default function RegisterPage() {
   
   const [step, setStep] = useState(1) // 1: rôle, 2: infos, 3: avatar
   const [role, setRole] = useState<UserRole | null>(null)
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -50,7 +49,7 @@ export default function RegisterPage() {
     }
     
     if (step === 2) {
-      if (!name || !email || !password) {
+      if (!email || !password) {
         setError(t('errors.fillAllFields'))
         return
       }
@@ -75,12 +74,16 @@ export default function RegisterPage() {
   const handleSubmit = async () => {
     setError(null)
 
-    if (!role || !name || !email || !password) {
+    if (!role || !email || !password) {
       setError(t('errors.fillAllFields'))
       return
     }
 
-    const { error: signUpError } = await signUp(email, password, name, role)
+    // Le prénom sera demandé dans la séquence de bienvenue
+    // On utilise un nom temporaire basé sur l'email
+    const tempName = email.split('@')[0] || 'Ami'
+    
+    const { error: signUpError } = await signUp(email, password, tempName, role)
     
     if (signUpError) {
       setError(signUpError)
@@ -253,20 +256,6 @@ export default function RegisterPage() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              {/* Prénom */}
-              <div>
-                <label className="block text-aurora-300 text-sm font-semibold mb-2">
-                  {t('yourName')}
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Étoile"
-                />
-              </div>
-
               {/* Email */}
               <div>
                 <label className="block text-aurora-300 text-sm font-semibold mb-2">
@@ -363,7 +352,7 @@ export default function RegisterPage() {
               {/* Résumé */}
               <div className="glass-card p-4 rounded-xl">
                 <p className="text-aurora-200 text-sm">
-                  <span className="text-white font-semibold">{name}</span> {t('willBeCreatedWith')}{' '}
+                  {t('accountWillBeCreated')}{' '}
                   <span className="text-aurora-400">{roles.find(r => r.id === role)?.label}</span>
                 </p>
               </div>

@@ -1,6 +1,6 @@
 # 🏗️ Architecture Technique - La Voix du Soir
 
-> Documentation technique complète de l'application
+> Documentation technique complète de l'application (v5.4.0)
 
 ---
 
@@ -12,8 +12,8 @@
 │              Next.js 14 (Web/iPad) + Electron (Desktop)                 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │  Journal │  │ Écriture │  │  Studio  │  │ Montage  │  │  Mentor  │  │
-│  │  📔      │  │  ✍️      │  │  🎨      │  │  📐      │  │  👨‍🏫     │  │
+│  │ Écriture │  │  Studio  │  │  Défis   │  │ Montage  │  │ Théâtre  │  │
+│  │  ✍️      │  │  🎨      │  │  🏆      │  │  📐      │  │  🎭      │  │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
 │       │             │             │             │              │        │
 │       └─────────────┴──────┬──────┴─────────────┴──────────────┘        │
@@ -28,20 +28,28 @@
         │                    │                    │                  │
         ▼                    ▼                    ▼                  ▼
 ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│   Supabase    │   │    fal.ai     │   │  Web Speech   │   │   Electron    │
-│   (Database)  │   │  (AI Unified) │   │   API         │   │   (Desktop)   │
+│   Supabase    │   │    fal.ai     │   │    Gemini     │   │   Electron    │
+│   (Database)  │   │  (AI Unified) │   │   (Chat+Vision)│   │   (Desktop)   │
 ├───────────────┤   ├───────────────┤   ├───────────────┤   ├───────────────┤
-│ - Auth        │   │ - Flux 1 Pro  │   │ - TTS         │   │ - TTS macOS   │
-│ - Profiles    │   │ - Kling 2.1   │   │ - STT         │   │ - Screen      │
-│ - Stories     │   │ - ElevenLabs  │   │ (dictée)      │   │ - Control     │
-│ - Realtime    │   │               │   │               │   │               │
+│ - Auth        │   │ - Nano Banana │   │ - Chat IA     │   │ - TTS macOS   │
+│ - Profiles    │   │ - Kling 2.1   │   │ - Analyse img │   │ - Screen      │
+│ - Stories     │   │ - ElevenLabs  │   │ - Modération  │   │ - Control     │
+│ - Storage     │   │ - Real-ESRGAN │   │               │   │               │
 └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘
-                            │
-                    ┌───────▼───────┐
-                    │  + Gemini     │  ← Chat IA
-                    │  + AssemblyAI │  ← Transcription
-                    └───────────────┘
 ```
+
+---
+
+## Les 6 Modes
+
+| Mode | Composant | Description |
+|------|-----------|-------------|
+| ✍️ Écriture | `BookMode.tsx` | Création de livres (texte, images, décos) |
+| 🎨 Studio | `StudioMode.tsx` | Apprentissage progressif du prompting |
+| 🏆 Défis | `ChallengeMode.tsx` | Exercices pratiques de prompting |
+| 🎬 Montage | `LayoutMode.tsx` | Timeline avec audio et effets |
+| 🎭 Théâtre | `TheaterMode.tsx` | Lecteur immersif |
+| 📖 Publier | `PublishMode.tsx` | Export PDF et impression Gelato |
 
 ---
 
@@ -71,7 +79,7 @@
 
 | Service | Usage | Raison |
 |---------|-------|--------|
-| **Gemini** | Chat IA (assistance) | Meilleur pour dialogue |
+| **Gemini** | Chat IA + Vision (analyse images) | Meilleur pour dialogue et analyse |
 | **AssemblyAI** | Transcription voix | Timestamps plus précis que Whisper |
 
 ### Fichier unifié : `src/lib/ai/fal.ts`
@@ -85,6 +93,78 @@ export async function generateFalVideo(imageUrl: string, prompt: string, apiKey?
 
 // Voix ElevenLabs avec timestamps
 export async function generateFalElevenLabsVoice(text: string, voiceId: string, apiKey?: string)
+
+// Upscale pour impression
+export async function upscaleImageForPrint(options: { imageUrl: string, scale?: number })
+```
+
+---
+
+## Mode Défis (Challenge Mode)
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   CHALLENGE MODE                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────┐  ┌──────────────────┐                 │
+│  │ Challenge Cards  │  │  User Workspace  │                 │
+│  │ (12 défis)       │  │  (génération)    │                 │
+│  └────────┬─────────┘  └────────┬─────────┘                 │
+│           │                     │                            │
+│           ▼                     ▼                            │
+│  ┌──────────────────────────────────────────┐               │
+│  │          Gemini Vision Analysis          │               │
+│  │  /api/ai/challenge-analyze               │               │
+│  │  - Compare images (target vs generated)  │               │
+│  │  - Score 0-100                           │               │
+│  │  - Strengths / Weaknesses / Advice       │               │
+│  └──────────────────────────────────────────┘               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Types de Défis
+
+| Type | Description | Objectif pédagogique |
+|------|-------------|---------------------|
+| **Reproduire** | Deviner le prompt d'une image | Comprendre la structure des prompts |
+| **Variations** | Modifier une image selon consigne | Maîtriser les paramètres (style, ambiance...) |
+
+### Stockage des Images
+
+Les images de défis sont pré-générées et stockées dans Supabase :
+
+```
+images/challenges/
+├── reproduce-rainbow/variant-1.png
+├── reproduce-castle/variant-1.png
+├── variation-dragon/variant-1.png
+└── ...
+```
+
+### API Challenge Analyze
+
+```typescript
+// POST /api/ai/challenge-analyze
+{
+  targetImageUrl: string,      // Image originale
+  generatedImageUrl: string,   // Image de l'enfant
+  targetPrompt: string,        // Prompt original (anglais)
+  userPrompt: string,          // Prompt de l'enfant
+  originalPromptFr: string,    // Indice donné à l'enfant
+  difficulty: string           // easy/medium/hard
+}
+
+// Réponse
+{
+  score: number,               // 0-100
+  strengths: string[],         // Points forts
+  weaknesses: string[],        // Axes d'amélioration
+  advice: string               // Conseil personnalisé
+}
 ```
 
 ---
@@ -153,53 +233,63 @@ src/components/studio/
 5. Boutons : Garder! / Supprimer / Refaire
                               ↓
 6. "Garder!" → Upload Supabase (images) ou R2 (vidéos)
+   ⚠️ Message d'erreur visible si échec (v5.4.0)
 ```
 
-### Flux de création (niveaux 3-5)
+---
+
+## Modales d'Introduction
+
+Chaque mode affiche une modale à la première visite pour expliquer son objectif.
+
+### Architecture
 
 ```
-1. Enfant construit son prompt avec aide IA
-                              ↓
-2. Clic "Copier + Ouvrir fal.ai"
-   → Prompt copié dans presse-papier
-   → Safari s'ouvre sur fal.ai playground
-                              ↓
-3. Tutoriel visuel guide l'enfant :
-   - Coller le prompt (Cmd+V)
-   - Cliquer sur "Run"
-   - Attendre la génération
-   - Télécharger le résultat
-                              ↓
-4. Glisser-déposer l'image/vidéo dans l'app
+┌─────────────────────────────────────────────────────────────┐
+│                SYSTÈME DE MODALES INTRO                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  useHasVisitedMode(mode)                                    │
+│  └── localStorage: mode_intro_seen_{mode}                   │
+│                                                              │
+│  ModeIntroModal                                             │
+│  └── MODE_CONTENT[mode]                                     │
+│      ├── title, subtitle, description                       │
+│      ├── objectifs[] (3 par mode)                           │
+│      ├── icon (Lucide)                                      │
+│      └── gradient (Tailwind)                                │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### URLs fal.ai playground
+### Fichiers
 
-| Type | URL |
-|------|-----|
-| **Images** | https://fal.ai/models/fal-ai/flux-pro/v1.1/playground |
-| **Vidéos** | https://fal.ai/models/fal-ai/kling-video/v2.5-turbo/pro/text-to-video/playground |
+```
+src/hooks/useHasVisitedMode.ts        # Hook localStorage
+src/components/ui/ModeIntroModal.tsx  # Composant modale
+```
 
-### Liaison avec l'histoire
-
-Tous les assets sont liés à `currentStory.id` :
-- **Local** : `useStudioStore.importedAssets[].projectId`
-- **Supabase** : `assets.story_id`
+### Usage dans un mode
 
 ```typescript
-// Génération
-addImportedAsset({ ..., projectId: currentStory?.id })
+import { useHasVisitedMode } from '@/hooks/useHasVisitedMode'
+import { ModeIntroModal } from '@/components/ui/ModeIntroModal'
 
-// Upload "Garder!"
-uploadFromUrl(url, { storyId: currentStory?.id })
+function MyMode() {
+  const hasVisited = useHasVisitedMode('mymode')
+  
+  return (
+    <>
+      {/* Contenu du mode */}
+      <ModeIntroModal 
+        isOpen={!hasVisited} 
+        onClose={() => {}} 
+        mode="mymode" 
+      />
+    </>
+  )
+}
 ```
-
-### Qualité d'impression
-
-Pour les images destinées à l'impression (format livre 3:4) :
-- Génération native ~2K
-- Upscale via Real-ESRGAN → 300 DPI
-- Coût : ~$0.16 par image
 
 ---
 
@@ -220,47 +310,6 @@ Pour les images destinées à l'impression (format livre 3:4) :
    ├── Aller dans Studio (créer des images)
    ├── Aller dans Montage (créer une vidéo)
    └── Continuer à écrire
-                     ↓
-6. Histoire marquée isComplete: true
-```
-
-### Architecture du composant
-
-```
-BookMode.tsx (~7000 lignes)
-├── useSpeechRecognition()      # Hook custom pour la dictée vocale
-├── useTTS()                    # Hook pour synthèse vocale IA
-│
-├── CONFIGURATION
-│   ├── FONTS (6 polices)
-│   ├── FONT_SIZES (S/M/L)
-│   ├── COLORS (6 couleurs)
-│   ├── LINE_SPACINGS (tight/normal/relaxed)
-│   ├── PREMIUM_DECORATIONS (60+ décorations SVG)
-│   └── DECORATION_COLORS (12 couleurs)
-│
-├── COMPOSANTS
-│   ├── PageTab                    # Onglet de page
-│   ├── Overview                   # Vue miniatures
-│   ├── FormatBar                  # Barre de formatage complète
-│   │   └── Highlightable          # Wrapper pour guidage IA
-│   ├── WritingArea                # Zone d'écriture
-│   │   ├── BackgroundMedia        # Image/vidéo de fond
-│   │   ├── DraggableImage         # Images flottantes
-│   │   ├── DraggableDecoration    # Décorations premium
-│   │   └── Highlightable          # Boutons avec guidage IA
-│   ├── DecorationPicker           # Sélecteur de décorations
-│   └── AISidePanel                # Panneau IA latéral
-│       ├── Toggle voix 🔊
-│       ├── Chat historique
-│       ├── Bouton "Lis ma page"
-│       └── Input + Micro (Speech Recognition)
-│
-└── ÉTAT
-    ├── pages: StoryPageLocal[]
-    ├── currentPageIndex: number
-    ├── autoSpeak: boolean          # IA parle automatiquement
-    └── aiVoiceEnabled: boolean     # Saisie vocale activée
 ```
 
 ### Système de Guidage IA (Highlightable)
@@ -275,12 +324,6 @@ BookMode.tsx (~7000 lignes)
 "Clique sur le bouton qui clignote ! [HIGHLIGHT:book-add-image]"
 ```
 
-**Implémentation :**
-- `useHighlightStore.ts` : Gestion des highlights actifs
-- `Highlightable.tsx` : Animation glow/pulse via Framer Motion
-- Durée : 6 secondes auto-stop
-- Portal React pour éviter `overflow: hidden`
-
 ---
 
 ## Mode Montage
@@ -291,189 +334,40 @@ BookMode.tsx (~7000 lignes)
 MontageEditor.tsx
 ├── VUE CARTES (SceneCard[])
 │   ├── MontageAIChat              # Chat IA intégré
-│   │   ├── useTTS() + autoSpeak
-│   │   ├── useSpeechRecognition()
-│   │   └── highlightMultiple()
 │   ├── SceneCard                  # Carte par scène
-│   │   ├── Enregistrer voix
-│   │   ├── IA raconte (ElevenLabs)
-│   │   └── Status synchronisation
 │   └── NarrationVoiceSelectorModal
 │
 └── VUE TIMELINE (TimelineRubans)
-    ├── TimelineAIHelp             # Aide IA flottante (Portal)
-    │   ├── Drag & drop position
-    │   └── z-index: 10001 (fullscreen)
-    ├── Rubans
-    │   ├── Structure (phrases)
-    │   ├── Médias (images/vidéos)
-    │   ├── Musique
-    │   ├── Sons
-    │   ├── Lumières (HomeKit)
-    │   ├── Décorations
-    │   ├── Animations
-    │   └── Effets
-    └── PhrasePropertiesPanel
-```
-
-### Flux Narration IA
-
-```
-1. Clic "IA raconte" → NarrationVoiceSelectorModal
-                              ↓
-2. Sélection voix ElevenLabs (21 voix : FR/EN/RU)
-                              ↓
-3. POST /api/ai/voice/narration
-   └── fal.ai → ElevenLabs TTS avec timestamps
-                              ↓
-4. Réponse : { audioUrl, wordTimings[] }
-                              ↓
-5. Création PhraseTiming[] depuis wordTimings
-                              ↓
-6. Affichage sur Timeline (comme voix enregistrée)
-```
-
-### Flux Voix Enregistrée
-
-```
-1. Enregistrement micro (MediaRecorder)
-                              ↓
-2. POST /api/ai/transcribe (multipart/form-data)
-   └── AssemblyAI → Transcription + timestamps
-                              ↓
-3. Réponse : { text, words[], duration }
-                              ↓
-4. Création PhraseTiming[] depuis words
-                              ↓
-5. Affichage sur Timeline (draggable)
+    ├── TimelineAIHelp             # Aide IA flottante
+    └── Rubans
+        ├── Structure (phrases)
+        ├── Médias (images/vidéos)
+        ├── Musique
+        ├── Sons
+        ├── Lumières (HomeKit)
+        ├── Décorations
+        ├── Animations
+        └── Effets
 ```
 
 ---
 
-## Text-to-Speech (TTS)
+## Mode Théâtre
 
-### Architecture multi-plateforme
+### Synchronisation Temporelle
 
-```
-useTTS(locale) Hook
-       │
-       ├─── Electron ? ──────────► IPC → main.js → macOS `say`
-       │
-       └─── Web/iPad ? ─────────► Web Speech API (speechSynthesis)
-```
-
-### Priorité des voix
+Le mode Théâtre filtre tous les éléments selon leur `timeRange` :
 
 ```typescript
-// Web (Chrome/Safari)
-const RECOMMENDED_VOICES_WEB = [
-  // Français
-  'Google français',
-  'Microsoft Paul - French',
-  // Anglais
-  'Google US English',
-  'Google UK English Female',
-  // Russe
-  'Google русский',
-]
+// Filtrage des médias visibles
+const visibleMedia = scene.mediaTracks.filter(media => {
+  const start = media.timeRange?.start ?? 0
+  const end = media.timeRange?.end ?? sceneDuration
+  return currentTime >= start && currentTime < end
+})
 
-// Electron (macOS)
-const RECOMMENDED_VOICES_ELECTRON = [
-  // Français
-  'Audrey (Enhanced)',
-  'Audrey (Premium)',
-  'Thomas',
-  // Anglais
-  'Samantha',
-  'Alex',
-  // Russe
-  'Milena',
-]
+// Idem pour décorations, animations, etc.
 ```
-
-### Vitesse adaptée aux enfants
-
-```typescript
-const VOICE_SETTINGS = {
-  'fr': { rate: 0.92, pitch: 1.05 },  // Plus lent pour enfants
-  'en': { rate: 0.92, pitch: 1.0 },
-  'ru': { rate: 0.90, pitch: 1.0 },
-}
-```
-
----
-
-## Séquence d'Accueil
-
-### Flux
-
-```
-┌─────────────────────────────────────────┐
-│ 1. Prénom de l'enfant                   │
-│    "Comment tu t'appelles ?"            │
-│    [_____________]                       │
-└─────────────────────────────────────────┘
-              ↓
-┌─────────────────────────────────────────┐
-│ 2. Nom de l'IA                          │
-│    "Je suis ton amie magique..."        │
-│    [Étoile] [Lune] [Fée] [___]          │
-└─────────────────────────────────────────┘
-              ↓
-┌─────────────────────────────────────────┐
-│ 3. Voix de l'IA                         │
-│    "Quelle voix tu préfères ?"          │
-│    [🔊 Voix 1] [🔊 Voix 2] [🔊 Voix 3]  │
-│    (voix premium du navigateur)         │
-└─────────────────────────────────────────┘
-```
-
-### Stockage
-
-```typescript
-// useAppStore.ts
-{
-  userName: string,       // Prénom enfant
-  aiName: string,         // Nom IA choisi
-  aiVoiceId: string,      // Voix TTS choisie
-  aiVoiceEnabled: boolean // Toujours true par défaut
-}
-```
-
----
-
-## Gestion des Clés API
-
-### Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    API Route                                 │
-├─────────────────────────────────────────────────────────────┤
-│  const apiKey = await getApiKeyForRequest('fal')            │
-│                                                              │
-│  1. Extraire familyId du token JWT                          │
-│  2. SELECT fal_key FROM family_config WHERE family_id = ?   │
-│  3. Si trouvé → utiliser clé famille                        │
-│  4. Sinon → process.env.FAL_API_KEY (fallback admin)        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Fichiers
-
-```
-src/lib/config/
-├── api-keys.ts        # Client-side helpers
-└── server-config.ts   # Server-side (getApiKeyForRequest)
-```
-
-### Clés supportées
-
-| Type | Variable env | Colonne Supabase |
-|------|-------------|------------------|
-| fal.ai | `FAL_API_KEY` | `fal_key` |
-| Gemini | `GOOGLE_GEMINI_API_KEY` | `gemini_key` |
-| AssemblyAI | `ASSEMBLYAI_API_KEY` | `assemblyai_key` |
 
 ---
 
@@ -483,14 +377,13 @@ src/lib/config/
 
 ```
 src/store/
-├── useAppStore.ts            # État global, histoires, préférences, userName
+├── useAppStore.ts            # État global, histoires, préférences
 ├── useStudioStore.ts         # Kits de création, assets importés
 ├── useStudioProgressStore.ts # Progression pédagogique (niveaux 1-5)
 ├── useMontageStore.ts        # Projets montage (sync Supabase)
 ├── usePublishStore.ts        # Publication Gelato
-├── useMentorStore.ts         # Session mentor
-├── useAuthStore.ts           # Authentification
-├── useHighlightStore.ts      # Guidage visuel IA ✨
+├── useAuthStore.ts           # Authentification + user/profile
+├── useHighlightStore.ts      # Guidage visuel IA
 └── useAdminStore.ts          # Administration multi-famille
 ```
 
@@ -518,65 +411,61 @@ src/store/
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Sélecteur d'histoire (Sidebar)
-
-L'utilisateur peut changer d'histoire à tout moment via le dropdown dans la sidebar :
-
-```
-┌──────────────────┐
-│   📖 Mon titre   │  ← Dropdown
-│        ▼         │
-├──────────────────┤
-│ Histoire 1    ✓  │
-│ Histoire 2       │
-│ ─────────────────│
-│ + Nouvelle       │
-└──────────────────┘
-```
-
-**Comportement :**
-- Studio et Montage sont **bloqués** sans histoire
-- Changer d'histoire filtre automatiquement les assets
-
-### useHighlightStore
-
-```typescript
-interface HighlightStore {
-  activeHighlights: Record<string, HighlightConfig>
-  
-  highlight: (elementId: string, config?: HighlightConfig) => void
-  highlightMultiple: (elementIds: string[], config?: HighlightConfig) => void
-  stopHighlight: (elementId: string) => void
-  stopAllHighlights: () => void
-  isHighlighted: (elementId: string) => boolean
-}
-
-// Auto-stop après 6 secondes
-const DEFAULT_DURATION = 6000
-```
-
 ---
 
-## Architecture Electron
+## API Routes
 
-### Process Principal (main.js)
+### Structure
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      ELECTRON MAIN                               │
-├─────────────────────────────────────────────────────────────────┤
-│  IPC Handlers:                                                  │
-│  ├── 'tts-speak'      → exec(`say -v '${voice}' "${text}"`)    │
-│  ├── 'tts-stop'       → exec('killall say')                    │
-│  ├── 'capture-screen' → desktopCapturer                        │
-│  ├── 'simulate-click' → AppleScript                            │
-│  └── 'simulate-key'   → AppleScript                            │
-└─────────────────────────────────────────────────────────────────┘
+src/app/api/
+├── ai/
+│   ├── chat/route.ts              # Chat Gemini
+│   ├── image/route.ts             # → Nano Banana Pro
+│   ├── video/route.ts             # → Kling 2.1
+│   ├── moderate/route.ts          # Modération contenu
+│   ├── upscale/route.ts           # Real-ESRGAN (300 DPI)
+│   └── challenge-analyze/route.ts # Gemini Vision (défis)
+├── upload/
+│   ├── video/route.ts             # Upload vidéo R2
+│   └── pdf/route.ts               # Upload PDF Supabase
+├── gelato/
+│   ├── quote/route.ts             # Devis impression
+│   └── order/route.ts             # Commande impression
+└── voice/
+    └── narration/route.ts         # ElevenLabs TTS
 ```
 
 ---
 
 ## Sécurité
+
+### Gestion des erreurs d'upload
+
+Depuis v5.4.0, le bouton "Garder" dans le Studio :
+- Vérifie que `user` existe avant l'upload
+- Affiche un toast d'erreur visible si échec
+- Ne ferme pas l'aperçu si l'upload échoue
+
+```typescript
+// Avant : échec silencieux
+} catch (error) {
+  console.error('Erreur sauvegarde:', error)
+}
+setGeneratedAsset(null) // Fermait toujours !
+
+// Après : feedback utilisateur
+if (!user) {
+  showToast('Tu dois être connecté...', 'error')
+  return
+}
+if (result) {
+  showToast('Image sauvegardée !', 'success')
+  setGeneratedAsset(null) // Ferme SEULEMENT si succès
+} else {
+  showToast('Erreur lors de la sauvegarde...', 'error')
+}
+```
 
 ### Clés API
 
@@ -585,33 +474,21 @@ const DEFAULT_DURATION = 6000
 - `.env.local` pour fallback admin (gitignored)
 - Récupération via API routes (server-side)
 
-### Middleware Next.js
-
-```typescript
-if (!user && !publicRoutes.includes(pathname)) {
-  redirect('/login')
-}
-```
-
-### Contenu safe
-
-- Gemini configuré pour réponses adaptées aux enfants
-- L'IA ne fait jamais le travail à la place de l'enfant
-- Pas de contenu violent ou inapproprié
-
 ---
 
 ## Performance
 
 ### Optimisations
 
+- **Challenge Mode** : Images pré-générées dans Supabase (chargement instantané)
 - **TTS** : Nettoyage emojis avant synthèse, rate réduit
 - **Highlights** : Auto-stop après 6s, cleanup animations
 - **Chat** : Historique limité à 10 messages
-- **Portal** : Menus et chat Timeline rendus via Portal
+- **Portal** : Menus et modales rendus via Portal
 
 ### Points d'attention
 
 - **BookMode.tsx** : Fichier volumineux (~7000 lignes)
 - **Safari** : Fix spécifique pour `aspect-ratio` + `flex`
 - **SSR** : Web Speech API vérifié côté client uniquement
+- **Session Supabase** : Peut expirer, toujours vérifier avant upload

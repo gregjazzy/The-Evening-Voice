@@ -8,7 +8,17 @@
  * - Fonctionne hors-ligne après le premier chargement du modèle
  */
 
-import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal'
+// Import dynamique avec webpackIgnore pour éviter les erreurs de build avec onnxruntime
+let imglyRemoveBackground: ((input: unknown, config?: unknown) => Promise<Blob>) | null = null
+
+async function getRemoveBackground() {
+  if (!imglyRemoveBackground) {
+    // @ts-ignore - Import dynamique ignoré par webpack
+    const module = await import(/* webpackIgnore: true */ '@imgly/background-removal')
+    imglyRemoveBackground = module.removeBackground
+  }
+  return imglyRemoveBackground
+}
 
 export interface RemoveBackgroundOptions {
   /** Callback pour suivre la progression (0-100) */
@@ -66,8 +76,9 @@ export async function removeBackground(
 
     onProgress?.(10)
 
-    // Appeler le service de détourage
-    const resultBlob = await imglyRemoveBackground(imageSource, config)
+    // Charger dynamiquement et appeler le service de détourage
+    const removeBackgroundFn = await getRemoveBackground()
+    const resultBlob = await removeBackgroundFn(imageSource, config)
 
     onProgress?.(95)
 
@@ -154,7 +165,8 @@ export async function preloadModel(): Promise<void> {
     })
     
     try {
-      await imglyRemoveBackground(blob, {
+      const removeBackgroundFn = await getRemoveBackground()
+      await removeBackgroundFn(blob, {
         // Petit modèle pour le préchargement rapide
       })
     } catch {

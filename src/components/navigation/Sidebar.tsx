@@ -20,6 +20,9 @@ import {
   ChevronDown,
   Plus,
   Check,
+  Target,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import { useAppStore, type AppMode } from '@/store/useAppStore'
 import { useMentorStore } from '@/store/useMentorStore'
@@ -52,6 +55,12 @@ const navItems: NavItem[] = [
     labelKey: 'studio'
   },
   {
+    id: 'challenge',
+    highlightId: 'nav-challenge',
+    icon: <Target className="w-5 h-5 lg:w-6 lg:h-6" />,
+    labelKey: 'challenge'
+  },
+  {
     id: 'layout',
     highlightId: 'nav-montage',
     icon: <LayoutGrid className="w-5 h-5 lg:w-6 lg:h-6" />,
@@ -73,12 +82,13 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const t = useTranslations('nav')
-  const { currentMode, setCurrentMode, currentStory, stories, setCurrentStory } = useAppStore()
+  const { currentMode, setCurrentMode, currentStory, stories, setCurrentStory, deleteStory } = useAppStore()
   const { isConnected, role, connectedUsers, disconnect } = useMentorStore()
   const { isSuperAdmin, userFamilyInfo } = useAdminStore()
   const [showConnectionModal, setShowConnectionModal] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [showStorySelector, setShowStorySelector] = useState(false)
+  const [storyToDelete, setStoryToDelete] = useState<string | null>(null)
   const storySelectorRef = useRef<HTMLDivElement>(null)
   
   // Fermer le dropdown quand on clique en dehors
@@ -150,7 +160,7 @@ export function Sidebar() {
           <motion.button
             onClick={() => setShowStorySelector(!showStorySelector)}
             className={cn(
-              'w-full p-2 rounded-xl flex items-center gap-2 transition-all text-left',
+              'w-full p-2 rounded-xl flex items-center justify-center gap-1 lg:gap-2 transition-all overflow-hidden',
               currentStory 
                 ? 'bg-aurora-500/10 border border-aurora-500/30 hover:bg-aurora-500/20'
                 : 'bg-midnight-800/50 border border-midnight-700 hover:bg-midnight-700/50'
@@ -158,24 +168,33 @@ export function Sidebar() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
+            {/* Sur mobile: juste l'icône du livre */}
             <Book className={cn(
-              'w-4 h-4 flex-shrink-0',
+              'w-4 h-4 flex-shrink-0 lg:hidden',
               currentStory ? 'text-aurora-400' : 'text-midnight-500'
             )} />
-            <span className={cn(
-              'flex-1 text-[10px] lg:text-xs truncate hidden lg:block',
-              currentStory ? 'text-white' : 'text-midnight-400'
-            )}>
-              {currentStory?.title || 'Choisir...'}
-            </span>
-            <ChevronDown className={cn(
-              'w-3 h-3 flex-shrink-0 transition-transform hidden lg:block',
-              showStorySelector && 'rotate-180',
-              currentStory ? 'text-aurora-400' : 'text-midnight-500'
-            )} />
+            
+            {/* Sur desktop: icône + texte + flèche */}
+            <div className="hidden lg:flex items-center gap-2 w-full min-w-0">
+              <Book className={cn(
+                'w-4 h-4 flex-shrink-0',
+                currentStory ? 'text-aurora-400' : 'text-midnight-500'
+              )} />
+              <span className={cn(
+                'flex-1 text-xs truncate text-left min-w-0',
+                currentStory ? 'text-white' : 'text-midnight-400'
+              )}>
+                {currentStory?.title || 'Choisir...'}
+              </span>
+              <ChevronDown className={cn(
+                'w-3 h-3 flex-shrink-0 transition-transform',
+                showStorySelector && 'rotate-180',
+                currentStory ? 'text-aurora-400' : 'text-midnight-500'
+              )} />
+            </div>
           </motion.button>
           
-          {/* Dropdown */}
+          {/* Dropdown - positionnement sur la droite sur mobile */}
           <AnimatePresence>
             {showStorySelector && (
               <motion.div
@@ -183,8 +202,14 @@ export function Sidebar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute left-2 right-2 lg:left-3 lg:right-3 top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden"
+                className="absolute left-0 lg:left-3 lg:right-3 top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden min-w-[180px] lg:min-w-0"
+                style={{ left: 'auto', right: '-120px' }}
               >
+                {/* Titre du dropdown */}
+                <div className="px-3 py-2 border-b border-midnight-700 bg-midnight-800/50">
+                  <span className="text-xs text-midnight-400 font-medium">📚 Mes histoires</span>
+                </div>
+                
                 {/* Liste des histoires */}
                 <div className="max-h-48 overflow-y-auto">
                   {sortedStories.length === 0 ? (
@@ -193,28 +218,43 @@ export function Sidebar() {
                     </div>
                   ) : (
                     sortedStories.map((story) => (
-                      <button
+                      <div
                         key={story.id}
-                        onClick={() => handleSelectStory(story)}
                         className={cn(
-                          'w-full p-2 lg:p-3 flex items-center gap-2 hover:bg-midnight-800 transition-colors text-left',
+                          'w-full p-3 flex items-center gap-2 hover:bg-midnight-800 transition-colors group',
                           currentStory?.id === story.id && 'bg-aurora-500/10'
                         )}
                       >
-                        <Book className={cn(
-                          'w-3 h-3 flex-shrink-0',
-                          currentStory?.id === story.id ? 'text-aurora-400' : 'text-midnight-500'
-                        )} />
-                        <span className={cn(
-                          'flex-1 text-[10px] lg:text-xs truncate',
-                          currentStory?.id === story.id ? 'text-white' : 'text-midnight-300'
-                        )}>
-                          {story.title || 'Sans titre'}
-                        </span>
-                        {currentStory?.id === story.id && (
-                          <Check className="w-3 h-3 text-aurora-400 flex-shrink-0" />
+                        <button
+                          onClick={() => handleSelectStory(story)}
+                          className="flex-1 flex items-center gap-2 text-left min-w-0"
+                        >
+                          <Book className={cn(
+                            'w-4 h-4 flex-shrink-0',
+                            currentStory?.id === story.id ? 'text-aurora-400' : 'text-midnight-500'
+                          )} />
+                          <span className={cn(
+                            'flex-1 text-xs truncate',
+                            currentStory?.id === story.id ? 'text-white' : 'text-midnight-300'
+                          )}>
+                            {story.title || 'Sans titre'}
+                          </span>
+                        </button>
+                        {currentStory?.id === story.id ? (
+                          <Check className="w-4 h-4 text-aurora-400 flex-shrink-0" />
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setStoryToDelete(story.id)
+                            }}
+                            className="w-6 h-6 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          </button>
                         )}
-                      </button>
+                      </div>
                     ))
                   )}
                 </div>
@@ -223,10 +263,10 @@ export function Sidebar() {
                 <div className="border-t border-midnight-700">
                   <button
                     onClick={handleNewStory}
-                    className="w-full p-2 lg:p-3 flex items-center gap-2 hover:bg-dream-500/10 transition-colors text-dream-400"
+                    className="w-full p-3 flex items-center gap-2 hover:bg-dream-500/10 transition-colors text-dream-400"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span className="text-[10px] lg:text-xs">Nouvelle histoire</span>
+                    <Plus className="w-4 h-4" />
+                    <span className="text-xs font-medium">+ Nouvelle histoire</span>
                   </button>
                 </div>
               </motion.div>
@@ -410,6 +450,66 @@ export function Sidebar() {
           ) : (
             <ParentAdminPanel onClose={() => setShowAdminPanel(false)} />
           )
+        )}
+      </AnimatePresence>
+
+      {/* Modal de confirmation de suppression */}
+      <AnimatePresence>
+        {storyToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            onClick={() => setStoryToDelete(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-midnight-900 border border-midnight-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Supprimer l'histoire ?</h3>
+                  <p className="text-sm text-midnight-400">Cette action est irréversible</p>
+                </div>
+              </div>
+              
+              <p className="text-sm text-midnight-300 mb-6">
+                L'histoire "<span className="text-white font-medium">{stories.find(s => s.id === storyToDelete)?.title || 'Sans titre'}</span>" sera définitivement supprimée avec toutes ses pages.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStoryToDelete(null)}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white transition-colors text-sm font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    if (storyToDelete) {
+                      // Si on supprime l'histoire en cours, désélectionner
+                      if (currentStory?.id === storyToDelete) {
+                        setCurrentStory(null)
+                      }
+                      deleteStory(storyToDelete)
+                      setStoryToDelete(null)
+                      setShowStorySelector(false)
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 border border-red-500/30 transition-colors text-sm font-medium"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

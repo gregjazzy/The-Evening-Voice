@@ -3,8 +3,8 @@
 > Document de passation complet pour la prochaine session de développement
 
 **Date** : 20 janvier 2026  
-**Version** : 5.3.0  
-**État** : Production-Ready ✅ (PublishMode complet)
+**Version** : 5.4.0  
+**État** : Production-Ready ✅ (Challenge Mode + Modales Intro)
 
 ---
 
@@ -16,344 +16,228 @@
 
 Application pour **enfants de 8 ans** permettant de créer des **livres-disques numériques 2.0** - inspirés des livres-disques d'antan (Marlène Jobert, Disney) mais augmentés avec IA et domotique.
 
-**Cliente** : Commande spéciale avec budget non limité.
+**Objectif pédagogique principal** : Enseigner le **prompting** de manière ludique et progressive.
 
-### Les 5 Modes
+**Cliente** : Commande privée pour cliente milliardaire. Pas de gamification visible (badges, XP). Focus sur l'élégance et la pédagogie.
+
+### Les 6 Modes
 
 | Mode | Fonction | État |
 |------|----------|------|
 | ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Complet |
 | 🎨 **Studio** | Apprentissage progressif du prompting (Nano Banana/Kling) | ✅ Complet |
+| 🏆 **Défis** | Exercices de prompting : reproduire/varier des images | ✅ **NOUVEAU** |
 | 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ Complet |
 | 🎭 **Théâtre** | Lecteur immersif + export vidéo HD | ✅ Complet |
 | 📖 **Publier** | Publication livre imprimé via Gelato + PDF | ✅ Complet |
 
-### Flux Logique
+### Pédagogie Prompting
 
-```
-📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
-   (texte)    (assets)    (assemblage)  (lecture)
-      ↓                        ↓
-   "Terminer"              📖 Publier
-   mon histoire           + Export MP4/PDF
-```
+L'application enseigne le prompting via deux systèmes :
 
----
-
-## ✅ Ce qui est FAIT (Session 20 janvier - v5.2)
-
-### 1. 🎨 Studio - Migration vers Nano Banana Pro
-
-Le modèle de génération d'images a été changé pour **Nano Banana Pro** (fal.ai).
-
-| Aspect | Avant | Maintenant |
-|--------|-------|------------|
-| **Modèle** | Flux 1 Pro | Nano Banana Pro |
-| **Français** | Traduit vers EN | Compris nativement ✅ |
-| **Qualité native** | 1024px | 2048px |
-| **Prix** | ~$0.05/image | ~$0.03/image |
-| **Upscale** | Systématique | Format "book" (3:4) uniquement |
-
-**Fichiers modifiés :**
-```
-src/lib/ai/fal.ts              # generateImageNanoBanana()
-src/app/api/ai/image/route.ts  # Modèle par défaut = nano-banana
-```
-
-### 2. 💬 Studio - Validation IA du Contenu
-
-La validation des champs texte passe maintenant par l'IA dans le chat.
-
-| Ancien comportement | Nouveau comportement |
-|---------------------|----------------------|
-| Validation client (regex) | IA valide via `/api/ai/chat` |
-| Message générique | IA confirme et annonce l'étape suivante |
-| Double message après validation | Un seul message (flag `justValidated`) |
-
-**Flux :**
-```
-Enfant tape "toupie jaune avec des ailes"
-    ↓
-Texte envoyé au chat [VALIDATION]
-    ↓
-IA valide avec enthousiasme
-    ↓
-Étape suivante s'affiche
-```
-
-### 3. 🔗 Liaison Histoire/Assets
-
-Tous les assets (images, vidéos) sont maintenant liés à `currentStory.id`.
-
-```typescript
-// Avant
-addImportedAsset({ ..., projectId: currentProject?.id })
-
-// Maintenant
-addImportedAsset({ ..., projectId: currentStory?.id })
-```
-
-**Impact :**
-- Chaque histoire a sa propre galerie d'assets
-- Les assets sont filtrés par `story_id` dans les composants
-
-### 4. 🚫 Blocage Studio/Montage sans Histoire
-
-Les modes Studio et Montage sont **bloqués** si aucune histoire n'a de titre.
-
-**Dans `Sidebar.tsx` :**
-```typescript
-const canAccessStudioMontage = currentStory?.title?.trim();
-
-// Si pas de titre → désactivé + tooltip
-```
-
-### 5. 📚 Sélecteur d'Histoire (Sidebar)
-
-Ajout d'un **sélecteur d'histoire** dans la sidebar sous le logo.
-
-| Fonctionnalité | Description |
-|----------------|-------------|
-| **Dropdown** | Liste des histoires existantes |
-| **Création** | Option "+ Nouvelle histoire" |
-| **Visuel** | Indicateur de l'histoire active |
-| **Persistance** | `setCurrentStory()` dans `useAppStore` |
-
-**Fichier :** `src/components/navigation/Sidebar.tsx`
-
-### 6. ✅ Bouton "Terminer mon Histoire"
-
-Ajout d'un bouton dans **BookMode** pour marquer une histoire comme terminée.
-
-| Élément | Description |
-|---------|-------------|
-| **Bouton** | "Terminer mon histoire 🎉" |
-| **Modal** | Célébration avec confettis |
-| **Actions** | → Studio (créer images) ou → Montage (créer vidéos) |
-| **État** | `story.isComplete = true` |
-
-**Fichier :** `src/components/modes/BookMode.tsx`
-
-### 7. 🎬 Vidéos - Boutons Effets/Caméra
-
-Ajout de boutons visuels pour les effets vidéo et mouvements de caméra.
-
-**Effets disponibles :**
-- Aucun, Ralenti, Accéléré, Boucle, Fondu, Inversé
-
-**Mouvements caméra :**
-- Statique, Zoom avant, Zoom arrière, Panoramique, Travelling
-
-**Fichier :** `src/components/studio/PromptBuilder.tsx`
-
-### 8. 📝 Documentation Mise à Jour
-
-- `docs/ARCHITECTURE.md` → Ajout section Studio Mode détaillée
-- `public/tutorials/SCREENSHOTS_A_CAPTURER.md` → Screenshots fal.ai
-
-### 9. 📖 PublishMode - Complet
-
-Le mode Publication est maintenant **entièrement fonctionnel** :
-
-| Fonctionnalité | Description |
-|----------------|-------------|
-| **Upload PDF Supabase** | API `/api/upload/pdf` + bucket 'pdfs' |
-| **Vérification DPI réelle** | Charge images et calcule les DPI |
-| **Upscale IA automatique** | Real-ESRGAN via `/api/ai/upscale` |
-| **UI 6 étapes** | Histoire → Format → Couverture → Aperçu → Qualité → Commande |
-
-**Nouveaux fichiers :**
-```
-src/app/api/upload/pdf/route.ts        # Upload PDF
-src/app/api/ai/upscale/route.ts        # Upscale images
-supabase/migrations/20260120_add_pdfs_bucket.sql  # Bucket + policies
-```
-
-**Modifications :**
-- `src/store/usePublishStore.ts` → `uploadPdfToSupabase()`, vérification DPI réelle
-- `src/lib/export/pdf.ts` → `checkImageQuality()` fonction
-- `src/components/modes/PublishMode.tsx` → UI upload, indicateurs progression, upscale
+| Mode | Système | Concepts |
+|------|---------|----------|
+| ✍️ Écriture | **5 Questions Magiques** | QUI, QUOI, OÙ, QUAND, ET PUIS |
+| 🎨 Studio | **5 Clés Magiques** | Style, Héros, Ambiance, Monde, Magie |
+| 🏆 Défis | **Exercices pratiques** | Reproduire image, Créer variations |
 
 ---
 
-## ✅ PUBLISH MODE - COMPLET
+## ✅ Ce qui est FAIT (Session 20 janvier - v5.4)
 
-### État Actuel
+### 1. 🏆 Challenge Mode (NOUVEAU)
 
-| Composant | État | Fichier |
-|-----------|------|---------|
-| Store | ✅ | `src/store/usePublishStore.ts` |
-| API Gelato Quote | ✅ | `src/app/api/gelato/quote/route.ts` |
-| API Gelato Order | ✅ | `src/app/api/gelato/order/route.ts` |
-| Client Gelato | ✅ | `src/lib/gelato/client.ts` |
-| Types Gelato | ✅ | `src/lib/gelato/types.ts` |
-| Export PDF | ✅ | `src/lib/export/pdf.ts` |
-| **Upload PDF** | ✅ | `src/app/api/upload/pdf/route.ts` |
-| **Upscale Images** | ✅ | `src/app/api/ai/upscale/route.ts` |
-| UI PublishMode | ✅ | `src/components/modes/PublishMode.tsx` |
+Nouveau mode **Défis** pour pratiquer le prompting avec feedback IA.
 
-### ✅ RÉSOLU : PDF accessible par Gelato
+| Exercice | Description |
+|----------|-------------|
+| **Reproduire l'image** | Deviner le prompt d'une image générée |
+| **Variations** | Créer une variation selon une consigne |
 
-Le PDF est maintenant automatiquement uploadé vers Supabase Storage après génération :
+**Fonctionnalités :**
+- Images pré-générées stockées dans Supabase Storage (`images/challenges/`)
+- Chargement instantané (pas d'attente de génération)
+- 3 niveaux de difficulté : Facile, Moyen, Difficile
+- **Analyse IA** : Gemini Vision compare l'image générée vs l'originale
+- Score, points forts, axes d'amélioration, conseils
 
+**Fichiers créés :**
+```
+src/components/modes/ChallengeMode.tsx       # Interface complète
+src/app/api/ai/challenge-analyze/route.ts   # Analyse IA via Gemini Vision
+scripts/generate-challenge-images.ts         # Script génération images
+```
+
+**Challenges disponibles :**
+- 6 challenges "Reproduire" (facile → difficile)
+- 6 challenges "Variations" (facile → difficile)
+
+### 2. 🎭 Modales d'Introduction (NOUVEAU)
+
+Chaque mode affiche une **modale élégante** à la première visite expliquant :
+- Le but du mode
+- Les objectifs d'apprentissage (compréhensibles par un enfant de 8 ans)
+- Ce qu'il va apprendre
+
+**Fichiers créés :**
+```
+src/hooks/useHasVisitedMode.ts        # Hook localStorage pour tracker les visites
+src/components/ui/ModeIntroModal.tsx  # Modale réutilisable
+```
+
+**Modes équipés :**
+- ✅ BookMode (Écriture)
+- ✅ StudioMode
+- ✅ ChallengeMode (Défis)
+- ✅ LayoutMode (Montage)
+- ✅ TheaterMode
+- ✅ PublishMode
+
+### 3. 🐛 Bug Fix : Sauvegarde Images Studio
+
+**Problème identifié :**
+- La session Supabase expirée → `user` = null
+- Le bouton "Garder" échouait **silencieusement**
+- L'aperçu se fermait même si l'upload échouait
+- L'utilisateur pensait que l'image était sauvegardée
+
+**Correction appliquée :**
 ```typescript
-// Flux complet implémenté :
-// 1. Générer le PDF localement
-const result = await exportToPDF(story, format, cover)
+// Avant : échec silencieux
+} catch (error) {
+  console.error('Erreur sauvegarde:', error) // Console uniquement
+}
+setGeneratedAsset(null) // Fermait toujours !
 
-// 2. Upload vers Supabase Storage (bucket 'pdfs')
-const pdfUrl = await uploadPdfToSupabase(result.blob, story, userId)
-// → URL publique : https://xxx.supabase.co/storage/v1/object/public/pdfs/{userId}/{filename}.pdf
-
-// 3. Commander via Gelato avec l'URL publique
-await placeGelatoOrder() // Utilise pdfUrl du store
+// Après : feedback utilisateur
+if (!user) {
+  showToast('Tu dois être connecté...', 'error')
+  return
+}
+if (result) {
+  showToast('Image sauvegardée !', 'success')
+  setGeneratedAsset(null) // Ferme SEULEMENT si succès
+} else {
+  showToast('Erreur lors de la sauvegarde...', 'error')
+}
 ```
 
-### Fonctionnalités Implémentées
+**Fichier modifié :** `src/components/studio/PromptBuilder.tsx`
 
-| Fonctionnalité | Description |
-|----------------|-------------|
-| **Upload PDF Supabase** | API route + bucket 'pdfs' avec policies |
-| **Vérification DPI réelle** | Charge les images et calcule les DPI |
-| **Upscale IA** | Real-ESRGAN via fal.ai pour images basse résolution |
-| **UI complète** | Progression génération + upload, aperçu images low-DPI |
-| **Flux intégré** | Depuis Écriture → Publication Gelato |
+### 4. 🎭 Bug Fix : Theater Mode Synchronisation
 
-### Architecture Complète
+**Problème :** Le mode Théâtre n'affichait pas correctement les médias, décorations et animations synchronisés avec le temps.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  FLUX PUBLISH MODE (IMPLÉMENTÉ)                            │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  1. Sélection histoire                                      │
-│     └─→ Filtre histoires avec min 4 pages                  │
-│                                                             │
-│  2. Sélection format (Carré 21cm, A5, A4...)               │
-│     └─→ usePublishStore.setFormat()                        │
-│                                                             │
-│  3. Design couverture                                       │
-│     ├─→ Titre, sous-titre, auteur                          │
-│     ├─→ Image de couverture (depuis Studio/Histoire)       │
-│     └─→ Résumé 4ème de couverture                          │
-│                                                             │
-│  4. Aperçu                                                  │
-│     └─→ Preview pages du livre                             │
-│                                                             │
-│  5. Vérification qualité ✨                                │
-│     ├─→ Parcourir story.pages                              │
-│     ├─→ Pour chaque image: checkImageQuality()             │
-│     ├─→ Afficher images < 200 DPI avec détails             │
-│     └─→ Bouton "Améliorer tout" → upscale via fal.ai       │
-│                                                             │
-│  6. Génération + Upload PDF ✨                              │
-│     ├─→ exportToPDF() → Blob                               │
-│     ├─→ POST /api/upload/pdf → Supabase Storage            │
-│     └─→ Retourne URL publique dans pdfUrl                  │
-│                                                             │
-│  7. Devis Gelato                                            │
-│     ├─→ POST /api/gelato/quote                             │
-│     └─→ { price, currency, estimatedDelivery }             │
-│                                                             │
-│  8. Commande Gelato                                         │
-│     ├─→ Saisie adresse livraison                           │
-│     ├─→ POST /api/gelato/order avec pdfUrl                 │
-│     └─→ { orderId, trackingUrl }                           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+**Solution :** Implémentation du filtrage basé sur `timeRange` pour tous les éléments, comme dans `PreviewCanvas`.
 
-### Nouveaux Fichiers Créés
-
-```
-src/app/api/upload/pdf/route.ts        # Upload PDF vers Supabase
-src/app/api/ai/upscale/route.ts        # Upscale images via Real-ESRGAN
-supabase/migrations/20260120_add_pdfs_bucket.sql  # Bucket + policies
-```
-
-### Spécifications Impression (300 DPI)
-
-| Format | Dimensions (mm) | Pixels requis |
-|--------|-----------------|---------------|
-| A5 | 148 × 210 | 1748 × 2480 |
-| A4 | 210 × 297 | 2480 × 3508 |
-| Carré 21cm | 210 × 210 | 2480 × 2480 |
-
-### Configuration Bucket Supabase
-
-Le bucket `pdfs` doit être créé avec :
-- **Public** : Oui (pour accès Gelato)
-- **Limite taille** : 50MB
-- **Types MIME** : `application/pdf` uniquement
-
-Exécuter la migration : `supabase/migrations/20260120_add_pdfs_bucket.sql`
+**Fichier modifié :** `src/components/modes/TheaterMode.tsx`
 
 ---
 
 ## 📁 Structure des Fichiers Clés
 
+### Challenge Mode
+
+```
+src/components/modes/ChallengeMode.tsx       # Interface complète
+├── REPRODUCE_CHALLENGES[]                   # Données des défis reproduction
+├── VARIATION_CHALLENGES[]                   # Données des défis variation
+├── selectChallenge()                        # Charge image depuis Supabase
+├── handleGenerate()                         # Génère image via /api/ai/image
+└── handleAnalyze()                          # Analyse via Gemini Vision
+
+src/app/api/ai/challenge-analyze/route.ts   # POST: analyse comparative
+├── Reçoit: targetImageUrl, generatedImageUrl, targetPrompt, userPrompt
+└── Retourne: score (0-100), strengths[], weaknesses[], advice
+
+scripts/generate-challenge-images.ts         # Pré-génération des images
+├── Utilise fal.ai (Nano Banana Pro)
+└── Upload vers Supabase: images/challenges/{id}/variant-1.png
+```
+
+### Modales Introduction
+
+```
+src/hooks/useHasVisitedMode.ts
+├── useHasVisitedMode(mode: AppMode)
+├── Stocke dans localStorage: mode_intro_seen_{mode}
+└── Retourne: boolean (true si déjà visité)
+
+src/components/ui/ModeIntroModal.tsx
+├── MODE_CONTENT: Record<AppMode, {...}>
+├── Contenu: titre, sous-titre, description, objectifs, icône, gradient
+└── Animations Framer Motion
+```
+
 ### Services IA
 
 ```
 src/lib/ai/
-├── fal.ts              # Service unifié fal.ai (Nano Banana, Kling, Real-ESRGAN)
-├── gemini.ts           # Chat IA (prompts par mode) + traduction
-├── elevenlabs.ts       # Voix (IDs, helpers) - via fal.ai
-└── prompting-pedagogy.ts # Logique pédagogique Studio
+├── fal.ts              # Nano Banana Pro, Kling, Real-ESRGAN
+├── gemini.ts           # Chat IA + Vision (analyse images)
+├── elevenlabs.ts       # Voix IA
+└── prompting-pedagogy.ts # Logique pédagogique
 ```
 
 ### Stores
 
 ```
 src/store/
-├── useAppStore.ts            # stories[], currentStory, userName, aiName
-├── useStudioStore.ts         # currentKit, importedAssets, savedKits
-├── useStudioProgressStore.ts # level, creations, completedSteps
+├── useAppStore.ts            # stories[], currentStory, currentMode
+├── useStudioStore.ts         # importedAssets, savedKits
+├── useStudioProgressStore.ts # level, creations
 ├── usePublishStore.ts        # format, pdfUrl, gelatoOrder
-├── useMontageStore.ts        # scenes, timeline, narration
-└── useHighlightStore.ts      # Guidage visuel IA
+├── useMontageStore.ts        # scenes, timeline
+├── useAuthStore.ts           # user, profile, session
+└── useHighlightStore.ts      # Guidage visuel
 ```
 
-### Composants Studio
+---
 
-```
-src/components/studio/
-├── StudioAIChat.tsx     # Chat avec validation IA
-├── PromptBuilder.tsx    # Construction du prompt + génération
-├── StudioGuide.tsx      # Guide pédagogique
-└── AssetDropzone.tsx    # Galerie d'assets par histoire
-```
+## 🎮 Challenge Mode - Détails
 
-### API Routes
-
-```
-src/app/api/
-├── ai/
-│   ├── chat/route.ts         # Chat Gemini + validation
-│   ├── image/route.ts        # → Nano Banana Pro
-│   ├── video/route.ts        # → Kling 2.1
-│   └── moderate/route.ts     # Modération contenu
-├── upload/
-│   └── video/route.ts        # Upload vidéo R2
-├── gelato/
-│   ├── quote/route.ts        # Devis impression
-│   └── order/route.ts        # Commande impression
-```
-
-### Upload Media
+### Structure des Challenges
 
 ```typescript
-// Hook centralisé pour upload (images → Supabase, vidéos → R2)
-src/hooks/useMediaUpload.ts
-
-// Usage:
-const { uploadFromUrl, isUploading } = useMediaUpload();
-const result = await uploadFromUrl(tempUrl, {
-  type: 'image',  // ou 'video'
-  storyId: currentStory.id,
-  name: 'mon-image.png'
-});
+interface ChallengeData {
+  id: string              // 'reproduce-rainbow', 'variation-castle'
+  type: 'reproduce' | 'variation'
+  difficulty: 'easy' | 'medium' | 'hard'
+  targetPrompt: string    // Prompt anglais pour génération
+  targetPromptFr: string  // Indice pour l'enfant
+  hints: string[]         // Indices progressifs
+  variationInstruction?: string  // Pour les variations
+}
 ```
+
+### Images Pré-générées
+
+Les images sont stockées dans Supabase Storage :
+```
+images/challenges/
+├── reproduce-rainbow/variant-1.png
+├── reproduce-castle/variant-1.png
+├── variation-dragon/variant-1.png
+└── ...
+```
+
+**Pour régénérer les images :**
+```bash
+npx tsx scripts/generate-challenge-images.ts
+```
+
+### Analyse IA (Gemini Vision)
+
+L'analyse compare :
+1. L'image originale vs l'image générée
+2. Le prompt original vs le prompt de l'enfant
+3. Le niveau de difficulté
+
+Retourne :
+- **Score** : 0-100
+- **Points forts** : Ce que l'enfant a bien fait
+- **Axes d'amélioration** : Ce qui peut être amélioré
+- **Conseil** : Un conseil personnalisé
 
 ---
 
@@ -367,10 +251,10 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
 SUPABASE_SERVICE_ROLE_KEY=xxx
 
-# fal.ai (images, vidéos, voix IA)
+# fal.ai (images, vidéos, voix)
 FAL_API_KEY=xxx
 
-# Google AI (chat)
+# Google AI (chat + vision)
 GOOGLE_GEMINI_API_KEY=xxx
 
 # AssemblyAI (transcription)
@@ -394,65 +278,106 @@ CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
 
 | Composant | État | Notes |
 |-----------|------|-------|
-| Mode Écriture | ✅ | + bouton "Terminer" |
-| Mode Studio | ✅ | → Nano Banana Pro + Kling 2.1 |
-| Mode Montage | ✅ | + chat IA + narration |
-| Mode Théâtre | ✅ | Lecture + export MP4 |
-| Mode Publier | ✅ | **Upload PDF Supabase + Upscale IA** |
-| **Liaison Story/Assets** | ✅ | `story_id` partout |
-| **Sélecteur histoire** | ✅ | Sidebar |
-| **Blocage sans histoire** | ✅ | Studio/Montage |
-| Sync Supabase | ✅ | Debounce 2s |
+| Mode Écriture | ✅ | + modale intro |
+| Mode Studio | ✅ | + fix sauvegarde silencieuse |
+| **Mode Défis** | ✅ | **NOUVEAU** |
+| Mode Montage | ✅ | + modale intro |
+| Mode Théâtre | ✅ | + fix synchronisation |
+| Mode Publier | ✅ | + modale intro |
+| **Modales intro** | ✅ | **Tous les modes** |
+| **Analyse IA** | ✅ | **Gemini Vision** |
+| Liaison Story/Assets | ✅ | |
+| Sync Supabase | ✅ | |
 | Assets cloud | ✅ | Supabase + R2 |
-| **Upload PDF** | ✅ | Bucket 'pdfs' pour Gelato |
-| **Vérification DPI** | ✅ | checkImageQuality() réel |
-| **Upscale images** | ✅ | Real-ESRGAN via fal.ai |
 
 ---
 
 ## 💡 Notes pour le Prochain Dev
 
-### Priorités
-
-1. **🟡 Tests E2E PublishMode** - Vérifier le flux complet en production
-2. **🟡 Gestion erreurs Gelato** - Améliorer les messages d'erreur
-3. **🟡 Tracking commande** - Afficher le statut de livraison
-
 ### Points d'Attention
 
-1. **L'enfant cible a 8 ans** → Tout doit être simple
-2. **Budget illimité** → Pas d'hésitation sur les services payants
-3. **currentStory, pas currentProject** → Assets liés à l'histoire
-4. **Nano Banana Pro** → Comprend le français, pas besoin de traduire
-5. **useMediaUpload hook** → Utiliser pour tout upload media
-6. **Bucket 'pdfs'** → Doit être créé via migration SQL avant utilisation
+1. **L'enfant cible a 8 ans** → Tout doit être simple et encourageant
+2. **Pas de gamification visible** → Pas de badges, XP visible (c'est une commande privée)
+3. **Session Supabase** → Peut expirer, toujours vérifier `user` avant upload
+4. **Images Challenge** → Pré-générées dans Supabase, pas de génération à la volée
+5. **Modales intro** → Utilisent localStorage, réinitialisable en vidant le storage
 
-### Code Pattern - Flux PublishMode
+### Bug Connu : Session Expirée
+
+Si la session Supabase expire :
+- Le store `useAuthStore` peut avoir `user: null`
+- Les uploads échoueront avec un message d'erreur visible (maintenant corrigé)
+- Solution : Rafraîchir la page pour restaurer la session
+
+### Ajouter un Nouveau Challenge
 
 ```typescript
-// 1. Générer le PDF
-const result = await exportToPDF(story, format, cover, { includeBleed: true })
+// Dans ChallengeMode.tsx
+const REPRODUCE_CHALLENGES: ChallengeData[] = [
+  // ... existants
+  {
+    id: 'reproduce-newchallenge',
+    type: 'reproduce',
+    difficulty: 'medium',
+    targetPrompt: 'English prompt for generation',
+    targetPromptFr: 'Indice en français pour l\'enfant',
+    hints: ['Indice 1', 'Indice 2', 'Indice 3'],
+  },
+]
 
-// 2. Uploader vers Supabase (automatique via UI)
-const pdfUrl = await uploadPdfToSupabase(result.blob, story, userId)
-
-// 3. Commander via Gelato
-const order = await placeGelatoOrder() // Utilise pdfUrl du store
+// Puis régénérer les images
+// npx tsx scripts/generate-challenge-images.ts
 ```
 
-### Vérification DPI des Images
+### Ajouter une Modale Intro pour un Nouveau Mode
 
 ```typescript
-// Vérifie la qualité d'une image pour l'impression
-const quality = await checkImageQuality(imageUrl, printWidthMm, printHeightMm)
-
-if (!quality.isOk) {
-  // Upscale via Real-ESRGAN
-  const upscaled = await fetch('/api/ai/upscale', {
-    method: 'POST',
-    body: JSON.stringify({ imageUrl, scale: 2 })
-  })
+// 1. Dans ModeIntroModal.tsx, ajouter au MODE_CONTENT:
+newmode: {
+  titleKey: 'modeIntro.newmode.title',
+  subtitleKey: 'modeIntro.newmode.subtitle',
+  descriptionKey: 'modeIntro.newmode.description',
+  objectivesKey: [...],
+  icon: <IconComponent />,
+  gradient: 'from-color-500 to-color-700',
 }
+
+// 2. Dans le composant du mode:
+const hasVisited = useHasVisitedMode('newmode')
+// ...
+<ModeIntroModal isOpen={!hasVisited} onClose={() => {}} mode="newmode" />
+```
+
+---
+
+## 🎯 Prochaines Étapes Suggérées
+
+### Améliorations Challenge Mode
+
+1. **Plus de challenges** - Ajouter des sujets variés
+2. **Progression** - Débloquer les niveaux progressivement
+3. **Historique** - Sauvegarder les tentatives et scores
+
+### Améliorations Générales
+
+1. **Onboarding complet** - Tutoriel interactif première utilisation
+2. **Mode hors-ligne** - Permettre de continuer sans connexion
+3. **Export/Import** - Sauvegarder/restaurer les données
+
+### Tests
+
+```bash
+# Lancer l'application
+npm run dev
+
+# Tester le Challenge Mode
+# 1. Aller dans "Défis" dans la sidebar
+# 2. Choisir un défi
+# 3. Écrire un prompt et générer
+# 4. Cliquer sur "Analyser"
+
+# Régénérer les images de challenge
+npx tsx scripts/generate-challenge-images.ts
 ```
 
 ---
@@ -470,41 +395,14 @@ if (!quality.isOk) {
 
 ---
 
-## 🎯 Prochaines Étapes Suggérées
+**Application complète !** 🌙✨ 
 
-Le PublishMode est maintenant **complet** ! Voici les améliorations possibles :
-
-### Tests Production
-
-```bash
-# 1. Créer le bucket 'pdfs' dans Supabase
-# Aller dans Supabase Dashboard > Storage > New bucket
-# Nom: pdfs, Public: true, Size limit: 50MB
-
-# 2. Ou exécuter la migration SQL
-supabase db push supabase/migrations/20260120_add_pdfs_bucket.sql
+Flux complet :
+```
+✍️ Écriture → 🎨 Studio → 🏆 Défis → 🎬 Montage → 🎭 Théâtre → 📖 Publier
 ```
 
-### Améliorations Futures
-
-1. **Tracking des commandes** - Afficher le statut Gelato en temps réel
-2. **Historique des commandes** - Liste des livres commandés
-3. **Mode cadeau** - Adresse de livraison différente
-4. **Coupon réduction** - Intégration codes promo Gelato
-
-### Fichiers Clés PublishMode
-
+Pédagogie prompting :
 ```
-src/components/modes/PublishMode.tsx   # UI complète 6 étapes
-src/store/usePublishStore.ts           # Store avec upload PDF
-src/lib/export/pdf.ts                  # Génération + checkImageQuality
-src/app/api/upload/pdf/route.ts        # Upload PDF Supabase
-src/app/api/ai/upscale/route.ts        # Upscale images Real-ESRGAN
-src/app/api/gelato/quote/route.ts      # Devis Gelato
-src/app/api/gelato/order/route.ts      # Commande Gelato
+5 Questions Magiques (Écriture) + 5 Clés Magiques (Studio) + Exercices Pratiques (Défis)
 ```
-
----
-
-**Application complète !** 🌙✨ Tous les modes sont fonctionnels :
-- ✍️ Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre → 📖 Publier

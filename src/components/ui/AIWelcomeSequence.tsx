@@ -6,7 +6,7 @@
  * Puis choisit la voix de son ami(e)
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Send, Heart, Volume2, VolumeX, Star, Check, Play } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
@@ -24,16 +24,74 @@ interface VoiceInfo {
   lang: string
   isPremium: boolean
   isRecommended: boolean
+  gender: 'feminine' | 'masculine' | 'unknown'
 }
 
 // Voix premium connues (haute qualité)
 const PREMIUM_VOICES = ['Audrey', 'Amélie', 'Thomas', 'Samantha', 'Karen', 'Daniel', 'Milena', 'Google']
 
-// Voix recommandées par langue
+// Voix recommandées par langue (Audrey Premium en premier pour le français)
 const RECOMMENDED_VOICES: Record<string, string[]> = {
-  fr: ['Audrey', 'Amélie', 'Thomas', 'Google français'],
-  en: ['Samantha', 'Karen', 'Daniel', 'Google US English'],
-  ru: ['Milena', 'Yuri', 'Google русский'],
+  fr: ['Audrey', 'Amélie', 'Thomas', 'Marie'],
+  en: ['Samantha', 'Karen', 'Daniel'],
+  ru: ['Milena', 'Yuri'],
+}
+
+// Voix classées par genre (pour filtrer selon le prénom de l'IA)
+// Pour les filles : uniquement Audrey et Amélie (voix premium de qualité)
+const FEMININE_VOICES = ['Audrey', 'Amélie']
+// Pour les garçons : uniquement Thomas (voix premium française de qualité)
+const MASCULINE_VOICES = ['Thomas']
+
+// Prénoms connus pour détecter le genre (liste non exhaustive mais couvre les plus courants)
+const FEMININE_NAMES = [
+  // Suggestions de l'app
+  'étoile', 'féerie', 'céleste', 'aurore', 'iris', 'marie', 'luna',
+  // Prénoms courants féminins
+  'emma', 'jade', 'chloé', 'louise', 'alice', 'léa', 'lina', 'rose', 'anna', 'julia', 'léonie', 'zoé', 'clara', 'inès', 'camille',
+  'manon', 'sarah', 'eva', 'charlotte', 'agathe', 'romane', 'lucie', 'margot', 'nina', 'victoire', 'lola', 'elena', 'amélie',
+  'elsa', 'valentine', 'juliette', 'maëlle', 'clémence', 'apolline', 'océane', 'marguerite', 'constance', 'adèle', 'anaïs',
+  'pauline', 'mathilde', 'eloïse', 'lena', 'capucine', 'mila', 'garance', 'diane', 'célestine', 'joséphine', 'héloïse',
+  // Prénoms fantaisie féminins
+  'stellia', 'lunaria', 'aurora', 'éclat', 'lumière', 'perle', 'fleur', 'fée', 'magie', 'émeraude', 'saphir'
+]
+
+const MASCULINE_NAMES = [
+  // Suggestions de l'app
+  'cosmos', 'merlin', 'phoenix', 'orion', 'atlas', 'max',
+  // Prénoms courants masculins
+  'léo', 'noah', 'lucas', 'louis', 'gabriel', 'raphaël', 'jules', 'hugo', 'arthur', 'adam', 'nathan', 'aaron', 'paul', 'tom',
+  'théo', 'ethan', 'mathis', 'sacha', 'maxime', 'victor', 'alexandre', 'antoine', 'baptiste', 'clément', 'valentin', 'quentin',
+  'romain', 'julien', 'pierre', 'martin', 'thomas', 'nicolas', 'vincent', 'charles', 'olivier', 'benjamin', 'guillaume',
+  'matthieu', 'simon', 'laurent', 'david', 'jean', 'jacques', 'marc', 'philippe', 'michel', 'robert', 'henri',
+  // Prénoms fantaisie masculins
+  'titan', 'éclipse', 'étoilé', 'dragon', 'griffon', 'chevalier', 'wizard'
+]
+
+// Détecte le genre probable d'un prénom
+function detectNameGender(name: string): 'feminine' | 'masculine' | 'unknown' {
+  const normalizedName = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const cleanName = name.toLowerCase()
+  
+  // Vérifier dans les listes connues
+  if (FEMININE_NAMES.some(n => cleanName.includes(n) || n.includes(cleanName))) {
+    return 'feminine'
+  }
+  if (MASCULINE_NAMES.some(n => cleanName.includes(n) || n.includes(cleanName))) {
+    return 'masculine'
+  }
+  
+  // Heuristiques basées sur les terminaisons françaises
+  if (normalizedName.endsWith('a') || normalizedName.endsWith('e') || normalizedName.endsWith('ie') || 
+      normalizedName.endsWith('ine') || normalizedName.endsWith('elle') || normalizedName.endsWith('ette')) {
+    return 'feminine'
+  }
+  if (normalizedName.endsWith('o') || normalizedName.endsWith('us') || normalizedName.endsWith('as') ||
+      normalizedName.endsWith('ien') || normalizedName.endsWith('ard') || normalizedName.endsWith('aud')) {
+    return 'masculine'
+  }
+  
+  return 'unknown'
 }
 
 // Types pour les étapes
@@ -75,8 +133,8 @@ const CONVERSATION_STEPS: ConversationStep[] = [
     type: 'ai',
     messages: [
       "✨ *Une douce lumière apparaît...*",
-      "Bonjour ! Oh, comme je suis contente de te rencontrer !",
-      "Je suis ton amie magique, et je suis là pour t'aider à créer les plus belles histoires du monde ! 📚✨",
+      "Bonjour, comme je suis contente de te rencontrer !",
+      "Je suis là pour t'aider à utiliser l'intelligence artificielle et à créer les plus belles histoires du monde ! 📚✨",
     ],
     delay: 800,
   },
@@ -94,7 +152,7 @@ const CONVERSATION_STEPS: ConversationStep[] = [
     inputType: 'child-name',
     prompt: "Quel est ton prénom ?",
     placeholder: "Entre ton prénom...",
-    suggestions: ['Luna', 'Léo', 'Emma', 'Noah', 'Jade', 'Lucas'],
+    suggestions: ['Chloé', 'Léo', 'Emma', 'Noah', 'Jade', 'Lucas'],
   } as InputStepExtended,
   {
     id: 'child-name-response',
@@ -120,7 +178,8 @@ const CONVERSATION_STEPS: ConversationStep[] = [
     inputType: 'ai-name',
     prompt: "Comment veux-tu m'appeler ?",
     placeholder: "Entre mon nouveau prénom...",
-    suggestions: ['Étoile', 'Féerie', 'Céleste', 'Aurore', 'Iris', 'Marie'],
+    // Prénoms mixtes pour laisser le choix à l'enfant
+    suggestions: ['Étoile', 'Céleste', 'Merlin', 'Aurore', 'Phoenix', 'Marie'],
   } as InputStepExtended,
   {
     id: 'ai-name-response',
@@ -213,18 +272,139 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
   const [availableVoices, setAvailableVoices] = useState<VoiceInfo[]>([])
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
   const [testingVoice, setTestingVoice] = useState<string | null>(null)
+  const [voicesReady, setVoicesReady] = useState(false)
+  const [aiNameGender, setAiNameGender] = useState<'feminine' | 'masculine' | 'unknown'>('unknown')
+  const [hasStarted, setHasStarted] = useState(false) // Nécessite une interaction pour débloquer l'audio
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Ref pour stocker la voix sélectionnée (évite les race conditions React)
+  const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
+  
+  // Positions des étoiles mémorisées (évite les saccades à chaque frappe)
+  const starPositions = useMemo(() => 
+    Array.from({ length: 30 }).map(() => ({
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 2,
+    })), []
+  )
 
   const steps = voiceOnlyMode ? VOICE_ONLY_STEPS : CONVERSATION_STEPS
+  
+  // Filtrer les voix selon le genre du prénom de l'IA
+  // Ne montrer QUE les voix premium correspondant au genre (Audrey/Amélie pour filles, Thomas pour garçons)
+  const filteredVoices = useMemo(() => {
+    if (aiNameGender === 'unknown') {
+      // Si le genre n'est pas détecté, montrer uniquement les voix premium (Audrey, Amélie, Thomas)
+      const premiumOnly = availableVoices.filter(v => 
+        v.name.includes('Audrey') || v.name.includes('Amélie') || v.name.includes('Thomas')
+      )
+      return premiumOnly.length > 0 ? premiumOnly : availableVoices
+    }
+    
+    // Filtrer pour ne montrer QUE les voix du genre correspondant (pas de fallback sur 'unknown')
+    const filtered = availableVoices.filter(v => v.gender === aiNameGender)
+    
+    // Si aucune voix après filtrage, montrer les voix premium du genre
+    if (filtered.length === 0) {
+      // Fallback: toutes les voix premium
+      const premiumOnly = availableVoices.filter(v => 
+        v.name.includes('Audrey') || v.name.includes('Amélie') || v.name.includes('Thomas')
+      )
+      return premiumOnly.length > 0 ? premiumOnly : availableVoices
+    }
+    
+    console.log('🎭 Voix filtrées pour', aiNameGender, ':', filtered.map(v => v.name).join(', '))
+    return filtered
+  }, [availableVoices, aiNameGender])
+  
+  // Démarrer la séquence (débloque l'autoplay audio)
+  const handleStart = () => {
+    // FORCER le chargement et stockage de la voix Audrey AVANT de démarrer
+    if ('speechSynthesis' in window) {
+      const voices = window.speechSynthesis.getVoices()
+      console.log('🎤 handleStart: Voix FR disponibles:', voices.filter(v => v.lang.startsWith('fr')).map(v => v.name))
+      
+      // Chercher Audrey avec plusieurs variations
+      const audreyVoice = voices.find(v => 
+        v.lang.startsWith('fr') && (
+          v.name.toLowerCase().includes('audrey') ||
+          v.name === 'Audrey' ||
+          v.name === 'Audrey (premium)' ||
+          v.name === 'Audrey (Premium)'
+        )
+      )
+      
+      if (audreyVoice) {
+        selectedVoiceRef.current = audreyVoice
+        console.log('🎤 handleStart: ✅ Voix Audrey stockée:', audreyVoice.name)
+      } else {
+        // Fallback: chercher Amélie (autre voix féminine premium)
+        const amelieVoice = voices.find(v => v.lang.startsWith('fr') && v.name.toLowerCase().includes('amélie'))
+        if (amelieVoice) {
+          selectedVoiceRef.current = amelieVoice
+          console.log('🎤 handleStart: ⚠️ Audrey non trouvée, utilisation Amélie:', amelieVoice.name)
+        } else {
+          console.log('🎤 handleStart: ❌ Ni Audrey ni Amélie trouvées')
+        }
+      }
+      
+      // Jouer un son silencieux pour débloquer l'audio sur Safari/Chrome
+      const utterance = new SpeechSynthesisUtterance('')
+      utterance.volume = 0
+      // Utiliser la voix sélectionnée même pour le son silencieux
+      if (selectedVoiceRef.current) {
+        utterance.voice = selectedVoiceRef.current
+      }
+      speechSynthesis.speak(utterance)
+    }
+    
+    setHasStarted(true)
+  }
 
-  // Charger les voix disponibles
+  // Charger les voix disponibles - DOIT être prêt AVANT de commencer à parler
   useEffect(() => {
     if (!isOpen) return
     
     const loadVoices = () => {
       if ('speechSynthesis' in window) {
         const voices = window.speechSynthesis.getVoices()
+        
+        // Les voix ne sont peut-être pas encore chargées
+        if (voices.length === 0) {
+          console.log('🎤 Attente du chargement des voix...')
+          return
+        }
+        
+        // Chercher Audrey IMMÉDIATEMENT dans les voix brutes (plusieurs variations de nom)
+        const audreyVoiceRaw = voices.find(v => 
+          v.lang.startsWith('fr') && (
+            v.name.toLowerCase().includes('audrey') ||
+            v.name === 'Audrey' ||
+            v.name === 'Audrey (premium)' ||
+            v.name === 'Audrey (Premium)'
+          )
+        )
+        
+        const frenchVoiceNames = voices.filter(v => v.lang.startsWith('fr')).map(v => v.name)
+        console.log('🎤 Recherche Audrey parmi', frenchVoiceNames.length, 'voix FR:', frenchVoiceNames.join(', '))
+        
+        if (audreyVoiceRaw) {
+          // Stocker dans la ref IMMÉDIATEMENT (pas de délai React)
+          selectedVoiceRef.current = audreyVoiceRaw
+          console.log('🎤 ✅ Voix Audrey trouvée et stockée dans ref:', audreyVoiceRaw.name)
+        } else {
+          console.log('🎤 ⚠️ Audrey NON trouvée, fallback sera utilisé')
+        }
+        
+        // Fonction pour détecter le genre d'une voix
+        const getVoiceGender = (voiceName: string): 'feminine' | 'masculine' | 'unknown' => {
+          if (FEMININE_VOICES.some(fv => voiceName.includes(fv))) return 'feminine'
+          if (MASCULINE_VOICES.some(mv => voiceName.includes(mv))) return 'masculine'
+          return 'unknown'
+        }
+        
         const frenchVoices = voices
           .filter(v => v.lang.startsWith('fr'))
           .map(v => ({
@@ -232,6 +412,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
             lang: v.lang,
             isPremium: PREMIUM_VOICES.some(p => v.name.includes(p)),
             isRecommended: RECOMMENDED_VOICES.fr.some(r => v.name.includes(r)),
+            gender: getVoiceGender(v.name),
           }))
           // Trier : Premium d'abord, puis recommandées
           .sort((a, b) => {
@@ -242,9 +423,25 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
         
         setAvailableVoices(frenchVoices)
         
-        // Sélectionner la première voix par défaut
-        if (frenchVoices.length > 0 && !selectedVoice) {
-          setSelectedVoice(frenchVoices[0].name)
+        // Sélectionner Audrey Premium par défaut, sinon Amélie, sinon la première voix
+        if (frenchVoices.length > 0) {
+          const audreyVoice = frenchVoices.find(v => v.name.toLowerCase().includes('audrey'))
+          const amelieVoice = frenchVoices.find(v => v.name.toLowerCase().includes('amélie'))
+          const voiceToSelect = audreyVoice?.name || amelieVoice?.name || frenchVoices[0].name
+          setSelectedVoice(voiceToSelect)
+          console.log('🎤 Voix sélectionnée:', voiceToSelect, '| Audrey trouvée:', !!audreyVoice, '| Amélie trouvée:', !!amelieVoice)
+          
+          // Si pas d'Audrey, stocker la première voix premium dans la ref
+          if (!selectedVoiceRef.current) {
+            const fallbackVoice = voices.find(v => v.name === voiceToSelect)
+            if (fallbackVoice) {
+              selectedVoiceRef.current = fallbackVoice
+              console.log('🎤 Voix fallback stockée dans ref:', fallbackVoice.name)
+            }
+          }
+          
+          setVoicesReady(true)
+          console.log('🎤 Voix prête:', voiceToSelect, '| Ref:', selectedVoiceRef.current?.name)
         }
       }
     }
@@ -255,7 +452,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
     return () => {
       window.speechSynthesis.onvoiceschanged = null
     }
-  }, [isOpen, selectedVoice])
+  }, [isOpen])
 
   // Auto-scroll vers le bas
   useEffect(() => {
@@ -268,12 +465,42 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
       setTimeout(() => inputRef.current?.focus(), 300)
     }
   }, [showInput])
-
-  // Afficher les messages progressivement
+  
+  // Quand le genre de l'IA change, adapter la voix sélectionnée
   useEffect(() => {
+    if (aiNameGender === 'unknown') return
+    
+    // Vérifier si la voix actuelle correspond au genre
+    const currentVoiceInfo = availableVoices.find(v => v.name === selectedVoice)
+    if (currentVoiceInfo && currentVoiceInfo.gender !== aiNameGender && currentVoiceInfo.gender !== 'unknown') {
+      // La voix actuelle ne correspond pas au genre, sélectionner la première voix filtrée
+      const firstMatchingVoice = filteredVoices[0]
+      if (firstMatchingVoice) {
+        setSelectedVoice(firstMatchingVoice.name)
+        console.log('🎭 Voix adaptée au genre', aiNameGender, ':', firstMatchingVoice.name)
+      }
+    }
+  }, [aiNameGender, availableVoices, filteredVoices, selectedVoice])
+
+  // Afficher les messages progressivement - ATTEND que les voix soient prêtes ET que l'utilisateur ait cliqué
+  useEffect(() => {
+    console.log('🔄 useEffect messages - step:', currentStep, '| msgIdx:', currentMessageIndex, '| hasStarted:', hasStarted, '| voicesReady:', voicesReady)
+    
     if (!isOpen) return
+    
+    // Attendre que l'utilisateur ait cliqué sur "Commencer" (débloque l'autoplay audio)
+    if (!hasStarted) {
+      return
+    }
+    
+    // Attendre que les voix soient chargées avant de commencer à parler
+    if (!voicesReady) {
+      console.log('🎤 En attente des voix avant de commencer...')
+      return
+    }
 
     const step = steps[currentStep]
+    console.log('🔄 Step actuelle:', step?.id, '| type:', step?.type)
     if (!step) return
 
     if (step.type === 'ai') {
@@ -301,11 +528,21 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
             utterance.rate = 0.9
             utterance.pitch = 1.2
             
-            // Utiliser la voix sélectionnée si disponible
-            if (selectedVoice) {
+            // UTILISER LA REF DIRECTEMENT (pas de recherche, pas de délai)
+            if (selectedVoiceRef.current) {
+              utterance.voice = selectedVoiceRef.current
+              console.log('🔊 Lecture avec voix REF:', selectedVoiceRef.current.name)
+            } else {
+              // Fallback: chercher Audrey dans les voix
               const voices = window.speechSynthesis.getVoices()
-              const voice = voices.find(v => v.name === selectedVoice)
-              if (voice) utterance.voice = voice
+              const audreyVoice = voices.find(v => v.name.includes('Audrey') && v.lang.startsWith('fr'))
+              if (audreyVoice) {
+                utterance.voice = audreyVoice
+                selectedVoiceRef.current = audreyVoice // Stocker pour la prochaine fois
+                console.log('🔊 Lecture avec voix trouvée:', audreyVoice.name)
+              } else {
+                console.log('🔊 ATTENTION: Aucune voix Audrey trouvée, utilisation voix par défaut')
+              }
             }
             
             speechSynthesis.speak(utterance)
@@ -336,7 +573,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
     } else if (step.type === 'voice') {
       setShowVoiceSelector(true)
     }
-  }, [isOpen, currentStep, currentMessageIndex, chosenName, chosenChildName, aiName, userName, isSpeaking, onComplete, selectedVoice, steps])
+  }, [isOpen, currentStep, currentMessageIndex, chosenName, chosenChildName, aiName, userName, isSpeaking, onComplete, selectedVoice, steps, voicesReady, hasStarted])
 
   // Tester une voix
   const handleTestVoice = (voiceName: string) => {
@@ -380,15 +617,21 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
     if (!inputValue.trim()) return
 
     const name = inputValue.trim()
+    console.log('📝 handleSubmitName:', name, '| type:', currentInputType, '| currentStep:', currentStep)
     
     if (currentInputType === 'child-name') {
       // Prénom de l'enfant
       setChosenChildName(name)
       setUserName(name)
     } else {
-      // Nom de l'IA
+      // Nom de l'IA - détecter le genre pour filtrer les voix
       setChosenName(name)
       setAiName(name)
+      
+      // Détecter le genre du prénom pour adapter les voix proposées
+      const detectedGender = detectNameGender(name)
+      setAiNameGender(detectedGender)
+      console.log('🎭 Genre détecté pour', name, ':', detectedGender)
     }
     
     setDisplayedMessages(prev => [...prev, { type: 'user', text: name }])
@@ -397,6 +640,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
     setCurrentInputType(null)
 
     setTimeout(() => {
+      console.log('📝 Passage à l\'étape suivante:', currentStep + 1)
       setCurrentStep(prev => prev + 1)
       setCurrentMessageIndex(0)
     }, 500)
@@ -421,24 +665,24 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
         background: 'radial-gradient(ellipse at center, #1a1832 0%, #0d0c1a 70%, #000 100%)',
       }}
     >
-      {/* Étoiles de fond */}
+      {/* Étoiles de fond (positions mémorisées pour éviter les saccades) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 30 }).map((_, i) => (
+        {starPositions.map((star, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 bg-white rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${star.left}%`,
+              top: `${star.top}%`,
             }}
             animate={{
               opacity: [0.2, 0.8, 0.2],
               scale: [1, 1.5, 1],
             }}
             transition={{
-              duration: 2 + Math.random() * 2,
+              duration: star.duration,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: star.delay,
             }}
           />
         ))}
@@ -486,16 +730,56 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
         {/* Zone de chat */}
         <div className="bg-midnight-900/90 backdrop-blur-xl rounded-3xl border border-aurora-500/30 overflow-hidden shadow-2xl shadow-aurora-500/20 pt-12">
           {/* Bouton son */}
-          <motion.button
-            onClick={() => setIsSpeaking(!isSpeaking)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-midnight-800/50 text-midnight-400 hover:text-white transition-colors"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            {isSpeaking ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </motion.button>
+          {hasStarted && (
+            <motion.button
+              onClick={() => setIsSpeaking(!isSpeaking)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-midnight-800/50 text-midnight-400 hover:text-white transition-colors"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              {isSpeaking ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </motion.button>
+          )}
+
+          {/* Écran de démarrage - nécessite un clic pour débloquer l'audio */}
+          {!hasStarted && (
+            <div className="p-6 h-[300px] flex flex-col items-center justify-center text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <p className="text-midnight-300 text-sm mb-2">
+                  ✨ Une présence magique t'attend...
+                </p>
+                <p className="text-midnight-400 text-xs mb-6">
+                  {voicesReady ? "Clique pour commencer l'aventure" : "Préparation de la voix..."}
+                </p>
+                <motion.button
+                  onClick={handleStart}
+                  disabled={!voicesReady}
+                  whileHover={voicesReady ? { scale: 1.05 } : {}}
+                  whileTap={voicesReady ? { scale: 0.95 } : {}}
+                  className={`px-8 py-4 rounded-2xl font-semibold shadow-lg flex items-center gap-3 mx-auto transition-all ${
+                    voicesReady 
+                      ? 'bg-gradient-to-r from-aurora-500 to-dream-500 text-white shadow-aurora-500/30 cursor-pointer' 
+                      : 'bg-midnight-700 text-midnight-400 cursor-wait'
+                  }`}
+                >
+                  <Sparkles className={`w-5 h-5 ${!voicesReady ? 'animate-pulse' : ''}`} />
+                  {voicesReady ? "Commencer l'aventure" : "Chargement..."}
+                </motion.button>
+                {voicesReady && selectedVoice && (
+                  <p className="text-aurora-400 text-xs mt-4">
+                    🎤 Voix : {selectedVoice.split(' ')[0]}
+                  </p>
+                )}
+              </motion.div>
+            </div>
+          )}
 
           {/* Messages */}
+          {hasStarted && (
           <div className="p-6 h-[300px] overflow-y-auto space-y-4">
             <AnimatePresence mode="popLayout">
               {displayedMessages.map((msg, index) => (
@@ -544,6 +828,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
 
             <div ref={messagesEndRef} />
           </div>
+          )}
 
           {/* Zone d'input pour le nom */}
           <AnimatePresence>
@@ -616,16 +901,20 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
                 className="p-4 border-t border-aurora-500/20 bg-midnight-800/50"
               >
                 <p className="text-xs text-midnight-400 mb-3 text-center">
-                  🎤 Voix disponibles sur ton navigateur
+                  🎤 {aiNameGender === 'feminine' 
+                    ? `Voix féminines pour ${chosenName}` 
+                    : aiNameGender === 'masculine' 
+                      ? `Voix masculines pour ${chosenName}`
+                      : 'Voix disponibles sur ton navigateur'}
                 </p>
                 
                 <div className="space-y-2 max-h-[200px] overflow-y-auto mb-4">
-                  {availableVoices.length === 0 ? (
+                  {filteredVoices.length === 0 ? (
                     <p className="text-sm text-midnight-500 text-center py-4">
                       Chargement des voix...
                     </p>
                   ) : (
-                    availableVoices.map((voice) => (
+                    filteredVoices.map((voice) => (
                       <motion.button
                         key={voice.name}
                         onClick={() => setSelectedVoice(voice.name)}

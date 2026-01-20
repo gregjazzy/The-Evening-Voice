@@ -67,6 +67,13 @@ function escapeForShell(str) {
 }
 
 // ============================================
+// URL DE PRODUCTION
+// ============================================
+
+// En production, utiliser l'URL Netlify
+const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://eveningvoice.netlify.app'
+
+// ============================================
 // FENÊTRE PRINCIPALE
 // ============================================
 
@@ -112,7 +119,9 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:3000')
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../out/index.html'))
+    // En production, charger l'URL de production (Vercel ou autre hébergeur)
+    console.log('🌐 Chargement URL production:', PRODUCTION_URL)
+    mainWindow.loadURL(PRODUCTION_URL)
   }
 
   mainWindow.on('closed', () => {
@@ -140,6 +149,23 @@ async function checkScreenCapturePermissions() {
   if (process.platform === 'darwin') {
     const status = systemPreferences.getMediaAccessStatus('screen')
     return status === 'granted'
+  }
+  return true
+}
+
+async function checkMicrophonePermissions() {
+  if (process.platform === 'darwin') {
+    const status = systemPreferences.getMediaAccessStatus('microphone')
+    return status === 'granted'
+  }
+  return true
+}
+
+async function requestMicrophoneAccess() {
+  if (process.platform === 'darwin') {
+    const granted = await systemPreferences.askForMediaAccess('microphone')
+    console.log('🎤 Permission microphone:', granted ? 'accordée' : 'refusée')
+    return granted
   }
   return true
 }
@@ -365,7 +391,12 @@ function isControlAllowed(sessionId) {
 ipcMain.handle('check-permissions', async () => {
   const accessibility = await checkAccessibilityPermissions()
   const screenCapture = await checkScreenCapturePermissions()
-  return { accessibility, screenCapture }
+  const microphone = await checkMicrophonePermissions()
+  return { accessibility, screenCapture, microphone }
+})
+
+ipcMain.handle('request-microphone-access', async () => {
+  return await requestMicrophoneAccess()
 })
 
 ipcMain.handle('capture-screen', captureScreen)

@@ -30,7 +30,9 @@ import {
 import { useStudioStore, type StyleType, type AmbianceType, type LightType, type FormatType, type MovementType, type CameraType } from '@/store/useStudioStore'
 import { useStudioProgressStore } from '@/store/useStudioProgressStore'
 import { useAppStore } from '@/store/useAppStore'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
+import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
 
 // Options de style avec icônes et couleurs
@@ -254,7 +256,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
 
   const { currentStory } = useAppStore()
   const { addImportedAsset } = useStudioStore()
+  const { user } = useAuthStore()
   const { uploadFromUrl, isUploading: isUploadingToCloud } = useMediaUpload()
+  const { showToast } = useToast()
   
   const [showPreview, setShowPreview] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -1573,6 +1577,12 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                             {/* ✅ Garder */}
                             <motion.button
                               onClick={async () => {
+                                // Vérifier que l'utilisateur est connecté
+                                if (!user) {
+                                  showToast('Tu dois être connecté pour sauvegarder. Rafraîchis la page et reconnecte-toi.', 'error')
+                                  return
+                                }
+                                
                                 // Upload vers stockage permanent (Supabase pour images, R2 pour vidéos)
                                 setIsSavingToCloud(true)
                                 try {
@@ -1592,15 +1602,20 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                                       })
                                     }
                                     console.log(`✅ ${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée:`, result.url)
+                                    showToast(`${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée !`, 'success')
+                                    // Fermer l'aperçu SEULEMENT si succès
+                                    setGeneratedAsset(null)
+                                    setGenerationError(null)
+                                  } else {
+                                    // Upload a retourné null (erreur silencieuse)
+                                    showToast('Erreur lors de la sauvegarde. Vérifie ta connexion et réessaie.', 'error')
                                   }
                                 } catch (error) {
                                   console.error('Erreur sauvegarde:', error)
+                                  showToast(`Erreur : ${error instanceof Error ? error.message : 'Sauvegarde impossible'}`, 'error')
                                 } finally {
                                   setIsSavingToCloud(false)
                                 }
-                                // Fermer l'aperçu
-                                setGeneratedAsset(null)
-                                setGenerationError(null)
                               }}
                               disabled={isSavingToCloud || isUploadingToCloud}
                               className={cn(

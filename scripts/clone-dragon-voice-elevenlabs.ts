@@ -162,7 +162,7 @@ async function main() {
           audio_url: audioFileUrl,
         },
         logs: true,
-      }) as { data: { voice_id: string } }
+      }) as unknown as { data: { voice_id: string } }
       
       voiceId = minimaxClone.data.voice_id
       console.log('\n✅ Voix clonée avec MiniMax!')

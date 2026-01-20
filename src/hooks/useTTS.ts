@@ -36,9 +36,9 @@ const getHasWebSpeech = () => typeof window !== 'undefined' && 'speechSynthesis'
 // Electron/macOS : Apple d'abord (meilleure qualité, native)
 
 const RECOMMENDED_VOICES_WEB: Record<string, string[]> = {
-  fr: ['Google français', 'Audrey', 'Amélie', 'Thomas', 'Marie'],
-  en: ['Google US English', 'Google UK English Female', 'Samantha', 'Karen', 'Daniel'],
-  ru: ['Google русский', 'Milena', 'Yuri'],
+  fr: ['Audrey', 'Amélie', 'Thomas', 'Marie', 'Google français'],
+  en: ['Samantha', 'Karen', 'Daniel', 'Google US English', 'Google UK English Female'],
+  ru: ['Milena', 'Yuri', 'Google русский'],
 }
 
 const RECOMMENDED_VOICES_ELECTRON: Record<string, string[]> = {

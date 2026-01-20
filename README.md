@@ -1,8 +1,8 @@
 # 🌙 La Voix du Soir
 
-> Application magique de création de livres-disques numériques pour enfants, avec une IA-Amie personnalisable.
+> Application magique de création de livres-disques numériques pour enfants, avec une IA-Amie personnalisable et **apprentissage progressif du prompting**.
 
-![Version](https://img.shields.io/badge/version-4.0.0-purple)
+![Version](https://img.shields.io/badge/version-5.4.0-purple)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)
 ![Supabase](https://img.shields.io/badge/Supabase-Database-green)
@@ -16,12 +16,15 @@
 **La Voix du Soir** est une application iPad/Desktop conçue pour les enfants. Elle offre un espace créatif où ils peuvent :
 
 - ✍️ Écrire des histoires magiques avec structures narratives
-- 🎨 Apprendre à créer des prompts IA (Midjourney/Runway) progressivement
+- 🎨 Apprendre à créer des prompts IA (Nano Banana/Kling) progressivement
+- 🏆 S'entraîner au prompting avec des défis interactifs
 - 🎬 Assembler des livres-disques interactifs avec timeline
 - 🎭 Présenter leurs créations en mode Théâtre immersif + export vidéo HD
 - 📖 Publier un vrai livre imprimé (via Gelato) ou PDF
 
 Le tout accompagné par une **IA-Amie** dont l'enfant choisit le nom lors de sa première connexion ! 🌟
+
+**Objectif pédagogique principal** : Enseigner le **prompting** de manière ludique et progressive.
 
 ---
 
@@ -33,6 +36,7 @@ Le tout accompagné par une **IA-Amie** dont l'enfant choisit le nom lors de sa 
 |------|------|-------------|
 | ✍️ **Écriture** | ✅ Complet | Création de livres avec chapitres, décorations, fonds |
 | 🎨 **Studio** | ✅ Complet | Apprentissage progressif du prompting (5 niveaux) |
+| 🏆 **Défis** | ✅ **NOUVEAU** | Exercices de prompting : reproduire/varier des images |
 | 🎬 **Montage** | ✅ Complet | Timeline "Rubans Magiques" + 98 sons |
 | 🎭 **Théâtre** | ✅ Complet | Lecteur immersif + export MP4 HD |
 | 📖 **Publier** | ✅ Complet | Publication via Gelato + export PDF |
@@ -44,19 +48,16 @@ Le tout accompagné par une **IA-Amie** dont l'enfant choisit le nom lors de sa 
 |----------------|------|-------|
 | IA-Amie personnalisable | ✅ | Nom choisi via dialogue interactif |
 | Guidage visuel IA | ✅ | L'IA peut faire clignoter des boutons |
+| **Modales d'introduction** | ✅ | Chaque mode s'explique à la 1ère visite |
 | Éditeur livre ouvert | ✅ | 2 pages côte à côte |
 | Décorations premium | ✅ | 60+ ornements SVG |
 | Timeline Montage v2 | ✅ | Drag & drop, zoom, effets |
 | Bibliothèque sons | ✅ | 98 fichiers (ambiances, effets, musiques) |
-| Background removal | ✅ | Supprimer les fonds d'images |
+| **Challenge Mode** | ✅ | 12 défis de prompting avec analyse IA |
 | Synchronisation Supabase | ✅ | Auto-save debounced |
 | Export PDF | ✅ | 300 DPI, qualité impression |
 | Export MP4 | ✅ | Via Mux, qualité 4K |
 | Administration multi-famille | ✅ | Gestion des clients + clés API |
-| Sélecteur voix IA | ✅ | Choix parmi voix système |
-| Sélecteur voix narration | ✅ | 21 voix ElevenLabs |
-| Mode hors-ligne | ✅ | Fallbacks intelligents |
-| Responsive iPad | ✅ | Interface adaptative |
 | Mode multi-langue | ✅ | FR, EN, RU |
 
 ---
@@ -64,12 +65,45 @@ Le tout accompagné par une **IA-Amie** dont l'enfant choisit le nom lors de sa 
 ## 🎯 Flux de Production
 
 ```
-📝 Écriture → 🎨 Studio → 🎬 Montage → 🎭 Théâtre
-   (texte)    (assets)    (assemblage)  (lecture)
+📝 Écriture → 🎨 Studio → 🏆 Défis → 🎬 Montage → 🎭 Théâtre
+   (texte)    (assets)   (pratique)  (assemblage)  (lecture)
                               ↓
                      📖 Publier / Export
                    (livre imprimé / PDF / MP4)
 ```
+
+---
+
+## 🎓 Pédagogie du Prompting
+
+L'application enseigne le prompting via **trois systèmes complémentaires** :
+
+### Mode Écriture : 5 Questions Magiques
+
+| Question | Description |
+|----------|-------------|
+| **QUI ?** | Le personnage principal |
+| **QUOI ?** | Ce qu'il fait |
+| **OÙ ?** | Le lieu de l'action |
+| **QUAND ?** | Le moment (jour, nuit, saison) |
+| **ET PUIS ?** | Ce qui se passe ensuite |
+
+### Mode Studio : 5 Clés Magiques
+
+| Clé | Description |
+|-----|-------------|
+| 🎨 **Style** | Dessin, photo, anime, aquarelle... |
+| 🦸 **Héros** | Le sujet principal de l'image |
+| 🌈 **Ambiance** | L'atmosphère (joyeux, mystérieux...) |
+| 🌍 **Monde** | Le décor, l'environnement |
+| ✨ **Magie** | Les effets spéciaux |
+
+### Mode Défis : Exercices Pratiques
+
+| Exercice | Description |
+|----------|-------------|
+| **Reproduire l'image** | Deviner le prompt d'une image générée |
+| **Variations** | Créer une variation selon une consigne |
 
 ---
 
@@ -93,6 +127,24 @@ Le Studio est un **parcours pédagogique** pour apprendre à créer des prompts 
 - **Détection par mots-clés** (niveau 3+) pour validation automatique
 - **Surbrillance** des éléments à compléter
 - **Guide à droite** avec étapes qui se cochent automatiquement
+
+---
+
+## 🏆 Mode Défis - Exercices de Prompting
+
+### Types de défis
+
+| Type | Description | Niveaux |
+|------|-------------|---------|
+| **Reproduire** | Deviner le prompt d'une image | Facile, Moyen, Difficile |
+| **Variations** | Modifier une image selon consigne | Facile, Moyen, Difficile |
+
+### Fonctionnalités
+
+- **12 défis** avec images pré-générées (chargement instantané)
+- **Indices progressifs** pour aider l'enfant
+- **Analyse IA** : Gemini Vision compare les résultats
+- **Score** : 0-100 avec points forts et conseils
 
 ---
 
@@ -126,22 +178,6 @@ Le Studio est un **parcours pédagogique** pour apprendre à créer des prompts 
 
 ---
 
-## 👥 Administration Multi-Famille
-
-### Pour le développeur (Super Admin)
-
-- Gérer **toutes** les familles clientes
-- Configurer les **clés API** (ElevenLabs, Gemini, Midjourney, Runway)
-- Voir les **statistiques** et créations
-
-### Pour les parents (dans l'app)
-
-- **Membres** : Ajouter/supprimer enfants, invitations par email
-- **Créations** : Voir les histoires et montages des enfants
-- **Configuration** : Modifier les clés API (avec garde-fous)
-
----
-
 ## 🛠️ Stack Technique
 
 | Technologie | Usage |
@@ -152,12 +188,11 @@ Le Studio est un **parcours pédagogique** pour apprendre à créer des prompts 
 | **Framer Motion** | Animations |
 | **Zustand** | State management |
 | **Supabase** | Base de données + Auth + Storage |
-| **Gemini 2.0 Flash** | IA conversationnelle |
-| **ElevenLabs** | Voix narration premium |
+| **Gemini 2.0 Flash** | IA conversationnelle + Vision |
+| **fal.ai** | Images (Nano Banana), Vidéos (Kling), Voix (ElevenLabs) |
 | **Mux** | Export vidéo HD |
 | **Gelato API** | Print-on-demand |
 | **Cloudflare R2** | Stockage vidéos |
-| **Web Speech API** | TTS voix IA |
 | **Electron** | Application desktop Mac |
 | **WebRTC** | Communication peer-to-peer |
 
@@ -195,11 +230,14 @@ NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-clé-anon
 SUPABASE_SERVICE_ROLE_KEY=xxx
 
-# GEMINI (obligatoire)
-GOOGLE_GEMINI_API_KEY=votre-clé-gemini
+# FAL.AI (images, vidéos, voix)
+FAL_API_KEY=xxx
 
-# ELEVENLABS (narration)
-ELEVENLABS_API_KEY=xxx
+# GEMINI (chat IA + Vision)
+GOOGLE_GEMINI_API_KEY=xxx
+
+# ASSEMBLYAI (transcription)
+ASSEMBLYAI_API_KEY=xxx
 
 # GELATO (publication)
 GELATO_API_KEY=xxx
@@ -243,21 +281,10 @@ npm run dev:electron  # App Electron
 npm run build         # Build web
 npm run build:electron # Build app Electron
 npm run lint          # Vérifier le code
+
+# Challenge Mode
+npx tsx scripts/generate-challenge-images.ts  # Régénérer images défis
 ```
-
----
-
-## 🔑 Configuration Super Admin
-
-Pour vous configurer en tant que Super Admin :
-
-1. Créer un compte sur l'app
-2. Dans Supabase SQL Editor :
-```sql
-INSERT INTO super_admins (user_id, name)
-VALUES ('VOTRE_USER_ID', 'Admin');
-```
-3. Rafraîchir l'app → Bouton "Admin" apparaît dans la sidebar
 
 ---
 
@@ -271,10 +298,18 @@ VALUES ('VOTRE_USER_ID', 'Admin');
 | `stories` | Histoires créées (mode Écriture) |
 | `montage_projects` | Projets de montage (timeline) |
 | `studio_progress` | Progression pédagogique Studio |
+| `assets` | Images et médias générés |
 | `families` | Familles clientes |
 | `family_config` | Clés API et voix par famille |
-| `family_members` | Membres (parent/enfant) + invitations |
-| `super_admins` | Administrateurs système |
+
+### Buckets Storage
+
+| Bucket | Contenu |
+|--------|---------|
+| `images` | Images générées et importées |
+| `audio` | Fichiers audio (narration) |
+| `pdfs` | PDFs générés pour impression |
+| `images/challenges` | Images pré-générées pour défis |
 
 ---
 
@@ -292,50 +327,37 @@ VALUES ('VOTRE_USER_ID', 'Admin');
 
 ## 🔮 Changelog récent
 
-### v4.0.0 (17 janvier 2026)
+### v5.4.0 (20 janvier 2026)
 
-**Administration Multi-Famille**
-- ✅ Super Admin Panel (gestion de toutes les familles)
-- ✅ Parent Panel (membres, créations, configuration)
-- ✅ Invitations par email
-- ✅ Clés API dynamiques par famille
+**Challenge Mode**
+- ✅ Mode "Défis" avec 12 exercices de prompting
+- ✅ Deux types : Reproduire l'image / Variations
+- ✅ Analyse IA via Gemini Vision (score, conseils)
+- ✅ Images pré-générées (chargement instantané)
 
-**Voix & Audio**
-- ✅ 21 voix ElevenLabs (7 par langue)
-- ✅ Sélecteur voix IA avec test
-- ✅ Sélecteur voix narration avec aperçu
-- ✅ Bibliothèque 98 sons intégrée
-- ✅ Mode hors-ligne avec fallbacks
+**Modales d'Introduction**
+- ✅ Chaque mode s'explique à la première visite
+- ✅ Objectifs pédagogiques adaptés aux enfants
+- ✅ Design élégant avec animations
 
-**Exports**
-- ✅ Export PDF 300 DPI
-- ✅ Export MP4 via Mux (4K)
+**Bug Fixes**
+- ✅ Fix sauvegarde images : message d'erreur visible si échec
+- ✅ Fix Theater Mode : synchronisation médias corrigée
 
-**UX/UI**
-- ✅ Welcome sequence interactive pour nom IA
-- ✅ Guidage visuel (highlight boutons)
-- ✅ Timeline playhead fluide
-- ✅ Responsive iPad
-- ✅ Animations polish (20+ nouvelles)
-- ✅ Composants UI premium (8 nouveaux)
+### v5.3.0 (20 janvier 2026)
 
-**Technique**
-- ✅ Connexion Studio → Montage → Théâtre
-- ✅ Upload cloud (Supabase + R2)
-- ✅ Sync Supabase (montages, progression)
-- ✅ Background removal (client-side)
-- ✅ Sécurité Electron renforcée
-- ✅ Suppression useLayoutStore (code mort)
+**PublishMode Complet**
+- ✅ Upload PDF vers Supabase Storage
+- ✅ Vérification DPI réelle des images
+- ✅ Upscale IA automatique (Real-ESRGAN)
+- ✅ Intégration Gelato complète
 
-### v3.4.0 (17 janvier 2026)
-- ✅ Studio UX refonte complète
-- ✅ Détection par mots-clés
-- ✅ IA connectée au guide
+### v5.2.0 (20 janvier 2026)
 
-### v3.3.0 (16 janvier 2026)
-- ✅ Studio pédagogique avec 5 niveaux
-- ✅ Stratégie voix (Apple TTS + ElevenLabs)
-- ✅ IA personnalisable
+**Studio Améliorations**
+- ✅ Migration vers Nano Banana Pro (comprend le français)
+- ✅ Validation IA du contenu dans le chat
+- ✅ Liaison Histoire/Assets automatique
 
 ---
 

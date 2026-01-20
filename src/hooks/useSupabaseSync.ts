@@ -73,6 +73,14 @@ type DbStudioProgress = {
   badges: unknown
 }
 
+// Helper pour convertir une date en string ISO (gère Date et string)
+function toISOStringSafe(date: Date | string | undefined | null): string {
+  if (!date) return new Date().toISOString()
+  if (typeof date === 'string') return date
+  if (date instanceof Date) return date.toISOString()
+  return new Date().toISOString()
+}
+
 // Debounce pour éviter trop de requêtes
 function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
@@ -102,8 +110,8 @@ async function saveMontageProjectToSupabase(project: MontageProject, profileId: 
     title: project.title,
     scenes: project.scenes,
     is_complete: project.isComplete,
-    created_at: project.createdAt.toISOString(),
-    updated_at: project.updatedAt.toISOString(),
+    created_at: toISOStringSafe(project.createdAt),
+    updated_at: toISOStringSafe(project.updatedAt),
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase.from('montage_projects').upsert(projectData as any)
@@ -168,8 +176,8 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
       structure: story.structure,
       chapters: story.chapters || [],
     },
-    created_at: story.createdAt.toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: toISOStringSafe(story.createdAt),
+    updated_at: toISOStringSafe(story.updatedAt),
     completed_at: story.isComplete ? new Date().toISOString() : null,
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -318,20 +326,26 @@ export function useSupabaseSync() {
         // Récupérer les histoires actuelles du localStorage
         const currentStories = useAppStore.getState().stories
         
-        if (loadedStories.length > 0) {
-          // Supabase a des données → utiliser Supabase
-          useAppStore.setState({ stories: loadedStories, currentStory: null })
-          console.log(`   ✅ ${loadedStories.length} histoires chargées depuis Supabase`)
-        } else if (currentStories.length > 0) {
-          // Supabase est vide mais localStorage a des données → sauvegarder vers Supabase
-          console.log(`   ⬆️ ${currentStories.length} histoires locales à synchroniser vers Supabase...`)
-          // Sauvegarder chaque histoire vers Supabase
-          for (const story of currentStories) {
-            await saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+        // FUSIONNER les données Supabase + localStorage (au lieu d'écraser)
+        const mergedStories = [...loadedStories]
+        let newStoriesToSync = 0
+        
+        for (const localStory of currentStories) {
+          const existsInSupabase = loadedStories.some(s => s.id === localStory.id)
+          if (!existsInSupabase) {
+            // Histoire locale pas encore dans Supabase → l'ajouter et la sauvegarder
+            mergedStories.push(localStory)
+            newStoriesToSync++
+            console.log(`   ⬆️ Nouvelle histoire locale à synchroniser: "${localStory.title}"`)
+            await saveStoryToSupabase(localStory, profile.id, userName || 'Anonyme')
           }
-          console.log(`   ✅ ${currentStories.length} histoires synchronisées vers Supabase`)
+        }
+        
+        if (mergedStories.length > 0) {
+          useAppStore.setState({ stories: mergedStories, currentStory: null })
+          console.log(`   ✅ ${mergedStories.length} histoires (${loadedStories.length} Supabase + ${newStoriesToSync} nouvelles locales)`)
         } else {
-          console.log('   ℹ️ Aucune histoire (ni local, ni Supabase)')
+          console.log('   ℹ️ Aucune histoire')
         }
       }
 
@@ -432,11 +446,12 @@ export function useSupabaseSync() {
       }
 
       // Charger la progression Studio
+      // Utiliser maybeSingle() pour éviter l'erreur 406 quand pas de données
       const { data: progressData, error: progressError } = await supabase
         .from('studio_progress')
         .select('*')
         .eq('profile_id', profile.id)
-        .single()
+        .maybeSingle()
 
       if (!progressError && progressData) {
         const typedProgressData = progressData as unknown as DbStudioProgress
@@ -509,7 +524,7 @@ export function useSupabaseSync() {
       mood: entry.mood,
       memory_image_url: entry.memoryImage,
       audio_url: entry.audioUrl,
-      created_at: entry.date.toISOString(),
+      created_at: toISOStringSafe(entry.date),
       updated_at: new Date().toISOString(),
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -530,7 +545,7 @@ export function useSupabaseSync() {
       role: message.role,
       content: message.content,
       context_type: 'diary',
-      created_at: message.timestamp.toISOString(),
+      created_at: toISOStringSafe(message.timestamp),
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await supabase.from('chat_messages').upsert(chatData as any)
@@ -616,23 +631,42 @@ export function useSupabaseSync() {
 
   // Sauvegarder les histoires quand elles changent
   const prevStoriesRef = useRef<string>('')
+  const prevStoriesCountRef = useRef<number>(-1) // -1 = pas encore initialisé
   useEffect(() => {
-    if (!profile?.id || !hasLoadedRef.current) return
+    if (!profile?.id) return
     
     const storiesKey = JSON.stringify(stories.map(s => ({ id: s.id, updatedAt: s.updatedAt })))
-    if (storiesKey !== prevStoriesRef.current && prevStoriesRef.current !== '') {
-      // Une histoire a changé, la sauvegarder
+    
+    // Première exécution : initialiser les refs sans sauvegarder
+    if (prevStoriesCountRef.current === -1) {
+      prevStoriesRef.current = storiesKey
+      prevStoriesCountRef.current = stories.length
+      console.log('📝 Init stories tracking:', stories.length, 'histoires')
+      return
+    }
+    
+    // Détecter une NOUVELLE histoire (sauvegarde immédiate, pas de debounce)
+    if (stories.length > prevStoriesCountRef.current) {
+      const newStory = stories[stories.length - 1]
+      console.log('📝 Nouvelle histoire créée, sauvegarde immédiate:', newStory.title)
+      saveStory(newStory) // Sauvegarde immédiate !
+    }
+    // Détecter une histoire MODIFIÉE (sauvegarde debounced)
+    else if (storiesKey !== prevStoriesRef.current) {
       const changedStory = stories.find(s => {
         const prev = JSON.parse(prevStoriesRef.current || '[]')
         const prevStory = prev.find((p: any) => p.id === s.id)
         return !prevStory || new Date(prevStory.updatedAt).getTime() !== s.updatedAt.getTime()
       })
       if (changedStory) {
+        console.log('📝 Histoire modifiée, sauvegarde debounced:', changedStory.title)
         debouncedSaveStory(changedStory)
       }
     }
+    
     prevStoriesRef.current = storiesKey
-  }, [stories, profile?.id, debouncedSaveStory])
+    prevStoriesCountRef.current = stories.length
+  }, [stories, profile?.id, debouncedSaveStory, saveStory])
 
   // Sauvegarder le contexte émotionnel
   const prevEmotionalContextRef = useRef<string>('')

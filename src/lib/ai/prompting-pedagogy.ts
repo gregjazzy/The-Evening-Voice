@@ -1274,7 +1274,7 @@ export function getInitialProgress(): PromptingProgress {
 // STRUCTURES NARRATIVES (pour les histoires)
 // ============================================================================
 
-export type StoryStructure = 'tale' | 'adventure' | 'problem' | 'journal' | 'loop' | 'free'
+export type StoryStructure = 'tale' | 'adventure' | 'problem' | 'free'
 
 export interface StoryTemplate {
   id: StoryStructure
@@ -1418,83 +1418,6 @@ export const STORY_TEMPLATES: Record<StoryStructure, StoryTemplate> = {
       {
         title: { fr: 'Tout va mieux', en: 'All is better', ru: 'Всё лучше' },
         prompt: { fr: 'Le problème est résolu', en: 'The problem is solved', ru: 'Проблема решена' },
-        pages: 1,
-      },
-    ],
-  },
-  journal: {
-    id: 'journal',
-    name: {
-      fr: 'Journal illustré',
-      en: 'Illustrated journal',
-      ru: 'Иллюстрированный дневник',
-    },
-    description: {
-      fr: 'Raconter un souvenir',
-      en: 'Tell a memory',
-      ru: 'Рассказать воспоминание',
-    },
-    recommendedPages: { min: 3, max: 5 },
-    steps: [
-      {
-        title: { fr: 'Ce qui s\'est passé', en: 'What happened', ru: 'Что случилось' },
-        prompt: { fr: 'Le moment, le lieu, les personnes', en: 'The moment, place, people', ru: 'Момент, место, люди' },
-        pages: 1,
-      },
-      {
-        title: { fr: 'Les détails', en: 'The details', ru: 'Детали' },
-        prompt: { fr: 'Ce qu\'on a fait, vu, entendu', en: 'What we did, saw, heard', ru: 'Что делали, видели, слышали' },
-        pages: 2,
-      },
-      {
-        title: { fr: 'Ce que j\'ai ressenti', en: 'How I felt', ru: 'Что я почувствовал' },
-        prompt: { fr: 'Les émotions, les pensées', en: 'Emotions, thoughts', ru: 'Эмоции, мысли' },
-        pages: 1,
-      },
-      {
-        title: { fr: 'L\'image souvenir', en: 'Memory image', ru: 'Картинка-воспоминание' },
-        prompt: { fr: 'Illustration du moment fort', en: 'Illustration of the highlight', ru: 'Иллюстрация главного момента' },
-        pages: 1,
-      },
-    ],
-  },
-  loop: {
-    id: 'loop',
-    name: {
-      fr: 'La boucle',
-      en: 'The loop',
-      ru: 'Петля',
-    },
-    description: {
-      fr: 'Comme les 3 petits cochons',
-      en: 'Like the 3 little pigs',
-      ru: 'Как три поросёнка',
-    },
-    recommendedPages: { min: 6, max: 10 },
-    steps: [
-      {
-        title: { fr: 'Le début', en: 'The beginning', ru: 'Начало' },
-        prompt: { fr: 'Le héros a un objectif', en: 'The hero has a goal', ru: 'У героя есть цель' },
-        pages: 1,
-      },
-      {
-        title: { fr: 'Premier essai', en: 'First try', ru: 'Первая попытка' },
-        prompt: { fr: 'Il essaie, ça ne marche pas', en: 'They try, it doesn\'t work', ru: 'Он пробует, не получается' },
-        pages: 2,
-      },
-      {
-        title: { fr: 'Deuxième essai', en: 'Second try', ru: 'Вторая попытка' },
-        prompt: { fr: 'Il réessaie autrement', en: 'They try differently', ru: 'Он пробует по-другому' },
-        pages: 2,
-      },
-      {
-        title: { fr: 'Troisième essai', en: 'Third try', ru: 'Третья попытка' },
-        prompt: { fr: 'Encore une fois... suspense !', en: 'One more time... suspense!', ru: 'Ещё раз... интрига!' },
-        pages: 2,
-      },
-      {
-        title: { fr: 'Ça marche !', en: 'It works!', ru: 'Получилось!' },
-        prompt: { fr: 'Cette fois c\'est la bonne', en: 'This time it works', ru: 'На этот раз получилось' },
         pages: 1,
       },
     ],

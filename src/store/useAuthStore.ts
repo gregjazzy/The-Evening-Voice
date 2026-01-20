@@ -30,6 +30,9 @@ interface AuthState {
   refreshProfile: () => Promise<void>
 }
 
+// Flag pour éviter les initialisations concurrentes (hors du store car doit persister entre les renders)
+let isInitializing = false
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -40,9 +43,27 @@ export const useAuthStore = create<AuthState>()(
       isInitialized: false,
 
       initialize: async () => {
+        // Éviter les appels concurrents
+        if (isInitializing || get().isInitialized) {
+          return
+        }
+        isInitializing = true
+        
         try {
           // Récupérer la session actuelle
-          const { data: { session } } = await db.auth.getSession()
+          const { data: { session }, error: sessionError } = await db.auth.getSession()
+          
+          // Ignorer les erreurs AbortError (problème connu de Supabase avec les locks navigateur)
+          if (sessionError) {
+            if (sessionError.message?.includes('AbortError') || sessionError.name === 'AbortError') {
+              console.warn('⚠️ Session check aborted (normal lors du rechargement)')
+            } else {
+              console.error('Erreur getSession:', sessionError)
+            }
+            set({ isLoading: false, isInitialized: true })
+            isInitializing = false
+            return
+          }
           
           if (session?.user) {
             // Récupérer le profil
@@ -68,8 +89,10 @@ export const useAuthStore = create<AuthState>()(
               isInitialized: true,
             })
           }
+          
+          isInitializing = false
 
-          // Écouter les changements d'auth
+          // Écouter les changements d'auth (une seule fois)
           db.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
               const { data: profile } = await db
@@ -91,7 +114,15 @@ export const useAuthStore = create<AuthState>()(
               })
             }
           })
-        } catch (error) {
+        } catch (error: any) {
+          isInitializing = false
+          
+          // Ignorer les AbortError (problème connu de Supabase auth-js avec les Web Locks)
+          if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+            console.warn('⚠️ Auth initialization aborted (normal lors du rechargement)')
+            set({ isLoading: false, isInitialized: true })
+            return
+          }
           console.error('Erreur initialisation auth:', error)
           set({ isLoading: false, isInitialized: true })
         }

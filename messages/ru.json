@@ -21,6 +21,7 @@
   "nav": {
     "book": "Письмо",
     "studio": "Студия",
+    "challenge": "Испытания",
     "layout": "Макет",
     "theater": "Театр",
     "publish": "Печать",
@@ -55,6 +56,7 @@
     "magicCode": "Волшебный код",
     "enterMagicCode": "Введи волшебный код",
     "willBeCreatedWith": "будет создан с ролью",
+    "accountWillBeCreated": "Твой аккаунт будет создан с ролью",
     "errors": {
       "invalidEmail": "Неверная почта",
       "passwordTooShort": "Пароль должен быть не менее 6 символов",

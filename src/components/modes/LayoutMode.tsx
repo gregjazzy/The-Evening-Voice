@@ -2,6 +2,7 @@
 
 import { MontageEditor } from '@/components/montage'
 import { useMontageSync } from '@/hooks/useMontageSync'
+import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 
 /**
  * Mode Montage - Création de livre-disque
@@ -20,10 +21,20 @@ import { useMontageSync } from '@/hooks/useMontageSync'
 export function LayoutMode() {
   // Active la synchronisation automatique avec Supabase
   useMontageSync()
+  
+  // Modale d'introduction (première visite)
+  const { isFirstVisit, markAsSeen } = useFirstVisit('montage')
 
   return (
     <div className="h-full">
       <MontageEditor />
+      
+      {/* Modale d'introduction - première visite */}
+      <ModeIntroModal
+        mode="montage"
+        isOpen={isFirstVisit}
+        onClose={markAsSeen}
+      />
     </div>
   )
 }

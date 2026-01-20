@@ -14,6 +14,7 @@ let currentSessionId = null
 contextBridge.exposeInMainWorld('electronAPI', {
   // === PERMISSIONS ===
   checkPermissions: () => ipcRenderer.invoke('check-permissions'),
+  requestMicrophoneAccess: () => ipcRenderer.invoke('request-microphone-access'),
   
   // === CAPTURE D'ÉCRAN ===
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
