@@ -2,6 +2,10 @@ const { app, BrowserWindow, ipcMain, desktopCapturer, screen, systemPreferences,
 const path = require('path')
 const { execFile, spawn } = require('child_process')
 
+// Fix pour macOS Tahoe - limiter la mémoire V8
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096')
+app.commandLine.appendSwitch('disable-gpu-sandbox')
+
 // ============================================
 // SÉCURITÉ - Constantes et validation
 // ============================================

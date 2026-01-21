@@ -23,7 +23,6 @@
     "copyright": "Copyright © 2026",
     "mac": {
       "category": "public.app-category.education",
-      "icon": "public/icon.icns",
       "target": [
         "dmg",
         "zip"
@@ -47,6 +46,8 @@
       "package.json",
       "next.config.mjs"
     ],
+    "npmRebuild": false,
+    "asar": false,
     "directories": {
       "output": "dist-electron"
     }
@@ -69,6 +70,7 @@
     "@tiptap/react": "^3.15.3",
     "@tiptap/starter-kit": "^3.15.3",
     "assemblyai": "^4.22.1",
+    "autoprefixer": "^10.4.23",
     "clsx": "^2.1.0",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.1.0",
@@ -80,6 +82,7 @@
     "next-intl": "^4.7.0",
     "node-osascript": "^2.1.0",
     "openai": "^4.52.0",
+    "postcss": "^8.5.6",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "screenshot-desktop": "^1.15.3",
@@ -88,8 +91,6 @@
     "socket.io-client": "^4.7.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss": "^3.4.19",
-    "postcss": "^8.5.6",
-    "autoprefixer": "^10.4.23",
     "uuid": "^9.0.1",
     "ws": "^8.19.0",
     "zustand": "^4.5.0"
@@ -103,7 +104,7 @@
     "@types/ws": "^8.18.1",
     "concurrently": "^8.2.0",
     "dotenv": "^17.2.3",
-    "electron": "^40.0.0",
+    "electron": "40.0.0",
     "electron-builder": "^26.4.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
