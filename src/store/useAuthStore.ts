@@ -274,6 +274,7 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem('lavoixdusoir-studio') // useStudioStore (assets, kits)
           localStorage.removeItem('lavoixdusoir-montage-v3') // useMontageStore (projets montage)
           localStorage.removeItem('lavoixdusoir-studio-progress') // useStudioProgressStore
+          localStorage.removeItem('lavoixdusoir-current-profile-id') // ID du profil connecté
           console.log('🧹 LocalStorage vidé à la déconnexion')
         }
         

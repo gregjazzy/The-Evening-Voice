@@ -302,6 +302,7 @@ export function useSupabaseSync() {
 
   const isLoadingRef = useRef(false)
   const hasLoadedRef = useRef(false)
+  const lastProfileIdRef = useRef<string | null>(null)
 
   // ============================================
   // CHARGEMENT INITIAL DES DONNÉES
@@ -309,6 +310,30 @@ export function useSupabaseSync() {
 
   const loadFromSupabase = useCallback(async () => {
     if (!profile?.id || isLoadingRef.current || hasLoadedRef.current) return
+
+    // ========================================
+    // DÉTECTION CHANGEMENT DE COMPTE
+    // Si l'utilisateur change de compte, on vide TOUT le localStorage
+    // ========================================
+    const storedProfileId = typeof window !== 'undefined' 
+      ? localStorage.getItem('lavoixdusoir-current-profile-id') 
+      : null
+    
+    if (storedProfileId && storedProfileId !== profile.id) {
+      console.log('🔄 Changement de compte détecté ! Nettoyage du localStorage...')
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('lavoixdusoir-storage')
+        localStorage.removeItem('lavoixdusoir-studio')
+        localStorage.removeItem('lavoixdusoir-montage-v3')
+        localStorage.removeItem('lavoixdusoir-studio-progress')
+      }
+    }
+    
+    // Stocker le profile_id actuel
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lavoixdusoir-current-profile-id', profile.id)
+    }
+    lastProfileIdRef.current = profile.id
 
     isLoadingRef.current = true
     console.log('📥 Chargement des données depuis Supabase...')
@@ -357,10 +382,11 @@ export function useSupabaseSync() {
         console.log(`   ✅ ${messages.length} messages chat chargés (Supabase prioritaire)`)
       }
 
-      // Récupérer les histoires locales AVANT de charger depuis Supabase
-      const localStories = useAppStore.getState().stories
-      console.log(`   📦 ${localStories.length} histoires en local`)
-
+      // ========================================
+      // SUPABASE = SEULE SOURCE DE VÉRITÉ
+      // Plus de fusion avec localStorage !
+      // ========================================
+      
       // Charger les stories avec leurs pages depuis Supabase
       const { data: storiesData, error: storiesError } = await supabase
         .from('stories')
@@ -412,80 +438,21 @@ export function useSupabaseSync() {
           isComplete: s.status === 'completed',
         }))
         
-        console.log(`   ☁️ ${supabaseStories.length} histoires dans Supabase`)
-        
-        // ========================================
-        // FUSION INTELLIGENTE : Local + Supabase
-        // ========================================
-        const mergedStories: Story[] = []
-        const supabaseIds = new Set(supabaseStories.map(s => s.id))
-        const localIds = new Set(localStories.map(s => s.id))
-        const storiesToSync: Story[] = [] // Histoires locales à envoyer vers Supabase
-        
-        // 1. Parcourir les histoires Supabase
-        for (const supabaseStory of supabaseStories) {
-          const localStory = localStories.find(s => s.id === supabaseStory.id)
-          
-          if (localStory) {
-            // Histoire existe des deux côtés → garder la plus récente
-            const supabaseTime = new Date(supabaseStory.updatedAt).getTime()
-            const localTime = new Date(localStory.updatedAt).getTime()
-            
-            if (localTime > supabaseTime) {
-              // Local plus récent → garder local ET synchroniser vers Supabase
-              console.log(`   🔄 "${localStory.title}" : local plus récent, sera synchronisé`)
-              mergedStories.push(localStory)
-              storiesToSync.push(localStory)
-            } else {
-              // Supabase plus récent ou égal → garder Supabase
-              mergedStories.push(supabaseStory)
-            }
-          } else {
-            // Histoire uniquement dans Supabase → garder
-            mergedStories.push(supabaseStory)
-          }
-        }
-        
-        // 2. Ajouter les histoires qui existent UNIQUEMENT en local
-        for (const localStory of localStories) {
-          if (!supabaseIds.has(localStory.id)) {
-            console.log(`   📤 "${localStory.title}" : existe seulement en local, sera synchronisé`)
-            mergedStories.push(localStory)
-            storiesToSync.push(localStory)
-          }
-        }
-        
-        // 3. Appliquer la fusion (en préservant currentStory si elle existe dans les histoires fusionnées)
-        const currentStoryId = useAppStore.getState().currentStory?.id
-        const preservedCurrentStory = currentStoryId 
-          ? mergedStories.find(s => s.id === currentStoryId) || null
-          : null
-        useAppStore.setState({ stories: mergedStories, currentStory: preservedCurrentStory })
-        console.log(`   ✅ ${mergedStories.length} histoires après fusion (${supabaseStories.length} Supabase + ${storiesToSync.length} à sync)`)
-        
-        // 4. Synchroniser les histoires locales vers Supabase (en arrière-plan)
-        if (storiesToSync.length > 0) {
-          console.log(`   ⬆️ Synchronisation de ${storiesToSync.length} histoire(s) vers Supabase...`)
-          for (const story of storiesToSync) {
-            await saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
-          }
-          console.log(`   ✅ Synchronisation terminée`)
-        }
+        // SIMPLE : Supabase remplace tout, pas de fusion
+        useAppStore.setState({ 
+          stories: supabaseStories, 
+          currentStory: null // Reset pour éviter les références cassées
+        })
+        console.log(`   ✅ ${supabaseStories.length} histoires chargées depuis Supabase (source unique)`)
       } else if (storiesError) {
         console.error('Erreur chargement stories:', storiesError)
-        // En cas d'erreur Supabase, garder les données locales
-        console.log(`   ⚠️ Erreur Supabase, ${localStories.length} histoires locales conservées`)
+        // En cas d'erreur, vider pour éviter les données obsolètes
+        useAppStore.setState({ stories: [], currentStory: null })
+        console.log(`   ⚠️ Erreur Supabase, histoires vidées`)
       } else {
-        // Pas d'histoires dans Supabase mais peut-être en local
-        if (localStories.length > 0) {
-          console.log(`   📤 ${localStories.length} histoire(s) locale(s) à synchroniser`)
-          for (const story of localStories) {
-            await saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
-          }
-          console.log(`   ✅ Histoires locales synchronisées vers Supabase`)
-        } else {
-          console.log('   ℹ️ Aucune histoire')
-        }
+        // Pas d'histoires dans Supabase
+        useAppStore.setState({ stories: [], currentStory: null })
+        console.log('   ℹ️ Aucune histoire dans Supabase')
       }
 
       // Charger les préférences depuis le profil
@@ -502,10 +469,6 @@ export function useSupabaseSync() {
       if (profile.emotional_context) {
         useAppStore.setState({ emotionalContext: profile.emotional_context as string[] })
       }
-
-      // Récupérer les projets de montage locaux AVANT de charger depuis Supabase
-      const localMontageProjects = useMontageStore.getState().projects
-      console.log(`   📦 ${localMontageProjects.length} projets de montage en local`)
 
       // Charger les projets de montage depuis Supabase
       const { data: montageData, error: montageError } = await supabase
@@ -566,70 +529,25 @@ export function useSupabaseSync() {
           }
         }) as MontageProject[]
         
-        console.log(`   ☁️ ${supabaseProjects.length} projets de montage dans Supabase`)
+        // SIMPLE : Supabase remplace tout, pas de fusion
+        useMontageStore.setState({ projects: supabaseProjects })
+        console.log(`   ✅ ${supabaseProjects.length} projets de montage chargés depuis Supabase (source unique)`)
         
-        // ========================================
-        // FUSION INTELLIGENTE : Local + Supabase
-        // ========================================
-        const mergedProjects: MontageProject[] = []
-        const supabaseIds = new Set(supabaseProjects.map(p => p.id))
-        const projectsToSync: MontageProject[] = []
-        
-        // 1. Parcourir les projets Supabase
-        for (const supabaseProject of supabaseProjects) {
-          const localProject = localMontageProjects.find(p => p.id === supabaseProject.id)
-          
-          if (localProject) {
-            // Projet existe des deux côtés → garder le plus récent
-            const supabaseTime = new Date(supabaseProject.updatedAt).getTime()
-            const localTime = new Date(localProject.updatedAt).getTime()
-            
-            if (localTime > supabaseTime) {
-              console.log(`   🔄 Projet "${localProject.title}" : local plus récent, sera synchronisé`)
-              mergedProjects.push(localProject)
-              projectsToSync.push(localProject)
-            } else {
-              mergedProjects.push(supabaseProject)
-            }
-          } else {
-            mergedProjects.push(supabaseProject)
-          }
-        }
-        
-        // 2. Ajouter les projets qui existent UNIQUEMENT en local
-        for (const localProject of localMontageProjects) {
-          if (!supabaseIds.has(localProject.id)) {
-            console.log(`   📤 Projet "${localProject.title}" : existe seulement en local, sera synchronisé`)
-            mergedProjects.push(localProject)
-            projectsToSync.push(localProject)
-          }
-        }
-        
-        // 3. Appliquer la fusion
-        useMontageStore.setState({ projects: mergedProjects })
-        console.log(`   ✅ ${mergedProjects.length} projets de montage après fusion`)
-        
-        // 4. Synchroniser les projets locaux vers Supabase + migrations
-        const allProjectsToSync = needsMigrationSave 
-          ? Array.from(new Map([...projectsToSync, ...supabaseProjects].map(p => [p.id, p])).values())
-          : projectsToSync
-          
-        if (allProjectsToSync.length > 0) {
-          console.log(`   ⬆️ Synchronisation de ${allProjectsToSync.length} projet(s) vers Supabase...`)
-          for (const project of allProjectsToSync) {
+        // Sauvegarder les migrations si nécessaire
+        if (needsMigrationSave) {
+          console.log(`   🔄 Sauvegarde des migrations...`)
+          for (const project of supabaseProjects) {
             await saveMontageProjectToSupabase(project, profile.id)
           }
-          console.log(`   ✅ Synchronisation terminée`)
         }
       } else if (montageError) {
         console.error('Erreur chargement montage projects:', montageError)
-        console.log(`   ⚠️ Erreur Supabase, ${localMontageProjects.length} projets locaux conservés`)
+        useMontageStore.setState({ projects: [] })
+        console.log(`   ⚠️ Erreur Supabase, projets vidés`)
       } else {
-        // Pas de projets dans Supabase mais peut-être en local
-        if (localMontageProjects.length > 0) {
-          console.log(`   📤 ${localMontageProjects.length} projet(s) local(aux) à synchroniser`)
-          for (const project of localMontageProjects) {
-            await saveMontageProjectToSupabase(project, profile.id)
+        // Pas de projets dans Supabase
+        useMontageStore.setState({ projects: [] })
+        console.log('   ℹ️ Aucun projet de montage dans Supabase')
           }
           console.log(`   ✅ Projets locaux synchronisés vers Supabase`)
         }
@@ -705,27 +623,14 @@ export function useSupabaseSync() {
           projectId: asset.story_id || undefined,
         }))
         
-        // Fusionner avec les assets locaux (garder les plus récents ou uniques)
-        const localAssets = useStudioStore.getState().importedAssets
-        const mergedAssetsMap = new Map<string, ImportedAsset>()
-        
-        // Ajouter les assets Supabase
-        loadedAssets.forEach(a => mergedAssetsMap.set(a.id, a))
-        
-        // Ajouter les assets locaux qui ne sont pas dans Supabase (par assetId ou id)
-        localAssets.forEach(localAsset => {
-          const key = localAsset.assetId || localAsset.id
-          if (!mergedAssetsMap.has(key)) {
-            // Asset local non présent dans Supabase, le garder
-            mergedAssetsMap.set(localAsset.id, localAsset)
-          }
-        })
-        
-        useStudioStore.setState({ importedAssets: Array.from(mergedAssetsMap.values()) })
-        console.log(`   ✅ ${loadedAssets.length} assets chargés depuis Supabase (${mergedAssetsMap.size} après fusion)`)
+        // SIMPLE : Supabase remplace tout, pas de fusion
+        useStudioStore.setState({ importedAssets: loadedAssets })
+        console.log(`   ✅ ${loadedAssets.length} assets chargés depuis Supabase (source unique)`)
       } else if (assetsError) {
         console.warn('   ⚠️ Erreur chargement assets:', assetsError.message)
+        useStudioStore.setState({ importedAssets: [] })
       } else {
+        useStudioStore.setState({ importedAssets: [] })
         console.log('   ℹ️ Aucun asset dans Supabase')
       }
 
