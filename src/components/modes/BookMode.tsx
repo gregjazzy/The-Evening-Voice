@@ -1699,6 +1699,32 @@ function DraggableDecoration({
   const [isDraggingMenu, setIsDraggingMenu] = useState(false)
   const [menuDragStart, setMenuDragStart] = useState({ x: 0, y: 0 })
   const decorationRef = useRef<HTMLDivElement>(null)
+  
+  // Fermer le menu d'édition au clic extérieur
+  useEffect(() => {
+    if (!isEditing) return
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      const menuElement = document.getElementById(`decoration-menu-${decoration.id}`)
+      const decorationElement = decorationRef.current
+      
+      // Vérifier si le clic est en dehors du menu ET de la décoration
+      if (menuElement && !menuElement.contains(e.target as Node) &&
+          decorationElement && !decorationElement.contains(e.target as Node)) {
+        setIsEditing(false)
+      }
+    }
+    
+    // Délai pour éviter de fermer immédiatement après l'ouverture
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+    }, 100)
+    
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isEditing, decoration.id])
 
   const color = decoration.color || decorationItem.defaultColor || '#D4AF37'
   const scale = decoration.scale || 1
@@ -2902,7 +2928,7 @@ function StructureView({
 
 interface FormatBarProps {
   style: TextStyle
-  onStyleChange: (style: TextStyle) => void
+  onStyleChange: (style: Partial<TextStyle>) => void
   showLines?: boolean
   onToggleLines?: () => void
   bookColor?: PageColor
@@ -2928,9 +2954,34 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
   const [detectedFontFamily, setDetectedFontFamily] = useState(style.fontFamily)
   const isFormattingRef = useRef(false)
   
+  // Ref pour la barre de formatage (pour détecter les clics extérieurs)
+  const formatBarRef = useRef<HTMLDivElement>(null)
+  
   // Refs pour éviter les re-renders inutiles
   const lastDetectedSizeRef = useRef(style.fontSize)
   const lastDetectedFontRef = useRef(style.fontFamily)
+  
+  // Fermer les menus au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Si aucun menu n'est ouvert, ne rien faire
+      if (!showFonts && !showFontSizes && !showColors && !showPageColors && !showBackgroundMenu) {
+        return
+      }
+      
+      // Vérifier si le clic est à l'extérieur de la barre de formatage
+      if (formatBarRef.current && !formatBarRef.current.contains(event.target as Node)) {
+        setShowFonts(false)
+        setShowFontSizes(false)
+        setShowColors(false)
+        setShowPageColors(false)
+        setShowBackgroundMenu(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showFonts, showFontSizes, showColors, showPageColors, showBackgroundMenu])
   
   // Détecter la taille de police et la police au curseur
   useEffect(() => {
@@ -3035,6 +3086,53 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
 
   const currentFont = FONTS.find(f => f.family === detectedFontFamily) || FONTS.find(f => f.family === style.fontFamily) || FONTS[3]
   
+  // Helper : Insérer un span stylé au curseur (comportement Word)
+  // Permet d'appliquer un style au texte qui sera tapé ensuite
+  const insertStyledSpanAtCursor = useCallback((styleProps: { fontFamily?: string; fontSize?: number; color?: string }) => {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return false
+    
+    const range = selection.getRangeAt(0)
+    
+    // Vérifier qu'on est dans un contenteditable
+    const container = range.startContainer
+    const editor = container.nodeType === Node.ELEMENT_NODE 
+      ? (container as HTMLElement).closest?.('[contenteditable="true"]')
+      : container.parentElement?.closest?.('[contenteditable="true"]')
+    
+    if (!editor) return false
+    
+    // Créer un span avec un caractère invisible (zero-width space)
+    const span = document.createElement('span')
+    span.innerHTML = '\u200B' // Zero-width space pour que le span ne soit pas vide
+    
+    if (styleProps.fontFamily) {
+      span.style.fontFamily = styleProps.fontFamily
+    }
+    if (styleProps.fontSize) {
+      span.style.fontSize = `${styleProps.fontSize}px`
+    }
+    if (styleProps.color) {
+      span.style.color = styleProps.color
+    }
+    
+    // Insérer le span au curseur
+    range.deleteContents()
+    range.insertNode(span)
+    
+    // Placer le curseur APRÈS le zero-width space (à l'intérieur du span)
+    const newRange = document.createRange()
+    newRange.setStart(span.firstChild!, 1) // Après le \u200B
+    newRange.collapse(true)
+    selection.removeAllRanges()
+    selection.addRange(newRange)
+    
+    // Déclencher un événement input pour sauvegarder
+    editor.dispatchEvent(new Event('input', { bubbles: true }))
+    
+    return true
+  }, [])
+  
   // Appliquer gras au texte sélectionné
   const applyBold = () => {
     isFormattingRef.current = true
@@ -3049,64 +3147,98 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
     setTimeout(() => { isFormattingRef.current = false }, 50)
   }
   
-  // Appliquer une couleur au texte sélectionné
+  // Appliquer une couleur au texte sélectionné ou au curseur
   const applyColor = (color: string) => {
     isFormattingRef.current = true
-    document.execCommand('foreColor', false, color)
+    
+    // Vérifier s'il y a une sélection
+    const selection = window.getSelection()
+    const hasSelection = selection && selection.rangeCount > 0 && !selection.isCollapsed
+    
+    if (hasSelection) {
+      // Sélection active : utiliser execCommand
+      document.execCommand('foreColor', false, color)
+    } else {
+      // Pas de sélection : insérer un span stylé au curseur (comportement Word)
+      insertStyledSpanAtCursor({ color })
+    }
+    
     setLastUsedColor(color)
     setShowColors(false)
     setTimeout(() => { isFormattingRef.current = false }, 50)
   }
   
-  // Appliquer une taille de police au texte sélectionné uniquement
+  // Appliquer une taille de police au texte sélectionné ou au style par défaut
   const applyFontSize = (size: number) => {
-    const { range, text } = savedRangeRef.current
-    if (range && text) {
-      // Restaurer la sélection
-      const selection = window.getSelection()
-      if (selection) {
-        selection.removeAllRanges()
-        selection.addRange(range)
-        
-        const currentRange = selection.getRangeAt(0)
-        
-        // Extraire le contenu et nettoyer les tailles existantes
-        const fragment = currentRange.extractContents()
-        const tempDiv = document.createElement('div')
-        tempDiv.appendChild(fragment)
-        
-        // Retirer les font-size existants des éléments enfants
-        tempDiv.querySelectorAll('[style]').forEach(el => {
-          (el as HTMLElement).style.fontSize = ''
-        })
-        // Retirer aussi les spans vides de style
-        tempDiv.querySelectorAll('span').forEach(el => {
-          if (!el.getAttribute('style') || el.getAttribute('style')?.trim() === '') {
-            el.replaceWith(...Array.from(el.childNodes))
-          }
-        })
-        
-        // Créer le nouveau span avec la taille
-        const span = document.createElement('span')
-        span.style.fontSize = `${size}px`
-        span.innerHTML = tempDiv.innerHTML
-        currentRange.insertNode(span)
-        
-        // Re-sélectionner le contenu du span créé
-        const newRange = document.createRange()
-        newRange.selectNodeContents(span)
-        selection.removeAllRanges()
-        selection.addRange(newRange)
-        
-        // Sauvegarder la nouvelle sélection
-        savedRangeRef.current = {
-          text: span.textContent || '',
-          range: newRange.cloneRange()
+    // Vérifier d'abord la sélection ACTUELLE (pas savedRangeRef)
+    const currentSelection = window.getSelection()
+    const hasCurrentSelection = currentSelection && currentSelection.rangeCount > 0 && !currentSelection.isCollapsed
+    
+    // Helper pour appliquer la taille à un range
+    const applyToRange = (targetRange: Range, sel: Selection) => {
+      // Extraire le contenu et nettoyer les tailles existantes
+      const fragment = targetRange.extractContents()
+      const tempDiv = document.createElement('div')
+      tempDiv.appendChild(fragment)
+      
+      // Retirer les font-size existants des éléments enfants
+      tempDiv.querySelectorAll('[style]').forEach(el => {
+        (el as HTMLElement).style.fontSize = ''
+      })
+      // Retirer aussi les spans vides de style
+      tempDiv.querySelectorAll('span').forEach(el => {
+        if (!el.getAttribute('style') || el.getAttribute('style')?.trim() === '') {
+          el.replaceWith(...Array.from(el.childNodes))
         }
-        
-        lastDetectedSizeRef.current = size
-        setLastUsedSize(size)
+      })
+      
+      // Créer le nouveau span avec la taille
+      const span = document.createElement('span')
+      span.style.fontSize = `${size}px`
+      span.innerHTML = tempDiv.innerHTML
+      targetRange.insertNode(span)
+      
+      // Re-sélectionner le contenu du span créé
+      const newRange = document.createRange()
+      newRange.selectNodeContents(span)
+      sel.removeAllRanges()
+      sel.addRange(newRange)
+      
+      // Sauvegarder la nouvelle sélection
+      savedRangeRef.current = {
+        text: span.textContent || '',
+        range: newRange.cloneRange()
       }
+      
+      lastDetectedSizeRef.current = size
+      setLastUsedSize(size)
+    }
+    
+    if (hasCurrentSelection && currentSelection) {
+      // Sélection active actuellement, l'utiliser directement
+      applyToRange(currentSelection.getRangeAt(0), currentSelection)
+    } else {
+      // Pas de sélection actuelle - vérifier si on avait une sélection sauvegardée
+      const { range, text } = savedRangeRef.current
+      if (range && text) {
+        // On avait une sélection, mais le curseur a bougé sans sélection
+        // => comportement Word : insérer au curseur actuel
+        const inserted = insertStyledSpanAtCursor({ fontSize: size })
+        if (!inserted) {
+          onStyleChange({ fontSize: size })
+        }
+        // Vider la sélection sauvegardée puisqu'on ne l'utilise plus
+        savedRangeRef.current = { text: '', range: null }
+      } else {
+        // Aucune sélection du tout : insérer un span stylé au curseur (comportement Word)
+        const inserted = insertStyledSpanAtCursor({ fontSize: size })
+        if (!inserted) {
+          // Si pas dans un éditeur, changer le style par défaut
+          onStyleChange({ fontSize: size })
+        }
+      }
+      lastDetectedSizeRef.current = size
+      setLastUsedSize(size)
     }
     setShowFontSizes(false)
   }
@@ -3154,19 +3286,20 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
       setDetectedFontFamily(family)
     }
     
-    if (hasActiveSelection) {
+    if (hasActiveSelection && currentSelection) {
+      // Sélection active actuellement, l'utiliser directement
       applyToRange(currentSelection.getRangeAt(0), currentSelection)
     } else {
-      // Pas de sélection active, essayer de restaurer
-      const { range, text } = savedRangeRef.current
-      if (range && text) {
-        const selection = window.getSelection()
-        if (selection) {
-          selection.removeAllRanges()
-          selection.addRange(range)
-          applyToRange(selection.getRangeAt(0), selection)
-        }
+      // Pas de sélection actuelle - comportement Word : insérer au curseur
+      const inserted = insertStyledSpanAtCursor({ fontFamily: family })
+      if (!inserted) {
+        // Si pas dans un éditeur, changer le style par défaut
+        onStyleChange({ fontFamily: family })
       }
+      // Vider la sélection sauvegardée puisqu'on ne l'utilise plus
+      savedRangeRef.current = { text: '', range: null }
+      lastDetectedFontRef.current = family
+      setDetectedFontFamily(family)
     }
     setShowFonts(false)
   }
@@ -3188,7 +3321,7 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
   }
   
   return (
-    <div className="flex items-center gap-2 p-2 bg-midnight-900/50 rounded-xl border border-midnight-700/30 flex-wrap">
+    <div ref={formatBarRef} className="flex items-center gap-2 p-2 bg-midnight-900/50 rounded-xl border border-midnight-700/30 flex-wrap">
       {/* Sélecteur de police */}
       <Highlightable id="book-font-family">
         <div className="relative">
@@ -3718,7 +3851,7 @@ interface WritingAreaProps {
   chapters: Chapter[]
   onContentChange: (content: string) => void
   onTitleChange: (title: string) => void
-  onStyleChange: (style: TextStyle) => void
+  onStyleChange: (style: Partial<TextStyle>) => void
   onChapterChange: (chapterId: string | undefined) => void
   onCreateChapter: (title: string) => void
   onUpdateChapter?: (chapterId: string, updates: Partial<Chapter>) => void
@@ -3771,9 +3904,12 @@ interface WritingAreaProps {
   onDecorationGlowChange?: (pageIndex: number, decoId: string, glowEnabled: boolean, glowColor: string, glowIntensity: number) => void
   onDecorationFlip?: (pageIndex: number, decoId: string, direction: 'h' | 'v') => void
   onDecorationDelete?: (pageIndex: number, decoId: string) => void
+  // Verrouillage de l'édition (histoire terminée)
+  isLocked?: boolean
+  onUnlock?: () => void
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageDelete, onImageBringForward, onImageSendBackward, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageDelete, onImageBringForward, onImageSendBackward, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, isLocked = false, onUnlock }: WritingAreaProps) {
   const style = page?.style || leftPage?.style || DEFAULT_STYLE
   const editorRef = useRef<HTMLDivElement>(null)
   const leftEditorRef = useRef<HTMLDivElement>(null)
@@ -3802,6 +3938,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   
   // État pour tracker quelle page est "active" (dernière page cliquée/focusée)
   const [activePage, setActivePage] = useState<'left' | 'right'>('right')
+  
+  // État pour tracker quelle page est en mode dictée
+  const [dictatingPage, setDictatingPage] = useState<'left' | 'right' | 'zoom' | null>(null)
   
   // Helper pour obtenir les styles de couleur de page
   const getPageColorStyles = (color?: PageColor) => {
@@ -3912,12 +4051,20 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   
   // Append transcript to content when dictation stops
   useEffect(() => {
-    if (!isListening && transcript && editorRef.current) {
-      editorRef.current.focus()
-      document.execCommand('insertText', false, transcript)
-      resetTranscript()
+    if (!isListening && transcript && dictatingPage) {
+      // Sélectionner le bon éditeur selon la page en dictée
+      const targetEditor = dictatingPage === 'left' ? leftEditorRef.current 
+                         : dictatingPage === 'zoom' ? zoomedEditorRef.current 
+                         : editorRef.current
+      
+      if (targetEditor) {
+        targetEditor.focus()
+        document.execCommand('insertText', false, transcript)
+        resetTranscript()
+        setDictatingPage(null)
+      }
     }
-  }, [isListening, transcript, resetTranscript])
+  }, [isListening, transcript, resetTranscript, dictatingPage])
   
   const placeholders = {
     fr: 'Écris ton histoire ici...',
@@ -3941,7 +4088,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const textStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
-    lineHeight: LINE_SPACINGS[style.lineSpacing].value,
+    lineHeight: LINE_SPACINGS[style.lineSpacing as keyof typeof LINE_SPACINGS]?.value || '1.7',
     fontWeight: style.isBold ? 'bold' : 'normal',
     fontStyle: style.isItalic ? 'italic' : 'normal',
     textAlign: style.textAlign,
@@ -4327,7 +4474,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               {/* Zone de texte contentEditable */}
               <div
                 ref={zoomedEditorRef}
-                contentEditable
+                contentEditable={!isLocked}
                 onInput={zHandleInput}
                 data-placeholder={placeholders[locale]}
                 style={{
@@ -4349,17 +4496,24 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <span className="text-sm text-amber-700/50 font-serif">{getWordCount(zPage.content)} {locale === 'fr' ? 'mots' : 'words'}</span>
           <div className="flex items-center gap-2">
                 <button
-              onClick={isListening ? stopListening : startListening}
+              onClick={() => {
+                if (isListening) {
+                  stopListening()
+                } else {
+                  setDictatingPage('zoom')
+                  startListening()
+                }
+              }}
               disabled={!isSupported}
               className={cn(
                     'p-2 rounded-full transition-all',
-                    isListening 
+                    isListening && dictatingPage === 'zoom'
                       ? 'text-red-500 bg-red-100 animate-pulse' 
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
-                  title={isListening ? 'Arrêter' : 'Dicter'}
+                  title={isListening && dictatingPage === 'zoom' ? 'Arrêter' : 'Dicter'}
                 >
-                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  {isListening && dictatingPage === 'zoom' ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
                 <Highlightable id="book-add-image">
                 <button
@@ -4658,7 +4812,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <div
                 key={`left-${leftPageIndex}-${zoomedPage === null}`}
                 ref={leftEditorRef}
-                contentEditable
+                contentEditable={!isLocked}
                 onInput={handleLeftInput}
                 onClick={(e) => { e.stopPropagation(); setActivePage('left'); }}
                 data-placeholder={placeholders[locale]}
@@ -4693,17 +4847,25 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 </span>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={(e) => { e.stopPropagation(); isListening ? stopListening() : startListening(); }}
+                    onClick={(e) => { 
+                      e.stopPropagation()
+                      if (isListening && dictatingPage === 'left') {
+                        stopListening()
+                      } else {
+                        setDictatingPage('left')
+                        startListening()
+                      }
+                    }}
                     disabled={!isSupported}
                     className={cn(
                       'p-2 rounded-full transition-all',
-                      isListening 
+                      isListening && dictatingPage === 'left'
                         ? 'text-red-500 bg-red-100 animate-pulse' 
                         : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                     )}
-                    title={isListening ? 'Arrêter' : 'Dicter'}
+                    title={isListening && dictatingPage === 'left' ? 'Arrêter' : 'Dicter'}
                   >
-                    {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    {isListening && dictatingPage === 'left' ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
                   <Highlightable id="book-add-image">
                   <button
@@ -5008,7 +5170,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             <div
                 key={`right-${pageIndex}-${zoomedPage === null}`}
               ref={editorRef}
-              contentEditable
+              contentEditable={!isLocked}
               onInput={handleInput}
               onClick={(e) => { e.stopPropagation(); setActivePage('right'); }}
               data-placeholder={placeholders[locale]}
@@ -5040,17 +5202,25 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <span className="text-xs text-amber-700/50 font-serif">{getWordCount(page?.content)} {locale === 'fr' ? 'mots' : 'words'}</span>
               <div className="flex items-center gap-1">
             <button
-              onClick={(e) => { e.stopPropagation(); isListening ? stopListening() : startListening(); }}
+              onClick={(e) => { 
+                e.stopPropagation()
+                if (isListening && dictatingPage === 'right') {
+                  stopListening()
+                } else {
+                  setDictatingPage('right')
+                  startListening()
+                }
+              }}
               disabled={!isSupported}
               className={cn(
                     'p-2 rounded-full transition-all',
-                    isListening 
+                    isListening && dictatingPage === 'right'
                       ? 'text-red-500 bg-red-100 animate-pulse' 
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
-                  title={isListening ? 'Arrêter' : 'Dicter'}
+                  title={isListening && dictatingPage === 'right' ? 'Arrêter' : 'Dicter'}
                 >
-                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  {isListening && dictatingPage === 'right' ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
             <Highlightable id="book-add-image">
             <button
@@ -5963,6 +6133,7 @@ export function BookMode() {
     deleteStoryChapter,
     updateStoryChapters,
     completeStory,
+    reopenStory,
     setCurrentMode,
   } = useAppStore()
   
@@ -6115,7 +6286,7 @@ export function BookMode() {
 
   const handleAddPage = () => {
     const newPage: StoryPageLocal = {
-      id: Math.random().toString(36).substring(2, 9),
+      id: crypto.randomUUID(),
       title: '',
       content: '',
       chapterId: undefined,
@@ -6189,10 +6360,14 @@ export function BookMode() {
     setPages(newPages)
   }
 
-  const handleStyleChange = (style: TextStyle) => {
+  const handleStyleChange = (styleUpdate: Partial<TextStyle>) => {
     if (!pages[rightPageIndex]) return
     const newPages = [...pages]
-    newPages[rightPageIndex] = { ...newPages[rightPageIndex], style }
+    const currentStyle = newPages[rightPageIndex].style || DEFAULT_STYLE
+    newPages[rightPageIndex] = { 
+      ...newPages[rightPageIndex], 
+      style: { ...currentStyle, ...styleUpdate } 
+    }
     setPages(newPages)
   }
 
@@ -6659,7 +6834,7 @@ export function BookMode() {
       setPages([{ id: '1', title: '', content: '', chapterId: undefined, style: DEFAULT_STYLE }])
     } else {
       const newPages: StoryPageLocal[] = template.steps.map((step, index) => ({
-        id: Math.random().toString(36).substring(2, 9),
+        id: crypto.randomUUID(),
         title: step.title[locale],
         content: '',
         chapterId: undefined,
@@ -6749,8 +6924,13 @@ export function BookMode() {
                       }}
                         className="flex-1 flex items-center gap-3"
                     >
-                      <Book className="w-4 h-4 text-aurora-400" />
+                      <Book className={cn("w-4 h-4", story.isComplete ? "text-green-400" : "text-aurora-400")} />
                         <span className="flex-1 truncate text-white">{story.title}</span>
+                      {story.isComplete && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-500/20 text-green-400 rounded border border-green-500/30">
+                          ✓
+                        </span>
+                      )}
                       <span className="text-xs text-midnight-400">
                         {story.pages.length} {t.pages}
                       </span>
@@ -6973,6 +7153,8 @@ export function BookMode() {
               onDecorationGlowChange={handleDecorationGlowChange}
               onDecorationFlip={handleDecorationFlip}
               onDecorationDelete={handleDecorationDelete}
+              isLocked={currentStory?.isComplete}
+              onUnlock={() => currentStory && reopenStory(currentStory.id)}
             />
         )}
         </div>
@@ -7251,11 +7433,30 @@ export function BookMode() {
             </motion.button>
           )}
           
-          {/* Badge histoire terminée */}
+          {/* Badge histoire terminée + bouton reprendre */}
           {currentStory?.isComplete && (
-            <div className="ml-4 px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 text-xs font-medium flex items-center gap-1.5 border border-green-500/30">
-              <Check className="w-3 h-3" />
-              Terminée
+            <div className="ml-4 flex items-center gap-2">
+              <div className="px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 text-xs font-medium flex items-center gap-1.5 border border-green-500/30">
+                <Check className="w-3 h-3" />
+                Terminée
+              </div>
+              <motion.button
+                onClick={() => {
+                  if (confirm(locale === 'fr' 
+                    ? 'Voulez-vous reprendre l\'édition de cette histoire ?' 
+                    : locale === 'en'
+                    ? 'Do you want to resume editing this story?'
+                    : 'Хотите возобновить редактирование этой истории?')) {
+                    reopenStory(currentStory.id)
+                  }
+                }}
+                className="px-3 py-1.5 rounded-full bg-aurora-500/20 text-aurora-400 text-xs font-medium flex items-center gap-1.5 border border-aurora-500/30 hover:bg-aurora-500/30 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Edit3 className="w-3 h-3" />
+                Reprendre l'édition
+              </motion.button>
             </div>
           )}
         </div>

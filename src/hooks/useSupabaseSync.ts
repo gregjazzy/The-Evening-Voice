@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { useAppStore, type DiaryEntry, type ChatMessage, type Story, type StoryPage } from '@/store/useAppStore'
 import { useMontageStore, type MontageProject } from '@/store/useMontageStore'
 import { useStudioProgressStore, type StudioBadge, type StudioCreation } from '@/store/useStudioProgressStore'
+import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import type { StoryStructure } from '@/lib/ai/prompting-pedagogy'
 
 // Types Supabase pour ce fichier (contourner les problèmes de typage)
@@ -73,6 +74,21 @@ type DbStudioProgress = {
   badges: unknown
 }
 
+type DbAsset = {
+  id: string
+  profile_id: string | null
+  story_id: string | null
+  type: 'image' | 'audio' | 'video'
+  source: 'midjourney' | 'elevenlabs' | 'runway' | 'luma' | 'gemini' | 'upload' | 'dalle'
+  url: string
+  thumbnail_url: string | null
+  prompt_used: string | null
+  file_name: string | null
+  file_size: number | null
+  mime_type: string | null
+  created_at: string
+}
+
 // Helper pour convertir une date en string ISO (gère Date et string)
 function toISOStringSafe(date: Date | string | undefined | null): string {
   if (!date) return new Date().toISOString()
@@ -80,6 +96,7 @@ function toISOStringSafe(date: Date | string | undefined | null): string {
   if (date instanceof Date) return date.toISOString()
   return new Date().toISOString()
 }
+
 
 // Debounce pour éviter trop de requêtes
 function useDebouncedCallback<T extends (...args: any[]) => any>(
@@ -161,56 +178,110 @@ async function saveStudioProgressToSupabase(
   return true
 }
 
+// Lock pour éviter les sauvegardes concurrentes par histoire
+const storySaveLocks = new Map<string, boolean>()
+
 // Fonction utilitaire pour sauvegarder une histoire (hors hook)
 async function saveStoryToSupabase(story: Story, profileId: string, userName: string) {
-  // Sauvegarder l'histoire
-  const storyData = {
-    id: story.id,
-    profile_id: profileId,
-    title: story.title,
-    author: userName || 'Anonyme',
-    status: story.isComplete ? 'completed' : 'in_progress',
-    total_pages: story.pages.length,
-    current_page: story.currentStep + 1,
-    metadata: {
-      structure: story.structure,
-      chapters: story.chapters || [],
-    },
-    created_at: toISOStringSafe(story.createdAt),
-    updated_at: toISOStringSafe(story.updatedAt),
-    completed_at: story.isComplete ? new Date().toISOString() : null,
+  // Vérifier si une sauvegarde est déjà en cours pour cette histoire
+  if (storySaveLocks.get(story.id)) {
+    console.log(`⏳ Sauvegarde déjà en cours pour "${story.title}", ignoré`)
+    return true // Retourne true car une sauvegarde est en cours
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: storyError } = await supabase.from('stories').upsert(storyData as any)
-
-  if (storyError) {
-    console.error('Erreur sauvegarde story:', storyError)
-    return false
-  }
-
-  // Sauvegarder les pages
-  for (const page of story.pages) {
-    const pageData = {
-      id: page.id,
-      story_id: story.id,
-      page_number: page.order + 1,
-      title: page.title,
-      text_blocks: [{ content: page.content }],
-      media_layers: page.images || [],
-      metadata: { 
-        chapterId: page.chapterId,
-        backgroundMedia: page.backgroundMedia,
-        decorations: page.decorations || [],
+  
+  // Acquérir le lock
+  storySaveLocks.set(story.id, true)
+  console.log(`🔒 Lock acquis pour "${story.title}"`)
+  
+  try {
+    // Sauvegarder l'histoire
+    const storyData = {
+      id: story.id,
+      profile_id: profileId,
+      title: story.title,
+      author: userName || 'Anonyme',
+      status: story.isComplete ? 'completed' : 'in_progress',
+      total_pages: story.pages.length,
+      current_page: story.currentStep + 1,
+      metadata: {
+        structure: story.structure,
+        chapters: story.chapters || [],
       },
+      created_at: toISOStringSafe(story.createdAt),
+      updated_at: toISOStringSafe(story.updatedAt),
+      completed_at: story.isComplete ? new Date().toISOString() : null,
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: pageError } = await supabase.from('story_pages').upsert(pageData as any)
+    const { error: storyError } = await supabase.from('stories').upsert(storyData as any)
 
-    if (pageError) {
-      console.error('Erreur sauvegarde page:', pageError)
+    if (storyError) {
+      console.error('Erreur sauvegarde story:', storyError)
+      return false
     }
+
+    // Supprimer les anciennes pages puis insérer les nouvelles
+    // (évite les conflits sur la contrainte UNIQUE story_id,page_number)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: deleteData, error: deleteError, count: deleteCount } = await supabase
+      .from('story_pages')
+      .delete()
+      .eq('story_id', story.id)
+      .select() as any
+
+    console.log(`🗑️ DELETE pages pour story ${story.id}:`, { 
+      deleted: deleteData?.length || 0, 
+      error: deleteError 
+    })
+
+    if (deleteError) {
+      console.error('Erreur suppression pages:', deleteError)
+      return false
+    }
+
+    // Préparer toutes les pages avec page_number unique basé sur l'index
+    const pagesData = story.pages.map((page, i) => ({
+      id: page.id,
+      story_id: story.id,
+      page_number: i + 1, // Toujours utiliser l'index pour garantir l'unicité
+      title: page.title,
+      text_blocks: [{ content: page.content || '' }],
+      media_layers: {
+        images: page.images || [],
+        decorations: page.decorations || [],
+        chapterId: page.chapterId,
+      },
+      background_image_url: page.backgroundMedia?.type === 'image' ? page.backgroundMedia.url : null,
+      background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
+    }))
+    
+    // Vérifier les doublons de page_number
+    const pageNumbers = pagesData.map(p => p.page_number)
+    const uniquePageNumbers = new Set(pageNumbers)
+    if (pageNumbers.length !== uniquePageNumbers.size) {
+      console.error('❌ DOUBLONS DÉTECTÉS dans page_number:', pageNumbers)
+    }
+    console.log(`📄 INSERT ${pagesData.length} pages:`, pageNumbers)
+
+    // Insérer toutes les pages d'un coup
+    if (pagesData.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: insertError } = await supabase
+        .from('story_pages')
+        .insert(pagesData as any)
+
+      if (insertError) {
+        console.error('Erreur insertion pages:', insertError)
+        return false
+      }
+    }
+
+    console.log(`✅ Histoire "${story.title}" sauvegardée (${story.pages.length} pages)`)
+    return true
+  } finally {
+    // Libérer le lock
+    storySaveLocks.delete(story.id)
+    console.log(`🔓 Lock libéré pour "${story.title}"`)
   }
-  return true
 }
 
 /**
@@ -286,7 +357,11 @@ export function useSupabaseSync() {
         console.log(`   ✅ ${messages.length} messages chat chargés (Supabase prioritaire)`)
       }
 
-      // Charger les stories avec leurs pages
+      // Récupérer les histoires locales AVANT de charger depuis Supabase
+      const localStories = useAppStore.getState().stories
+      console.log(`   📦 ${localStories.length} histoires en local`)
+
+      // Charger les stories avec leurs pages depuis Supabase
       const { data: storiesData, error: storiesError } = await supabase
         .from('stories')
         .select(`
@@ -299,51 +374,115 @@ export function useSupabaseSync() {
       if (!storiesError && storiesData) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const typedStoriesData = storiesData as any[]
-        const loadedStories: Story[] = typedStoriesData.map((s) => ({
+        const supabaseStories: Story[] = typedStoriesData.map((s) => ({
           id: s.id,
           title: s.title,
           structure: (s.metadata?.structure as StoryStructure) || 'free',
           currentStep: s.current_page - 1,
           pages: (s.story_pages || [])
             .sort((a: any, b: any) => a.page_number - b.page_number)
-            .map((p: any) => ({
-              id: p.id,
-              stepIndex: p.page_number - 1,
-              content: p.text_blocks?.[0]?.content || '',
-              images: p.media_layers || [],
-              backgroundMedia: p.metadata?.backgroundMedia,
-              decorations: p.metadata?.decorations || [],
-              order: p.page_number - 1,
-              chapterId: p.metadata?.chapterId,
-              title: p.title,
-            })),
+            .map((p: any) => {
+              // media_layers peut être un objet {images, decorations, chapterId} ou un array legacy
+              const mediaLayers = p.media_layers || {}
+              const isNewFormat = mediaLayers && !Array.isArray(mediaLayers) && mediaLayers.images
+              
+              // Reconstruire backgroundMedia depuis les colonnes séparées
+              let backgroundMedia = undefined
+              if (p.background_image_url) {
+                backgroundMedia = { type: 'image', url: p.background_image_url }
+              } else if (p.background_video_url) {
+                backgroundMedia = { type: 'video', url: p.background_video_url }
+              }
+              
+              return {
+                id: p.id,
+                stepIndex: p.page_number - 1,
+                content: p.text_blocks?.[0]?.content || '',
+                images: isNewFormat ? mediaLayers.images : (Array.isArray(mediaLayers) ? mediaLayers : []),
+                backgroundMedia,
+                decorations: isNewFormat ? (mediaLayers.decorations || []) : [],
+                order: p.page_number - 1,
+                chapterId: isNewFormat ? mediaLayers.chapterId : undefined,
+                title: p.title,
+              }
+            }),
           chapters: s.metadata?.chapters || [],
           createdAt: new Date(s.created_at),
           updatedAt: new Date(s.updated_at),
           isComplete: s.status === 'completed',
         }))
         
-        // Récupérer les histoires actuelles du localStorage
-        const currentStories = useAppStore.getState().stories
+        console.log(`   ☁️ ${supabaseStories.length} histoires dans Supabase`)
         
-        // FUSIONNER les données Supabase + localStorage (au lieu d'écraser)
-        const mergedStories = [...loadedStories]
-        let newStoriesToSync = 0
+        // ========================================
+        // FUSION INTELLIGENTE : Local + Supabase
+        // ========================================
+        const mergedStories: Story[] = []
+        const supabaseIds = new Set(supabaseStories.map(s => s.id))
+        const localIds = new Set(localStories.map(s => s.id))
+        const storiesToSync: Story[] = [] // Histoires locales à envoyer vers Supabase
         
-        for (const localStory of currentStories) {
-          const existsInSupabase = loadedStories.some(s => s.id === localStory.id)
-          if (!existsInSupabase) {
-            // Histoire locale pas encore dans Supabase → l'ajouter et la sauvegarder
-            mergedStories.push(localStory)
-            newStoriesToSync++
-            console.log(`   ⬆️ Nouvelle histoire locale à synchroniser: "${localStory.title}"`)
-            await saveStoryToSupabase(localStory, profile.id, userName || 'Anonyme')
+        // 1. Parcourir les histoires Supabase
+        for (const supabaseStory of supabaseStories) {
+          const localStory = localStories.find(s => s.id === supabaseStory.id)
+          
+          if (localStory) {
+            // Histoire existe des deux côtés → garder la plus récente
+            const supabaseTime = new Date(supabaseStory.updatedAt).getTime()
+            const localTime = new Date(localStory.updatedAt).getTime()
+            
+            if (localTime > supabaseTime) {
+              // Local plus récent → garder local ET synchroniser vers Supabase
+              console.log(`   🔄 "${localStory.title}" : local plus récent, sera synchronisé`)
+              mergedStories.push(localStory)
+              storiesToSync.push(localStory)
+            } else {
+              // Supabase plus récent ou égal → garder Supabase
+              mergedStories.push(supabaseStory)
+            }
+          } else {
+            // Histoire uniquement dans Supabase → garder
+            mergedStories.push(supabaseStory)
           }
         }
         
-        if (mergedStories.length > 0) {
-          useAppStore.setState({ stories: mergedStories, currentStory: null })
-          console.log(`   ✅ ${mergedStories.length} histoires (${loadedStories.length} Supabase + ${newStoriesToSync} nouvelles locales)`)
+        // 2. Ajouter les histoires qui existent UNIQUEMENT en local
+        for (const localStory of localStories) {
+          if (!supabaseIds.has(localStory.id)) {
+            console.log(`   📤 "${localStory.title}" : existe seulement en local, sera synchronisé`)
+            mergedStories.push(localStory)
+            storiesToSync.push(localStory)
+          }
+        }
+        
+        // 3. Appliquer la fusion (en préservant currentStory si elle existe dans les histoires fusionnées)
+        const currentStoryId = useAppStore.getState().currentStory?.id
+        const preservedCurrentStory = currentStoryId 
+          ? mergedStories.find(s => s.id === currentStoryId) || null
+          : null
+        useAppStore.setState({ stories: mergedStories, currentStory: preservedCurrentStory })
+        console.log(`   ✅ ${mergedStories.length} histoires après fusion (${supabaseStories.length} Supabase + ${storiesToSync.length} à sync)`)
+        
+        // 4. Synchroniser les histoires locales vers Supabase (en arrière-plan)
+        if (storiesToSync.length > 0) {
+          console.log(`   ⬆️ Synchronisation de ${storiesToSync.length} histoire(s) vers Supabase...`)
+          for (const story of storiesToSync) {
+            await saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+          }
+          console.log(`   ✅ Synchronisation terminée`)
+        }
+      } else if (storiesError) {
+        console.error('Erreur chargement stories:', storiesError)
+        // En cas d'erreur Supabase, garder les données locales
+        console.log(`   ⚠️ Erreur Supabase, ${localStories.length} histoires locales conservées`)
+      } else {
+        // Pas d'histoires dans Supabase mais peut-être en local
+        if (localStories.length > 0) {
+          console.log(`   📤 ${localStories.length} histoire(s) locale(s) à synchroniser`)
+          for (const story of localStories) {
+            await saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+          }
+          console.log(`   ✅ Histoires locales synchronisées vers Supabase`)
         } else {
           console.log('   ℹ️ Aucune histoire')
         }
@@ -364,18 +503,22 @@ export function useSupabaseSync() {
         useAppStore.setState({ emotionalContext: profile.emotional_context as string[] })
       }
 
-      // Charger les projets de montage
+      // Récupérer les projets de montage locaux AVANT de charger depuis Supabase
+      const localMontageProjects = useMontageStore.getState().projects
+      console.log(`   📦 ${localMontageProjects.length} projets de montage en local`)
+
+      // Charger les projets de montage depuis Supabase
       const { data: montageData, error: montageError } = await supabase
         .from('montage_projects')
         .select('*')
         .eq('profile_id', profile.id)
         .order('updated_at', { ascending: false })
 
-      if (!montageError && montageData && montageData.length > 0) {
+      if (!montageError && montageData) {
         const typedMontageData = montageData as unknown as DbMontageProject[]
         let needsMigrationSave = false
         
-        const loadedProjects = typedMontageData.map((p) => {
+        const supabaseProjects = typedMontageData.map((p) => {
           // Migration: convertir les anciennes données de phrases en nouveau format
           const scenes = (p.scenes as MontageProject['scenes']).map((scene) => {
             if (scene.narration?.phrases && scene.narration.phrases.length > 0) {
@@ -422,26 +565,73 @@ export function useSupabaseSync() {
             updatedAt: new Date(p.updated_at),
           }
         }) as MontageProject[]
-        useMontageStore.setState({ projects: loadedProjects })
-        console.log(`   ✅ ${loadedProjects.length} projets de montage chargés depuis Supabase`)
         
-        // Si migration effectuée, re-sauvegarder dans Supabase
-        if (needsMigrationSave) {
-          console.log(`   💾 Re-sauvegarde des projets migrés dans Supabase...`)
-          for (const project of loadedProjects) {
-            await saveMontageProjectToSupabase(project, profile.id)
+        console.log(`   ☁️ ${supabaseProjects.length} projets de montage dans Supabase`)
+        
+        // ========================================
+        // FUSION INTELLIGENTE : Local + Supabase
+        // ========================================
+        const mergedProjects: MontageProject[] = []
+        const supabaseIds = new Set(supabaseProjects.map(p => p.id))
+        const projectsToSync: MontageProject[] = []
+        
+        // 1. Parcourir les projets Supabase
+        for (const supabaseProject of supabaseProjects) {
+          const localProject = localMontageProjects.find(p => p.id === supabaseProject.id)
+          
+          if (localProject) {
+            // Projet existe des deux côtés → garder le plus récent
+            const supabaseTime = new Date(supabaseProject.updatedAt).getTime()
+            const localTime = new Date(localProject.updatedAt).getTime()
+            
+            if (localTime > supabaseTime) {
+              console.log(`   🔄 Projet "${localProject.title}" : local plus récent, sera synchronisé`)
+              mergedProjects.push(localProject)
+              projectsToSync.push(localProject)
+            } else {
+              mergedProjects.push(supabaseProject)
+            }
+          } else {
+            mergedProjects.push(supabaseProject)
           }
-          console.log(`   ✅ Projets migrés sauvegardés dans Supabase`)
         }
-      } else {
-        // Synchroniser les projets locaux vers Supabase si nécessaire
-        const localProjects = useMontageStore.getState().projects
-        if (localProjects.length > 0) {
-          console.log(`   ⬆️ ${localProjects.length} projets de montage locaux à synchroniser...`)
-          for (const project of localProjects) {
+        
+        // 2. Ajouter les projets qui existent UNIQUEMENT en local
+        for (const localProject of localMontageProjects) {
+          if (!supabaseIds.has(localProject.id)) {
+            console.log(`   📤 Projet "${localProject.title}" : existe seulement en local, sera synchronisé`)
+            mergedProjects.push(localProject)
+            projectsToSync.push(localProject)
+          }
+        }
+        
+        // 3. Appliquer la fusion
+        useMontageStore.setState({ projects: mergedProjects })
+        console.log(`   ✅ ${mergedProjects.length} projets de montage après fusion`)
+        
+        // 4. Synchroniser les projets locaux vers Supabase + migrations
+        const allProjectsToSync = needsMigrationSave 
+          ? Array.from(new Map([...projectsToSync, ...supabaseProjects].map(p => [p.id, p])).values())
+          : projectsToSync
+          
+        if (allProjectsToSync.length > 0) {
+          console.log(`   ⬆️ Synchronisation de ${allProjectsToSync.length} projet(s) vers Supabase...`)
+          for (const project of allProjectsToSync) {
             await saveMontageProjectToSupabase(project, profile.id)
           }
-          console.log(`   ✅ ${localProjects.length} projets de montage synchronisés vers Supabase`)
+          console.log(`   ✅ Synchronisation terminée`)
+        }
+      } else if (montageError) {
+        console.error('Erreur chargement montage projects:', montageError)
+        console.log(`   ⚠️ Erreur Supabase, ${localMontageProjects.length} projets locaux conservés`)
+      } else {
+        // Pas de projets dans Supabase mais peut-être en local
+        if (localMontageProjects.length > 0) {
+          console.log(`   📤 ${localMontageProjects.length} projet(s) local(aux) à synchroniser`)
+          for (const project of localMontageProjects) {
+            await saveMontageProjectToSupabase(project, profile.id)
+          }
+          console.log(`   ✅ Projets locaux synchronisés vers Supabase`)
         }
       }
 
@@ -483,6 +673,60 @@ export function useSupabaseSync() {
           })
           console.log(`   ✅ Progression Studio synchronisée vers Supabase`)
         }
+      }
+
+      // ============================================
+      // CHARGER LES ASSETS IMPORTÉS
+      // ============================================
+      console.log('   📦 Chargement des assets importés...')
+      
+      const { data: assetsData, error: assetsError } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .order('created_at', { ascending: false })
+      
+      if (!assetsError && assetsData && assetsData.length > 0) {
+        const typedAssetsData = assetsData as unknown as DbAsset[]
+        
+        // Convertir les assets Supabase vers le format ImportedAsset
+        const loadedAssets: ImportedAsset[] = typedAssetsData.map(asset => ({
+          id: asset.id,
+          type: asset.type === 'audio' ? 'audio' : asset.type === 'video' ? 'video' : 'image',
+          file: null, // Le fichier original n'est pas stocké
+          url: asset.url, // URL Supabase = URL permanente
+          cloudUrl: asset.url, // Même URL car c'est déjà l'URL cloud
+          assetId: asset.id,
+          name: asset.file_name || asset.prompt_used?.substring(0, 30) || `${asset.type}-${asset.id.substring(0, 8)}`,
+          source: asset.source === 'dalle' ? 'upload' : asset.source as ImportedAsset['source'],
+          promptUsed: asset.prompt_used || undefined,
+          importedAt: new Date(asset.created_at),
+          isUploading: false,
+          projectId: asset.story_id || undefined,
+        }))
+        
+        // Fusionner avec les assets locaux (garder les plus récents ou uniques)
+        const localAssets = useStudioStore.getState().importedAssets
+        const mergedAssetsMap = new Map<string, ImportedAsset>()
+        
+        // Ajouter les assets Supabase
+        loadedAssets.forEach(a => mergedAssetsMap.set(a.id, a))
+        
+        // Ajouter les assets locaux qui ne sont pas dans Supabase (par assetId ou id)
+        localAssets.forEach(localAsset => {
+          const key = localAsset.assetId || localAsset.id
+          if (!mergedAssetsMap.has(key)) {
+            // Asset local non présent dans Supabase, le garder
+            mergedAssetsMap.set(localAsset.id, localAsset)
+          }
+        })
+        
+        useStudioStore.setState({ importedAssets: Array.from(mergedAssetsMap.values()) })
+        console.log(`   ✅ ${loadedAssets.length} assets chargés depuis Supabase (${mergedAssetsMap.size} après fusion)`)
+      } else if (assetsError) {
+        console.warn('   ⚠️ Erreur chargement assets:', assetsError.message)
+      } else {
+        console.log('   ℹ️ Aucun asset dans Supabase')
       }
 
       hasLoadedRef.current = true
@@ -656,7 +900,9 @@ export function useSupabaseSync() {
       const changedStory = stories.find(s => {
         const prev = JSON.parse(prevStoriesRef.current || '[]')
         const prevStory = prev.find((p: any) => p.id === s.id)
-        return !prevStory || new Date(prevStory.updatedAt).getTime() !== s.updatedAt.getTime()
+        const prevTime = prevStory ? new Date(prevStory.updatedAt).getTime() : 0
+        const currentTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0
+        return !prevStory || prevTime !== currentTime
       })
       if (changedStory) {
         console.log('📝 Histoire modifiée, sauvegarde debounced:', changedStory.title)

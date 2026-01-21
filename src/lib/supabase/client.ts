@@ -6,16 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 // Client pour le navigateur (côté client) - utilise les cookies pour partager la session avec le middleware
-export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    // Détection automatique de la session
-    detectSessionInUrl: true,
-    // Persister la session
-    persistSession: true,
-    // Clé de stockage unique
-    storageKey: 'lavoixdusoir-auth',
-  },
-})
+export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 
 // Fonction helper pour créer un client avec token d'accès
 export const createSupabaseClient = (accessToken?: string) => {

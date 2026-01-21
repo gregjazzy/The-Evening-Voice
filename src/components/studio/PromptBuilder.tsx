@@ -7,6 +7,7 @@ import {
   Wand2, 
   AlertCircle,
   CheckCircle,
+  Check,
   Lightbulb,
   CloudSun,
   Moon,
@@ -26,6 +27,7 @@ import {
   Image as ImageIcon,
   Film,
   Video,
+  FileText,
 } from 'lucide-react'
 import { useStudioStore, type StyleType, type AmbianceType, type LightType, type FormatType, type MovementType, type CameraType } from '@/store/useStudioStore'
 import { useStudioProgressStore } from '@/store/useStudioProgressStore'
@@ -217,6 +219,8 @@ interface PromptBuilderProps {
 }
 
 export function PromptBuilder({ onComplete }: PromptBuilderProps) {
+  const { currentStory } = useAppStore()
+  
   const {
     currentKit,
     updateKit,
@@ -225,9 +229,10 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   } = useStudioStore()
   
   // Filtrer les images disponibles pour les vidéos (uniquement celles du projet actuel)
+  // Les URLs blob (blob:http://...) ne survivent pas au rechargement de page
   const availableImages = importedAssets.filter(a => 
     a.type === 'image' && 
-    a.url && 
+    (a.cloudUrl || (a.url && !a.url.startsWith('blob:'))) && // URL valide (cloudUrl ou non-blob)
     (!a.projectId || a.projectId === currentStory?.id) // Images de l'histoire ou sans projet (anciennes)
   )
 
@@ -253,15 +258,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   // Les vidéos sont toujours en 16:9 (pas de choix)
   const showFormatButtons = currentCreationType === 'image'
   const showMovementButtons = currentCreationType === 'video'
-
-  const { currentStory } = useAppStore()
   const { addImportedAsset } = useStudioStore()
   const { user } = useAuthStore()
   const { uploadFromUrl, isUploading: isUploadingToCloud } = useMediaUpload()
-  const { showToast } = useToast()
+  const toast = useToast()
   
   const [showPreview, setShowPreview] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [hasReadPrompt, setHasReadPrompt] = useState(false) // L'enfant doit valider qu'il a lu le prompt
   
   // 🎨 Génération directe via fal.ai (niveaux 1-2)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -271,6 +275,11 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   
   // Niveaux 1-2 utilisent fal.ai directement, 3+ copient vers fal.ai playground
   const useDirectGeneration = currentLevel <= 2
+  
+  // Réinitialiser la validation quand le prompt change
+  useEffect(() => {
+    setHasReadPrompt(false)
+  }, [currentKit?.generatedPrompt])
   
   // Fonction de génération via fal.ai
   const handleDirectGenerate = async () => {
@@ -648,17 +657,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     }
   }
 
-  // Récupérer le texte de l'histoire comme suggestion
-  useEffect(() => {
-    if (currentKit && !currentKit.subject && currentStory?.pages.length) {
-      const lastPage = currentStory.pages[currentStory.pages.length - 1]
-      if (lastPage.content) {
-        // Suggérer un extrait du texte
-        const suggestion = lastPage.content.slice(0, 100)
-        updateKit({ subject: suggestion })
-      }
-    }
-  }, [currentKit?.id])
+  // Helper pour nettoyer le HTML et extraire le texte brut
+  const stripHtml = (html: string) => {
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    return doc.body.textContent || ''
+  }
+
+  // On ne pré-remplit plus automatiquement - on garde juste le placeholder
+  // L'utilisateur peut cliquer sur la suggestion si il le souhaite
 
   // Détection automatique par mots-clés pour niveaux 3+
   useEffect(() => {
@@ -863,18 +869,29 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           )}
         
         {/* Suggestions depuis l'histoire */}
-        {(currentStory?.pages?.length ?? 0) > 0 && !currentKit.subject && (
-          <motion.div
-            className="mt-3 p-3 rounded-xl bg-aurora-500/10 border border-aurora-500/20"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <p className="text-sm text-aurora-300 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              Suggestion de ton histoire : cliquer pour utiliser
-            </p>
-          </motion.div>
-        )}
+        {(currentStory?.pages?.length ?? 0) > 0 && !currentKit.subject && (() => {
+          const lastPage = currentStory?.pages[currentStory.pages.length - 1]
+          const rawContent = lastPage?.content ? stripHtml(lastPage.content).trim() : ''
+          if (!rawContent) return null
+          const suggestion = rawContent.slice(0, 80) + (rawContent.length > 80 ? '...' : '')
+          
+          return (
+            <motion.button
+              onClick={() => updateKit({ subject: rawContent.slice(0, 150) })}
+              className="mt-3 p-3 rounded-xl bg-aurora-500/10 border border-aurora-500/20 hover:bg-aurora-500/20 transition-all w-full text-left"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+            >
+              <p className="text-sm text-aurora-300 flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4" />
+                Suggestion de ton histoire :
+              </p>
+              <p className="text-sm text-midnight-300 italic">"{suggestion}"</p>
+            </motion.button>
+          )
+        })()}
       </motion.section>
       )}
 
@@ -1474,19 +1491,6 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               </button>
             </div>
 
-            <AnimatePresence>
-              {showPreview && (
-                <motion.div
-                  className="p-4 rounded-xl bg-midnight-900/50 font-mono text-sm text-midnight-200 mb-4"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  {currentKit.generatedPrompt || 'Le prompt apparaîtra ici...'}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             {/* BOUTONS D'ACTION PRINCIPAUX */}
             {complete && (
               <motion.div
@@ -1494,26 +1498,78 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
+                {/* ========== AFFICHAGE DU PROMPT AVEC VALIDATION ========== */}
+                {useDirectGeneration && (
+                  <motion.div
+                    className="p-4 rounded-xl bg-midnight-900/50 border border-midnight-700/50 mb-4"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="flex items-center gap-2 mb-4">
+                      <FileText className="w-6 h-6 text-aurora-400" />
+                      <h4 className="font-bold text-lg text-white">✨ Voici ton prompt magique :</h4>
+                      <span className="text-xs text-aurora-300/70 ml-auto">C'est ce que l'IA va lire !</span>
+                    </div>
+                    
+                    <p className="font-mono text-xl leading-relaxed text-white bg-gradient-to-br from-midnight-800/80 to-midnight-900/80 p-5 rounded-xl mb-4 whitespace-pre-wrap border border-aurora-500/30 shadow-lg shadow-aurora-500/10">
+                      {currentKit.generatedPrompt || 'Le prompt apparaîtra ici...'}
+                    </p>
+                    
+                    {/* Case à cocher de validation */}
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={hasReadPrompt}
+                          onChange={(e) => setHasReadPrompt(e.target.checked)}
+                          className="sr-only"
+                        />
+                        <div className={cn(
+                          "w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center",
+                          hasReadPrompt 
+                            ? "bg-dream-500 border-dream-400" 
+                            : "bg-midnight-800 border-midnight-600 group-hover:border-aurora-500/50"
+                        )}>
+                          {hasReadPrompt && <Check className="w-4 h-4 text-white" />}
+                        </div>
+                      </div>
+                      <span className={cn(
+                        "text-sm transition-colors",
+                        hasReadPrompt ? "text-dream-300" : "text-midnight-300 group-hover:text-white"
+                      )}>
+                        ✅ J'ai bien lu le prompt et je suis prêt à créer !
+                      </span>
+                    </label>
+                  </motion.div>
+                )}
+
                 {/* ========== NIVEAUX 1-2 : Génération directe via fal.ai ========== */}
                 {useDirectGeneration ? (
                   <>
                     {/* Bouton Générer */}
                     <motion.button
                       onClick={handleDirectGenerate}
-                      disabled={isGenerating}
+                      disabled={isGenerating || !hasReadPrompt}
                       className={cn(
                         'w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all',
                         isGenerating
                           ? 'bg-aurora-500/50 text-white cursor-wait'
-                          : 'bg-gradient-to-r from-aurora-500 to-dream-500 text-white hover:from-aurora-600 hover:to-dream-600'
+                          : !hasReadPrompt
+                            ? 'bg-midnight-700 text-midnight-400 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-aurora-500 to-dream-500 text-white hover:from-aurora-600 hover:to-dream-600'
                       )}
-                      whileHover={!isGenerating ? { scale: 1.02 } : {}}
-                      whileTap={!isGenerating ? { scale: 0.98 } : {}}
+                      whileHover={!isGenerating && hasReadPrompt ? { scale: 1.02 } : {}}
+                      whileTap={!isGenerating && hasReadPrompt ? { scale: 0.98 } : {}}
                     >
                       {isGenerating ? (
                         <>
                           <Loader2 className="w-6 h-6 animate-spin" />
                           Création en cours... ✨
+                        </>
+                      ) : !hasReadPrompt ? (
+                        <>
+                          <FileText className="w-6 h-6" />
+                          Lis d'abord le prompt ☝️
                         </>
                       ) : (
                         <>
@@ -1579,7 +1635,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                               onClick={async () => {
                                 // Vérifier que l'utilisateur est connecté
                                 if (!user) {
-                                  showToast('Tu dois être connecté pour sauvegarder. Rafraîchis la page et reconnecte-toi.', 'error')
+                                  toast.error('Tu dois être connecté pour sauvegarder. Rafraîchis la page et reconnecte-toi.')
                                   return
                                 }
                                 
@@ -1602,17 +1658,17 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                                       })
                                     }
                                     console.log(`✅ ${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée:`, result.url)
-                                    showToast(`${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée !`, 'success')
+                                    toast.success(`${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée !`)
                                     // Fermer l'aperçu SEULEMENT si succès
                                     setGeneratedAsset(null)
                                     setGenerationError(null)
                                   } else {
                                     // Upload a retourné null (erreur silencieuse)
-                                    showToast('Erreur lors de la sauvegarde. Vérifie ta connexion et réessaie.', 'error')
+                                    toast.error('Erreur lors de la sauvegarde. Vérifie ta connexion et réessaie.')
                                   }
                                 } catch (error) {
                                   console.error('Erreur sauvegarde:', error)
-                                  showToast(`Erreur : ${error instanceof Error ? error.message : 'Sauvegarde impossible'}`, 'error')
+                                  toast.error(`Erreur : ${error instanceof Error ? error.message : 'Sauvegarde impossible'}`)
                                 } finally {
                                   setIsSavingToCloud(false)
                                 }

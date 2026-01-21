@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/lib/supabase/client'
+
+// NOTE: La sauvegarde Supabase est désormais gérée UNIQUEMENT par useSupabaseSync.ts
+// pour éviter les race conditions et conflits de contraintes.
 import type { 
   PromptingLevel, 
   PromptingProgress,
@@ -31,55 +34,14 @@ import {
 function getProfileIdFromStorage(): string | null {
   try {
     const authData = localStorage.getItem('lavoixdusoir-auth')
-    console.log('🔍 Auth data from localStorage:', authData ? 'found' : 'not found')
     if (authData) {
       const parsed = JSON.parse(authData)
-      console.log('🔍 Parsed auth:', JSON.stringify(parsed, null, 2))
-      const profileId = parsed?.state?.profile?.id || null
-      console.log('🔍 Profile ID:', profileId)
-      return profileId
+      return parsed?.state?.profile?.id || null
     }
   } catch (e) {
     console.error('Erreur lecture profileId:', e)
   }
   return null
-}
-
-// Fonction pour sauvegarder une histoire dans Supabase immédiatement
-async function saveStoryToSupabaseNow(story: Story) {
-  const profileId = getProfileIdFromStorage()
-  if (!profileId) {
-    console.warn('⚠️ Pas de profileId, histoire non sauvegardée dans Supabase')
-    return
-  }
-  
-  try {
-    const storyData = {
-      id: story.id,
-      profile_id: profileId,
-      title: story.title,
-      author: 'Auteur',
-      status: story.isComplete ? 'completed' : 'in_progress',
-      total_pages: story.pages.length,
-      current_page: story.currentStep + 1,
-      metadata: {
-        structure: story.structure,
-        chapters: story.chapters || [],
-      },
-      created_at: story.createdAt instanceof Date ? story.createdAt.toISOString() : story.createdAt,
-      updated_at: story.updatedAt instanceof Date ? story.updatedAt.toISOString() : story.updatedAt,
-    }
-    
-    const { error } = await (supabase as any).from('stories').upsert(storyData)
-    
-    if (error) {
-      console.error('❌ Erreur sauvegarde histoire Supabase:', error)
-    } else {
-      console.log('✅ Histoire sauvegardée dans Supabase:', story.title)
-    }
-  } catch (err) {
-    console.error('❌ Exception sauvegarde histoire:', err)
-  }
 }
 
 // Fonction pour supprimer une histoire de Supabase
@@ -282,6 +244,7 @@ interface AppState {
   goToNextStep: (storyId: string) => void
   goToPrevStep: (storyId: string) => void
   completeStory: (storyId: string) => void
+  reopenStory: (storyId: string) => void
   // Gestion des chapitres
   addStoryChapter: (storyId: string, chapter: StoryCustomChapter) => void
   deleteStoryChapter: (storyId: string, chapterId: string) => void
@@ -345,7 +308,17 @@ interface AppState {
   clearProgressionEvents: () => void
 }
 
-const generateId = () => Math.random().toString(36).substring(2, 15)
+const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback pour les anciens navigateurs
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -433,8 +406,7 @@ export const useAppStore = create<AppState>()(
           currentStory: newStory,
         }))
         
-        // Sauvegarder immédiatement dans Supabase
-        saveStoryToSupabaseNow(newStory)
+        // NOTE: La sauvegarde Supabase est gérée par useSupabaseSync
         
         return newStory
       },
@@ -457,6 +429,8 @@ export const useAppStore = create<AppState>()(
             pages: updatedPages,
             updatedAt: new Date(),
           }
+          
+          // NOTE: La sauvegarde Supabase est gérée par useSupabaseSync
           
           return {
             stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
@@ -532,6 +506,23 @@ export const useAppStore = create<AppState>()(
           }
         })
       },
+      reopenStory: (storyId) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const updatedStory = {
+            ...story,
+            isComplete: false,
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
       
       // Gestion des chapitres
       addStoryChapter: (storyId, chapter) => {
@@ -597,6 +588,8 @@ export const useAppStore = create<AppState>()(
             pages,
             updatedAt: new Date(),
           }
+          
+          // NOTE: La sauvegarde Supabase est gérée par useSupabaseSync
           
           return {
             stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
