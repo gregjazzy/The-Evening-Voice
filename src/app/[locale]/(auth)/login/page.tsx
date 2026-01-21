@@ -23,6 +23,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [resetSent, setResetSent] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
 
   // Rediriger si déjà connecté
   useEffect(() => {
@@ -30,6 +32,38 @@ export default function LoginPage() {
       router.push(redirect)
     }
   }, [user, router, redirect])
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Entre ton email pour recevoir le lien de réinitialisation')
+      return
+    }
+    
+    setIsResetting(true)
+    setError(null)
+    
+    try {
+      const { createBrowserClient } = await import('@supabase/ssr')
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/${locale}/reset-password`,
+      })
+      
+      if (error) {
+        setError(error.message)
+      } else {
+        setResetSent(true)
+      }
+    } catch (err) {
+      setError('Erreur lors de l\'envoi')
+    } finally {
+      setIsResetting(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -226,12 +260,20 @@ export default function LoginPage() {
 
         {/* Lien mot de passe oublié */}
         <div className="mt-4 text-center">
-          <button
-            type="button"
-            className="text-aurora-300 hover:text-aurora-200 text-sm transition-colors"
-          >
-            {t('forgotPassword')}
-          </button>
+          {resetSent ? (
+            <p className="text-emerald-400 text-sm">
+              ✉️ Un email de réinitialisation a été envoyé à {email}
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={isResetting}
+              className="text-aurora-300 hover:text-aurora-200 text-sm transition-colors disabled:opacity-50"
+            >
+              {isResetting ? 'Envoi en cours...' : t('forgotPassword')}
+            </button>
+          )}
         </div>
 
         {/* Séparateur */}
