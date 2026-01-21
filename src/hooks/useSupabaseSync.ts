@@ -548,9 +548,6 @@ export function useSupabaseSync() {
         // Pas de projets dans Supabase
         useMontageStore.setState({ projects: [] })
         console.log('   ℹ️ Aucun projet de montage dans Supabase')
-          }
-          console.log(`   ✅ Projets locaux synchronisés vers Supabase`)
-        }
       }
 
       // Charger la progression Studio
