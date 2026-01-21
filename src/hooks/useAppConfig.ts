@@ -70,13 +70,14 @@ export function useAppConfig() {
       }
       
       // Vérifier si super admin
+      let isSuperAdmin = false;
       const { data: superAdmin } = await supabase
         .from('super_admins')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
-      const isSuperAdmin = !!superAdmin;
+      isSuperAdmin = !!superAdmin;
       setIsSuperAdmin(isSuperAdmin);
       
       // Récupérer la config de la famille de l'utilisateur

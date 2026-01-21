@@ -2,9 +2,9 @@
 
 > Document de passation complet pour la prochaine session de développement
 
-**Date** : 20 janvier 2026  
-**Version** : 5.4.0  
-**État** : Production-Ready ✅ (Challenge Mode + Modales Intro)
+**Date** : 21 janvier 2026  
+**Version** : 5.5.0  
+**État** : Production + Electron (partiellement fonctionnel)
 
 ---
 
@@ -14,7 +14,7 @@
 
 ### Résumé
 
-Application pour **enfants de 8 ans** permettant de créer des **livres-disques numériques 2.0** - inspirés des livres-disques d'antan (Marlène Jobert, Disney) mais augmentés avec IA et domotique.
+Application pour **enfants de 9 ans** permettant de créer des **livres-disques numériques 2.0** - inspirés des livres-disques d'antan (Marlène Jobert, Disney) mais augmentés avec IA et domotique.
 
 **Objectif pédagogique principal** : Enseigner le **prompting** de manière ludique et progressive.
 
@@ -26,359 +26,313 @@ Application pour **enfants de 8 ans** permettant de créer des **livres-disques 
 |------|----------|------|
 | ✍️ **Écriture** | Création du livre STATIQUE (texte, images, décos) | ✅ Complet |
 | 🎨 **Studio** | Apprentissage progressif du prompting (Nano Banana/Kling) | ✅ Complet |
-| 🏆 **Défis** | Exercices de prompting : reproduire/varier des images | ✅ **NOUVEAU** |
+| 🏆 **Défis** | Exercices de prompting : reproduire/varier des images | ✅ Complet |
 | 🎬 **Montage** | Création du LIVRE-DISQUE (timeline, effets, sync) | ✅ Complet |
 | 🎭 **Théâtre** | Lecteur immersif + export vidéo HD | ✅ Complet |
 | 📖 **Publier** | Publication livre imprimé via Gelato + PDF | ✅ Complet |
 
-### Pédagogie Prompting
-
-L'application enseigne le prompting via deux systèmes :
-
-| Mode | Système | Concepts |
-|------|---------|----------|
-| ✍️ Écriture | **5 Questions Magiques** | QUI, QUOI, OÙ, QUAND, ET PUIS |
-| 🎨 Studio | **5 Clés Magiques** | Style, Héros, Ambiance, Monde, Magie |
-| 🏆 Défis | **Exercices pratiques** | Reproduire image, Créer variations |
-
 ---
 
-## ✅ Ce qui est FAIT (Session 20 janvier - v5.4)
+## ✅ Ce qui est FAIT (Session 21 janvier - v5.5)
 
-### 1. 🏆 Challenge Mode (NOUVEAU)
+### 1. 🖼️ Images des Structures d'Histoire Refaites
 
-Nouveau mode **Défis** pour pratiquer le prompting avec feedback IA.
+**Objectif** : Images premium style cinématographique pour enfants de 9 ans (pas enfantin)
 
-| Exercice | Description |
-|----------|-------------|
-| **Reproduire l'image** | Deviner le prompt d'une image générée |
-| **Variations** | Créer une variation selon une consigne |
+**Style appliqué** :
+- Inspiration Pixar/DreamWorks/Ghibli
+- Couleurs riches et profondes
+- Qualité cinématographique premium
 
-**Fonctionnalités :**
-- Images pré-générées stockées dans Supabase Storage (`images/challenges/`)
-- Chargement instantané (pas d'attente de génération)
-- 3 niveaux de difficulté : Facile, Moyen, Difficile
-- **Analyse IA** : Gemini Vision compare l'image générée vs l'originale
-- Score, points forts, axes d'amélioration, conseils
+**Images régénérées** :
+- `structure-tale.jpg` - Conte (château magique)
+- `structure-adventure.jpg` - Aventure (dirigeable steampunk)
+- `structure-problem.jpg` - Problème/Solution (détective dans bibliothèque)
+- `structure-free.jpg` - Libre (portail arc-en-ciel)
 
-**Fichiers créés :**
-```
-src/components/modes/ChallengeMode.tsx       # Interface complète
-src/app/api/ai/challenge-analyze/route.ts   # Analyse IA via Gemini Vision
-scripts/generate-challenge-images.ts         # Script génération images
-```
+**Structures supprimées** :
+- ❌ `journal` (journal illustré - cliente ne voulait pas de journal intime)
+- ❌ `loop` (boucle)
 
-**Challenges disponibles :**
-- 6 challenges "Reproduire" (facile → difficile)
-- 6 challenges "Variations" (facile → difficile)
-
-### 2. 🎭 Modales d'Introduction (NOUVEAU)
-
-Chaque mode affiche une **modale élégante** à la première visite expliquant :
-- Le but du mode
-- Les objectifs d'apprentissage (compréhensibles par un enfant de 8 ans)
-- Ce qu'il va apprendre
-
-**Fichiers créés :**
-```
-src/hooks/useHasVisitedMode.ts        # Hook localStorage pour tracker les visites
-src/components/ui/ModeIntroModal.tsx  # Modale réutilisable
-```
-
-**Modes équipés :**
-- ✅ BookMode (Écriture)
-- ✅ StudioMode
-- ✅ ChallengeMode (Défis)
-- ✅ LayoutMode (Montage)
-- ✅ TheaterMode
-- ✅ PublishMode
-
-### 3. 🐛 Bug Fix : Sauvegarde Images Studio
-
-**Problème identifié :**
-- La session Supabase expirée → `user` = null
-- Le bouton "Garder" échouait **silencieusement**
-- L'aperçu se fermait même si l'upload échouait
-- L'utilisateur pensait que l'image était sauvegardée
-
-**Correction appliquée :**
+**CSS amélioré** dans `BookMode.tsx` :
 ```typescript
-// Avant : échec silencieux
-} catch (error) {
-  console.error('Erreur sauvegarde:', error) // Console uniquement
-}
-setGeneratedAsset(null) // Fermait toujours !
+// Suppression du blur, gradient plus subtil
+style={{
+  background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.4) 100%)',
+}}
+// Filtres pour images plus lumineuses
+filter: 'brightness(1.08) saturate(1.1) contrast(1.03)'
+```
 
-// Après : feedback utilisateur
-if (!user) {
-  showToast('Tu dois être connecté...', 'error')
-  return
-}
-if (result) {
-  showToast('Image sauvegardée !', 'success')
-  setGeneratedAsset(null) // Ferme SEULEMENT si succès
+**Grille 2x2** pour 4 structures :
+```typescript
+<div className="grid grid-cols-2 gap-12 max-w-4xl mx-auto">
+```
+
+### 2. 🗑️ Suppression d'Histoires
+
+**Fonctionnalité ajoutée** dans `Sidebar.tsx` :
+- Bouton poubelle sur chaque histoire
+- Modal de confirmation avant suppression
+- Suppression Supabase + locale
+
+**Fichiers modifiés** :
+- `src/components/navigation/Sidebar.tsx` - UI de suppression
+- `src/store/useAppStore.ts` - `deleteStoryFromSupabase()`
+
+### 3. 🖥️ Application Electron
+
+**Build Electron** configuré pour charger l'URL de production :
+- URL : `https://eveningvoice.netlify.app`
+- Raison : Next.js API routes incompatibles avec le chargement de fichiers locaux
+
+**Configuration** dans `electron/main.js` :
+```javascript
+const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://eveningvoice.netlify.app'
+
+if (isDev) {
+  mainWindow.loadURL('http://localhost:3000')
 } else {
-  showToast('Erreur lors de la sauvegarde...', 'error')
+  mainWindow.loadURL(PRODUCTION_URL)
 }
 ```
 
-**Fichier modifié :** `src/components/studio/PromptBuilder.tsx`
+**Permissions microphone** ajoutées :
+- `electron/main.js` : IPC handler `request-microphone-access`
+- `electron/preload.js` : Expose `electronAPI.requestMicrophoneAccess`
+- `package.json` : `NSMicrophoneUsageDescription`, `NSCameraUsageDescription`
 
-### 4. 🎭 Bug Fix : Theater Mode Synchronisation
+### 4. 🌐 Déploiement Netlify
 
-**Problème :** Le mode Théâtre n'affichait pas correctement les médias, décorations et animations synchronisés avec le temps.
+**URL** : https://eveningvoice.netlify.app
 
-**Solution :** Implémentation du filtrage basé sur `timeRange` pour tous les éléments, comme dans `PreviewCanvas`.
+**Configuration** `netlify.toml` :
+```toml
+[build]
+  command = "npm install && npm run build"
+  publish = ".next"
 
-**Fichier modifié :** `src/components/modes/TheaterMode.tsx`
-
----
-
-## 📁 Structure des Fichiers Clés
-
-### Challenge Mode
-
-```
-src/components/modes/ChallengeMode.tsx       # Interface complète
-├── REPRODUCE_CHALLENGES[]                   # Données des défis reproduction
-├── VARIATION_CHALLENGES[]                   # Données des défis variation
-├── selectChallenge()                        # Charge image depuis Supabase
-├── handleGenerate()                         # Génère image via /api/ai/image
-└── handleAnalyze()                          # Analyse via Gemini Vision
-
-src/app/api/ai/challenge-analyze/route.ts   # POST: analyse comparative
-├── Reçoit: targetImageUrl, generatedImageUrl, targetPrompt, userPrompt
-└── Retourne: score (0-100), strengths[], weaknesses[], advice
-
-scripts/generate-challenge-images.ts         # Pré-génération des images
-├── Utilise fal.ai (Nano Banana Pro)
-└── Upload vers Supabase: images/challenges/{id}/variant-1.png
+[build.environment]
+  NODE_VERSION = "20.9.0"
+  NPM_FLAGS = "--include=dev"
 ```
 
-### Modales Introduction
+**Variables d'environnement requises sur Netlify** :
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GOOGLE_GEMINI_API_KEY`
+- `FAL_API_KEY`
+- `ELEVENLABS_API_KEY`
+- (et autres selon besoins)
 
-```
-src/hooks/useHasVisitedMode.ts
-├── useHasVisitedMode(mode: AppMode)
-├── Stocke dans localStorage: mode_intro_seen_{mode}
-└── Retourne: boolean (true si déjà visité)
+### 5. 🔐 Flux d'Authentification Corrigé
 
-src/components/ui/ModeIntroModal.tsx
-├── MODE_CONTENT: Record<AppMode, {...}>
-├── Contenu: titre, sous-titre, description, objectifs, icône, gradient
-└── Animations Framer Motion
-```
+**Problème** : L'onboarding (dialogue avec IA pour choisir prénom) s'affichait avant l'identification.
 
-### Services IA
-
-```
-src/lib/ai/
-├── fal.ts              # Nano Banana Pro, Kling, Real-ESRGAN
-├── gemini.ts           # Chat IA + Vision (analyse images)
-├── elevenlabs.ts       # Voix IA
-└── prompting-pedagogy.ts # Logique pédagogique
-```
-
-### Stores
-
-```
-src/store/
-├── useAppStore.ts            # stories[], currentStory, currentMode
-├── useStudioStore.ts         # importedAssets, savedKits
-├── useStudioProgressStore.ts # level, creations
-├── usePublishStore.ts        # format, pdfUrl, gelatoOrder
-├── useMontageStore.ts        # scenes, timeline
-├── useAuthStore.ts           # user, profile, session
-└── useHighlightStore.ts      # Guidage visuel
-```
-
----
-
-## 🎮 Challenge Mode - Détails
-
-### Structure des Challenges
-
+**Correction** dans `ClientLayout.tsx` :
 ```typescript
-interface ChallengeData {
-  id: string              // 'reproduce-rainbow', 'variation-castle'
-  type: 'reproduce' | 'variation'
-  difficulty: 'easy' | 'medium' | 'hard'
-  targetPrompt: string    // Prompt anglais pour génération
-  targetPromptFr: string  // Indice pour l'enfant
-  hints: string[]         // Indices progressifs
-  variationInstruction?: string  // Pour les variations
-}
+// L'onboarding ne s'affiche QUE si l'utilisateur est connecté
+useEffect(() => {
+  if (!isInitialized || !user) {
+    return // Ne rien faire si pas connecté
+  }
+  // ... logique onboarding
+}, [isInitialized, aiName, user])
 ```
 
-### Images Pré-générées
+**Flux correct** :
+1. Page de login → Identification
+2. Si nouveau : Onboarding (dialogue prénom)
+3. Application principale
 
-Les images sont stockées dans Supabase Storage :
-```
-images/challenges/
-├── reproduce-rainbow/variant-1.png
-├── reproduce-castle/variant-1.png
-├── variation-dragon/variant-1.png
-└── ...
-```
+### 6. 🔑 Mot de Passe Oublié
 
-**Pour régénérer les images :**
-```bash
-npx tsx scripts/generate-challenge-images.ts
-```
-
-### Analyse IA (Gemini Vision)
-
-L'analyse compare :
-1. L'image originale vs l'image générée
-2. Le prompt original vs le prompt de l'enfant
-3. Le niveau de difficulté
-
-Retourne :
-- **Score** : 0-100
-- **Points forts** : Ce que l'enfant a bien fait
-- **Axes d'amélioration** : Ce qui peut être amélioré
-- **Conseil** : Un conseil personnalisé
+**Fonctionnalité ajoutée** dans `login/page.tsx` :
+- Bouton "Mot de passe oublié ?" fonctionnel
+- Envoie email via Supabase `resetPasswordForEmail`
 
 ---
 
-## 🔧 Configuration
+## ⚠️ Problèmes Connus
 
-### Variables d'environnement (`.env.local`)
+### 1. 🖥️ Electron Crash sur macOS 26.1 (Tahoe)
 
-```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
-SUPABASE_SERVICE_ROLE_KEY=xxx
+**Symptôme** : L'app Electron packagée crash au lancement avec :
+```
+Exception Type: EXC_BREAKPOINT (SIGTRAP)
+rust_png$cxxbridge1$Reader$...
+Fatal process out of memory: Failed to reserve virtual memory for CodeRange
+```
 
-# fal.ai (images, vidéos, voix)
-FAL_API_KEY=xxx
+**Cause** : Incompatibilité entre Electron 40 et macOS 26.1 (version beta/future)
+- Le décodeur PNG Rust d'Electron ne fonctionne pas correctement
+- Problèmes d'allocation mémoire V8
 
-# Google AI (chat + vision)
-GOOGLE_GEMINI_API_KEY=xxx
+**Tentatives échouées** :
+- ❌ Downgrade Electron (28, 31, 32, 33, 39)
+- ❌ V8 flags (`--max-old-space-size`, `V8VmFuture`)
+- ❌ Suppression icône personnalisée
+- ❌ Désactivation ASAR (`"asar": false`)
 
-# AssemblyAI (transcription)
-ASSEMBLYAI_API_KEY=xxx
+**Solution actuelle** :
+- ✅ Mode développement fonctionne : `npm run dev:electron`
+- ✅ Web via Netlify fonctionne : https://eveningvoice.netlify.app
+- ❌ App packagée ne fonctionne pas sur macOS 26.1
 
-# Gelato (publication)
-GELATO_API_KEY=xxx
-GELATO_TEST_MODE=true
+**Pour la cliente** : Utiliser la version web via navigateur en attendant un fix Electron.
 
-# Cloudflare R2 (vidéos)
-R2_ACCOUNT_ID=xxx
-R2_ACCESS_KEY_ID=xxx
-R2_SECRET_ACCESS_KEY=xxx
-R2_BUCKET_NAME=lavoixdusoir-videos
-CLOUDFLARE_R2_PUBLIC_URL=https://pub-xxx.r2.dev
+### 2. 🔄 Session Auth Locale
+
+**Symptôme** : Après login en local, redirection vers page de login.
+
+**Cause** : Le middleware Next.js vérifie les cookies Supabase, mais la session peut ne pas être correctement persistée.
+
+**Workaround** : Utiliser la version Netlify qui gère mieux les cookies.
+
+### 3. 📦 Import checkImageQuality
+
+**Warning** : `checkImageQuality is not exported from '@/lib/export/pdf'`
+
+**Status** : C'est un faux positif - la fonction EST exportée. Le cache webpack peut être corrompu.
+
+**Fix** : `rm -rf .next && npm run dev`
+
+---
+
+## 📁 Structure des Fichiers Modifiés
+
+```
+electron/
+├── main.js              # Chargement URL Netlify + permissions micro
+├── preload.js           # Expose requestMicrophoneAccess
+└── entitlements.mac.plist # Permissions macOS
+
+src/
+├── components/
+│   ├── modes/
+│   │   └── BookMode.tsx          # Images structures, grille 2x2
+│   ├── navigation/
+│   │   └── Sidebar.tsx           # Suppression histoires
+│   └── ClientLayout.tsx          # Fix flux auth/onboarding
+├── store/
+│   └── useAppStore.ts            # deleteStoryFromSupabase
+├── lib/
+│   └── ai/prompting-pedagogy.ts  # Suppression journal/loop
+└── app/
+    └── [locale]/(auth)/login/page.tsx  # Mot de passe oublié
+
+scripts/
+└── generate-structure-images.ts  # Prompts images premium
+
+netlify.toml                      # Config déploiement
+package.json                      # Electron 40, deps TailwindCSS
+next.config.mjs                   # ignoreBuildErrors, externals
 ```
 
 ---
 
-## 📊 Récapitulatif de l'État
+## 🔧 Commandes Utiles
+
+### Développement Local
+
+```bash
+# Serveur Next.js (web)
+npm run dev
+
+# Serveur Next.js + Electron (dev)
+npm run dev:electron
+
+# Vérifier port 3000
+lsof -i:3000
+
+# Tuer processus Next
+pkill -f "next"
+```
+
+### Build Electron
+
+```bash
+# Build complet (génère .dmg)
+npm run build:electron
+
+# Nettoyer et rebuild
+rm -rf dist-electron node_modules/electron && npm install && npm run build:electron
+
+# Forcer version Electron spécifique
+npm install electron@40.0.0 --save-dev
+```
+
+### Déploiement Netlify
+
+```bash
+# Push vers GitHub (auto-deploy sur Netlify)
+git add -A && git commit -m "message" && git push origin main
+```
+
+### Régénérer Images Structures
+
+```bash
+npx tsx scripts/generate-structure-images.ts
+```
+
+---
+
+## 📊 État des Composants
 
 | Composant | État | Notes |
 |-----------|------|-------|
-| Mode Écriture | ✅ | + modale intro |
-| Mode Studio | ✅ | + fix sauvegarde silencieuse |
-| **Mode Défis** | ✅ | **NOUVEAU** |
-| Mode Montage | ✅ | + modale intro |
-| Mode Théâtre | ✅ | + fix synchronisation |
-| Mode Publier | ✅ | + modale intro |
-| **Modales intro** | ✅ | **Tous les modes** |
-| **Analyse IA** | ✅ | **Gemini Vision** |
-| Liaison Story/Assets | ✅ | |
-| Sync Supabase | ✅ | |
-| Assets cloud | ✅ | Supabase + R2 |
+| Mode Écriture | ✅ | 4 structures (tale, adventure, problem, free) |
+| Mode Studio | ✅ | |
+| Mode Défis | ✅ | |
+| Mode Montage | ✅ | |
+| Mode Théâtre | ✅ | |
+| Mode Publier | ✅ | |
+| Suppression histoires | ✅ | Avec confirmation |
+| Auth/Login | ✅ | + mot de passe oublié |
+| Onboarding | ✅ | Après identification uniquement |
+| Web (Netlify) | ✅ | https://eveningvoice.netlify.app |
+| Electron Dev | ✅ | `npm run dev:electron` |
+| Electron Packaged | ❌ | Crash macOS 26.1 |
 
 ---
 
-## 💡 Notes pour le Prochain Dev
+## 💡 Pour le Prochain Dev
 
-### Points d'Attention
+### Priorités
 
-1. **L'enfant cible a 8 ans** → Tout doit être simple et encourageant
-2. **Pas de gamification visible** → Pas de badges, XP visible (c'est une commande privée)
-3. **Session Supabase** → Peut expirer, toujours vérifier `user` avant upload
-4. **Images Challenge** → Pré-générées dans Supabase, pas de génération à la volée
-5. **Modales intro** → Utilisent localStorage, réinitialisable en vidant le storage
+1. **Fix Electron** : Attendre mise à jour Electron compatible macOS 26.1, ou tester sur macOS 15.x
+2. **Session Auth** : Investiguer persistance session Supabase en local
+3. **Tests** : Ajouter tests pour flux critiques
 
-### Bug Connu : Session Expirée
-
-Si la session Supabase expire :
-- Le store `useAuthStore` peut avoir `user: null`
-- Les uploads échoueront avec un message d'erreur visible (maintenant corrigé)
-- Solution : Rafraîchir la page pour restaurer la session
-
-### Ajouter un Nouveau Challenge
-
-```typescript
-// Dans ChallengeMode.tsx
-const REPRODUCE_CHALLENGES: ChallengeData[] = [
-  // ... existants
-  {
-    id: 'reproduce-newchallenge',
-    type: 'reproduce',
-    difficulty: 'medium',
-    targetPrompt: 'English prompt for generation',
-    targetPromptFr: 'Indice en français pour l\'enfant',
-    hints: ['Indice 1', 'Indice 2', 'Indice 3'],
-  },
-]
-
-// Puis régénérer les images
-// npx tsx scripts/generate-challenge-images.ts
-```
-
-### Ajouter une Modale Intro pour un Nouveau Mode
-
-```typescript
-// 1. Dans ModeIntroModal.tsx, ajouter au MODE_CONTENT:
-newmode: {
-  titleKey: 'modeIntro.newmode.title',
-  subtitleKey: 'modeIntro.newmode.subtitle',
-  descriptionKey: 'modeIntro.newmode.description',
-  objectivesKey: [...],
-  icon: <IconComponent />,
-  gradient: 'from-color-500 to-color-700',
-}
-
-// 2. Dans le composant du mode:
-const hasVisited = useHasVisitedMode('newmode')
-// ...
-<ModeIntroModal isOpen={!hasVisited} onClose={() => {}} mode="newmode" />
-```
-
----
-
-## 🎯 Prochaines Étapes Suggérées
-
-### Améliorations Challenge Mode
-
-1. **Plus de challenges** - Ajouter des sujets variés
-2. **Progression** - Débloquer les niveaux progressivement
-3. **Historique** - Sauvegarder les tentatives et scores
-
-### Améliorations Générales
-
-1. **Onboarding complet** - Tutoriel interactif première utilisation
-2. **Mode hors-ligne** - Permettre de continuer sans connexion
-3. **Export/Import** - Sauvegarder/restaurer les données
-
-### Tests
+### Variables .env.local Requises
 
 ```bash
-# Lancer l'application
-npm run dev
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://frufyxrhpqxhnawmrhru.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+SUPABASE_SERVICE_ROLE_KEY=xxx
 
-# Tester le Challenge Mode
-# 1. Aller dans "Défis" dans la sidebar
-# 2. Choisir un défi
-# 3. Écrire un prompt et générer
-# 4. Cliquer sur "Analyser"
+# IA
+GOOGLE_GEMINI_API_KEY=xxx
+FAL_API_KEY=xxx
+ELEVENLABS_API_KEY=xxx
 
-# Régénérer les images de challenge
-npx tsx scripts/generate-challenge-images.ts
+# (voir env.example pour la liste complète)
 ```
+
+### Si Erreurs 500 Supabase
+
+1. Vérifier clés API dans `.env.local`
+2. Vérifier quota Supabase
+3. Vérifier RLS policies
+4. `rm -rf .next && npm run dev`
+
+### Si Electron Ne Démarre Pas
+
+1. Vérifier que Next.js tourne sur :3000 d'abord
+2. `npm run dev:electron` (pas `npm run build:electron`)
+3. Sur macOS 26.1 : utiliser version web
 
 ---
 
@@ -395,14 +349,11 @@ npx tsx scripts/generate-challenge-images.ts
 
 ---
 
-**Application complète !** 🌙✨ 
+**Bonne continuation !** 🌙✨
 
 Flux complet :
 ```
 ✍️ Écriture → 🎨 Studio → 🏆 Défis → 🎬 Montage → 🎭 Théâtre → 📖 Publier
 ```
 
-Pédagogie prompting :
-```
-5 Questions Magiques (Écriture) + 5 Clés Magiques (Studio) + Exercices Pratiques (Défis)
-```
+**Version web fonctionnelle** : https://eveningvoice.netlify.app
