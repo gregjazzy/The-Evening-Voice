@@ -6,7 +6,7 @@
  * - Garde localStorage comme cache pour la performance
  */
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
 
@@ -17,6 +17,9 @@ export function useSyncUserPreferences() {
     aiVoice, setAiVoice,
     userName, setUserName,
   } = useAppStore()
+  
+  // État pour savoir si les préférences ont été chargées depuis Supabase
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false)
   
   // Ref pour éviter les boucles infinies lors du chargement initial
   const hasLoadedFromSupabase = useRef(false)
@@ -48,6 +51,10 @@ export function useSyncUserPreferences() {
       console.log('📥 Prénom enfant depuis Supabase:', profile.name)
       setUserName(profile.name)
     }
+    
+    // Marquer les préférences comme chargées
+    setPreferencesLoaded(true)
+    console.log('✅ Préférences chargées depuis Supabase')
   }, [isInitialized, profile, aiName, aiVoice, userName, setAiName, setAiVoice, setUserName])
   
   // Sauvegarder vers Supabase (debounced)
@@ -110,6 +117,9 @@ export function useSyncUserPreferences() {
     if (!profile && hasLoadedFromSupabase.current) {
       console.log('🔄 Déconnexion - reset du flag de chargement')
       hasLoadedFromSupabase.current = false
+      setPreferencesLoaded(false)
     }
   }, [profile])
+  
+  return { preferencesLoaded }
 }

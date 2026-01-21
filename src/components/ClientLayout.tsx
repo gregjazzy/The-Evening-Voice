@@ -25,9 +25,10 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   useAppConfig()
   
   // Synchroniser les préférences utilisateur avec Supabase
-  useSyncUserPreferences()
+  const { preferencesLoaded } = useSyncUserPreferences()
 
   // Afficher la séquence d'accueil si pas de nom d'IA ET utilisateur connecté
+  // IMPORTANT: Attendre que les préférences soient chargées depuis Supabase
   useEffect(() => {
     if (hasTriggeredRef.current || aiName) {
       return
@@ -38,13 +39,19 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       return
     }
     
+    // IMPORTANT: Attendre que les préférences soient chargées depuis Supabase
+    // Sinon on risque de montrer l'onboarding alors que l'utilisateur a déjà un aiName en base
+    if (!preferencesLoaded) {
+      return
+    }
+    
     hasTriggeredRef.current = true
     
     setTimeout(() => {
       setShowWelcomeSequence(true)
       setVoiceOnlyMode(false)
     }, 1500)
-  }, [isInitialized, aiName, user])
+  }, [isInitialized, aiName, user, preferencesLoaded])
 
   // Vérifier si la voix sauvegardée est disponible dans ce navigateur
   useEffect(() => {
