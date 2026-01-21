@@ -15,7 +15,7 @@ interface ClientLayoutProps {
 
 export function ClientLayout({ children }: ClientLayoutProps) {
   const { aiName, aiVoice, setAiVoice } = useAppStore()
-  const { isInitialized } = useAuthStore()
+  const { isInitialized, user } = useAuthStore()
   const [showWelcomeSequence, setShowWelcomeSequence] = useState(false)
   const [voiceOnlyMode, setVoiceOnlyMode] = useState(false)
   const hasTriggeredRef = useRef(false)
@@ -27,13 +27,14 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   // Synchroniser les préférences utilisateur avec Supabase
   useSyncUserPreferences()
 
-  // Afficher la séquence d'accueil si pas de nom d'IA
+  // Afficher la séquence d'accueil si pas de nom d'IA ET utilisateur connecté
   useEffect(() => {
     if (hasTriggeredRef.current || aiName) {
       return
     }
     
-    if (!isInitialized) {
+    // IMPORTANT: Ne pas afficher l'onboarding si pas initialisé ou pas connecté
+    if (!isInitialized || !user) {
       return
     }
     
@@ -43,7 +44,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       setShowWelcomeSequence(true)
       setVoiceOnlyMode(false)
     }, 1500)
-  }, [isInitialized, aiName])
+  }, [isInitialized, aiName, user])
 
   // Vérifier si la voix sauvegardée est disponible dans ce navigateur
   useEffect(() => {

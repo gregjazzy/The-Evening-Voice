@@ -119,8 +119,17 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:3000')
     mainWindow.webContents.openDevTools()
   } else {
-    // En production, charger l'URL de production (Vercel ou autre hébergeur)
+    // En production, charger l'URL de production (Netlify)
     console.log('🌐 Chargement URL production:', PRODUCTION_URL)
+    
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('❌ Échec chargement:', errorCode, errorDescription)
+    })
+    
+    mainWindow.webContents.on('did-finish-load', () => {
+      console.log('✅ Page chargée avec succès')
+    })
+    
     mainWindow.loadURL(PRODUCTION_URL)
   }
 
