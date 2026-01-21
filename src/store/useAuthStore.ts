@@ -266,6 +266,17 @@ export const useAuthStore = create<AuthState>()(
 
       signOut: async () => {
         await db.auth.signOut()
+        
+        // IMPORTANT: Vider le localStorage pour éviter le mélange de données entre comptes
+        if (typeof window !== 'undefined') {
+          // Supprimer les données des stores persistés
+          localStorage.removeItem('lavoixdusoir-storage') // useAppStore (histoires, chat, etc.)
+          localStorage.removeItem('lavoixdusoir-studio') // useStudioStore (assets, kits)
+          localStorage.removeItem('lavoixdusoir-montage-v3') // useMontageStore (projets montage)
+          localStorage.removeItem('lavoixdusoir-studio-progress') // useStudioProgressStore
+          console.log('🧹 LocalStorage vidé à la déconnexion')
+        }
+        
         set({
           user: null,
           session: null,
