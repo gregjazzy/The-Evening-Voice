@@ -4882,67 +4882,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const lastLeftContentRef = useRef<string>(leftPage?.content || '')
   const lastZoomContentRef = useRef<string>('')
   
-  // 📐 Hook pour calculer la taille optimale du livre selon l'écran
-  // Le livre doit être entièrement visible quelque soit le format et la taille d'écran
-  const [bookDimensions, setBookDimensions] = useState({ pageWidth: 300, pageHeight: 400 })
-  
-  useEffect(() => {
-    const calculateOptimalSize = () => {
-      // Marges et espaces fixes - valeurs TRÈS conservatrices pour garantir que le livre tient
-      const sidebarWidth = 90   // Sidebar (peut être plus large sur certains écrans)
-      const toolbarHeight = 90  // Toolbar en haut + FormatBar + marge
-      const bottomPadding = 120 // Espace en bas (pagination, boutons, marges)
-      const horizontalPadding = 200 // Padding horizontal (marges + boutons navigation + scrollbar potentielle)
-      
-      // Espace disponible pour le livre (2 pages côte à côte)
-      const availableWidth = window.innerWidth - sidebarWidth - horizontalPadding
-      const availableHeight = window.innerHeight - toolbarHeight - bottomPadding
-      
-      // Le livre a 2 pages côte à côte, donc largeur totale = 2 * largeur page
-      // Pour une page : largeur = hauteur * formatRatio
-      // Largeur totale livre = 2 * hauteur * formatRatio
-      
-      // Calcul basé sur la hauteur disponible
-      const heightBasedPageHeight = availableHeight
-      const heightBasedPageWidth = heightBasedPageHeight * formatRatio
-      const heightBasedTotalWidth = heightBasedPageWidth * 2
-      
-      // Calcul basé sur la largeur disponible
-      const widthBasedTotalWidth = availableWidth
-      const widthBasedPageWidth = widthBasedTotalWidth / 2
-      const widthBasedPageHeight = widthBasedPageWidth / formatRatio
-      
-      // Choisir la plus petite taille pour que le livre tienne ENTIÈREMENT dans l'écran
-      let finalPageWidth: number
-      let finalPageHeight: number
-      
-      if (heightBasedTotalWidth <= availableWidth) {
-        // La taille basée sur la hauteur tient en largeur → on utilise la hauteur
-        finalPageWidth = heightBasedPageWidth
-        finalPageHeight = heightBasedPageHeight
-      } else {
-        // La largeur est le facteur limitant → on utilise la largeur
-        finalPageWidth = widthBasedPageWidth
-        finalPageHeight = widthBasedPageHeight
-      }
-      
-      // Limites minimales pour la lisibilité
-      finalPageWidth = Math.max(180, finalPageWidth)
-      finalPageHeight = Math.max(200, finalPageHeight)
-      
-      // Debug log
-      console.log(`📐 Book dimensions: ${Math.round(finalPageWidth)}x${Math.round(finalPageHeight)}px (format ratio: ${formatRatio.toFixed(2)}, available: ${availableWidth}x${availableHeight})`)
-      
-      setBookDimensions({ pageWidth: finalPageWidth, pageHeight: finalPageHeight })
-    }
-    
-    // Calculer immédiatement
-    calculateOptimalSize()
-    
-    // Recalculer au redimensionnement
-    window.addEventListener('resize', calculateOptimalSize)
-    return () => window.removeEventListener('resize', calculateOptimalSize)
-  }, [formatRatio])
+  // 📐 Le ratio du format détermine les proportions CSS (aspect-ratio)
+  // Le livre s'adapte automatiquement à l'espace disponible via CSS flexbox
   
   // 🛡️ La modération du contenu est gérée par l'IA-Amie dans le chat
   
@@ -5333,9 +5274,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             exit={{ scale: 0.8, opacity: 0 }}
             className="relative flex flex-col shadow-2xl"
             style={{
-              // En mode zoom, on affiche une seule page plus grande (1.4x la taille normale)
-              height: `${bookDimensions.pageHeight * 1.4}px`,
-              width: `${bookDimensions.pageWidth * 1.4}px`,
+              // En mode zoom, une seule page qui remplit l'espace disponible
+              height: '100%',
+              aspectRatio: `${formatRatio} / 1`,
               maxHeight: 'calc(100vh - 120px)',
               maxWidth: 'calc(100vw - 200px)',
               background: getPageColorStyles(bookColor).background,
@@ -5688,32 +5629,34 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </div>
         )
       })() : (
-      /* LIVRE OUVERT - 2 pages côte à côte */
-      <div className="flex-1 flex items-center justify-center overflow-hidden py-2">
+      /* LIVRE OUVERT - 2 pages côte à côte - S'ADAPTE AUTOMATIQUEMENT à l'écran */
+      <div className="flex-1 flex items-center justify-center gap-2 p-2 min-h-0">
         {/* Flèche gauche */}
         {onPrevPage && (
           <button
             onClick={onPrevPage}
             disabled={!hasPrevPage}
             className={cn(
-              'p-2 rounded-full transition-all mr-2',
+              'p-1.5 lg:p-2 rounded-full transition-all flex-shrink-0',
               hasPrevPage 
                 ? 'text-midnight-400 hover:text-white hover:bg-midnight-800/50' 
                 : 'text-midnight-700 cursor-not-allowed'
             )}
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-5 h-5 lg:w-6 lg:h-6" />
           </button>
         )}
         
+        {/* Conteneur du livre - utilise TOUTE la place disponible sans déborder */}
         <div 
-          className="relative flex shadow-2xl"
+          className="relative flex shadow-2xl max-w-full max-h-full"
           style={{
-            height: `${bookDimensions.pageHeight}px`, // Hauteur calculée dynamiquement
-            maxHeight: `${bookDimensions.pageHeight}px`,
-            // Largeur totale = 2 pages
-            width: `${bookDimensions.pageWidth * 2}px`,
-            maxWidth: 'calc(100vw - 180px)', // Contrainte de sécurité
+            // Le livre prend la hauteur max disponible, la largeur s'adapte au ratio
+            height: '100%',
+            // Aspect ratio pour 2 pages côte à côte = (2 * largeur) / hauteur = 2 * formatRatio
+            aspectRatio: `${2 * formatRatio} / 1`,
+            maxHeight: 'calc(100vh - 180px)', // Ne jamais dépasser la hauteur écran
+            maxWidth: 'calc(100vw - 200px)',  // Ne jamais dépasser la largeur écran
             perspective: '2000px',
           }}
         >
@@ -5723,12 +5666,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           {/* PAGE GAUCHE (page d'écriture) */}
           <div 
             ref={leftPageContainerRef}
-            className="relative flex flex-col group"
+            className="relative flex flex-col group w-1/2 h-full"
             onClick={() => setActivePage('left')}
             style={{
-              height: '100%',
-              width: `${bookDimensions.pageWidth}px`, // Largeur calculée dynamiquement selon le format
-              flexShrink: 0,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
@@ -6130,12 +6070,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           {/* PAGE DROITE (page d'écriture) */}
           <div 
             ref={rightPageContainerRef}
-            className="relative flex flex-col group"
+            className="relative flex flex-col group w-1/2 h-full"
             onClick={() => setActivePage('right')}
             style={{
-              height: '100%',
-              width: `${bookDimensions.pageWidth}px`, // Largeur calculée dynamiquement selon le format
-              flexShrink: 0,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '0 8px 8px 0',
               boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
@@ -7187,23 +7124,23 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
           <span className="text-xs sm:text-sm">{locale === 'fr' ? 'Retour' : locale === 'en' ? 'Back' : 'Назад'}</span>
         </motion.button>
 
-        {/* Titre - adapté aux écrans 14 pouces */}
+        {/* Titre compact */}
         <motion.div 
-          className="text-center mb-6 lg:mb-10"
+          className="text-center mb-4 lg:mb-6"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.3 }}
         >
-          <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white mb-2 lg:mb-3">
+          <h2 className="font-display text-xl sm:text-2xl lg:text-3xl text-white mb-1 lg:mb-2">
             {locale === 'fr' ? 'Quel format pour ton livre ?' : locale === 'en' ? 'What format for your book?' : 'Какой формат книги?'}
           </h2>
-          <p className="text-white/50 text-sm lg:text-base">
+          <p className="text-white/50 text-xs sm:text-sm">
             {locale === 'fr' ? 'Ce format sera utilisé pour l\'impression' : locale === 'en' ? 'This format will be used for printing' : 'Этот формат будет использоваться для печати'}
           </p>
         </motion.div>
 
-        {/* Grille des formats - adaptée aux écrans 14 pouces */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 max-w-5xl mx-auto">
+        {/* Grille des formats - s'adapte automatiquement */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 max-w-4xl mx-auto">
           {BOOK_FORMATS.map((format, index) => (
             <motion.button
               key={format.id}
@@ -7281,23 +7218,23 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
   // Étape 1 : Choix de la structure
   return (
     <div className="relative max-w-6xl mx-auto">
-      {/* Titre - adapté aux écrans 14 pouces */}
+      {/* Titre compact */}
       <motion.div 
-        className="text-center mb-6 lg:mb-10"
+        className="text-center mb-4 lg:mb-6"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.3 }}
       >
-        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white mb-2 lg:mb-3">
+        <h2 className="font-display text-xl sm:text-2xl lg:text-3xl text-white mb-1 lg:mb-2">
           {locale === 'fr' ? 'Quel type d\'histoire ?' : locale === 'en' ? 'What kind of story?' : 'Какой тип истории?'}
         </h2>
-        <p className="text-white/50 text-sm lg:text-base">
+        <p className="text-white/50 text-xs sm:text-sm">
           {locale === 'fr' ? 'Choisis une structure pour commencer' : locale === 'en' ? 'Choose a structure to start' : 'Выбери структуру для начала'}
         </p>
       </motion.div>
 
-      {/* Grille 2x2 équilibrée - adaptée aux écrans 14 pouces */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 max-w-5xl mx-auto px-2 sm:px-4">
+      {/* Grille 2x2 qui s'adapte à l'écran */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6 max-w-4xl mx-auto px-2">
         {structures.map((structureId, index) => {
           const template = STORY_TEMPLATES[structureId]
           const config = STRUCTURE_CONFIG[structureId]
@@ -7313,8 +7250,8 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
               whileHover={{ y: -4, scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
             >
-              {/* Carte avec image de fond - ratio adaptatif selon la taille d'écran */}
-              <div className="relative overflow-hidden rounded-2xl lg:rounded-3xl aspect-[16/10] lg:aspect-[16/11] shadow-[0_4px_20px_0_rgba(0,0,0,0.3)] group-hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.5)] transition-all duration-500">
+              {/* Carte avec image de fond - ratio compact */}
+              <div className="relative overflow-hidden rounded-xl lg:rounded-2xl aspect-[4/3] shadow-[0_4px_16px_0_rgba(0,0,0,0.3)] group-hover:shadow-[0_8px_24px_0_rgba(0,0,0,0.4)] transition-all duration-300">
                 {/* Image de fond générée par IA - lumineuse et colorée */}
                 <div 
                   className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-105"
