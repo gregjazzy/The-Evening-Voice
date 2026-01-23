@@ -5663,32 +5663,30 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </button>
         )}
         
-        {/* Zone du livre - dimensions calculées pour MAXIMISER la taille */}
-        <div className="flex flex-col items-center flex-1 h-full overflow-hidden">
-          {/* Bandeau prévisualisation */}
-          {showSafeZones && (
-            <div className="mb-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-blue-500/20 border border-amber-500/30 flex items-center gap-3 text-xs flex-shrink-0">
-              <span className="font-semibold text-white">👁️ Prévisualisation</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded border border-red-500"></span><span className="text-red-400">Coupé</span></span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/30"></span><span className="text-emerald-400">Sûr</span></span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-500/30"></span><span className="text-blue-400">Reliure</span></span>
-            </div>
-          )}
-          
+        {/* Zone du livre - TOUT l'espace disponible */}
+        <div className="relative flex-1 h-full overflow-hidden flex items-center justify-center">
           {/* LIVRE - Prend TOUT l'espace disponible */}
           <div 
-            className="relative flex shadow-2xl flex-1"
+            className="relative flex shadow-2xl"
             style={{
               // Le livre prend toute la place disponible
               width: '100%',
               height: '100%',
               // Mais garde son ratio (2 pages côte à côte)
-              maxWidth: `calc((100vh - ${showSafeZones ? '220px' : '180px'}) * ${2 * formatRatio})`,
+              maxWidth: `calc((100vh - 180px) * ${2 * formatRatio})`,
               maxHeight: `calc((100vw - 200px) / ${2 * formatRatio})`,
               aspectRatio: `${2 * formatRatio} / 1`,
               perspective: '2000px',
             }}
           >
+            {/* Bandeau légende EN OVERLAY - ne prend pas de place */}
+            {showSafeZones && (
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full bg-midnight-900/90 border border-midnight-700 flex items-center gap-3 text-[10px] whitespace-nowrap">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded border border-red-500"></span><span className="text-red-400">Coupé</span></span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/40"></span><span className="text-emerald-400">Sûr</span></span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-500/40"></span><span className="text-blue-400">Reliure</span></span>
+              </div>
+            )}
             {/* Ombre du livre */}
             <div className="absolute -bottom-4 left-4 right-4 h-8 bg-black/30 blur-xl rounded-full" />
           
