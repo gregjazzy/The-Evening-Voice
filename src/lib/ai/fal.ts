@@ -64,7 +64,7 @@ export interface FluxImageParams {
 export interface FluxImageResult {
   // Cas 1: Job en attente (retourné immédiatement pour éviter timeout Netlify)
   jobId?: string
-  model?: 'nano-banana' | 'recraft' | 'flux' | 'ip-adapter'
+  model?: 'nano-banana' | 'recraft' | 'flux' | 'flux-img2img'
   status?: 'pending' | 'processing' | 'completed' | 'failed'
   
   // Cas 2: Résultat final avec images
@@ -79,8 +79,8 @@ export interface FluxImageResult {
 
 // ============================================
 // FLUX REDUX - Consistance de personnage/style
-// IP-Adapter : Extrait le concept visuel d'une image et l'injecte dans la génération
-// Meilleur que Flux Redux pour garder un personnage cohérent
+// Flux Image-to-Image : Transforme une image de référence selon un nouveau prompt
+// Garde le style/personnage de l'image originale tout en appliquant le nouveau contexte
 // ============================================
 
 export interface FluxReduxParams {
@@ -91,15 +91,14 @@ export interface FluxReduxParams {
 }
 
 /**
- * Génère une image avec IP-Adapter en gardant le personnage d'une image de référence
- * Extrait les features visuelles et les injecte dans la génération
+ * Génère une image avec Flux img2img en gardant le personnage d'une image de référence
+ * Fonctionne avec tout : humains, animaux, créatures, objets
  */
 export async function generateImageRedux(params: FluxReduxParams): Promise<FluxImageResult> {
   const {
     prompt,
     referenceImageUrl,
     characterDescription,
-    aspectRatio = '3:4',
   } = params
 
   // Construire un prompt explicite qui dit à l'IA de réutiliser le personnage
@@ -107,32 +106,20 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
     ? `Use the exact same character (${characterDescription}) from the reference image. New scene: ${prompt}`
     : prompt
 
-  console.log(`🎨 IP-Adapter - Génération avec personnage de référence`)
+  console.log(`🎨 Flux img2img - Génération avec personnage de référence`)
   console.log(`   Prompt: ${fullPrompt.substring(0, 100)}...`)
   console.log(`   Référence: ${referenceImageUrl.substring(0, 50)}...`)
 
-  // Convertir aspect ratio en taille
-  const sizeMap: Record<string, { width: number; height: number }> = {
-    '3:4': { width: 768, height: 1024 },
-    '4:3': { width: 1024, height: 768 },
-    '16:9': { width: 1024, height: 576 },
-    '9:16': { width: 576, height: 1024 },
-    '1:1': { width: 1024, height: 1024 },
-  }
-  const size = sizeMap[aspectRatio] || sizeMap['3:4']
-
-  // IP-Adapter : extrait le concept visuel de l'image et l'injecte dans la génération
-  const submitResponse = await falFetch('https://queue.fal.run/fal-ai/ip-adapter-face-id', {
+  // Flux img2img : transforme l'image de référence selon le prompt
+  // strength = 0.5 → garde 50% de l'image originale, 50% du nouveau prompt
+  const submitResponse = await falFetch('https://queue.fal.run/fal-ai/flux/dev/image-to-image', {
     method: 'POST',
     body: JSON.stringify({
       prompt: fullPrompt,
-      face_image_url: referenceImageUrl,
-      negative_prompt: "blurry, low quality, distorted, deformed",
-      num_inference_steps: 30,
-      guidance_scale: 7.5,
-      ip_adapter_scale: 0.6,  // Force du personnage de référence
-      width: size.width,
-      height: size.height,
+      image_url: referenceImageUrl,
+      strength: 0.5,  // 0.5 = équilibre entre image originale et nouveau prompt
+      num_inference_steps: 28,
+      guidance_scale: 3.5,
     }),
   })
 
@@ -149,7 +136,7 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
 
   return {
     jobId: request_id,
-    model: 'ip-adapter' as const,
+    model: 'flux-img2img' as const,
     status: 'pending' as const,
   }
 }
@@ -199,14 +186,14 @@ export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResul
   if (statusData.status === 'FAILED') {
     return {
       jobId,
-      model: 'ip-adapter',
+      model: 'flux-img2img',
       status: 'failed',
     }
   }
 
   return {
     jobId,
-    model: 'ip-adapter',
+    model: 'flux-img2img',
     status: statusData.status === 'IN_PROGRESS' ? 'processing' : 'pending',
   }
 }
@@ -219,7 +206,7 @@ export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResul
 export async function checkImageJobStatus(jobId: string, model: string): Promise<FluxImageResult> {
   const modelEndpoint = model === 'nano-banana' ? 'fal-ai/nano-banana-pro' : 
                         model === 'recraft' ? 'fal-ai/recraft-v3' : 
-                        model === 'ip-adapter' ? 'fal-ai/ip-adapter-face-id' :
+                        model === 'flux-img2img' ? 'fal-ai/flux' :  // img2img utilise le même endpoint que flux
                         'fal-ai/flux-pro/v1.1'
   
   console.log(`🔍 Checking job status: ${jobId} for ${modelEndpoint}`)
@@ -278,8 +265,8 @@ export async function checkImageJobStatus(jobId: string, model: string): Promise
       }
     }
     
-    // IP-Adapter retourne { image: { url, width, height } } (pas images[])
-    if (model === 'ip-adapter') {
+    // Flux img2img retourne { images: [...] }
+    if (model === 'flux-img2img') {
       const image = data.image || data.images?.[0]
       const images = image ? [{
         url: image.url,

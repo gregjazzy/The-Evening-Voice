@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 Checking job status: ${jobId} (model: ${model})`)
     
     // Utiliser le bon checker selon le modèle
-    const result = model === 'ip-adapter' 
+    const result = model === 'flux-img2img' 
       ? await checkReduxJobStatus(jobId)
       : await checkImageJobStatus(jobId, model)
 
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           status: 'pending',
           jobId: result.jobId,
-          model: 'ip-adapter',
+          model: 'flux-img2img',
         })
       }
     }
