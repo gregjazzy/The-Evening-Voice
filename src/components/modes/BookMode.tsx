@@ -5648,6 +5648,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         )}
         
         {/* Conteneur du livre - utilise TOUTE la place disponible sans déborder */}
+        {/* IMPORTANT: 180px de marge verticale = ~50px barre outils + ~80px barre pagination + ~50px marge sécurité */}
         <div 
           className="relative flex shadow-2xl"
           style={{
@@ -5655,16 +5656,16 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             // Pour les formats portrait/carré, on limite par la hauteur
             ...(formatRatio > 1 ? {
               // Format PAYSAGE (ex: A5 paysage) → on limite par la LARGEUR
-              width: 'calc(100vw - 180px)',
+              width: 'calc(100vw - 200px)',
               height: 'auto',
-              maxWidth: 'calc(100vw - 180px)',
-              maxHeight: 'calc(100vh - 140px)',
+              maxWidth: 'calc(100vw - 200px)',
+              maxHeight: 'calc(100vh - 180px)', // Assez de marge pour la barre d'outils
             } : {
               // Format PORTRAIT ou CARRÉ → on limite par la HAUTEUR
-              height: 'calc(100vh - 140px)',
+              height: 'calc(100vh - 180px)',
               width: 'auto',
-              maxHeight: 'calc(100vh - 140px)',
-              maxWidth: 'calc(100vw - 180px)',
+              maxHeight: 'calc(100vh - 180px)', // Assez de marge pour la barre d'outils
+              maxWidth: 'calc(100vw - 200px)',
             }),
             // Aspect ratio pour 2 pages côte à côte = (2 * largeur) / hauteur = 2 * formatRatio
             aspectRatio: `${2 * formatRatio} / 1`,
