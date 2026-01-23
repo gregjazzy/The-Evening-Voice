@@ -220,6 +220,8 @@ export function useMediaUpload(): UseMediaUploadReturn {
     const { type, source = 'upload', storyId, quality } = options
     const bucket = TYPE_TO_BUCKET[type as 'image' | 'audio']
 
+    console.log('📤 [1/5] Début uploadToSupabase, bucket:', bucket)
+
     // Compresser les images si demandé
     let fileToUpload: File | Blob = file
     if (type === 'image' && quality && quality < 1) {
@@ -232,9 +234,11 @@ export function useMediaUpload(): UseMediaUploadReturn {
     const fileName = generateFileName(originalName, type)
     const filePath = `${user!.id}/${fileName}`
 
+    console.log('📤 [2/5] Fichier préparé:', fileName, `(${(fileToUpload.size / 1024).toFixed(1)} KB)`)
     setProgress(40)
 
-    // Upload vers Supabase Storage
+    // Upload vers Supabase Storage avec timeout
+    console.log('📤 [3/5] Upload vers Supabase Storage...')
     const { error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(filePath, fileToUpload, {
@@ -243,9 +247,11 @@ export function useMediaUpload(): UseMediaUploadReturn {
       })
 
     if (uploadError) {
+      console.error('❌ [3/5] Erreur upload storage:', uploadError.message)
       throw new Error(`Erreur upload: ${uploadError.message}`)
     }
 
+    console.log('📤 [3/5] Upload storage OK')
     setProgress(70)
 
     // Obtenir l'URL publique
@@ -256,10 +262,11 @@ export function useMediaUpload(): UseMediaUploadReturn {
     const publicUrl = urlData.publicUrl
     const mimeType = file.type || `${type}/${getDefaultExtension(type)}`
 
+    console.log('📤 [4/5] URL publique obtenue:', publicUrl.substring(0, 60) + '...')
     setProgress(80)
 
     // Créer l'entrée dans la table assets
-    // Note: Le cast explicite est nécessaire car les types Supabase générés peuvent désynchroniser
+    console.log('📤 [5/5] Création entrée dans table assets...')
     const assetInsert = {
       profile_id: profile?.id,
       story_id: storyId || null,
@@ -270,6 +277,9 @@ export function useMediaUpload(): UseMediaUploadReturn {
       file_size: fileToUpload.size,
       mime_type: mimeType,
     }
+    
+    console.log('📤 [5/5] Insert data:', { profile_id: profile?.id, type, source, fileName })
+    
     const { data: assetData, error: assetError } = await supabase
       .from('assets')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -278,11 +288,13 @@ export function useMediaUpload(): UseMediaUploadReturn {
       .single()
 
     if (assetError) {
+      console.error('❌ [5/5] Erreur création asset:', assetError.message, assetError)
       // Rollback : supprimer le fichier uploadé
       await supabase.storage.from(bucket).remove([filePath])
       throw new Error(`Erreur création asset: ${assetError.message}`)
     }
 
+    console.log('✅ [5/5] Asset créé avec succès')
     setProgress(100)
 
     // Cast nécessaire car les types Supabase peuvent être désynchronisés
