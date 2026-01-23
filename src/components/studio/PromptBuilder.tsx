@@ -1388,8 +1388,29 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         />
           </div>
           
-          {/* Bouton Valider */}
-          {currentKit.subject.length >= 5 && !validatedFields.subject && (
+          {/* Indicateur de progression si trop court */}
+          {currentKit.subject && currentKit.subject.length > 0 && currentKit.subject.length < 15 && !validatedFields.subject && (
+            <motion.div
+              className="mt-3 p-3 rounded-xl bg-stardust-500/10 border border-stardust-500/20 text-stardust-300 text-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span>📝 Continue ta description...</span>
+                <span className="text-xs">{currentKit.subject.length}/15 caractères</span>
+              </div>
+              <div className="h-1 bg-midnight-800 rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-stardust-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (currentKit.subject.length / 15) * 100)}%` }}
+                />
+              </div>
+            </motion.div>
+          )}
+          
+          {/* Bouton Valider - seulement si assez long */}
+          {currentKit.subject.length >= 15 && !validatedFields.subject && (
             <motion.button
               onClick={() => validateTextField('subject', currentKit.subject)}
               className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-aurora-500/20 text-aurora-300 border border-aurora-500/30 hover:bg-aurora-500/30 transition-all font-medium"

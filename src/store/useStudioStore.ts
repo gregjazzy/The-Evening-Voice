@@ -455,8 +455,11 @@ export const useStudioStore = create<StudioState>()(
         // === IMAGES ===
         if (currentKit.creationType === 'image') {
           // Sujet requis (minimum 15 caractères pour une vraie description)
-          if (!currentKit.subject || currentKit.subject.length < 15) {
+          if (!currentKit.subject) {
             missing.push('description')
+          } else if (currentKit.subject.length < 15) {
+            const remaining = 15 - currentKit.subject.length
+            missing.push(`description plus longue (encore ${remaining} caractères)`)
           }
           
           // Style requis
