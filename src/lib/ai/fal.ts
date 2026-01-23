@@ -43,13 +43,105 @@ export interface FluxImageParams {
 }
 
 export interface FluxImageResult {
-  images: Array<{
+  // Cas 1: Job en attente (retourné immédiatement pour éviter timeout Netlify)
+  jobId?: string
+  model?: 'nano-banana' | 'recraft' | 'flux'
+  status?: 'pending' | 'processing' | 'completed' | 'failed'
+  
+  // Cas 2: Résultat final avec images
+  images?: Array<{
     url: string
     width: number
     height: number
   }>
-  seed: number
-  prompt: string
+  seed?: number
+  prompt?: string
+}
+
+/**
+ * Vérifie le statut d'un job de génération d'image fal.ai
+ * Appelé par le client en polling pour les jobs nano-banana
+ */
+export async function checkImageJobStatus(jobId: string, model: string): Promise<FluxImageResult> {
+  ensureFalConfigured()
+  
+  const modelEndpoint = model === 'nano-banana' ? 'fal-ai/nano-banana-pro' : 
+                        model === 'recraft' ? 'fal-ai/recraft-v3' : 
+                        'fal-ai/flux-pro/v1.1'
+  
+  console.log(`🔍 Checking job status: ${jobId} for ${modelEndpoint}`)
+  
+  const status = await fal.queue.status(modelEndpoint, {
+    requestId: jobId,
+    logs: true,
+  })
+  
+  console.log(`📊 Job ${jobId} status:`, status.status)
+  
+  if (status.status === 'COMPLETED') {
+    const result = await fal.queue.result(modelEndpoint, {
+      requestId: jobId,
+    })
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = result.data as any
+    console.log('✅ Job completed, result:', JSON.stringify(data, null, 2))
+    
+    // Nano Banana retourne { images: [...] }
+    if (model === 'nano-banana') {
+      const images = data.images?.map((img: { url: string; width?: number; height?: number }) => ({
+        url: img.url,
+        width: img.width || 1024,
+        height: img.height || 1024,
+      })) || []
+      
+      return {
+        status: 'completed',
+        images,
+        seed: 0,
+        prompt: '',
+      }
+    }
+    
+    // Recraft retourne { images: [{ url }] }
+    if (model === 'recraft') {
+      const images = data.images?.map((img: { url: string }) => ({
+        url: img.url,
+        width: 1024,
+        height: 1024,
+      })) || []
+      
+      return {
+        status: 'completed',
+        images,
+        seed: 0,
+        prompt: '',
+      }
+    }
+    
+    // Flux retourne { images: [{ url, width, height }], seed }
+    return {
+      status: 'completed',
+      images: data.images || [],
+      seed: data.seed || 0,
+      prompt: '',
+    }
+  }
+  
+  if (status.status === 'FAILED') {
+    return {
+      jobId,
+      model: model as 'nano-banana' | 'recraft' | 'flux',
+      status: 'failed',
+    }
+  }
+  
+  // IN_QUEUE ou IN_PROGRESS
+  return {
+    jobId,
+    model: model as 'nano-banana' | 'recraft' | 'flux',
+    status: status.status === 'IN_PROGRESS' ? 'processing' : 'pending',
+  }
 }
 
 /**
@@ -103,33 +195,25 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
       throw new Error('Le prompt doit avoir au moins 3 caractères')
     }
 
-    // Paramètres validés selon le schéma OpenAPI fal.ai
-    const result = await fal.subscribe('fal-ai/nano-banana-pro', {
+    // Soumettre le job et retourner immédiatement le request_id
+    // Le polling sera fait côté client pour éviter le timeout Netlify
+    const { request_id } = await fal.queue.submit('fal-ai/nano-banana-pro', {
       input: {
         prompt: safePrompt,
         aspect_ratio: ratio,
-        resolution: resolution, // "1K", "2K", ou "4K"
+        resolution: resolution,
         num_images: numImages,
-        output_format: 'png', // "jpeg", "png", ou "webp"
+        output_format: 'png',
       },
-      logs: true,
     })
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = result.data as any
-    console.log('🍌 Nano Banana response:', JSON.stringify(data, null, 2))
-
-    // Nano Banana retourne { images: [...], description: "..." }
-    const images = data.images?.map((img: { url: string; width?: number; height?: number }) => ({
-      url: img.url,
-      width: img.width || 1024,
-      height: img.height || 1024,
-    })) || []
-
+    
+    console.log('🍌 Nano Banana job submitted:', request_id)
+    
+    // Retourner le jobId pour que le client puisse poll
     return {
-      images,
-      seed: 0, // Nano Banana ne retourne pas de seed
-      prompt: safePrompt,
+      jobId: request_id,
+      model: 'nano-banana' as const,
+      status: 'pending' as const,
     }
   }
 

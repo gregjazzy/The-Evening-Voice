@@ -1,19 +1,75 @@
 /**
  * API Route - Génération d'images avec Nano Banana Pro (Google Gemini 3 Pro Image via fal.ai)
  * 
- * Avantages de Nano Banana Pro :
- * - Meilleure compréhension du langage naturel (français inclus)
- * - Résolution native 2K
- * - Meilleure interprétation des descriptions complexes
+ * Architecture polling pour éviter le timeout Netlify (10s) :
+ * - POST : Soumet le job à fal.ai, retourne { jobId, status: 'pending' } immédiatement
+ * - GET : Vérifie le status d'un job, retourne l'image quand prête
  * 
- * Note : L'upscale pour impression se fait à la PUBLICATION, pas ici.
- * Ça évite les timeouts et accélère la génération créative.
+ * Le client fait le polling toutes les 2 secondes jusqu'à completion.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { generateImageFlux, adaptChildPrompt, isFalAvailable } from '@/lib/ai/fal'
+import { generateImageFlux, checkImageJobStatus, adaptChildPrompt, isFalAvailable } from '@/lib/ai/fal'
 
-// POST - Générer une image
+// GET - Vérifier le status d'un job
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const jobId = searchParams.get('jobId')
+    const model = searchParams.get('model') || 'nano-banana'
+
+    if (!jobId) {
+      return NextResponse.json(
+        { error: 'jobId requis' },
+        { status: 400 }
+      )
+    }
+
+    if (!isFalAvailable()) {
+      return NextResponse.json(
+        { error: 'Clé API fal.ai non configurée' },
+        { status: 500 }
+      )
+    }
+
+    console.log(`🔍 Checking job status: ${jobId}`)
+    const result = await checkImageJobStatus(jobId, model)
+
+    if (result.status === 'completed' && result.images && result.images.length > 0) {
+      const image = result.images[0]
+      return NextResponse.json({
+        status: 'completed',
+        imageUrl: image.url,
+        width: image.width,
+        height: image.height,
+        model,
+      })
+    }
+
+    if (result.status === 'failed') {
+      return NextResponse.json({
+        status: 'failed',
+        error: 'La génération a échoué',
+      })
+    }
+
+    // Encore en cours
+    return NextResponse.json({
+      status: result.status, // 'pending' ou 'processing'
+      jobId,
+      model,
+    })
+  } catch (error: unknown) {
+    console.error('Erreur vérification job:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la vérification du job'
+    return NextResponse.json(
+      { error: errorMessage },
+      { status: 500 }
+    )
+  }
+}
+
+// POST - Soumettre un nouveau job de génération
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -47,16 +103,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 🍌 Nano Banana Pro comprend le français nativement !
-    // Pas besoin de traduire en anglais.
-    // Si on a le prompt complet, on l'utilise directement
-    // Sinon on adapte la description simple
     const prompt = fullPrompt 
       ? promptText 
       : adaptChildPrompt(promptText, style, ambiance)
 
-    console.log(`🎨 Génération image avec ${model.toUpperCase()}:`, prompt.substring(0, 150) + '...')
+    console.log(`🎨 Soumission job ${model.toUpperCase()}:`, prompt.substring(0, 150) + '...')
 
-    // Générer l'image en 2K
+    // Soumettre le job (retourne immédiatement avec jobId)
     const result = await generateImageFlux({
       prompt,
       aspectRatio: finalAspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '2:3' | '3:2',
@@ -65,23 +118,33 @@ export async function POST(request: NextRequest) {
       resolution: '2K',
     })
 
-    const finalImageUrl = result.images[0]?.url
-    const finalWidth = result.images[0]?.width
-    const finalHeight = result.images[0]?.height
+    // Retourner le jobId pour que le client puisse poll
+    if (result.jobId) {
+      console.log(`📋 Job soumis: ${result.jobId}`)
+      return NextResponse.json({
+        status: 'pending',
+        jobId: result.jobId,
+        model: result.model || model,
+      })
+    }
 
-    // ⚠️ L'upscale se fait à la PUBLICATION, pas ici
-    // Ça évite les timeouts et accélère la génération
-    console.log(`✅ Image générée: ${finalWidth}x${finalHeight} - ${finalImageUrl?.substring(0, 80)}...`)
+    // Cas où le résultat est retourné directement (modèles autres que nano-banana)
+    if (result.images && result.images.length > 0) {
+      const image = result.images[0]
+      console.log(`✅ Image générée directement: ${image.width}x${image.height}`)
+      return NextResponse.json({
+        status: 'completed',
+        imageUrl: image.url,
+        width: image.width,
+        height: image.height,
+        model,
+      })
+    }
 
-    return NextResponse.json({
-      status: 'completed',
-      imageUrl: finalImageUrl,
-      width: finalWidth,
-      height: finalHeight,
-      prompt: result.prompt,
-      seed: result.seed,
-      model: model,
-    })
+    return NextResponse.json(
+      { error: 'Résultat inattendu de la génération' },
+      { status: 500 }
+    )
   } catch (error: unknown) {
     console.error('Erreur API image:', error)
     const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la génération de l\'image'

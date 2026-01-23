@@ -828,7 +828,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   
   // NOTE: Le useEffect pour valider 'review_prompt' est défini plus bas, après la variable 'complete'
   
-  // Fonction de génération via fal.ai (utilise 'complete' défini plus bas)
+  // Fonction de génération via fal.ai avec polling pour éviter timeout Netlify
   const handleDirectGenerate = async () => {
     // 'complete' sera vérifié via le bouton disabled
     if (!currentKit || isGenerating) return
@@ -895,6 +895,42 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       if (!response.ok) {
         throw new Error(data.error || 'Erreur de génération')
       }
+
+      // 🔄 POLLING : Si on reçoit un jobId, on doit poll jusqu'à completion
+      if (data.status === 'pending' && data.jobId && !isVideo) {
+        console.log('⏳ Job en attente, démarrage du polling...', data.jobId)
+        
+        const maxPolls = 60 // 2 minutes max (60 x 2s)
+        const pollInterval = 2000 // 2 secondes
+        
+        for (let i = 0; i < maxPolls; i++) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval))
+          
+          const statusUrl = `/api/ai/image?jobId=${encodeURIComponent(data.jobId)}&model=${encodeURIComponent(data.model || 'nano-banana')}`
+          console.log(`🔍 Poll ${i + 1}/${maxPolls}...`)
+          
+          const statusResponse = await fetch(statusUrl)
+          const statusData = await statusResponse.json()
+          
+          console.log('📊 Status:', statusData.status)
+          
+          if (statusData.status === 'completed' && statusData.imageUrl) {
+            data = statusData
+            break
+          }
+          
+          if (statusData.status === 'failed') {
+            throw new Error(statusData.error || 'La génération a échoué')
+          }
+          
+          // Continuer à poll si pending ou processing
+        }
+        
+        if (data.status !== 'completed') {
+          throw new Error('Timeout - la génération prend trop de temps')
+        }
+      }
+
       const assetUrl = isVideo ? data.videoUrl : data.imageUrl
       
       if (!assetUrl) {
