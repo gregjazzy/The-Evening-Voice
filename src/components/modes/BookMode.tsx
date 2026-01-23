@@ -4807,9 +4807,9 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
   
   return (
     <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
-      {/* Zone de fond perdu (bleed) - rouge */}
+      {/* Zone de fond perdu (bleed) - rouge - sera coupée à l'impression */}
       <div 
-        className="absolute border-2 border-dashed border-red-500/40"
+        className="absolute border-2 border-dashed border-red-500/50"
         style={{
           top: `${bleedPercent}%`,
           bottom: `${bleedPercent}%`,
@@ -4818,9 +4818,9 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
         }}
       />
       
-      {/* Zone de sécurité intérieure - jaune */}
+      {/* Zone VERTE = zone sûre où le contenu sera toujours visible */}
       <div 
-        className="absolute border-2 border-dashed border-amber-500/60"
+        className="absolute border-2 border-solid border-emerald-500/70 bg-emerald-500/5"
         style={{
           top: `${safeZonePercent + bleedPercent}%`,
           bottom: `${safeZonePercent + bleedPercent}%`,
@@ -4833,10 +4833,10 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
         }}
       />
       
-      {/* Marge côté reliure - plus grande, en bleu */}
+      {/* Marge côté reliure - plus grande, en bleu - cachée par la reliure */}
       <div 
         className={cn(
-          "absolute top-0 bottom-0 bg-blue-500/10 border-2 border-dashed border-blue-500/40",
+          "absolute top-0 bottom-0 bg-blue-500/20 border-2 border-dashed border-blue-500/50",
           side === 'left' ? 'right-0' : 'left-0'
         )}
         style={{
@@ -4844,18 +4844,31 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
         }}
       />
       
-      {/* Labels */}
-      <div className="absolute top-1 left-1 text-[8px] text-red-400/80 bg-red-500/10 px-1 rounded">
-        Fond perdu
+      {/* Zone rouge = sera coupée */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `
+            linear-gradient(to right, rgba(239, 68, 68, 0.15) 0%, transparent ${bleedPercent}%),
+            linear-gradient(to left, rgba(239, 68, 68, 0.15) 0%, transparent ${bleedPercent}%),
+            linear-gradient(to bottom, rgba(239, 68, 68, 0.15) 0%, transparent ${bleedPercent}%),
+            linear-gradient(to top, rgba(239, 68, 68, 0.15) 0%, transparent ${bleedPercent}%)
+          `,
+        }}
+      />
+      
+      {/* Labels explicatifs */}
+      <div className="absolute top-1 left-1 text-[8px] text-red-400 bg-red-500/20 px-1 rounded font-medium">
+        ✂️ Coupé
       </div>
       <div 
-        className="absolute text-[8px] text-amber-500/80 bg-amber-500/10 px-1 rounded"
+        className="absolute text-[8px] text-emerald-400 bg-emerald-500/20 px-1 rounded font-medium"
         style={{ 
           top: `${safeZonePercent + bleedPercent + 1}%`,
           left: side === 'left' ? `${safeZonePercent + bleedPercent + 1}%` : `${spineMarginPercent + 1}%`,
         }}
       >
-        Zone sûre
+        ✓ Zone sûre
       </div>
       <div 
         className={cn(
@@ -5655,23 +5668,44 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </button>
         )}
         
-        {/* LIVRE : s'adapte automatiquement à la zone disponible */}
-        {/* La magie : aspect-ratio + max-height + max-width = le navigateur calcule tout seul ! */}
-        <div 
-          className="relative flex shadow-2xl"
-          style={{
-            aspectRatio: `${2 * formatRatio} / 1`,
-            // Le livre ne peut JAMAIS dépasser ces limites
-            maxHeight: '100%',
-            maxWidth: '100%',
-            // On part de la hauteur max, la largeur s'adapte au ratio
-            height: '100%',
-            width: 'auto',
-            perspective: '2000px',
-          }}
-        >
-          {/* Ombre du livre */}
-          <div className="absolute -bottom-4 left-4 right-4 h-8 bg-black/30 blur-xl rounded-full" />
+        {/* Conteneur du livre + bandeau prévisualisation */}
+        <div className="flex flex-col items-center max-h-full max-w-full">
+          {/* Bandeau prévisualisation impression */}
+          {showSafeZones && (
+            <div className="mb-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-blue-500/20 border border-amber-500/30 flex items-center gap-4 text-xs">
+              <span className="font-semibold text-white">👁️ Prévisualisation impression</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded border-2 border-dashed border-red-500"></span>
+                <span className="text-red-400">Coupé</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded border-2 border-solid border-emerald-500 bg-emerald-500/20"></span>
+                <span className="text-emerald-400">Zone sûre</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-blue-500/30 border border-dashed border-blue-500"></span>
+                <span className="text-blue-400">Reliure</span>
+              </span>
+              <span className="text-midnight-400 ml-2">
+                Format: {formatConfig?.widthMm}×{formatConfig?.heightMm}mm
+              </span>
+            </div>
+          )}
+          
+          {/* LIVRE : s'adapte automatiquement à la zone disponible */}
+          <div 
+            className="relative flex shadow-2xl"
+            style={{
+              aspectRatio: `${2 * formatRatio} / 1`,
+              maxHeight: showSafeZones ? 'calc(100% - 50px)' : '100%',
+              maxWidth: '100%',
+              height: showSafeZones ? 'calc(100% - 50px)' : '100%',
+              width: 'auto',
+              perspective: '2000px',
+            }}
+          >
+            {/* Ombre du livre */}
+            <div className="absolute -bottom-4 left-4 right-4 h-8 bg-black/30 blur-xl rounded-full" />
           
           {/* PAGE GAUCHE (page d'écriture) */}
           <div 
@@ -6443,6 +6477,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <Eye className="w-4 h-4" />
             </button>
           </div>
+        </div>
         </div>
         
         {/* Flèche droite */}
