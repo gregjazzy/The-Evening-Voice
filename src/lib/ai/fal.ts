@@ -146,11 +146,13 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
 
 /**
  * Vérifie le statut d'un job Flux Redux
+ * Note: fal.ai utilise une URL raccourcie pour les status: fal-ai/flux-pro (pas le chemin complet)
  */
 export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResult> {
   console.log(`🔍 Checking Flux Redux job status: ${jobId}`)
 
-  const statusResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra/redux/requests/${jobId}/status`)
+  // fal.ai utilise une URL raccourcie pour les status
+  const statusResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pro/requests/${jobId}/status`)
 
   if (!statusResponse.ok) {
     console.error('❌ Erreur status Flux Redux:', statusResponse.status)
@@ -161,7 +163,7 @@ export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResul
   console.log(`📊 Flux Redux job ${jobId} status:`, statusData.status)
 
   if (statusData.status === 'COMPLETED') {
-    const resultResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra/redux/requests/${jobId}`)
+    const resultResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pro/requests/${jobId}`)
 
     if (!resultResponse.ok) {
       throw new Error(`Erreur récupération résultat Flux Redux: ${resultResponse.status}`)
