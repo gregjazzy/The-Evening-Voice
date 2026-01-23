@@ -239,21 +239,25 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
     }
 
     // Préparer toutes les pages avec page_number unique basé sur l'index
-    const pagesData = story.pages.map((page, i) => ({
-      id: page.id,
-      story_id: story.id,
-      page_number: i + 1, // Toujours utiliser l'index pour garantir l'unicité
-      title: page.title,
-      text_blocks: [{ content: page.content || '' }],
-      media_layers: {
-        images: page.images || [],
-        decorations: page.decorations || [],
-        textBoxes: page.textBoxes || [],
-        chapterId: page.chapterId,
-      },
-      background_image_url: page.backgroundMedia?.type === 'image' ? page.backgroundMedia.url : null,
-      background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
-    }))
+    const pagesData = story.pages.map((page, i) => {
+      const pageData = {
+        id: page.id,
+        story_id: story.id,
+        page_number: i + 1, // Toujours utiliser l'index pour garantir l'unicité
+        title: page.title,
+        text_blocks: [{ content: page.content || '' }],
+        media_layers: {
+          images: page.images || [],
+          decorations: page.decorations || [],
+          textBoxes: page.textBoxes || [],
+          chapterId: page.chapterId,
+        },
+        background_image_url: page.backgroundMedia?.type === 'image' ? page.backgroundMedia.url : null,
+        background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
+      }
+      console.log(`   📄 Page ${i + 1}: "${(page.content || '').substring(0, 30)}..."`)
+      return pageData
+    })
     
     // Vérifier les doublons de page_number
     const pageNumbers = pagesData.map(p => p.page_number)
@@ -751,7 +755,8 @@ export function useSupabaseSync() {
   }, [profile?.id])
 
   // Versions debounced pour éviter trop de requêtes
-  const debouncedSaveStory = useDebouncedCallback(saveStory, 2000)
+  // Réduit à 1s pour sauvegarder plus rapidement le contenu
+  const debouncedSaveStory = useDebouncedCallback(saveStory, 1000)
   const debouncedSaveEmotionalContext = useDebouncedCallback(saveEmotionalContext, 5000)
   const debouncedSaveAiName = useDebouncedCallback(saveAiName, 1000)
 
@@ -816,7 +821,9 @@ export function useSupabaseSync() {
         return !prevStory || prevTime !== currentTime
       })
       if (changedStory) {
-        console.log('📝 Histoire modifiée, sauvegarde debounced:', changedStory.title)
+        console.log('📝 Histoire modifiée, sauvegarde debounced:', changedStory.title, 
+          '- pages:', changedStory.pages.length,
+          '- contenu page 1:', changedStory.pages[0]?.content?.substring(0, 50) || '(vide)')
         debouncedSaveStory(changedStory)
       }
     }
