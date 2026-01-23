@@ -761,7 +761,7 @@ function DesignCoverStep() {
 }
 
 // ============================================================================
-// ÉTAPE 4 : Aperçu
+// ÉTAPE 4 : Aperçu - VRAIE PRÉVISUALISATION D'IMPRESSION
 // ============================================================================
 
 function PreviewStep() {
@@ -769,93 +769,247 @@ function PreviewStep() {
   const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
   
   const [currentPage, setCurrentPage] = useState(0)
+  const [showSafeZones, setShowSafeZones] = useState(true)
+  const [viewMode, setViewMode] = useState<'spread' | 'single'>('spread')
   
   if (!selectedStory || !format) return null
   
-  const pages = selectedStory.pages
+  const pages = selectedStory.pages || []
+  const totalSpreads = Math.ceil(pages.length / 2) + 1 // +1 pour la couverture
+  
+  // Calculer le ratio et les dimensions d'affichage
+  const formatRatio = format.widthMm / format.heightMm
+  const displayHeight = Math.min(400, window.innerHeight * 0.5)
+  const displayWidth = displayHeight * formatRatio
+  
+  // Couleur de fond de page selon le bookColor de l'histoire
+  const bookColor = selectedStory.bookColor || 'cream'
+  const pageBackground = {
+    cream: 'linear-gradient(135deg, #FFFEF5 0%, #FDF8E8 50%, #F5EFD5 100%)',
+    white: 'linear-gradient(135deg, #FFFFFF 0%, #FAFAFA 50%, #F5F5F5 100%)',
+    aged: 'linear-gradient(135deg, #F5E6D3 0%, #E8D5BE 50%, #D4C4A8 100%)',
+    parchment: 'linear-gradient(135deg, #F4E4BC 0%, #E8D4A0 50%, #D4C080 100%)',
+  }[bookColor] || 'linear-gradient(135deg, #FFFEF5 0%, #FDF8E8 50%, #F5EFD5 100%)'
+  
+  // Rendu d'une page individuelle avec tous ses éléments
+  const renderPage = (pageIndex: number, side: 'left' | 'right') => {
+    const page = pages[pageIndex]
+    if (!page) {
+      return (
+        <div className="flex-1 flex items-center justify-center text-amber-400/50 text-sm">
+          {pageIndex >= pages.length ? 'Fin du livre' : 'Page vide'}
+        </div>
+      )
+    }
+    
+    // Images de la page (format nouveau ou legacy)
+    const pageImages = page.images || (page.image ? [{
+      id: 'legacy',
+      url: page.image,
+      type: 'image',
+      position: page.imagePosition || { x: 50, y: 50, width: 50, height: 50, rotation: 0 },
+    }] : [])
+    
+    return (
+      <div className="relative flex-1 overflow-hidden">
+        {/* Fond de page (image ou couleur) */}
+        {page.backgroundMedia && (
+          <div className="absolute inset-0 z-0">
+            {page.backgroundMedia.type === 'video' ? (
+              <video
+                src={page.backgroundMedia.url}
+                className="w-full h-full object-cover"
+                style={{ opacity: page.backgroundMedia.opacity || 1 }}
+                muted
+                loop
+                autoPlay
+              />
+            ) : (
+              <img
+                src={page.backgroundMedia.url}
+                alt=""
+                className="w-full h-full object-cover"
+                style={{ opacity: page.backgroundMedia.opacity || 1 }}
+              />
+            )}
+          </div>
+        )}
+        
+        {/* Zone de sécurité (overlay) */}
+        {showSafeZones && (
+          <div 
+            className="absolute inset-0 pointer-events-none z-30"
+            style={{
+              border: `${format.safeZoneMm * 0.8}px dashed rgba(255, 0, 0, 0.3)`,
+              margin: `${format.bleedMm * 0.8}px`,
+            }}
+          >
+            <div className="absolute top-0 left-0 bg-red-500/20 text-red-500 text-[8px] px-1 rounded-br">
+              Zone sécurité
+            </div>
+          </div>
+        )}
+        
+        {/* Images flottantes */}
+        {pageImages.map((img: any, idx: number) => (
+          <div
+            key={img.id || idx}
+            className="absolute z-10"
+            style={{
+              left: `${img.position?.x || 50}%`,
+              top: `${img.position?.y || 50}%`,
+              width: `${img.position?.width || 40}%`,
+              height: `${img.position?.height || 40}%`,
+              transform: `translate(-50%, -50%) rotate(${img.position?.rotation || 0}deg)`,
+            }}
+          >
+            <img
+              src={img.url}
+              alt=""
+              className="w-full h-full object-contain"
+            />
+          </div>
+        ))}
+        
+        {/* Contenu texte */}
+        <div 
+          className="relative z-20 h-full p-4 overflow-hidden"
+          style={{
+            padding: `${format.safeZoneMm * 0.8 + 10}px`,
+            paddingLeft: side === 'left' ? `${format.spineMarginMm * 0.8 + 10}px` : `${format.safeZoneMm * 0.8 + 10}px`,
+            paddingRight: side === 'right' ? `${format.spineMarginMm * 0.8 + 10}px` : `${format.safeZoneMm * 0.8 + 10}px`,
+          }}
+        >
+          <div 
+            className="text-sm text-amber-900 font-serif leading-relaxed"
+            style={{
+              fontFamily: page.style?.fontFamily || 'Georgia, serif',
+              fontSize: `${(page.style?.fontSize || 14) * 0.7}px`,
+              textAlign: page.style?.textAlign || 'left',
+            }}
+            dangerouslySetInnerHTML={{ __html: page.content || '' }}
+          />
+        </div>
+      </div>
+    )
+  }
   
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="max-w-5xl mx-auto"
+      className="max-w-6xl mx-auto"
     >
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <h2 className="text-3xl font-display text-white mb-2">
-          👀 Aperçu de ton livre
+          👀 Aperçu réel de ton livre
         </h2>
         <p className="text-midnight-300">
-          Voici à quoi ressemblera ton livre une fois imprimé
+          Voici exactement à quoi ressemblera ton livre une fois imprimé
         </p>
       </div>
       
+      {/* Contrôles */}
+      <div className="flex items-center justify-center gap-4 mb-6">
+        <button
+          onClick={() => setShowSafeZones(!showSafeZones)}
+          className={cn(
+            'px-3 py-1.5 rounded-lg text-sm transition-all',
+            showSafeZones 
+              ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+              : 'bg-midnight-800/50 text-midnight-400'
+          )}
+        >
+          📏 Zones de sécurité {showSafeZones ? 'ON' : 'OFF'}
+        </button>
+        <button
+          onClick={() => setViewMode(viewMode === 'spread' ? 'single' : 'spread')}
+          className="px-3 py-1.5 rounded-lg text-sm bg-midnight-800/50 text-midnight-400"
+        >
+          {viewMode === 'spread' ? '📖 Double page' : '📄 Page simple'}
+        </button>
+      </div>
+      
       {/* Prévisualisation du livre */}
-      <div className="glass-card p-8 mb-8">
-        <div className="flex items-center justify-center gap-8">
-          {/* Page de gauche */}
-          <div
-            className="bg-amber-50 rounded-l-lg shadow-xl flex flex-col"
-            style={{
-              width: `${format.widthMm * 0.8}px`,
-              height: `${format.heightMm * 0.8}px`,
-              minHeight: '300px',
-            }}
-          >
-            {currentPage === 0 ? (
-              // Couverture intérieure
-              <div className="flex-1 flex items-center justify-center p-4 text-center">
-                <div>
-                  <h3 className="text-xl font-serif text-amber-900">{cover.frontTitle}</h3>
-                  {cover.frontSubtitle && (
-                    <p className="text-sm text-amber-700 mt-2">{cover.frontSubtitle}</p>
-                  )}
-                  <p className="text-xs text-amber-600 mt-4">{cover.authorName}</p>
+      <div className="glass-card p-8 mb-6">
+        <div className="flex items-center justify-center gap-1">
+          {viewMode === 'spread' ? (
+            <>
+              {/* Page de gauche */}
+              <div
+                className="relative flex flex-col shadow-xl overflow-hidden"
+                style={{
+                  width: `${displayWidth}px`,
+                  height: `${displayHeight}px`,
+                  background: pageBackground,
+                  borderRadius: '4px 0 0 4px',
+                  boxShadow: 'inset -10px 0 20px -10px rgba(0,0,0,0.15)',
+                }}
+              >
+                {currentPage === 0 ? (
+                  // Page de titre (couverture intérieure)
+                  <div className="flex-1 flex items-center justify-center p-6 text-center">
+                    <div>
+                      <h3 className="text-2xl font-serif text-amber-900 mb-3">{cover.frontTitle || selectedStory.title}</h3>
+                      {cover.frontSubtitle && (
+                        <p className="text-sm text-amber-700 mb-4 italic">{cover.frontSubtitle}</p>
+                      )}
+                      <div className="w-16 h-0.5 bg-amber-400 mx-auto mb-4" />
+                      <p className="text-xs text-amber-600">{cover.authorName}</p>
+                    </div>
+                  </div>
+                ) : (
+                  renderPage(currentPage * 2 - 1, 'left')
+                )}
+                <div className="text-center py-2 text-xs text-amber-500/70">
+                  {currentPage === 0 ? '' : currentPage * 2}
                 </div>
               </div>
-            ) : currentPage > 0 && pages[currentPage * 2 - 1] ? (
-              // Page paire
-              <div className="flex-1 p-4 overflow-hidden">
-                <div 
-                  className="text-sm text-amber-900 font-serif"
-                  dangerouslySetInnerHTML={{ __html: pages[currentPage * 2 - 1].content || '' }}
-                />
+              
+              {/* Reliure centrale */}
+              <div 
+                className="w-2 self-stretch"
+                style={{
+                  background: 'linear-gradient(90deg, rgba(139,90,43,0.3) 0%, rgba(101,67,33,0.5) 50%, rgba(139,90,43,0.3) 100%)',
+                  boxShadow: '0 0 10px rgba(0,0,0,0.3)',
+                }}
+              />
+              
+              {/* Page de droite */}
+              <div
+                className="relative flex flex-col shadow-xl overflow-hidden"
+                style={{
+                  width: `${displayWidth}px`,
+                  height: `${displayHeight}px`,
+                  background: pageBackground,
+                  borderRadius: '0 4px 4px 0',
+                  boxShadow: 'inset 10px 0 20px -10px rgba(0,0,0,0.15)',
+                }}
+              >
+                {renderPage(currentPage * 2, 'right')}
+                <div className="text-center py-2 text-xs text-amber-500/70">
+                  {currentPage * 2 + 1}
+                </div>
               </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-amber-400">
-                Page vide
+            </>
+          ) : (
+            // Mode page simple
+            <div
+              className="relative flex flex-col shadow-xl overflow-hidden"
+              style={{
+                width: `${displayWidth * 1.5}px`,
+                height: `${displayHeight * 1.5}px`,
+                background: pageBackground,
+                borderRadius: '4px',
+              }}
+            >
+              {renderPage(currentPage, currentPage % 2 === 0 ? 'right' : 'left')}
+              <div className="text-center py-2 text-xs text-amber-500/70">
+                Page {currentPage + 1}
               </div>
-            )}
-            <div className="text-center py-2 text-xs text-amber-500">
-              {currentPage === 0 ? '' : currentPage * 2}
             </div>
-          </div>
-          
-          {/* Page de droite */}
-          <div
-            className="bg-amber-50 rounded-r-lg shadow-xl flex flex-col"
-            style={{
-              width: `${format.widthMm * 0.8}px`,
-              height: `${format.heightMm * 0.8}px`,
-              minHeight: '300px',
-            }}
-          >
-            {pages[currentPage * 2] ? (
-              <div className="flex-1 p-4 overflow-hidden">
-                <div 
-                  className="text-sm text-amber-900 font-serif"
-                  dangerouslySetInnerHTML={{ __html: pages[currentPage * 2].content || '' }}
-                />
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-amber-400">
-                Fin du livre
-              </div>
-            )}
-            <div className="text-center py-2 text-xs text-amber-500">
-              {currentPage * 2 + 1}
-            </div>
-          </div>
+          )}
         </div>
         
         {/* Navigation des pages */}
@@ -863,31 +1017,50 @@ function PreviewStep() {
           <button
             onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
             disabled={currentPage === 0}
-            className="p-2 rounded-full bg-midnight-800/50 text-white disabled:opacity-30"
+            className="p-2 rounded-full bg-midnight-800/50 text-white disabled:opacity-30 hover:bg-midnight-700/50 transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           
-          <span className="text-midnight-300 text-sm">
-            {currentPage === 0 ? 'Couverture' : `Pages ${currentPage * 2} - ${currentPage * 2 + 1}`} / {pages.length}
-          </span>
+          {/* Indicateurs de pages */}
+          <div className="flex items-center gap-1">
+            {Array.from({ length: viewMode === 'spread' ? totalSpreads : pages.length }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i)}
+                className={cn(
+                  'w-2 h-2 rounded-full transition-all',
+                  currentPage === i ? 'bg-aurora-500 w-4' : 'bg-midnight-600 hover:bg-midnight-500'
+                )}
+              />
+            ))}
+          </div>
           
           <button
-            onClick={() => setCurrentPage(Math.min(Math.ceil(pages.length / 2), currentPage + 1))}
-            disabled={currentPage >= Math.ceil(pages.length / 2)}
-            className="p-2 rounded-full bg-midnight-800/50 text-white disabled:opacity-30"
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={viewMode === 'spread' ? currentPage >= totalSpreads - 1 : currentPage >= pages.length - 1}
+            className="p-2 rounded-full bg-midnight-800/50 text-white disabled:opacity-30 hover:bg-midnight-700/50 transition-colors"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
+        
+        <div className="text-center text-midnight-400 text-sm mt-2">
+          {viewMode === 'spread' 
+            ? (currentPage === 0 ? 'Page de titre' : `Pages ${currentPage * 2} - ${currentPage * 2 + 1}`)
+            : `Page ${currentPage + 1}`
+          } / {pages.length} pages
+        </div>
       </div>
       
       {/* Infos format */}
-      <div className="glass-card p-4 mb-8">
-        <div className="flex items-center justify-center gap-8 text-sm text-midnight-400">
-          <span>📐 {format.widthMm} × {format.heightMm} mm</span>
+      <div className="glass-card p-4 mb-6">
+        <div className="flex items-center justify-center gap-6 text-sm text-midnight-400 flex-wrap">
+          <span>📐 Format: {format.widthMm} × {format.heightMm} mm</span>
           <span>📄 {pages.length} pages</span>
-          <span>📏 Marge de sécurité: {format.safeZoneMm}mm</span>
+          <span>📏 Marge sécurité: {format.safeZoneMm}mm</span>
+          <span>✂️ Fond perdu: {format.bleedMm}mm</span>
+          <span>📚 Marge reliure: {format.spineMarginMm}mm</span>
         </div>
       </div>
       
