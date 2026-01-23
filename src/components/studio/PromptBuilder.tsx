@@ -2232,6 +2232,12 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                     {/* 📚 Prompt avec tooltips interactifs sur les termes techniques */}
                     <div className="relative">
                       <div className="font-mono text-xl leading-relaxed text-white bg-gradient-to-br from-midnight-800/80 to-midnight-900/80 p-5 rounded-xl mb-2 whitespace-pre-wrap border border-aurora-500/30 shadow-lg shadow-aurora-500/10">
+                        {/* Si "garder le personnage" est activé, afficher le prompt complet */}
+                        {keepCharacter && characterReferenceUrl && characterDescription && (
+                          <span className="text-aurora-400">
+                            Use the exact same character ({characterDescription}) from the reference image. New scene:{' '}
+                          </span>
+                        )}
                         {currentKit.generatedPrompt 
                           ? renderPromptWithTooltips(currentKit.generatedPrompt)
                           : 'Le prompt apparaîtra ici...'}
