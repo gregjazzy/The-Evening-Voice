@@ -44,8 +44,8 @@ interface AssetDropzoneProps {
 }
 
 export function AssetDropzone({ onAssetImported, showDropzone = true, showGallery = true, title }: AssetDropzoneProps) {
-  const { importedAssets, addImportedAsset, updateAsset, removeImportedAsset, currentKit } = useStudioStore()
-  const { completeStep, completedSteps } = useStudioProgressStore()
+  const { importedAssets, addImportedAsset, updateAsset, removeImportedAsset, currentKit, updateKit } = useStudioStore()
+  const { completeStep, completedSteps, currentCreationType } = useStudioProgressStore()
   const { currentStory } = useAppStore()
   const { upload, isUploading } = useMediaUpload()
   const toast = useToast()
@@ -63,6 +63,15 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
       const hasValidUrl = a.cloudUrl || (a.url && !a.url.startsWith('blob:'))
       return belongsToProject && hasValidUrl
     })
+  }, [importedAssets, currentStory?.id])
+  
+  // Images disponibles pour le modal (même filtre que PromptBuilder pour cohérence)
+  const availableImagesForModal = useMemo(() => {
+    return importedAssets.filter(a => 
+      a.type === 'image' && 
+      (a.cloudUrl || (a.url && !a.url.startsWith('blob:'))) &&
+      (!a.projectId || a.projectId === currentStory?.id)
+    )
   }, [importedAssets, currentStory?.id])
   
   const [isDragging, setIsDragging] = useState(false)
@@ -356,45 +365,63 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
         className="hidden"
       />
 
-      {/* Bouton d'import - ouvre la modale */}
+      {/* Boutons d'import - simplifié */}
       {showDropzone && (
-        <motion.button
-          onClick={() => setShowImportModal(true)}
-          className="w-full border-2 border-dashed border-midnight-600 hover:border-aurora-500/50 rounded-2xl p-6 text-center transition-all hover:bg-midnight-800/30"
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          disabled={isProcessing}
-        >
-          {isProcessing ? (
-            <div className="py-2">
-              <motion.div
-                className="w-10 h-10 mx-auto mb-2 rounded-full bg-aurora-500/20 flex items-center justify-center"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              >
-                <Sparkles className="w-5 h-5 text-aurora-400" />
-              </motion.div>
-              <p className="text-aurora-300 text-sm">Import en cours...</p>
-            </div>
-          ) : (
-            <>
-              <div className="flex justify-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-aurora-500/20 flex items-center justify-center">
-                  <Image className="w-5 h-5 text-aurora-400" />
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-stardust-500/20 flex items-center justify-center">
-                  <Video className="w-5 h-5 text-stardust-400" />
-                </div>
+        <div className="space-y-2">
+          {/* Bouton principal : ouvre le MODAL d'import (fichier OU images existantes) */}
+          <motion.button
+            onClick={() => {
+              console.log('🖱️ Clic sur bouton import - ouverture modal')
+              setShowImportModal(true)
+            }}
+            className="w-full border-2 border-dashed border-aurora-500/40 hover:border-aurora-500 rounded-2xl p-5 text-center transition-all hover:bg-aurora-500/10 bg-aurora-500/5"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <div className="py-2">
+                <motion.div
+                  className="w-10 h-10 mx-auto mb-2 rounded-full bg-aurora-500/20 flex items-center justify-center"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                  <Sparkles className="w-5 h-5 text-aurora-400" />
+                </motion.div>
+                <p className="text-aurora-300 text-sm">Import en cours...</p>
               </div>
-              <p className="text-white font-medium text-sm">
-                📥 Importer une image ou vidéo
-              </p>
-              <p className="text-xs text-midnight-400 mt-1">
-                Clique pour ouvrir
-              </p>
-            </>
+            ) : (
+              <>
+                <div className="flex justify-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-aurora-500/30 flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-aurora-300" />
+                  </div>
+                </div>
+                <p className="text-aurora-300 font-semibold text-sm">
+                  📥 Importer depuis mon ordinateur
+                </p>
+                <p className="text-xs text-aurora-400/60 mt-1">
+                  Clique ici pour choisir un fichier
+                </p>
+              </>
+            )}
+          </motion.button>
+          
+          {/* Bouton secondaire : voir mes créations existantes */}
+          {projectAssets.length > 0 && (
+            <motion.button
+              onClick={() => setShowImportModal(true)}
+              className="w-full border border-midnight-600 hover:border-stardust-500/50 rounded-xl p-3 text-center transition-all hover:bg-midnight-800/30 flex items-center justify-center gap-2"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <FolderOpen className="w-4 h-4 text-stardust-400" />
+              <span className="text-stardust-300 text-sm">
+                Voir mes {projectAssets.length} créations existantes
+              </span>
+            </motion.button>
           )}
-        </motion.button>
+        </div>
       )}
 
       {/* ========== MODALE D'IMPORT ========== */}
@@ -442,45 +469,40 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
             {/* Contenu scrollable */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
               
-              {/* Section : Importer depuis l'ordinateur */}
-              <div>
-                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4 text-stardust-400" />
-                  Depuis mon ordinateur
-                </h3>
-                <motion.button
-                  onClick={() => {
-                    // Fermer la modale d'abord, puis ouvrir le sélecteur après un petit délai
-                    setShowImportModal(false)
-                    setTimeout(() => {
-                      fileInputRef.current?.click()
-                    }, 100)
-                  }}
-                  className="w-full p-4 rounded-xl border-2 border-dashed border-stardust-500/30 bg-stardust-500/10 hover:bg-stardust-500/20 hover:border-stardust-500/50 transition-all flex items-center justify-center gap-3"
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Plus className="w-6 h-6 text-stardust-400" />
-                  <span className="text-stardust-300 font-medium">Parcourir mes fichiers...</span>
-                </motion.button>
-              </div>
-
-              {/* Section : Images déjà importées */}
-              {projectAssets.length > 0 && (
+              {/* Section 1 : Mes images existantes (priorité visuelle) */}
+              {availableImagesForModal.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                     <Image className="w-4 h-4 text-aurora-400" />
-                    Mes créations ({projectAssets.length})
+                    🖼️ Sélectionner une image existante ({availableImagesForModal.length})
                   </h3>
+                  <p className="text-xs text-midnight-400 mb-3">
+                    Clique sur une image pour l'utiliser
+                  </p>
                   <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-64 overflow-y-auto pr-1">
-                    {projectAssets.filter(a => a.type === 'image').map((asset) => (
+                    {availableImagesForModal.map((asset) => (
                       <motion.button
                         key={asset.id}
                         onClick={() => {
+                          // Si mode vidéo, sélectionner comme image source
+                          if (currentCreationType === 'video') {
+                            updateKit({ 
+                              sourceImageUrl: asset.cloudUrl || asset.url,
+                              sourceImageId: asset.id 
+                            })
+                            // Marquer l'étape "choose_image" comme complétée
+                            if (!completedSteps.includes('choose_image')) {
+                              completeStep('choose_image')
+                            }
+                          }
                           // Callback si fourni
                           onAssetImported?.(asset)
+                          // Marquer l'étape "Importer" comme complétée
+                          if (!completedSteps.includes('import')) {
+                            completeStep('import')
+                          }
                           setShowImportModal(false)
-                          toast.success('Image sélectionnée !', asset.name.slice(0, 20))
+                          toast.success('✅ Image sélectionnée !', asset.name.slice(0, 20))
                         }}
                         className="relative aspect-square rounded-xl overflow-hidden border-2 border-midnight-700 hover:border-aurora-500 transition-all group"
                         whileHover={{ scale: 1.05 }}
@@ -507,15 +529,50 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                 </div>
               )}
 
-              {/* Message si aucune image */}
-              {projectAssets.filter(a => a.type === 'image').length === 0 && (
-                <div className="text-center py-8 px-4 rounded-xl bg-midnight-800/50 border border-midnight-700">
-                  <Image className="w-12 h-12 text-midnight-500 mx-auto mb-3" />
+              {/* Séparateur visuel */}
+              {availableImagesForModal.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-midnight-700" />
+                  <span className="text-xs text-midnight-500 uppercase">ou</span>
+                  <div className="flex-1 h-px bg-midnight-700" />
+                </div>
+              )}
+              
+              {/* Section 2 : Importer depuis l'ordinateur */}
+              <div>
+                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-stardust-400" />
+                  📥 Importer depuis mon ordinateur
+                </h3>
+                <motion.button
+                  onClick={() => {
+                    // Fermer la modale d'abord, puis ouvrir le sélecteur après un petit délai
+                    setShowImportModal(false)
+                    setTimeout(() => {
+                      fileInputRef.current?.click()
+                    }, 100)
+                  }}
+                  className="w-full p-4 rounded-xl border-2 border-dashed border-stardust-500/30 bg-stardust-500/10 hover:bg-stardust-500/20 hover:border-stardust-500/50 transition-all flex items-center justify-center gap-3"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Plus className="w-6 h-6 text-stardust-400" />
+                  <span className="text-stardust-300 font-medium">Parcourir mes fichiers (image ou vidéo)...</span>
+                </motion.button>
+                <p className="text-xs text-midnight-500 mt-2 text-center">
+                  Formats acceptés : images (PNG, JPG, WEBP) et vidéos (MP4, MOV, WEBM)
+                </p>
+              </div>
+
+              {/* Message si aucune image (affiche juste le bouton d'import) */}
+              {availableImagesForModal.length === 0 && (
+                <div className="text-center py-6 px-4 rounded-xl bg-midnight-800/30 border border-midnight-700">
+                  <Image className="w-10 h-10 text-midnight-500 mx-auto mb-2" />
                   <p className="text-midnight-400 text-sm">
-                    Aucune image importée pour le moment
+                    Aucune image dans ta galerie
                   </p>
                   <p className="text-midnight-500 text-xs mt-1">
-                    Utilise le bouton ci-dessus pour importer ta première image !
+                    Importe ta première création avec le bouton ci-dessus ! 🎨
                   </p>
                 </div>
               )}

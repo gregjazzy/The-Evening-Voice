@@ -66,8 +66,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Générer un nom unique
-    const ext = file.name.split('.').pop() || 'mp4'
+    // Générer un nom unique avec extension valide
+    const parts = file.name.split('.')
+    const potentialExt = parts.length > 1 ? parts.pop()?.toLowerCase() : null
+    const validVideoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv']
+    const ext = (potentialExt && validVideoExtensions.includes(potentialExt)) ? potentialExt : 'mp4'
+    
     const timestamp = Date.now()
     const random = Math.random().toString(36).substring(2, 8)
     const fileName = `${timestamp}-${random}.${ext}`

@@ -248,6 +248,7 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
       media_layers: {
         images: page.images || [],
         decorations: page.decorations || [],
+        textBoxes: page.textBoxes || [],
         chapterId: page.chapterId,
       },
       background_image_url: page.backgroundMedia?.type === 'image' ? page.backgroundMedia.url : null,
@@ -427,6 +428,7 @@ export function useSupabaseSync() {
                 images: isNewFormat ? mediaLayers.images : (Array.isArray(mediaLayers) ? mediaLayers : []),
                 backgroundMedia,
                 decorations: isNewFormat ? (mediaLayers.decorations || []) : [],
+                textBoxes: isNewFormat ? (mediaLayers.textBoxes || []) : [],
                 order: p.page_number - 1,
                 chapterId: isNewFormat ? mediaLayers.chapterId : undefined,
                 title: p.title,

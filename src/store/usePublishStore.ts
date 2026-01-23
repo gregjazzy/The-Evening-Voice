@@ -374,6 +374,8 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   
   setSelectedStory: (story) => set({ 
     selectedStory: story,
+    // Pré-remplir le format depuis l'histoire si disponible
+    selectedFormat: story?.bookFormat || 'square-21',
     cover: story ? {
       ...DEFAULT_COVER,
       frontTitle: story.title,

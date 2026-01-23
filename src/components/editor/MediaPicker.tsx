@@ -104,7 +104,21 @@ export function MediaPicker({
 
   const handleConfirmSelection = () => {
     if (selectedAsset) {
-      onSelect(selectedAsset.url, selectedAsset.type as 'image' | 'video' | 'audio')
+      // Utiliser cloudUrl (permanente) en priorité, sinon url (temporaire blob:)
+      const permanentUrl = selectedAsset.cloudUrl || selectedAsset.url
+      console.log('🖼️ MediaPicker - Sélection:', {
+        id: selectedAsset.id,
+        name: selectedAsset.name,
+        type: selectedAsset.type,
+        url: selectedAsset.url?.substring(0, 50),
+        cloudUrl: selectedAsset.cloudUrl?.substring(0, 50),
+        permanentUrl: permanentUrl?.substring(0, 50),
+      })
+      if (!permanentUrl) {
+        console.error('❌ MediaPicker - Pas d\'URL disponible pour cet asset!')
+        return
+      }
+      onSelect(permanentUrl, selectedAsset.type as 'image' | 'video' | 'audio')
       onClose()
     }
   }

@@ -266,6 +266,551 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [copied, setCopied] = useState(false)
   const [hasReadPrompt, setHasReadPrompt] = useState(false) // L'enfant doit valider qu'il a lu le prompt
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null) // Tooltip actif
+  
+  // 📚 Dictionnaire EXHAUSTIF des termes techniques avec explications pour enfants
+  const technicalTerms: Record<string, { emoji: string; fr: string; explanation: string }> = {
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // 🎬 MOUVEMENTS VIDÉO
+    // ═══════════════════════════════════════════════════════════════════
+    'slow gentle movement': { emoji: '🐢', fr: 'mouvement lent et doux', explanation: 'L\'image va bouger tout doucement, comme au ralenti' },
+    'fast dynamic movement': { emoji: '⚡', fr: 'mouvement rapide', explanation: 'L\'image va bouger vite avec beaucoup d\'énergie !' },
+    'soft smooth movement': { emoji: '🌸', fr: 'mouvement fluide', explanation: 'L\'image va bouger de façon douce et élégante' },
+    'energetic movement': { emoji: '🎯', fr: 'mouvement énergique', explanation: 'Plein de vie et d\'énergie dans les mouvements !' },
+    'subtle breathing motion': { emoji: '🖼️', fr: 'mouvement subtil', explanation: 'Presque immobile, juste un petit mouvement comme une respiration' },
+    'flowing movement': { emoji: '🌊', fr: 'mouvement fluide', explanation: 'Qui coule comme de l\'eau, très doux' },
+    'dynamic motion': { emoji: '💨', fr: 'mouvement dynamique', explanation: 'Beaucoup d\'action et de mouvement !' },
+    'gentle motion': { emoji: '🍃', fr: 'mouvement doux', explanation: 'Un mouvement calme et paisible' },
+    'rapid movement': { emoji: '🏃', fr: 'mouvement rapide', explanation: 'Ça bouge très vite !' },
+    'slow motion': { emoji: '🐌', fr: 'ralenti', explanation: 'Comme quand on filme au ralenti, tout est plus lent' },
+    'time lapse': { emoji: '⏰', fr: 'accéléré', explanation: 'Le temps passe très vite, comme voir une fleur pousser en quelques secondes' },
+    'loop': { emoji: '🔄', fr: 'boucle', explanation: 'L\'animation se répète sans fin' },
+    'seamless loop': { emoji: '♾️', fr: 'boucle parfaite', explanation: 'L\'animation se répète sans qu\'on voie le début ou la fin' },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // 📹 MOUVEMENTS DE CAMÉRA
+    // ═══════════════════════════════════════════════════════════════════
+    'static camera': { emoji: '📹', fr: 'caméra fixe', explanation: 'La caméra ne bouge pas du tout, elle reste en place' },
+    'slow zoom in': { emoji: '🔍', fr: 'zoom avant', explanation: 'La caméra se rapproche doucement de l\'image' },
+    'slow zoom out': { emoji: '🔭', fr: 'zoom arrière', explanation: 'La caméra s\'éloigne doucement de l\'image' },
+    'zoom in': { emoji: '🔍', fr: 'zoom avant', explanation: 'La caméra se rapproche' },
+    'zoom out': { emoji: '🔭', fr: 'zoom arrière', explanation: 'La caméra s\'éloigne' },
+    'pan left': { emoji: '👈', fr: 'panoramique gauche', explanation: 'La caméra glisse vers la gauche' },
+    'pan right': { emoji: '👉', fr: 'panoramique droite', explanation: 'La caméra glisse vers la droite' },
+    'pan up': { emoji: '👆', fr: 'panoramique haut', explanation: 'La caméra monte vers le haut' },
+    'pan down': { emoji: '👇', fr: 'panoramique bas', explanation: 'La caméra descend vers le bas' },
+    'tracking shot': { emoji: '🎥', fr: 'plan de suivi', explanation: 'La caméra suit l\'action, comme quand on filme quelqu\'un qui marche' },
+    'dolly shot': { emoji: '🛤️', fr: 'travelling', explanation: 'La caméra avance ou recule sur des rails' },
+    'crane shot': { emoji: '🏗️', fr: 'plan grue', explanation: 'La caméra monte ou descend comme sur une grue' },
+    'handheld': { emoji: '🤳', fr: 'caméra à la main', explanation: 'Comme si quelqu\'un tenait la caméra, ça bouge un peu' },
+    'steady cam': { emoji: '🎬', fr: 'steadicam', explanation: 'La caméra bouge mais reste très stable' },
+    'orbiting': { emoji: '🌍', fr: 'orbite', explanation: 'La caméra tourne autour du sujet' },
+    'rotating': { emoji: '🔄', fr: 'rotation', explanation: 'La caméra tourne sur elle-même' },
+    'tilt up': { emoji: '⬆️', fr: 'inclinaison haute', explanation: 'La caméra pivote vers le haut' },
+    'tilt down': { emoji: '⬇️', fr: 'inclinaison basse', explanation: 'La caméra pivote vers le bas' },
+    'dutch angle': { emoji: '📐', fr: 'angle hollandais', explanation: 'La caméra est penchée pour créer une ambiance bizarre' },
+    'push in': { emoji: '➡️', fr: 'avancée', explanation: 'La caméra s\'approche du sujet' },
+    'pull out': { emoji: '⬅️', fr: 'recul', explanation: 'La caméra s\'éloigne du sujet' },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // 🎯 TYPES DE PLANS
+    // ═══════════════════════════════════════════════════════════════════
+    'close-up': { emoji: '👁️', fr: 'gros plan', explanation: 'On voit le visage ou un objet de très près' },
+    'close up': { emoji: '👁️', fr: 'gros plan', explanation: 'On voit le visage ou un objet de très près' },
+    'extreme close-up': { emoji: '🔬', fr: 'très gros plan', explanation: 'On voit juste un œil ou un tout petit détail' },
+    'medium shot': { emoji: '🧍', fr: 'plan moyen', explanation: 'On voit la personne de la taille à la tête' },
+    'wide shot': { emoji: '🏞️', fr: 'plan large', explanation: 'On voit beaucoup de choses autour du sujet' },
+    'long shot': { emoji: '🌄', fr: 'plan d\'ensemble', explanation: 'On voit tout le paysage avec le sujet petit dedans' },
+    'establishing shot': { emoji: '🏙️', fr: 'plan de situation', explanation: 'Un plan qui montre où on est, comme une ville vue de loin' },
+    'over the shoulder': { emoji: '👤', fr: 'par-dessus l\'épaule', explanation: 'On voit par-dessus l\'épaule de quelqu\'un' },
+    'point of view': { emoji: '👀', fr: 'point de vue', explanation: 'On voit comme si on était le personnage' },
+    'POV': { emoji: '👀', fr: 'point de vue', explanation: 'On voit à travers les yeux du personnage' },
+    'aerial shot': { emoji: '🚁', fr: 'plan aérien', explanation: 'Filmé depuis le ciel, comme avec un drone' },
+    'bird\'s eye view': { emoji: '🦅', fr: 'vue plongeante', explanation: 'On regarde d\'en haut, comme un oiseau' },
+    'birds eye view': { emoji: '🦅', fr: 'vue plongeante', explanation: 'On regarde d\'en haut, comme un oiseau' },
+    'worm\'s eye view': { emoji: '🐛', fr: 'contre-plongée', explanation: 'On regarde d\'en bas vers le haut' },
+    'worms eye view': { emoji: '🐛', fr: 'contre-plongée', explanation: 'On regarde d\'en bas vers le haut' },
+    'low angle': { emoji: '⬆️', fr: 'contre-plongée', explanation: 'La caméra est en bas et regarde vers le haut' },
+    'high angle': { emoji: '⬇️', fr: 'plongée', explanation: 'La caméra est en haut et regarde vers le bas' },
+    'eye level': { emoji: '👁️', fr: 'niveau des yeux', explanation: 'La caméra est à hauteur des yeux' },
+    'full body shot': { emoji: '🧍', fr: 'plan en pied', explanation: 'On voit la personne des pieds à la tête' },
+    'portrait shot': { emoji: '🖼️', fr: 'portrait', explanation: 'On voit bien le visage de la personne' },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // ✨ EFFETS SPÉCIAUX
+    // ═══════════════════════════════════════════════════════════════════
+    'magical sparkles and particles': { emoji: '✨', fr: 'étincelles magiques', explanation: 'Des petites lumières brillantes comme de la poussière de fée !' },
+    'soft glowing halo effect': { emoji: '🌈', fr: 'effet halo lumineux', explanation: 'Une lumière douce qui entoure les choses, comme une auréole' },
+    'gentle smoke and mist': { emoji: '💨', fr: 'fumée et brume', explanation: 'De la fumée légère qui flotte dans l\'air, mystérieux !' },
+    'twinkling stars': { emoji: '⭐', fr: 'étoiles scintillantes', explanation: 'Des étoiles qui brillent et clignotent dans le ciel' },
+    'warm flames and embers': { emoji: '🔥', fr: 'flammes et braises', explanation: 'Du feu avec des petites braises qui volent' },
+    'falling snowflakes': { emoji: '❄️', fr: 'flocons de neige', explanation: 'Des flocons de neige qui tombent doucement' },
+    'magical fairy dust particles': { emoji: '🪄', fr: 'poussière de fée', explanation: 'Des particules magiques comme dans les contes de fées !' },
+    'sparkles': { emoji: '✨', fr: 'étincelles', explanation: 'Des petites lumières qui brillent' },
+    'particles': { emoji: '🌟', fr: 'particules', explanation: 'Des petits points de lumière qui flottent' },
+    'glowing': { emoji: '💡', fr: 'brillant', explanation: 'Qui émet de la lumière' },
+    'glow': { emoji: '💡', fr: 'lueur', explanation: 'Une lumière douce' },
+    'shimmer': { emoji: '✨', fr: 'chatoiement', explanation: 'Qui brille et change de couleur comme une bulle de savon' },
+    'glitter': { emoji: '💎', fr: 'paillettes', explanation: 'Des petits points brillants comme des paillettes' },
+    'lens flare': { emoji: '☀️', fr: 'halo de lumière', explanation: 'Quand la lumière fait des ronds dans l\'image' },
+    'bokeh': { emoji: '🔵', fr: 'bokeh', explanation: 'Les lumières floues en arrière-plan font de jolis ronds' },
+    'motion blur': { emoji: '💨', fr: 'flou de mouvement', explanation: 'Le flou qui montre que quelque chose bouge vite' },
+    'depth of field': { emoji: '📷', fr: 'profondeur de champ', explanation: 'Quand l\'arrière-plan est flou et le sujet net' },
+    'shallow depth of field': { emoji: '🎯', fr: 'faible profondeur', explanation: 'Seulement le sujet est net, tout le reste est flou' },
+    'vignette': { emoji: '⭕', fr: 'vignette', explanation: 'Les bords de l\'image sont plus sombres' },
+    'chromatic aberration': { emoji: '🌈', fr: 'aberration chromatique', explanation: 'Des bords arc-en-ciel sur les objets' },
+    'film grain': { emoji: '📽️', fr: 'grain de film', explanation: 'Des petits points comme sur les vieux films' },
+    'noise': { emoji: '📺', fr: 'bruit', explanation: 'Des petits points colorés dans l\'image' },
+    'bloom': { emoji: '🌸', fr: 'bloom', explanation: 'La lumière déborde et brille autour des zones claires' },
+    'ray tracing': { emoji: '🔦', fr: 'lancer de rayons', explanation: 'La lumière rebondit de façon très réaliste' },
+    'reflection': { emoji: '🪞', fr: 'reflet', explanation: 'On voit le reflet des choses' },
+    'refraction': { emoji: '💎', fr: 'réfraction', explanation: 'La lumière se déforme à travers le verre ou l\'eau' },
+    'caustics': { emoji: '🌊', fr: 'caustiques', explanation: 'Les jolies lumières qui dansent sous l\'eau' },
+    'volumetric lighting': { emoji: '🌅', fr: 'lumière volumétrique', explanation: 'On voit les rayons de lumière dans l\'air' },
+    'volumetric fog': { emoji: '🌫️', fr: 'brouillard volumétrique', explanation: 'Du brouillard épais et réaliste' },
+    'god rays': { emoji: '☀️', fr: 'rayons divins', explanation: 'De grands rayons de lumière qui traversent les nuages' },
+    'sunbeams': { emoji: '🌤️', fr: 'rayons de soleil', explanation: 'Des rayons de soleil qui percent à travers' },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // 🎨 STYLES ARTISTIQUES
+    // ═══════════════════════════════════════════════════════════════════
+    'hand-drawn illustration style': { emoji: '✏️', fr: 'style dessin', explanation: 'Comme si quelqu\'un avait dessiné avec un crayon' },
+    'hand-drawn': { emoji: '✏️', fr: 'dessiné à la main', explanation: 'Fait à la main, pas par ordinateur' },
+    'illustration': { emoji: '🖼️', fr: 'illustration', explanation: 'Un dessin fait pour un livre ou un magazine' },
+    'photorealistic': { emoji: '📷', fr: 'photoréaliste', explanation: 'Tellement réaliste qu\'on dirait une vraie photo !' },
+    'photo realistic': { emoji: '📷', fr: 'photoréaliste', explanation: 'Tellement réaliste qu\'on dirait une vraie photo !' },
+    'hyper realistic': { emoji: '🔬', fr: 'hyper réaliste', explanation: 'Encore plus réaliste qu\'une photo !' },
+    'hyperrealistic': { emoji: '🔬', fr: 'hyper réaliste', explanation: 'Encore plus réaliste qu\'une photo !' },
+    'magical fantasy art': { emoji: '✨', fr: 'art fantastique', explanation: 'Style magique avec des couleurs brillantes et féériques' },
+    'fantasy art': { emoji: '🐉', fr: 'art fantastique', explanation: 'Avec des dragons, de la magie et des créatures imaginaires' },
+    'ethereal glow': { emoji: '💫', fr: 'lueur éthérée', explanation: 'Une lumière douce et mystérieuse, comme dans les rêves' },
+    'ethereal': { emoji: '👼', fr: 'éthéré', explanation: 'Léger et délicat, comme un ange ou un rêve' },
+    'anime style': { emoji: '🌸', fr: 'style anime', explanation: 'Comme dans les dessins animés japonais !' },
+    'anime': { emoji: '🌸', fr: 'anime', explanation: 'Style des dessins animés japonais' },
+    'manga': { emoji: '📖', fr: 'manga', explanation: 'Style des bandes dessinées japonaises' },
+    'Studio Ghibli inspired': { emoji: '🏯', fr: 'inspiré Ghibli', explanation: 'Comme les films de Miyazaki (Totoro, Chihiro...)' },
+    'Studio Ghibli': { emoji: '🏯', fr: 'Studio Ghibli', explanation: 'Le studio qui a fait Totoro, Chihiro et plein d\'autres films magiques !' },
+    'Ghibli': { emoji: '🏯', fr: 'Ghibli', explanation: 'Style des films de Miyazaki, doux et poétique' },
+    'watercolor painting style': { emoji: '🎨', fr: 'style aquarelle', explanation: 'Comme une peinture à l\'eau, avec des couleurs qui se mélangent' },
+    'watercolor': { emoji: '🎨', fr: 'aquarelle', explanation: 'Peinture à l\'eau, les couleurs se mélangent doucement' },
+    'oil painting': { emoji: '🖼️', fr: 'peinture à l\'huile', explanation: 'Comme les tableaux des grands musées' },
+    'acrylic': { emoji: '🎨', fr: 'acrylique', explanation: 'Peinture avec des couleurs vives et brillantes' },
+    'pixel art': { emoji: '👾', fr: 'pixel art', explanation: 'Fait avec des petits carrés, comme les vieux jeux vidéo !' },
+    'retro game style': { emoji: '🕹️', fr: 'style rétro', explanation: 'Comme dans les jeux vidéo d\'autrefois' },
+    '8-bit': { emoji: '👾', fr: '8 bits', explanation: 'Style des très vieux jeux vidéo avec gros pixels' },
+    '16-bit': { emoji: '🎮', fr: '16 bits', explanation: 'Style des jeux Super Nintendo' },
+    'voxel': { emoji: '🧊', fr: 'voxel', explanation: 'Fait de petits cubes 3D, comme Minecraft' },
+    'low poly': { emoji: '📐', fr: 'low poly', explanation: 'Formes simples avec peu de détails, style géométrique' },
+    'cartoon': { emoji: '🎪', fr: 'cartoon', explanation: 'Style dessin animé avec des formes simples et drôles' },
+    'comic book': { emoji: '💥', fr: 'bande dessinée', explanation: 'Comme dans les comics, avec des traits marqués' },
+    'comic': { emoji: '💥', fr: 'BD', explanation: 'Style bande dessinée' },
+    'graphic novel': { emoji: '📚', fr: 'roman graphique', explanation: 'BD pour les grands, avec de beaux dessins' },
+    'cel shading': { emoji: '🎨', fr: 'cel shading', explanation: 'Style 3D qui ressemble à un dessin animé' },
+    'toon shading': { emoji: '🎬', fr: 'rendu cartoon', explanation: 'La 3D ressemble à un dessin animé' },
+    'impressionist': { emoji: '🌻', fr: 'impressionniste', explanation: 'Comme les peintures de Monet, avec des touches de couleur' },
+    'impressionism': { emoji: '🌻', fr: 'impressionnisme', explanation: 'Style artistique avec des couleurs qui se mélangent' },
+    'expressionist': { emoji: '😱', fr: 'expressionniste', explanation: 'Formes déformées qui montrent des émotions fortes' },
+    'surreal': { emoji: '🎭', fr: 'surréaliste', explanation: 'Comme un rêve bizarre, des choses impossibles' },
+    'surrealism': { emoji: '🎭', fr: 'surréalisme', explanation: 'Art bizarre comme dans les rêves' },
+    'abstract': { emoji: '🔷', fr: 'abstrait', explanation: 'Des formes et couleurs sans représenter quelque chose de réel' },
+    'minimalist': { emoji: '⬜', fr: 'minimaliste', explanation: 'Très simple, avec peu d\'éléments' },
+    'maximalist': { emoji: '🎪', fr: 'maximaliste', explanation: 'Plein de détails partout !' },
+    'baroque': { emoji: '👑', fr: 'baroque', explanation: 'Très décoré et riche, comme les châteaux' },
+    'art nouveau': { emoji: '🌿', fr: 'art nouveau', explanation: 'Avec des courbes élégantes comme des plantes' },
+    'art deco': { emoji: '🏛️', fr: 'art déco', explanation: 'Style géométrique et élégant des années 1920' },
+    'pop art': { emoji: '🎨', fr: 'pop art', explanation: 'Couleurs vives comme les œuvres d\'Andy Warhol' },
+    'graffiti': { emoji: '🎨', fr: 'graffiti', explanation: 'Comme les dessins sur les murs des villes' },
+    'street art': { emoji: '🏙️', fr: 'art de rue', explanation: 'Art fait dans la rue, sur les murs' },
+    'steampunk': { emoji: '⚙️', fr: 'steampunk', explanation: 'Style avec des engrenages et de la vapeur, rétro-futuriste' },
+    'dieselpunk': { emoji: '🛢️', fr: 'dieselpunk', explanation: 'Comme le steampunk mais avec des moteurs' },
+    'cyberpunk': { emoji: '🤖', fr: 'cyberpunk', explanation: 'Style futuriste avec plein de technologie et néons' },
+    'solarpunk': { emoji: '🌱', fr: 'solarpunk', explanation: 'Futur écologique avec des plantes et du soleil' },
+    'gothic': { emoji: '🦇', fr: 'gothique', explanation: 'Sombre et mystérieux, avec des châteaux' },
+    'dark fantasy': { emoji: '⚔️', fr: 'dark fantasy', explanation: 'Fantastique mais sombre et dangereux' },
+    'kawaii': { emoji: '🎀', fr: 'kawaii', explanation: 'Mignon à la japonaise, tout rond et adorable' },
+    'chibi': { emoji: '😊', fr: 'chibi', explanation: 'Personnages mignons avec grosse tête et petit corps' },
+    'realistic': { emoji: '📷', fr: 'réaliste', explanation: 'Qui ressemble à la vraie vie' },
+    'stylized': { emoji: '🎨', fr: 'stylisé', explanation: 'Avec un style particulier, pas totalement réaliste' },
+    'vintage': { emoji: '📻', fr: 'vintage', explanation: 'Style ancien, comme autrefois' },
+    'retro': { emoji: '📼', fr: 'rétro', explanation: 'Style des années passées' },
+    'futuristic': { emoji: '🚀', fr: 'futuriste', explanation: 'Style du futur avec de la technologie avancée' },
+    'sci-fi': { emoji: '🛸', fr: 'science-fiction', explanation: 'Avec des vaisseaux, des robots et l\'espace' },
+    'medieval': { emoji: '🏰', fr: 'médiéval', explanation: 'Du Moyen Âge avec des chevaliers et châteaux' },
+    'victorian': { emoji: '🎩', fr: 'victorien', explanation: 'Style de l\'époque de la reine Victoria en Angleterre' },
+    'renaissance': { emoji: '🖼️', fr: 'renaissance', explanation: 'Comme les peintures de Léonard de Vinci' },
+    'ukiyo-e': { emoji: '🌊', fr: 'ukiyo-e', explanation: 'Estampes japonaises traditionnelles, comme la grande vague' },
+    'chinese painting': { emoji: '🎋', fr: 'peinture chinoise', explanation: 'Style traditionnel chinois à l\'encre' },
+    'ink wash': { emoji: '🖌️', fr: 'lavis d\'encre', explanation: 'Peinture à l\'encre noire diluée' },
+    'stained glass': { emoji: '🏰', fr: 'vitrail', explanation: 'Comme les fenêtres colorées des églises' },
+    'mosaic': { emoji: '🎨', fr: 'mosaïque', explanation: 'Fait de plein de petits morceaux colorés' },
+    'paper cut': { emoji: '✂️', fr: 'papier découpé', explanation: 'Comme si c\'était fait de papier découpé' },
+    'origami': { emoji: '🦢', fr: 'origami', explanation: 'Art du pliage de papier japonais' },
+    'claymation': { emoji: '🎭', fr: 'pâte à modeler', explanation: 'Comme les films en pâte à modeler' },
+    'stop motion': { emoji: '🎬', fr: 'stop motion', explanation: 'Animation image par image' },
+    'isometric': { emoji: '📐', fr: 'isométrique', explanation: 'Vue en angle où tout garde la même taille' },
+    'flat design': { emoji: '📱', fr: 'design plat', explanation: 'Simple et moderne, sans ombres ni volumes' },
+    'material design': { emoji: '📲', fr: 'material design', explanation: 'Style moderne de Google avec des ombres douces' },
+    'glassmorphism': { emoji: '🔮', fr: 'glassmorphism', explanation: 'Effet verre dépoli transparent' },
+    'neumorphism': { emoji: '⬜', fr: 'neumorphism', explanation: 'Boutons qui ont l\'air enfoncés dans la surface' },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // 🌅 AMBIANCES & ATMOSPHÈRES
+    // ═══════════════════════════════════════════════════════════════════
+    'daytime': { emoji: '☀️', fr: 'journée', explanation: 'C\'est le jour, avec le soleil' },
+    'bright atmosphere': { emoji: '🌤️', fr: 'atmosphère lumineuse', explanation: 'Tout est bien éclairé et lumineux' },
+    'nighttime': { emoji: '🌙', fr: 'nuit', explanation: 'C\'est la nuit, quand il fait sombre' },
+    'night': { emoji: '🌙', fr: 'nuit', explanation: 'Quand le soleil est couché' },
+    'starry sky': { emoji: '⭐', fr: 'ciel étoilé', explanation: 'Un ciel rempli de belles étoiles' },
+    'stormy weather': { emoji: '⛈️', fr: 'temps orageux', explanation: 'Il y a un orage avec des nuages sombres' },
+    'stormy': { emoji: '⛈️', fr: 'orageux', explanation: 'Avec un orage et des éclairs' },
+    'dramatic clouds': { emoji: '🌩️', fr: 'nuages dramatiques', explanation: 'Des gros nuages impressionnants dans le ciel' },
+    'dramatic': { emoji: '🎭', fr: 'dramatique', explanation: 'Très impressionnant, qui fait effet' },
+    'misty': { emoji: '🌫️', fr: 'brumeux', explanation: 'Il y a de la brume, on ne voit pas très loin' },
+    'mist': { emoji: '🌫️', fr: 'brume', explanation: 'Un léger brouillard' },
+    'fog': { emoji: '🌁', fr: 'brouillard', explanation: 'Comme un nuage au sol qui cache les choses' },
+    'foggy': { emoji: '🌁', fr: 'brumeux', explanation: 'Plein de brouillard' },
+    'mysterious atmosphere': { emoji: '🔮', fr: 'atmosphère mystérieuse', explanation: 'Une ambiance de mystère, un peu inquiétante' },
+    'fairy tale setting': { emoji: '🧚', fr: 'décor de conte', explanation: 'Comme dans les contes de fées avec de la magie !' },
+    'enchanted': { emoji: '🪄', fr: 'enchanté', explanation: 'Magique et merveilleux, comme sous un sort' },
+    'mysterious': { emoji: '🔮', fr: 'mystérieux', explanation: 'Plein de secrets et de mystères' },
+    'shadowy': { emoji: '👤', fr: 'ombragé', explanation: 'Avec beaucoup d\'ombres, un peu sombre' },
+    'intriguing': { emoji: '🤔', fr: 'intrigant', explanation: 'Qui donne envie d\'en savoir plus !' },
+    'dreamy': { emoji: '💭', fr: 'onirique', explanation: 'Comme dans un rêve' },
+    'dreamlike': { emoji: '💭', fr: 'comme un rêve', explanation: 'Flou et doux comme dans les rêves' },
+    'magical': { emoji: '✨', fr: 'magique', explanation: 'Plein de magie !' },
+    'whimsical': { emoji: '🎪', fr: 'fantaisiste', explanation: 'Drôle et imaginatif' },
+    'moody': { emoji: '🌧️', fr: 'mélancolique', explanation: 'Une ambiance un peu triste ou pensive' },
+    'melancholic': { emoji: '😢', fr: 'mélancolique', explanation: 'Un peu triste mais beau' },
+    'peaceful': { emoji: '🕊️', fr: 'paisible', explanation: 'Calme et tranquille' },
+    'serene': { emoji: '🧘', fr: 'serein', explanation: 'Très calme et reposant' },
+    'tranquil': { emoji: '🌸', fr: 'tranquille', explanation: 'Paisible et calme' },
+    'cozy': { emoji: '🛋️', fr: 'douillet', explanation: 'Confortable et chaleureux' },
+    'warm': { emoji: '🔥', fr: 'chaleureux', explanation: 'Qui donne une sensation de chaleur agréable' },
+    'cold': { emoji: '❄️', fr: 'froid', explanation: 'Ambiance froide, glaciale' },
+    'dark': { emoji: '🌑', fr: 'sombre', explanation: 'Peu de lumière, plutôt noir' },
+    'bright': { emoji: '☀️', fr: 'lumineux', explanation: 'Beaucoup de lumière' },
+    'vibrant': { emoji: '🌈', fr: 'vibrant', explanation: 'Couleurs vives et éclatantes' },
+    'muted': { emoji: '🌫️', fr: 'atténué', explanation: 'Couleurs douces et pastel' },
+    'pastel': { emoji: '🎀', fr: 'pastel', explanation: 'Couleurs douces et claires' },
+    'saturated': { emoji: '🎨', fr: 'saturé', explanation: 'Couleurs très vives et intenses' },
+    'desaturated': { emoji: '⬜', fr: 'désaturé', explanation: 'Couleurs ternes, presque grises' },
+    'monochrome': { emoji: '⬛', fr: 'monochrome', explanation: 'Une seule couleur avec ses nuances' },
+    'black and white': { emoji: '⬛', fr: 'noir et blanc', explanation: 'Sans couleurs, juste du noir, blanc et gris' },
+    'sepia': { emoji: '📜', fr: 'sépia', explanation: 'Couleur brune comme les vieilles photos' },
+    'golden hour': { emoji: '🌅', fr: 'heure dorée', explanation: 'La belle lumière juste avant le coucher du soleil' },
+    'blue hour': { emoji: '🌆', fr: 'heure bleue', explanation: 'Le moment magique juste après le coucher du soleil' },
+    'sunset': { emoji: '🌅', fr: 'coucher de soleil', explanation: 'Quand le soleil se couche avec de belles couleurs' },
+    'sunrise': { emoji: '🌄', fr: 'lever de soleil', explanation: 'Quand le soleil se lève le matin' },
+    'dusk': { emoji: '🌆', fr: 'crépuscule', explanation: 'Le moment entre le jour et la nuit' },
+    'dawn': { emoji: '🌅', fr: 'aube', explanation: 'Le tout début du jour' },
+    'twilight': { emoji: '🌙', fr: 'crépuscule', explanation: 'La lumière douce entre jour et nuit' },
+    'overcast': { emoji: '☁️', fr: 'nuageux', explanation: 'Le ciel est couvert de nuages' },
+    'cloudy': { emoji: '☁️', fr: 'nuageux', explanation: 'Avec des nuages' },
+    'rainy': { emoji: '🌧️', fr: 'pluvieux', explanation: 'Il pleut' },
+    'snowy': { emoji: '🌨️', fr: 'enneigé', explanation: 'Avec de la neige' },
+    'sunny': { emoji: '☀️', fr: 'ensoleillé', explanation: 'Avec du soleil' },
+    'windy': { emoji: '💨', fr: 'venteux', explanation: 'Il y a du vent' },
+    'autumn': { emoji: '🍂', fr: 'automne', explanation: 'La saison des feuilles qui tombent' },
+    'fall': { emoji: '🍂', fr: 'automne', explanation: 'La saison des feuilles oranges' },
+    'winter': { emoji: '❄️', fr: 'hiver', explanation: 'La saison froide avec la neige' },
+    'spring': { emoji: '🌸', fr: 'printemps', explanation: 'La saison des fleurs' },
+    'summer': { emoji: '☀️', fr: 'été', explanation: 'La saison chaude' },
+    'tropical': { emoji: '🌴', fr: 'tropical', explanation: 'Chaud et humide comme dans la jungle' },
+    'arctic': { emoji: '🧊', fr: 'arctique', explanation: 'Très froid comme au pôle Nord' },
+    'desert': { emoji: '🏜️', fr: 'désert', explanation: 'Sec et chaud avec du sable' },
+    'underwater': { emoji: '🐠', fr: 'sous-marin', explanation: 'Sous l\'eau' },
+    'space': { emoji: '🚀', fr: 'espace', explanation: 'Dans l\'espace avec les étoiles' },
+    'cosmic': { emoji: '🌌', fr: 'cosmique', explanation: 'De l\'univers, avec des étoiles et galaxies' },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // 💡 ÉCLAIRAGES
+    // ═══════════════════════════════════════════════════════════════════
+    'golden sunlight': { emoji: '🌞', fr: 'lumière dorée', explanation: 'La belle lumière chaude du soleil' },
+    'sunlight': { emoji: '☀️', fr: 'lumière du soleil', explanation: 'La lumière naturelle du soleil' },
+    'moonlit': { emoji: '🌕', fr: 'éclairé par la lune', explanation: 'Baigné dans la douce lumière de la lune' },
+    'moonlight': { emoji: '🌕', fr: 'clair de lune', explanation: 'La lumière douce de la lune' },
+    'silver glow': { emoji: '✨', fr: 'lueur argentée', explanation: 'Une lumière douce couleur argent' },
+    'candlelight': { emoji: '🕯️', fr: 'lumière de bougie', explanation: 'La lumière chaude et dansante des bougies' },
+    'warm orange glow': { emoji: '🔶', fr: 'lueur orange chaude', explanation: 'Une lumière orange et chaleureuse' },
+    'neon lights': { emoji: '💡', fr: 'néons', explanation: 'Des lumières colorées qui brillent fort' },
+    'neon': { emoji: '💡', fr: 'néon', explanation: 'Lumière colorée très vive' },
+    'aurora borealis': { emoji: '🌌', fr: 'aurore boréale', explanation: 'Les magnifiques lumières colorées du ciel polaire' },
+    'northern lights': { emoji: '🌈', fr: 'lumières du nord', explanation: 'Pareil que l\'aurore boréale, c\'est magique !' },
+    'natural lighting': { emoji: '☀️', fr: 'lumière naturelle', explanation: 'Éclairé par le soleil ou la lune, pas artificiel' },
+    'artificial lighting': { emoji: '💡', fr: 'lumière artificielle', explanation: 'Éclairé par des lampes' },
+    'studio lighting': { emoji: '🎬', fr: 'éclairage studio', explanation: 'Lumière professionnelle comme pour les photos' },
+    'dramatic lighting': { emoji: '🎭', fr: 'éclairage dramatique', explanation: 'Lumière qui crée des ombres impressionnantes' },
+    'soft lighting': { emoji: '🌸', fr: 'lumière douce', explanation: 'Lumière qui ne fait pas d\'ombres dures' },
+    'hard lighting': { emoji: '💥', fr: 'lumière dure', explanation: 'Lumière qui fait des ombres bien marquées' },
+    'backlight': { emoji: '🌅', fr: 'contre-jour', explanation: 'La lumière vient de derrière le sujet' },
+    'backlighting': { emoji: '🌅', fr: 'contre-jour', explanation: 'Éclairé par derrière' },
+    'rim light': { emoji: '✨', fr: 'lumière de contour', explanation: 'Un liseré de lumière autour du sujet' },
+    'fill light': { emoji: '💡', fr: 'lumière d\'appoint', explanation: 'Lumière qui éclaire les ombres' },
+    'key light': { emoji: '🔦', fr: 'lumière principale', explanation: 'La lumière la plus forte qui éclaire le sujet' },
+    'ambient light': { emoji: '🏠', fr: 'lumière ambiante', explanation: 'La lumière générale de l\'environnement' },
+    'spotlight': { emoji: '🔦', fr: 'projecteur', explanation: 'Un rond de lumière concentré' },
+    'diffused light': { emoji: '☁️', fr: 'lumière diffuse', explanation: 'Lumière douce qui vient de partout' },
+    'harsh light': { emoji: '☀️', fr: 'lumière crue', explanation: 'Lumière très forte qui fait des ombres dures' },
+    'chiaroscuro': { emoji: '🎭', fr: 'clair-obscur', explanation: 'Fort contraste entre lumière et ombre, comme les tableaux anciens' },
+    'high key': { emoji: '⬜', fr: 'high key', explanation: 'Image très lumineuse avec peu d\'ombres' },
+    'low key': { emoji: '⬛', fr: 'low key', explanation: 'Image sombre avec beaucoup d\'ombres' },
+    'silhouette': { emoji: '👤', fr: 'silhouette', explanation: 'Forme noire devant une lumière' },
+    'bioluminescent': { emoji: '🦑', fr: 'bioluminescent', explanation: 'Qui brille naturellement comme certaines méduses' },
+    'glowing eyes': { emoji: '👁️', fr: 'yeux brillants', explanation: 'Des yeux qui émettent de la lumière' },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // 🎭 QUALITÉ & RENDU
+    // ═══════════════════════════════════════════════════════════════════
+    '4K': { emoji: '📺', fr: '4K', explanation: 'Très haute définition, image super nette' },
+    '8K': { emoji: '📺', fr: '8K', explanation: 'Définition incroyable, chaque détail est visible' },
+    'HD': { emoji: '📺', fr: 'haute définition', explanation: 'Image de bonne qualité' },
+    'high resolution': { emoji: '🔬', fr: 'haute résolution', explanation: 'Image très détaillée' },
+    'high quality': { emoji: '⭐', fr: 'haute qualité', explanation: 'Très bien fait' },
+    'ultra detailed': { emoji: '🔍', fr: 'ultra détaillé', explanation: 'Plein de petits détails partout' },
+    'highly detailed': { emoji: '🔍', fr: 'très détaillé', explanation: 'Beaucoup de détails' },
+    'intricate details': { emoji: '🔬', fr: 'détails complexes', explanation: 'Des détails très fins et travaillés' },
+    'sharp focus': { emoji: '🎯', fr: 'mise au point nette', explanation: 'L\'image est très nette' },
+    'sharp': { emoji: '🎯', fr: 'net', explanation: 'Pas flou du tout' },
+    'crisp': { emoji: '✨', fr: 'net', explanation: 'Image parfaitement nette' },
+    'smooth': { emoji: '🧈', fr: 'lisse', explanation: 'Sans aspérités, tout doux' },
+    'textured': { emoji: '🧱', fr: 'texturé', explanation: 'Avec une surface qu\'on peut presque toucher' },
+    'glossy': { emoji: '✨', fr: 'brillant', explanation: 'Surface qui reflète la lumière' },
+    'matte': { emoji: '⬜', fr: 'mat', explanation: 'Surface qui ne brille pas' },
+    'metallic': { emoji: '🔩', fr: 'métallique', explanation: 'Qui ressemble à du métal' },
+    'shiny': { emoji: '✨', fr: 'brillant', explanation: 'Qui reflète la lumière' },
+    'reflective': { emoji: '🪞', fr: 'réfléchissant', explanation: 'Comme un miroir' },
+    'transparent': { emoji: '🔮', fr: 'transparent', explanation: 'On peut voir à travers' },
+    'translucent': { emoji: '🧊', fr: 'translucide', explanation: 'La lumière passe mais on ne voit pas bien à travers' },
+    'opaque': { emoji: '⬛', fr: 'opaque', explanation: 'On ne peut pas voir à travers' },
+    'octane render': { emoji: '🖥️', fr: 'rendu Octane', explanation: 'Un logiciel qui fait de très belles images 3D' },
+    'unreal engine': { emoji: '🎮', fr: 'Unreal Engine', explanation: 'Le moteur des jeux vidéo très réalistes' },
+    'blender': { emoji: '🎨', fr: 'Blender', explanation: 'Logiciel gratuit pour faire de la 3D' },
+    'cinema 4d': { emoji: '🎬', fr: 'Cinema 4D', explanation: 'Logiciel professionnel de 3D' },
+    'v-ray': { emoji: '💡', fr: 'V-Ray', explanation: 'Logiciel qui calcule la lumière de façon réaliste' },
+    'arnold': { emoji: '🎬', fr: 'Arnold', explanation: 'Moteur de rendu professionnel' },
+    'CGI': { emoji: '🖥️', fr: 'images de synthèse', explanation: 'Fait par ordinateur' },
+    '3D render': { emoji: '🖥️', fr: 'rendu 3D', explanation: 'Image créée en trois dimensions par ordinateur' },
+    'digital art': { emoji: '🖥️', fr: 'art numérique', explanation: 'Art fait avec un ordinateur' },
+    'digital painting': { emoji: '🖌️', fr: 'peinture numérique', explanation: 'Peinture faite sur tablette ou ordinateur' },
+    'concept art': { emoji: '🎨', fr: 'concept art', explanation: 'Dessin pour imaginer un personnage ou un monde' },
+    'matte painting': { emoji: '🏔️', fr: 'matte painting', explanation: 'Peinture de décor pour les films' },
+    'trending on artstation': { emoji: '⭐', fr: 'populaire sur ArtStation', explanation: 'Style des artistes populaires sur internet' },
+    'award winning': { emoji: '🏆', fr: 'primé', explanation: 'Qui a gagné des prix' },
+    'masterpiece': { emoji: '👑', fr: 'chef-d\'œuvre', explanation: 'Une création exceptionnelle' },
+    'beautiful': { emoji: '😍', fr: 'beau', explanation: 'Très joli à regarder' },
+    'stunning': { emoji: '🤩', fr: 'époustouflant', explanation: 'Qui coupe le souffle tellement c\'est beau' },
+    'breathtaking': { emoji: '😮', fr: 'à couper le souffle', explanation: 'Tellement beau qu\'on oublie de respirer' },
+    'epic': { emoji: '⚔️', fr: 'épique', explanation: 'Grandiose, comme dans les grandes aventures' },
+    'majestic': { emoji: '👑', fr: 'majestueux', explanation: 'Grand et impressionnant comme un roi' },
+    'elegant': { emoji: '✨', fr: 'élégant', explanation: 'Raffiné et de bon goût' },
+    'delicate': { emoji: '🌸', fr: 'délicat', explanation: 'Fin et fragile' },
+    'ornate': { emoji: '👑', fr: 'orné', explanation: 'Avec beaucoup de décorations' },
+  }
+  
+  // 🎯 Transforme le prompt en éléments avec tooltips
+  const renderPromptWithTooltips = (prompt: string) => {
+    if (!prompt) return null
+    
+    // Trier les termes par longueur décroissante pour matcher les plus longs d'abord
+    const sortedTerms = Object.keys(technicalTerms).sort((a, b) => b.length - a.length)
+    
+    // Créer un tableau de segments (texte normal ou terme technique)
+    type Segment = { type: 'text' | 'term'; content: string; key: string }
+    const segments: Segment[] = []
+    let remainingText = prompt
+    let keyCounter = 0
+    
+    while (remainingText.length > 0) {
+      let foundTerm = false
+      const lowerRemaining = remainingText.toLowerCase()
+      
+      for (const term of sortedTerms) {
+        const index = lowerRemaining.indexOf(term.toLowerCase())
+        if (index === 0) {
+          // Le terme est au début
+          segments.push({ type: 'term', content: remainingText.slice(0, term.length), key: `term-${keyCounter++}` })
+          remainingText = remainingText.slice(term.length)
+          foundTerm = true
+          break
+        } else if (index > 0) {
+          // Il y a du texte avant le terme
+          segments.push({ type: 'text', content: remainingText.slice(0, index), key: `text-${keyCounter++}` })
+          segments.push({ type: 'term', content: remainingText.slice(index, index + term.length), key: `term-${keyCounter++}` })
+          remainingText = remainingText.slice(index + term.length)
+          foundTerm = true
+          break
+        }
+      }
+      
+      if (!foundTerm) {
+        // Aucun terme trouvé, ajouter le reste comme texte
+        segments.push({ type: 'text', content: remainingText, key: `text-${keyCounter++}` })
+        remainingText = ''
+      }
+    }
+    
+    return (
+      <span className="inline">
+        {segments.map((segment) => {
+          if (segment.type === 'text') {
+            return <span key={segment.key}>{segment.content}</span>
+          }
+          
+          const termKey = segment.content.toLowerCase()
+          const termInfo = technicalTerms[termKey]
+          
+          if (!termInfo) {
+            return <span key={segment.key}>{segment.content}</span>
+          }
+          
+          return (
+            <span
+              key={segment.key}
+              className="relative inline-block"
+              onMouseEnter={() => setActiveTooltip(segment.key)}
+              onMouseLeave={() => setActiveTooltip(null)}
+              onClick={() => setActiveTooltip(activeTooltip === segment.key ? null : segment.key)}
+            >
+              <span className="cursor-help border-b-2 border-dashed border-aurora-400 text-aurora-300 hover:text-aurora-200 hover:border-aurora-300 transition-colors">
+                {segment.content}
+              </span>
+              
+              {/* Tooltip */}
+              <AnimatePresence>
+                {activeTooltip === segment.key && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                    className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-xl bg-midnight-800 border border-aurora-500/50 shadow-xl shadow-aurora-500/20"
+                  >
+                    {/* Flèche */}
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-midnight-800" />
+                    
+                    <div className="text-left">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{termInfo.emoji}</span>
+                        <span className="font-bold text-aurora-300 text-sm">{termInfo.fr}</span>
+                      </div>
+                      <p className="text-white/90 text-xs leading-relaxed">
+                        {termInfo.explanation}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </span>
+          )
+        })}
+      </span>
+    )
+  }
+  
+  // 📚 Génère une explication du prompt adaptée aux enfants de 8 ans (garde pour le mode liste)
+  const generatePromptExplanation = () => {
+    if (!currentKit) return null
+    
+    const explanations: string[] = []
+    
+    if (currentCreationType === 'image') {
+      // === EXPLICATION POUR LES IMAGES ===
+      if (currentKit.subject) {
+        explanations.push(`🎨 <strong>Ce que tu crées :</strong> ${currentKit.subject}`)
+      }
+      
+      if (currentKit.style) {
+        const styleExplanations: Record<string, string> = {
+          dessin: "✏️ <strong>Style dessin :</strong> L'IA va dessiner comme avec un crayon !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"hand-drawn illustration style\" (style illustration dessinée à la main)</span>",
+          photo: "📷 <strong>Style photo :</strong> Ça va ressembler à une vraie photo !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"photorealistic\" (photoréaliste = comme une vraie photo)</span>",
+          magique: "✨ <strong>Style magique :</strong> Avec de la brillance et de la magie partout !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"magical fantasy art, ethereal glow\" (art fantastique magique, lueur éthérée)</span>",
+          anime: "🌸 <strong>Style anime :</strong> Comme dans les dessins animés japonais !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"anime style, Studio Ghibli inspired\" (style anime, inspiré du Studio Ghibli)</span>",
+          aquarelle: "🎨 <strong>Style aquarelle :</strong> Comme une peinture à l'eau, tout doux !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"watercolor painting style\" (style peinture aquarelle)</span>",
+          pixel: "👾 <strong>Style pixel :</strong> Comme dans les jeux vidéo rétro avec des petits carrés !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"pixel art, retro game style\" (pixel art, style jeu vidéo rétro)</span>",
+        }
+        explanations.push(styleExplanations[currentKit.style] || '')
+      }
+      
+      if (currentKit.ambiance) {
+        const ambianceExplanations: Record<string, string> = {
+          jour: "☀️ <strong>Moment :</strong> C'est le jour, avec de la lumière !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"daytime, bright atmosphere\" (journée, atmosphère lumineuse)</span>",
+          nuit: "🌙 <strong>Moment :</strong> C'est la nuit, sous les étoiles !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"nighttime, starry sky\" (nuit, ciel étoilé)</span>",
+          orage: "⛈️ <strong>Météo :</strong> Il y a un orage avec des éclairs !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"stormy weather, dramatic clouds\" (temps orageux, nuages dramatiques)</span>",
+          brume: "🌫️ <strong>Ambiance :</strong> Il y a du brouillard mystérieux !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"misty, fog, mysterious atmosphere\" (brumeux, brouillard, atmosphère mystérieuse)</span>",
+          feerique: "🧚 <strong>Ambiance :</strong> C'est féérique et enchanté !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"fairy tale setting, enchanted\" (décor de conte de fées, enchanté)</span>",
+          mystere: "🔮 <strong>Ambiance :</strong> C'est mystérieux et intrigant !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"mysterious, shadowy, intriguing\" (mystérieux, ombragé, intrigant)</span>",
+        }
+        explanations.push(ambianceExplanations[currentKit.ambiance] || '')
+      }
+      
+      if (currentKit.light) {
+        const lightExplanations: Record<string, string> = {
+          soleil: "🌞 <strong>Lumière :</strong> Éclairé par le soleil doré !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"golden sunlight\" (lumière dorée du soleil)</span>",
+          lune: "🌕 <strong>Lumière :</strong> Baigné de lumière argentée de la lune !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"moonlit, silver glow\" (éclairé par la lune, lueur argentée)</span>",
+          bougie: "🕯️ <strong>Lumière :</strong> Éclairé par des bougies, tout chaleureux !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"candlelight, warm orange glow\" (lumière de bougie, lueur orange chaude)</span>",
+          neon: "💡 <strong>Lumière :</strong> Avec des néons colorés qui brillent !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"neon lights, cyberpunk\" (lumières néon, style cyberpunk)</span>",
+          aurore: "🌌 <strong>Lumière :</strong> Avec une aurore boréale magique !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"aurora borealis, northern lights\" (aurore boréale, lumières du nord)</span>",
+        }
+        explanations.push(lightExplanations[currentKit.light] || '')
+      }
+      
+      if (currentKit.format) {
+        const formatExplanations: Record<string, string> = {
+          portrait: "📐 <strong>Format :</strong> Image verticale (comme un portrait ou une page de livre)",
+          paysage: "🖼️ <strong>Format :</strong> Image horizontale (comme un écran de cinéma)",
+          carre: "⬜ <strong>Format :</strong> Image carrée (comme une photo Instagram)",
+        }
+        explanations.push(formatExplanations[currentKit.format] || '')
+      }
+    } else if (currentCreationType === 'video') {
+      // === EXPLICATION POUR LES VIDÉOS ===
+      if (currentKit.sourceImageUrl) {
+        explanations.push("🖼️ <strong>Image de départ :</strong> Tu as choisi une image qui va s'animer !")
+      }
+      
+      if (currentKit.action) {
+        explanations.push(`🎬 <strong>Ce qui va se passer :</strong> ${currentKit.action}`)
+      }
+      
+      if (currentKit.movement) {
+        const movementExplanations: Record<string, string> = {
+          lent: "🐢 <strong>Vitesse :</strong> Les mouvements seront lents et doux<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"slow gentle movement\" (mouvement lent et doux)</span>",
+          rapide: "⚡ <strong>Vitesse :</strong> Les mouvements seront rapides et dynamiques !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"fast dynamic movement\" (mouvement rapide et dynamique)</span>",
+          doux: "🌸 <strong>Vitesse :</strong> Les mouvements seront fluides et délicats<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"soft smooth movement\" (mouvement doux et fluide)</span>",
+          dynamique: "🎯 <strong>Vitesse :</strong> Plein d'énergie et de mouvement !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"energetic movement\" (mouvement énergique)</span>",
+          immobile: "🖼️ <strong>Vitesse :</strong> Presque immobile, juste un petit souffle de vie<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"subtle breathing motion\" (mouvement subtil comme une respiration)</span>",
+        }
+        explanations.push(movementExplanations[currentKit.movement] || '')
+      }
+      
+      if (currentKit.camera) {
+        const cameraExplanations: Record<string, string> = {
+          fixe: "📹 <strong>Caméra :</strong> La caméra ne bouge pas, elle reste fixe<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"static camera\" (caméra statique = qui ne bouge pas)</span>",
+          zoom_in: "🔍 <strong>Caméra :</strong> La caméra va zoomer (se rapprocher doucement)<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"slow zoom in\" (zoom lent vers l'avant)</span>",
+          zoom_out: "🔭 <strong>Caméra :</strong> La caméra va dézoomer (s'éloigner doucement)<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"slow zoom out\" (zoom lent vers l'arrière)</span>",
+          pan_gauche: "👈 <strong>Caméra :</strong> La caméra va glisser vers la gauche<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"pan left\" (panoramique vers la gauche)</span>",
+          pan_droite: "👉 <strong>Caméra :</strong> La caméra va glisser vers la droite<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"pan right\" (panoramique vers la droite)</span>",
+          travelling: "🎥 <strong>Caméra :</strong> La caméra va suivre l'action comme dans les films !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"tracking shot\" (plan de suivi = la caméra suit le personnage ou l'objet)</span>",
+        }
+        explanations.push(cameraExplanations[currentKit.camera] || '')
+      }
+      
+      if (currentKit.effects) {
+        const effectsExplanations: Record<string, string> = {
+          sparkles: "✨ <strong>Effet spécial :</strong> Des étincelles magiques vont apparaître !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"magical sparkles and particles\" (étincelles magiques et particules)</span>",
+          glow: "🌈 <strong>Effet spécial :</strong> Un halo lumineux va entourer l'image !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"soft glowing halo effect\" (effet de halo brillant doux)</span>",
+          smoke: "💨 <strong>Effet spécial :</strong> De la fumée mystérieuse va flotter !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"gentle smoke and mist\" (fumée douce et brume)</span>",
+          stars: "⭐ <strong>Effet spécial :</strong> Des étoiles vont briller et scintiller !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"twinkling stars\" (étoiles scintillantes)</span>",
+          fire: "🔥 <strong>Effet spécial :</strong> Des flammes et des braises chaudes !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"warm flames and embers\" (flammes chaudes et braises)</span>",
+          snow: "❄️ <strong>Effet spécial :</strong> Des flocons de neige vont tomber doucement !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"falling snowflakes\" (flocons de neige qui tombent)</span>",
+          magic: "🪄 <strong>Effet spécial :</strong> De la poussière de fée magique !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"magical fairy dust particles\" (particules de poussière de fée magique)</span>",
+        }
+        explanations.push(effectsExplanations[currentKit.effects] || '')
+      }
+    }
+    
+    return explanations.filter(e => e).join('\n')
+  }
   
   // 🎨 Génération directe via fal.ai (niveaux 1-2)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -281,9 +826,12 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     setHasReadPrompt(false)
   }, [currentKit?.generatedPrompt])
   
-  // Fonction de génération via fal.ai
+  // NOTE: Le useEffect pour valider 'review_prompt' est défini plus bas, après la variable 'complete'
+  
+  // Fonction de génération via fal.ai (utilise 'complete' défini plus bas)
   const handleDirectGenerate = async () => {
-    if (!currentKit || !complete || isGenerating) return
+    // 'complete' sera vérifié via le bouton disabled
+    if (!currentKit || isGenerating) return
     
     setIsGenerating(true)
     setGenerationError(null)
@@ -339,6 +887,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       setGeneratedAsset({ url: assetUrl, type: isVideo ? 'video' : 'image' })
       
       // Ajouter automatiquement à la galerie (lié au projet actuel)
+      // ⚠️ L'URL est temporaire ! L'utilisateur doit cliquer "Garder" pour l'upload permanent
       const assetName = isVideo 
         ? (currentKit.action?.substring(0, 30) || 'Vidéo') + '...'
         : (currentKit.subject?.substring(0, 30) || 'Image') + '...'
@@ -423,6 +972,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     }
     return missingItems
   }, [isAdvancedLevel, isExpertLevel, baseCompleteness.missing, advancedDetection, isImageCreation, currentKit?.format])
+  
+  // Valider l'étape "Voir mon prompt" quand le prompt est affiché automatiquement (kit complet)
+  useEffect(() => {
+    if (complete && currentKit?.generatedPrompt && !completedSteps.includes('review_prompt')) {
+      completeStep('review_prompt')
+    }
+  }, [complete, currentKit?.generatedPrompt, completedSteps, completeStep])
   
   // Refs pour tracker les changements
   const prevSubjectRef = useRef('')
@@ -657,15 +1213,6 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     }
   }
 
-  // Helper pour nettoyer le HTML et extraire le texte brut
-  const stripHtml = (html: string) => {
-    const doc = new DOMParser().parseFromString(html, 'text/html')
-    return doc.body.textContent || ''
-  }
-
-  // On ne pré-remplit plus automatiquement - on garde juste le placeholder
-  // L'utilisateur peut cliquer sur la suggestion si il le souhaite
-
   // Détection automatique par mots-clés pour niveaux 3+
   useEffect(() => {
     if (!currentKit || !isAdvancedLevel) return
@@ -867,31 +1414,6 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               Super ! Ton idée est validée ! 🌟
             </motion.div>
           )}
-        
-        {/* Suggestions depuis l'histoire */}
-        {(currentStory?.pages?.length ?? 0) > 0 && !currentKit.subject && (() => {
-          const lastPage = currentStory?.pages[currentStory.pages.length - 1]
-          const rawContent = lastPage?.content ? stripHtml(lastPage.content).trim() : ''
-          if (!rawContent) return null
-          const suggestion = rawContent.slice(0, 80) + (rawContent.length > 80 ? '...' : '')
-          
-          return (
-            <motion.button
-              onClick={() => updateKit({ subject: rawContent.slice(0, 150) })}
-              className="mt-3 p-3 rounded-xl bg-aurora-500/10 border border-aurora-500/20 hover:bg-aurora-500/20 transition-all w-full text-left"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-            >
-              <p className="text-sm text-aurora-300 flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4" />
-                Suggestion de ton histoire :
-              </p>
-              <p className="text-sm text-midnight-300 italic">"{suggestion}"</p>
-            </motion.button>
-          )
-        })()}
       </motion.section>
       )}
 
@@ -1484,7 +2006,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               </div>
               
               <button
-                onClick={() => setShowPreview(!showPreview)}
+                onClick={() => {
+                  setShowPreview(!showPreview)
+                  // Valider l'étape "Voir mon prompt" quand on ouvre le prompt
+                  if (!showPreview && !completedSteps.includes('review_prompt')) {
+                    completeStep('review_prompt')
+                  }
+                }}
                 className="text-sm text-aurora-300 hover:text-aurora-200"
               >
                 {showPreview ? 'Cacher' : 'Voir le prompt'}
@@ -1511,9 +2039,20 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                       <span className="text-xs text-aurora-300/70 ml-auto">C'est ce que l'IA va lire !</span>
                     </div>
                     
-                    <p className="font-mono text-xl leading-relaxed text-white bg-gradient-to-br from-midnight-800/80 to-midnight-900/80 p-5 rounded-xl mb-4 whitespace-pre-wrap border border-aurora-500/30 shadow-lg shadow-aurora-500/10">
-                      {currentKit.generatedPrompt || 'Le prompt apparaîtra ici...'}
-                    </p>
+                    {/* 📚 Prompt avec tooltips interactifs sur les termes techniques */}
+                    <div className="relative">
+                      <div className="font-mono text-xl leading-relaxed text-white bg-gradient-to-br from-midnight-800/80 to-midnight-900/80 p-5 rounded-xl mb-2 whitespace-pre-wrap border border-aurora-500/30 shadow-lg shadow-aurora-500/10">
+                        {currentKit.generatedPrompt 
+                          ? renderPromptWithTooltips(currentKit.generatedPrompt)
+                          : 'Le prompt apparaîtra ici...'}
+                      </div>
+                      
+                      {/* Légende des mots soulignés */}
+                      <p className="text-xs text-aurora-400/70 mb-4 flex items-center gap-2">
+                        <Lightbulb className="w-3 h-3" />
+                        <span>💡 Les mots <span className="border-b border-dashed border-aurora-400">soulignés</span> sont des termes techniques — survole-les ou clique pour comprendre !</span>
+                      </p>
+                    </div>
                     
                     {/* Case à cocher de validation */}
                     <label className="flex items-center gap-3 cursor-pointer group">

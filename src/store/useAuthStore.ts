@@ -324,9 +324,9 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'lavoixdusoir-auth',
-      partialize: (state) => ({
-        // Ne persister que certaines données
-        profile: state.profile,
+      partialize: () => ({
+        // NE RIEN PERSISTER - le profil doit TOUJOURS venir de Supabase
+        // Cela évite les problèmes de cache avec des noms incorrects
       }),
     }
   )

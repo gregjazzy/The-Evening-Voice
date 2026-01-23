@@ -278,11 +278,30 @@ export const useStudioStore = create<StudioState>()(
         set((state) => {
           if (!state.currentKit) return state
           const updatedKit = { ...state.currentKit, ...updates }
-          // Régénérer le prompt
-          updatedKit.generatedPrompt = get().generatePrompt()
-          // Vérifier la complétude
-          const { complete } = get().checkKitCompleteness()
-          updatedKit.isComplete = complete
+          
+          // Régénérer le prompt avec le kit MIS À JOUR (pas l'ancien via get())
+          if (updatedKit.creationType === 'image') {
+            updatedKit.generatedPrompt = promptTemplates.midjourney(updatedKit)
+          } else if (updatedKit.creationType === 'voice') {
+            updatedKit.generatedPrompt = promptTemplates.elevenlabs(updatedKit)
+          } else {
+            updatedKit.generatedPrompt = promptTemplates.runway(updatedKit)
+          }
+          
+          // Vérifier la complétude avec le kit mis à jour
+          const missing: string[] = []
+          if (updatedKit.creationType === 'image') {
+            if (!updatedKit.subject || updatedKit.subject.length < 15) missing.push('description')
+            if (!updatedKit.style) missing.push('style')
+            if (!updatedKit.ambiance) missing.push('ambiance')
+            if (!updatedKit.light) missing.push('lumière')
+          } else if (updatedKit.creationType === 'video') {
+            if (!updatedKit.sourceImageUrl) missing.push('image source')
+            if (!updatedKit.action || updatedKit.action.length < 10) missing.push('action')
+            if (!updatedKit.movement) missing.push('mouvement')
+          }
+          updatedKit.isComplete = missing.length === 0
+          
           return { currentKit: updatedKit }
         })
       },

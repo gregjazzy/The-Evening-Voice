@@ -74,7 +74,17 @@ const DEFAULT_LIMITS: Record<MediaType, number> = {
  * Génère un nom de fichier unique
  */
 function generateFileName(originalName: string, type: MediaType): string {
-  const ext = originalName.split('.').pop()?.toLowerCase() || getDefaultExtension(type)
+  // Extraire l'extension seulement si le nom contient un point
+  // et que l'extension est valide (pas le nom entier)
+  const parts = originalName.split('.')
+  const potentialExt = parts.length > 1 ? parts.pop()?.toLowerCase() : null
+  
+  // Vérifier que c'est une vraie extension (courte et alphanumérique)
+  const validExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'mp4', 'webm', 'mov', 'mp3', 'wav', 'ogg']
+  const ext = (potentialExt && validExtensions.includes(potentialExt)) 
+    ? potentialExt 
+    : getDefaultExtension(type)
+  
   const timestamp = Date.now()
   const random = Math.random().toString(36).substring(2, 8)
   return `${timestamp}-${random}.${ext}`

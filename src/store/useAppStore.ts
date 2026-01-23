@@ -117,11 +117,15 @@ export interface StoryCustomChapter {
   color: string
 }
 
+// Format de livre pour l'impression
+export type BookFormat = 'square-21' | 'square-18' | 'portrait-a5' | 'portrait-a4' | 'landscape-a5'
+
 // Nouveau type pour les histoires structurées
 export interface Story {
   id: string
   title: string
   structure: StoryStructure
+  bookFormat: BookFormat // Format du livre choisi à la création
   currentStep: number
   pages: StoryPage[]
   chapters?: StoryCustomChapter[] // Chapitres personnalisés
@@ -177,16 +181,43 @@ export interface PageDecoration {
   flipY?: boolean
 }
 
+// Zone de texte flottante sur une page
+export interface PageTextBox {
+  id: string
+  content: string
+  position: { x: number; y: number; width: number; height: number }
+  style: {
+    fontFamily: string
+    fontSize: number
+    color: string
+    backgroundColor?: string
+    backgroundOpacity?: number
+    textAlign: 'left' | 'center' | 'right'
+    isBold?: boolean
+    isItalic?: boolean
+    lineSpacing?: 'tight' | 'normal' | 'relaxed'
+  }
+  zIndex: number
+  rotation?: number
+}
+
+// Type de page (couverture, contenu, 4ème de couverture)
+export type PageType = 'front-cover' | 'content' | 'back-cover'
+
 export interface StoryPage {
   id: string
   stepIndex: number
   content: string
+  // Type de page (par défaut: 'content' pour rétrocompatibilité)
+  pageType?: PageType
   // Nouveau format multi-médias (images et vidéos)
   images?: PageMedia[]
   // Fond de page (image ou vidéo avec opacité)
   backgroundMedia?: BackgroundMedia
   // Décorations premium (stickers luxueux)
   decorations?: PageDecoration[]
+  // Zones de texte flottantes
+  textBoxes?: PageTextBox[]
   // Legacy fields (rétrocompatibilité)
   image?: string
   imagePosition?: {
@@ -236,10 +267,11 @@ interface AppState {
   // Histoires structurées (nouveau)
   stories: Story[]
   currentStory: Story | null
-  createStory: (title: string, structure: StoryStructure) => Story
+  createStory: (title: string, structure: StoryStructure, bookFormat?: BookFormat) => Story
   updateStoryPage: (storyId: string, pageIndex: number, content: string, image?: string) => void
   updateStoryPages: (storyId: string, pages: StoryPage[]) => void
   setCurrentStory: (story: Story | null) => void
+  updateStoryFormat: (storyId: string, bookFormat: BookFormat) => void
   deleteStory: (storyId: string) => void
   goToNextStep: (storyId: string) => void
   goToPrevStep: (storyId: string) => void
@@ -371,29 +403,56 @@ export const useAppStore = create<AppState>()(
       // Histoires structurées
       stories: [],
       currentStory: null,
-      createStory: (title, structure) => {
+      createStory: (title, structure, bookFormat = 'square-21') => {
         const template = STORY_TEMPLATES[structure]
-        const pages: StoryPage[] = template.steps.map((step, index) => ({
+        
+        // Pages de contenu (selon le template)
+        const contentPages: StoryPage[] = template.steps.map((step, index) => ({
           id: generateId(),
           stepIndex: index,
           content: '',
-          order: index,
+          pageType: 'content' as const,
+          order: index + 1, // +1 car la couverture est à l'index 0
         }))
         
         // Pour le mode libre, créer une page vide
         if (structure === 'free') {
-          pages.push({
+          contentPages.push({
             id: generateId(),
             stepIndex: 0,
             content: '',
-            order: 0,
+            pageType: 'content' as const,
+            order: 1,
           })
         }
+        
+        // Assembler : couverture + contenu + 4ème de couverture
+        const pages: StoryPage[] = [
+          // Page de couverture (première)
+          {
+            id: generateId(),
+            stepIndex: -1, // Index spécial pour la couverture
+            content: '', // Le titre sera géré séparément
+            pageType: 'front-cover' as const,
+            order: 0,
+          },
+          // Pages de contenu
+          ...contentPages,
+          // 4ème de couverture
+          {
+            id: generateId(),
+            stepIndex: -2, // Index spécial pour la 4ème
+            content: '', // Le résumé sera ici
+            pageType: 'back-cover' as const,
+            order: contentPages.length + 1,
+          },
+        ]
         
         const newStory: Story = {
           id: generateId(),
           title,
           structure,
+          bookFormat,
           currentStep: 0,
           pages,
           createdAt: new Date(),
@@ -439,6 +498,23 @@ export const useAppStore = create<AppState>()(
         })
       },
       setCurrentStory: (story) => set({ currentStory: story }),
+      updateStoryFormat: (storyId, bookFormat) => {
+        set((state) => {
+          const story = state.stories.find(s => s.id === storyId)
+          if (!story) return state
+          
+          const updatedStory = {
+            ...story,
+            bookFormat,
+            updatedAt: new Date(),
+          }
+          
+          return {
+            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
+            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
+          }
+        })
+      },
       deleteStory: (storyId) => {
         // Supprimer localement
         set((state) => ({

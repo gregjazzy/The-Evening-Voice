@@ -28,6 +28,7 @@ import {
   DollarSign,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
+import { useStudioStore } from '@/store/useStudioStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   usePublishStore,
@@ -232,6 +233,13 @@ function ChooseFormatStep() {
         <p className="text-midnight-300">
           Chaque format a ses avantages - le carré est parfait pour les livres d'enfants !
         </p>
+        {/* Indicateur si le format a été défini lors de la création */}
+        {selectedStory?.bookFormat && (
+          <p className="text-sm text-aurora-400 mt-2 flex items-center justify-center gap-2">
+            <Check className="w-4 h-4" />
+            Format choisi lors de la création : {BOOK_FORMATS.find(f => f.id === selectedStory.bookFormat)?.nameFr}
+          </p>
+        )}
       </div>
       
       {/* Formats de livre */}
@@ -368,17 +376,45 @@ function ChooseFormatStep() {
 
 function DesignCoverStep() {
   const { cover, updateCover, setCurrentStep, selectedStory } = usePublishStore()
-  const { generatedAssets } = useAppStore()
+  const { importedAssets } = useStudioStore()
   const [showImagePicker, setShowImagePicker] = useState(false)
   const [imagePickerTarget, setImagePickerTarget] = useState<'front' | 'back'>('front')
   
-  // Récupérer toutes les images disponibles (générées + images des pages de l'histoire)
+  // Récupérer les pages de couverture de l'histoire si elles existent
+  const frontCoverPage = selectedStory?.pages?.find(p => p.pageType === 'front-cover')
+  const backCoverPage = selectedStory?.pages?.find(p => p.pageType === 'back-cover')
+  
+  // Utiliser les données des pages de couverture si disponibles
+  const frontCoverImage = frontCoverPage?.backgroundMedia?.url || 
+    frontCoverPage?.images?.[0]?.url || 
+    cover.frontImage
+  const backCoverImage = backCoverPage?.backgroundMedia?.url || 
+    backCoverPage?.images?.[0]?.url || 
+    cover.backImage
+  const backCoverText = backCoverPage?.content || cover.backText
+  
+  // Récupérer toutes les images disponibles (Studio + pages de l'histoire)
   const availableImages = [
-    ...generatedAssets.images.map(img => ({ url: img.url, source: 'Studio' as const })),
+    // Images importées depuis le Studio (la vraie source !)
+    ...importedAssets
+      .filter(asset => asset.type === 'image')
+      .map(asset => ({ url: asset.url, source: 'Studio' as const })),
+    // Images sur les pages (nouveau format multi-images)
     ...(selectedStory?.pages || [])
       .flatMap(page => page.images || [])
       .map(img => ({ url: img.url, source: 'Histoire' as const })),
-  ]
+    // Images legacy (ancien format)
+    ...(selectedStory?.pages || [])
+      .filter(page => page.image)
+      .map(page => ({ url: page.image!, source: 'Histoire' as const })),
+    // Fonds de page (backgroundMedia)
+    ...(selectedStory?.pages || [])
+      .filter(page => page.backgroundMedia?.url && page.backgroundMedia.type === 'image')
+      .map(page => ({ url: page.backgroundMedia!.url, source: 'Histoire' as const })),
+  ].filter((img, index, self) => 
+    // Dédupliquer par URL
+    self.findIndex(i => i.url === img.url) === index
+  )
   
   const handleSelectImage = (url: string) => {
     if (imagePickerTarget === 'front') {
@@ -411,6 +447,14 @@ function DesignCoverStep() {
         <p className="text-midnight-300">
           C'est la première chose qu'on voit - rends-la magique !
         </p>
+        {/* Indication si les couvertures existent dans l'histoire */}
+        {(selectedStory?.pages?.some(p => p.pageType === 'front-cover') || 
+          selectedStory?.pages?.some(p => p.pageType === 'back-cover')) && (
+          <p className="text-sm text-aurora-400 mt-2 flex items-center justify-center gap-2">
+            <span>✨</span>
+            Tes couvertures sont créées dans le mode <strong>Écriture</strong> (boutons 📕 et 📖)
+          </p>
+        )}
       </div>
       
       <div className="grid gap-8 lg:grid-cols-2">
@@ -551,10 +595,10 @@ function DesignCoverStep() {
               className="w-40 h-56 rounded-lg shadow-2xl flex flex-col items-center justify-center p-4 text-center relative overflow-hidden"
               style={{ backgroundColor: cover.frontBackgroundColor }}
             >
-              {/* Image de couverture */}
-              {cover.frontImage && (
+              {/* Image de couverture (depuis la page couverture ou le formulaire) */}
+              {frontCoverImage && (
                 <img 
-                  src={cover.frontImage} 
+                  src={frontCoverImage} 
                   alt="Couverture"
                   className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -562,7 +606,7 @@ function DesignCoverStep() {
               {/* Overlay gradient */}
               <div className={cn(
                 "absolute inset-0",
-                cover.frontImage 
+                frontCoverImage 
                   ? "bg-gradient-to-t from-black/70 via-black/20 to-black/30" 
                   : "bg-gradient-to-b from-white/5 to-transparent"
               )} />
@@ -593,17 +637,17 @@ function DesignCoverStep() {
               className="w-40 h-56 rounded-lg shadow-2xl flex flex-col p-4 relative overflow-hidden"
               style={{ backgroundColor: cover.backBackgroundColor }}
             >
-              {/* Image de fond optionnelle */}
-              {cover.backImage && (
+              {/* Image de fond (depuis la page 4ème couverture ou le formulaire) */}
+              {backCoverImage && (
                 <img 
-                  src={cover.backImage} 
+                  src={backCoverImage} 
                   alt="Dos"
                   className="absolute inset-0 w-full h-full object-cover opacity-30"
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent" />
               <p className="text-white/80 text-xs leading-relaxed relative z-10 flex-1">
-                {cover.backText || 'Résumé de l\'histoire...'}
+                {backCoverText || 'Résumé de l\'histoire...'}
               </p>
             </div>
           </div>

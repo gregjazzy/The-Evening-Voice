@@ -53,7 +53,7 @@ import {
   Edit3,
   Settings,
 } from 'lucide-react'
-import { useAppStore, type Story } from '@/store/useAppStore'
+import { useAppStore, type Story, type BookFormat } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
 import { useTTS } from '@/hooks/useTTS'
 import { STORY_TEMPLATES, type StoryStructure } from '@/lib/ai/prompting-pedagogy'
@@ -62,6 +62,7 @@ import { MediaPicker } from '@/components/editor/MediaPicker'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { VoiceSelector } from '@/components/ui/VoiceSelector'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
+import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 
 // ============================================================================
 // TYPES
@@ -135,6 +136,7 @@ interface PageMedia {
   style: ImageStyle
   frame: FrameStyle
   zIndex: number  // Ordre de superposition (plus haut = devant)
+  opacity?: number  // Opacité de 0.1 à 1 (défaut: 1)
 }
 
 // Couleurs de page disponibles
@@ -193,6 +195,26 @@ interface PageDecoration {
   glowEnabled?: boolean
   glowColor?: string   // Couleur de la luminosité
   glowIntensity?: number  // Intensité de 0 à 100
+}
+
+// Interface pour une zone de texte flottante
+interface PageTextBox {
+  id: string
+  content: string
+  position: { x: number; y: number; width: number; height: number }
+  style: {
+    fontFamily: string
+    fontSize: number
+    color: string
+    backgroundColor?: string
+    backgroundOpacity?: number
+    textAlign: 'left' | 'center' | 'right'
+    isBold?: boolean
+    isItalic?: boolean
+    lineSpacing?: 'tight' | 'normal' | 'relaxed'
+  }
+  zIndex: number
+  rotation?: number
 }
 
 // Collection de décorations premium
@@ -693,12 +715,16 @@ interface StoryPageLocal {
   id: string
   title: string
   content: string
+  // Type de page (couverture, contenu, 4ème)
+  pageType?: 'front-cover' | 'content' | 'back-cover'
   // Support multi-médias (images et vidéos)
   images?: PageMedia[]
   // Fond de page (image ou vidéo avec opacité)
   backgroundMedia?: BackgroundMedia
   // Décorations premium (stickers luxueux)
   decorations?: PageDecoration[]
+  // Zones de texte flottantes
+  textBoxes?: PageTextBox[]
   // Legacy: anciens champs pour rétrocompatibilité
   image?: string
   imagePosition?: ImagePosition
@@ -917,9 +943,14 @@ function useSpeechRecognition(locale: string = 'fr'): UseSpeechRecognitionReturn
 }
 
 const LINE_SPACINGS = {
-  tight: { label: 'Serré', value: '1.4' },
-  normal: { label: 'Normal', value: '1.7' },
-  relaxed: { label: 'Aéré', value: '2.2' },
+  tight: { label: 'Serré', value: '1.4', pixelHeight: 24 },
+  normal: { label: 'Normal', value: '1.7', pixelHeight: 32 },
+  relaxed: { label: 'Aéré', value: '2.2', pixelHeight: 40 },
+}
+
+// Fonction helper pour calculer la hauteur de ligne en pixels
+const getLineHeightPx = (lineSpacing: 'tight' | 'normal' | 'relaxed') => {
+  return LINE_SPACINGS[lineSpacing]?.pixelHeight || 32
 }
 
 // ============================================================================
@@ -934,9 +965,11 @@ interface DraggableMediaProps {
   imageStyle: ImageStyle
   frameStyle: FrameStyle
   zIndex: number
+  opacity?: number  // Opacité de 0.1 à 1 (défaut: 1)
   onPositionChange: (position: ImagePosition) => void
   onStyleChange: (style: ImageStyle) => void
   onFrameChange: (frame: FrameStyle) => void
+  onOpacityChange?: (opacity: number) => void
   onDelete: () => void
   onBringForward?: () => void
   onSendBackward?: () => void
@@ -952,7 +985,7 @@ const DEFAULT_IMAGE_POSITION: ImagePosition = {
   rotation: 0, // Pas de rotation par défaut
 }
 
-function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, onPositionChange, onStyleChange, onFrameChange, onDelete, onBringForward, onSendBackward, containerRef, totalMedia = 1 }: DraggableMediaProps) {
+function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, opacity = 1, onPositionChange, onStyleChange, onFrameChange, onOpacityChange, onDelete, onBringForward, onSendBackward, containerRef, totalMedia = 1 }: DraggableMediaProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [isRotating, setIsRotating] = useState(false)
@@ -961,6 +994,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
   const [showFrameMenu, setShowFrameMenu] = useState(false)
   const [showStyleMenu, setShowStyleMenu] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)  // Pour les vidéos
+  const [localOpacity, setLocalOpacity] = useState(opacity)
   const mediaRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const startPosRef = useRef({ x: 0, y: 0, posX: 0, posY: 0, width: 0, height: 0 })
@@ -1221,6 +1255,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
             )}
             style={{
               clipPath: getClipPath(),
+              opacity: localOpacity,
               maskImage: imageStyle === 'cloud' 
                 ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
                 : undefined,
@@ -1243,6 +1278,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
             )}
             style={{
               clipPath: getClipPath(),
+              opacity: localOpacity,
               maskImage: imageStyle === 'cloud' 
                 ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
                 : undefined,
@@ -1538,80 +1574,114 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
 
       {/* Menu de sélection de style (filtres) - taille fixe */}
       {showStyleMenu && (
-        <div 
-          className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[240px]"
-          style={{
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-2">
-            🎨 Filtres
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {IMAGE_STYLES.map((style) => (
-              <button
-                key={style.id}
-                onClick={() => {
-                  onStyleChange(style.id)
-                  setShowStyleMenu(false)
+        <>
+          {/* Overlay pour fermer au clic extérieur */}
+          <div 
+            className="fixed inset-0 z-40"
+            onClick={() => setShowStyleMenu(false)}
+          />
+          <div 
+            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[260px]"
+            style={{
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-2">
+              🎨 Filtres
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {IMAGE_STYLES.map((style) => (
+                <button
+                  key={style.id}
+                  onClick={() => {
+                    onStyleChange(style.id)
+                    setShowStyleMenu(false)
+                  }}
+                  className={cn(
+                    "flex flex-col items-center p-2 rounded-lg transition-all",
+                    imageStyle === style.id
+                      ? "bg-aurora-100 text-aurora-700 ring-2 ring-aurora-400"
+                      : "hover:bg-gray-100 text-gray-600"
+                  )}
+                  title={style.name}
+                >
+                  <span className="text-xl">{style.emoji}</span>
+                  <span className="text-xs mt-1 whitespace-nowrap">{style.name}</span>
+                </button>
+              ))}
+            </div>
+            
+            {/* Slider d'opacité */}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-600">👁️ Opacité</span>
+                <span className="text-sm text-gray-500">{Math.round(localOpacity * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                value={localOpacity * 100}
+                onChange={(e) => {
+                  const newOpacity = parseInt(e.target.value) / 100
+                  setLocalOpacity(newOpacity)
+                  onOpacityChange?.(newOpacity)
                 }}
-                className={cn(
-                  "flex flex-col items-center p-2 rounded-lg transition-all",
-                  imageStyle === style.id
-                    ? "bg-aurora-100 text-aurora-700 ring-2 ring-aurora-400"
-                    : "hover:bg-gray-100 text-gray-600"
-                )}
-                title={style.name}
-              >
-                <span className="text-xl">{style.emoji}</span>
-                <span className="text-xs mt-1 whitespace-nowrap">{style.name}</span>
-              </button>
-            ))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-aurora-500"
+              />
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Menu de sélection de cadre - taille fixe */}
       {showFrameMenu && (
-        <div 
-          className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[280px]"
-          style={{
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-2">
-            🖼️ Cadres
+        <>
+          {/* Overlay pour fermer au clic extérieur */}
+          <div 
+            className="fixed inset-0 z-40"
+            onClick={() => setShowFrameMenu(false)}
+          />
+          <div 
+            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[280px]"
+            style={{
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-2">
+              🖼️ Cadres
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {FRAME_STYLES.map((frame) => (
+                <button
+                  key={frame.id}
+                  onClick={() => {
+                    onFrameChange(frame.id)
+                    setShowFrameMenu(false)
+                  }}
+                  className={cn(
+                    "flex flex-col items-center p-2 rounded-lg transition-all",
+                    frameStyle === frame.id
+                      ? "bg-amber-100 text-amber-700 ring-2 ring-amber-400"
+                      : "hover:bg-gray-100 text-gray-600"
+                  )}
+                  title={frame.name}
+                >
+                  <span className="text-xl">{frame.emoji}</span>
+                  <span className="text-xs mt-1 whitespace-nowrap">{frame.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-4 gap-2">
-            {FRAME_STYLES.map((frame) => (
-              <button
-                key={frame.id}
-                onClick={() => {
-                  onFrameChange(frame.id)
-                  setShowFrameMenu(false)
-                }}
-                className={cn(
-                  "flex flex-col items-center p-2 rounded-lg transition-all",
-                  frameStyle === frame.id
-                    ? "bg-amber-100 text-amber-700 ring-2 ring-amber-400"
-                    : "hover:bg-gray-100 text-gray-600"
-                )}
-                title={frame.name}
-              >
-                <span className="text-xl">{frame.emoji}</span>
-                <span className="text-xs mt-1 whitespace-nowrap">{frame.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        </>
       )}
 
       {/* Poignées de redimensionnement */}
@@ -1651,6 +1721,420 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
             className="absolute -bottom-1 left-1/2 w-6 h-2 -translate-x-1/2 bg-white border-2 border-aurora-500 rounded-full cursor-s-resize z-20"
             onMouseDown={(e) => handleResizeStart(e, 's')}
           />
+        </>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// COMPOSANT : Zone de texte flottante (draggable)
+// ============================================================================
+
+interface DraggableTextBoxProps {
+  textBox: PageTextBox
+  onPositionChange: (id: string, position: { x: number; y: number; width: number; height: number }) => void
+  onContentChange: (id: string, content: string) => void
+  onStyleChange: (id: string, style: PageTextBox['style']) => void
+  onDelete: (id: string) => void
+  containerRef: React.RefObject<HTMLDivElement>
+}
+
+function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleChange, onDelete, containerRef }: DraggableTextBoxProps) {
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [showControls, setShowControls] = useState(false)
+  const [showStyleMenu, setShowStyleMenu] = useState(false)
+  const [resizeCorner, setResizeCorner] = useState<string | null>(null)
+  const textBoxRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
+  const startPosRef = useRef({ x: 0, y: 0, posX: 0, posY: 0, width: 0, height: 0 })
+
+  // Gérer le début du drag
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isResizing || isEditing || showStyleMenu) return
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+    
+    const container = containerRef.current
+    if (!container) return
+    
+    startPosRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: textBox.position.x,
+      posY: textBox.position.y,
+      width: textBox.position.width,
+      height: textBox.position.height,
+    }
+  }
+
+  // Gérer le début du redimensionnement
+  const handleResizeStart = (e: React.MouseEvent, corner: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+    setResizeCorner(corner)
+    
+    const container = containerRef.current
+    if (!container) return
+    
+    startPosRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: textBox.position.x,
+      posY: textBox.position.y,
+      width: textBox.position.width,
+      height: textBox.position.height,
+    }
+  }
+
+  // Gérer le mouvement de la souris
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const container = containerRef.current
+      if (!container) return
+      const rect = container.getBoundingClientRect()
+
+      if (isDragging) {
+        const deltaX = ((e.clientX - startPosRef.current.x) / rect.width) * 100
+        const deltaY = ((e.clientY - startPosRef.current.y) / rect.height) * 100
+        
+        const newX = Math.max(0, Math.min(100 - textBox.position.width, startPosRef.current.posX + deltaX))
+        const newY = Math.max(0, Math.min(100 - textBox.position.height, startPosRef.current.posY + deltaY))
+        
+        onPositionChange(textBox.id, { ...textBox.position, x: newX, y: newY })
+      }
+
+      if (isResizing && resizeCorner) {
+        const deltaX = ((e.clientX - startPosRef.current.x) / rect.width) * 100
+        const deltaY = ((e.clientY - startPosRef.current.y) / rect.height) * 100
+        
+        let newWidth = startPosRef.current.width
+        let newHeight = startPosRef.current.height
+        let newX = startPosRef.current.posX
+        let newY = startPosRef.current.posY
+        
+        if (resizeCorner.includes('e')) newWidth = Math.max(10, startPosRef.current.width + deltaX)
+        if (resizeCorner.includes('w')) {
+          newWidth = Math.max(10, startPosRef.current.width - deltaX)
+          newX = startPosRef.current.posX + deltaX
+        }
+        if (resizeCorner.includes('s')) newHeight = Math.max(5, startPosRef.current.height + deltaY)
+        if (resizeCorner.includes('n')) {
+          newHeight = Math.max(5, startPosRef.current.height - deltaY)
+          newY = startPosRef.current.posY + deltaY
+        }
+        
+        onPositionChange(textBox.id, { x: newX, y: newY, width: newWidth, height: newHeight })
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      setIsResizing(false)
+      setResizeCorner(null)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, isResizing, resizeCorner, textBox, onPositionChange, containerRef])
+
+  // Double-clic pour éditer
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditing(true)
+    setTimeout(() => editorRef.current?.focus(), 0)
+  }
+
+  // Sauvegarder le contenu quand on quitte l'édition
+  const handleBlur = () => {
+    if (editorRef.current) {
+      onContentChange(textBox.id, editorRef.current.innerHTML)
+    }
+    setIsEditing(false)
+  }
+
+  const lineHeightPx = getLineHeightPx(textBox.style.lineSpacing || 'normal')
+
+  return (
+    <div
+      ref={textBoxRef}
+      className="absolute"
+      style={{
+        left: `${textBox.position.x}%`,
+        top: `${textBox.position.y}%`,
+        width: `${textBox.position.width}%`,
+        height: `${textBox.position.height}%`,
+        cursor: isEditing ? 'text' : (isDragging ? 'grabbing' : 'grab'),
+        zIndex: textBox.zIndex + 10,
+        transform: textBox.rotation ? `rotate(${textBox.rotation}deg)` : undefined,
+      }}
+      onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => {
+        if (!isDragging && !isResizing && !isEditing && !showStyleMenu) {
+          setShowControls(false)
+        }
+      }}
+    >
+      {/* Zone de texte */}
+      <div 
+        className={cn(
+          "w-full h-full rounded-lg overflow-hidden transition-shadow",
+          showControls && !isEditing && "ring-2 ring-dream-400/50",
+          isEditing && "ring-2 ring-aurora-500"
+        )}
+        style={{
+          backgroundColor: textBox.style.backgroundColor 
+            ? `rgba(${parseInt(textBox.style.backgroundColor.slice(1, 3), 16)}, ${parseInt(textBox.style.backgroundColor.slice(3, 5), 16)}, ${parseInt(textBox.style.backgroundColor.slice(5, 7), 16)}, ${textBox.style.backgroundOpacity || 0.8})`
+            : 'transparent',
+        }}
+      >
+        <div
+          ref={editorRef}
+          contentEditable={isEditing}
+          onBlur={handleBlur}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              handleBlur()
+            }
+          }}
+          className={cn(
+            "w-full h-full p-2 overflow-auto outline-none",
+            !isEditing && "pointer-events-none"
+          )}
+          style={{
+            fontFamily: textBox.style.fontFamily,
+            fontSize: `${textBox.style.fontSize}px`,
+            color: textBox.style.color,
+            textAlign: textBox.style.textAlign,
+            fontWeight: textBox.style.isBold ? 'bold' : 'normal',
+            fontStyle: textBox.style.isItalic ? 'italic' : 'normal',
+            lineHeight: `${lineHeightPx}px`,
+          }}
+          dangerouslySetInnerHTML={{ __html: textBox.content }}
+        />
+      </div>
+
+      {/* Contrôles */}
+      {showControls && !isEditing && (
+        <>
+          {/* Bouton supprimer */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(textBox.id); }}
+            className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors z-30 shadow-lg"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <X className="w-3 h-3" />
+          </button>
+
+          {/* Bouton style */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowStyleMenu(!showStyleMenu); }}
+            className={cn(
+              "absolute -top-2 -left-2 p-1.5 rounded-full transition-colors z-30 shadow-lg",
+              showStyleMenu 
+                ? "bg-dream-500 text-white" 
+                : "bg-midnight-800 text-white hover:bg-dream-500"
+            )}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Sparkles className="w-3 h-3" />
+          </button>
+
+          {/* Indicateur déplacer */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/40 text-white pointer-events-none">
+            <Move className="w-4 h-4" />
+          </div>
+        </>
+      )}
+
+      {/* Menu de style */}
+      {showStyleMenu && (
+        <>
+          <div 
+            className="fixed inset-0 z-40"
+            onClick={() => setShowStyleMenu(false)}
+          />
+          <div 
+            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[280px] max-h-[90vh] overflow-y-auto"
+            style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-3">
+              📝 Style du texte
+            </div>
+            
+            {/* Police */}
+            <div className="mb-3">
+              <label className="text-xs text-gray-500 block mb-1.5">Police</label>
+              <div className="grid grid-cols-2 gap-1">
+                {FONTS.map((font) => (
+                  <button
+                    key={font.id}
+                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, fontFamily: font.family })}
+                    className={cn(
+                      "px-2 py-1.5 rounded text-left text-sm transition-all flex items-center gap-2 text-gray-700",
+                      textBox.style.fontFamily === font.family 
+                        ? "bg-aurora-100 text-aurora-700 ring-1 ring-aurora-300" 
+                        : "hover:bg-gray-100"
+                    )}
+                    style={{ fontFamily: font.family }}
+                  >
+                    <span className="text-base">{font.preview}</span>
+                    <span className="text-xs truncate">{font.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Gras / Italique */}
+            <div className="mb-3">
+              <label className="text-xs text-gray-500 block mb-1.5">Style</label>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => onStyleChange(textBox.id, { ...textBox.style, isBold: !textBox.style.isBold })}
+                  className={cn(
+                    "flex-1 p-2 rounded font-bold transition-colors",
+                    textBox.style.isBold ? "bg-aurora-100 text-aurora-700" : "hover:bg-gray-100"
+                  )}
+                >
+                  G
+                </button>
+                <button
+                  onClick={() => onStyleChange(textBox.id, { ...textBox.style, isItalic: !textBox.style.isItalic })}
+                  className={cn(
+                    "flex-1 p-2 rounded italic transition-colors",
+                    textBox.style.isItalic ? "bg-aurora-100 text-aurora-700" : "hover:bg-gray-100"
+                  )}
+                >
+                  I
+                </button>
+              </div>
+            </div>
+            
+            {/* Couleur du texte */}
+            <div className="mb-3">
+              <label className="text-xs text-gray-500 block mb-1.5">Couleur</label>
+              <div className="flex gap-1 flex-wrap">
+                {['#3d3426', '#000000', '#ffffff', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, color })}
+                    className={cn(
+                      "w-6 h-6 rounded border-2 transition-all",
+                      textBox.style.color === color ? "border-aurora-500 scale-110" : "border-gray-300"
+                    )}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Fond */}
+            <div className="mb-3">
+              <label className="text-xs text-gray-500 block mb-1.5">Fond</label>
+              <div className="flex gap-1 flex-wrap">
+                <button
+                  onClick={() => onStyleChange(textBox.id, { ...textBox.style, backgroundColor: undefined })}
+                  className={cn(
+                    "w-6 h-6 rounded border-2 transition-all flex items-center justify-center text-xs",
+                    !textBox.style.backgroundColor ? "border-aurora-500" : "border-gray-300"
+                  )}
+                >
+                  ∅
+                </button>
+                {['#ffffff', '#fef3c7', '#dbeafe', '#dcfce7', '#fce7f3', '#1e1e1e'].map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, backgroundColor: color, backgroundOpacity: 0.9 })}
+                    className={cn(
+                      "w-6 h-6 rounded border-2 transition-all",
+                      textBox.style.backgroundColor === color ? "border-aurora-500 scale-110" : "border-gray-300"
+                    )}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Taille */}
+            <div className="mb-3">
+              <label className="text-xs text-gray-500 block mb-1.5">Taille: {textBox.style.fontSize}px</label>
+              <input
+                type="range"
+                min="10"
+                max="48"
+                value={textBox.style.fontSize}
+                onChange={(e) => onStyleChange(textBox.id, { ...textBox.style, fontSize: parseInt(e.target.value) })}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-aurora-500"
+              />
+            </div>
+
+            {/* Interligne */}
+            <div className="mb-3">
+              <label className="text-xs text-gray-500 block mb-1.5">Interligne</label>
+              <div className="flex gap-1">
+                {Object.entries(LINE_SPACINGS).map(([key, { label, pixelHeight }]) => (
+                  <button
+                    key={key}
+                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, lineSpacing: key as 'tight' | 'normal' | 'relaxed' })}
+                    className={cn(
+                      "flex-1 px-2 py-1.5 rounded text-xs transition-colors text-center",
+                      (textBox.style.lineSpacing || 'normal') === key 
+                        ? "bg-aurora-100 text-aurora-700" 
+                        : "hover:bg-gray-100"
+                    )}
+                  >
+                    <div>{label}</div>
+                    <div className="text-[10px] text-gray-400">{pixelHeight}px</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Alignement */}
+            <div>
+              <label className="text-xs text-gray-500 block mb-1.5">Alignement</label>
+              <div className="flex gap-1">
+                {(['left', 'center', 'right'] as const).map((align) => (
+                  <button
+                    key={align}
+                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, textAlign: align })}
+                    className={cn(
+                      "flex-1 p-2 rounded transition-colors",
+                      textBox.style.textAlign === align ? "bg-aurora-100 text-aurora-700" : "hover:bg-gray-100"
+                    )}
+                  >
+                    {align === 'left' && <AlignLeft className="w-4 h-4 mx-auto" />}
+                    {align === 'center' && <AlignCenter className="w-4 h-4 mx-auto" />}
+                    {align === 'right' && <AlignRight className="w-4 h-4 mx-auto" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Poignées de redimensionnement */}
+      {showControls && !isEditing && !showStyleMenu && (
+        <>
+          <div className="absolute -top-1 -left-1 w-3 h-3 bg-white border-2 border-dream-500 rounded-full cursor-nw-resize z-20" onMouseDown={(e) => handleResizeStart(e, 'nw')} />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white border-2 border-dream-500 rounded-full cursor-ne-resize z-20" onMouseDown={(e) => handleResizeStart(e, 'ne')} />
+          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white border-2 border-dream-500 rounded-full cursor-sw-resize z-20" onMouseDown={(e) => handleResizeStart(e, 'sw')} />
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white border-2 border-dream-500 rounded-full cursor-se-resize z-20" onMouseDown={(e) => handleResizeStart(e, 'se')} />
+          <div className="absolute top-1/2 -left-1 w-2 h-6 -translate-y-1/2 bg-white border-2 border-dream-500 rounded-full cursor-w-resize z-20" onMouseDown={(e) => handleResizeStart(e, 'w')} />
+          <div className="absolute top-1/2 -right-1 w-2 h-6 -translate-y-1/2 bg-white border-2 border-dream-500 rounded-full cursor-e-resize z-20" onMouseDown={(e) => handleResizeStart(e, 'e')} />
         </>
       )}
     </div>
@@ -2583,6 +3067,184 @@ function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) 
 }
 
 // ============================================================================
+// COMPOSANT : Éditeur de Couverture
+// ============================================================================
+
+interface CoverEditorProps {
+  cover: StoryPageLocal | null
+  coverType: 'front' | 'back'
+  storyTitle: string
+  bookFormat?: BookFormat
+  onClose: () => void
+  onUpdateCover: (updates: Partial<StoryPageLocal>) => void
+  onImageAdd: () => void
+  onBackgroundAdd: () => void
+}
+
+function CoverEditor({ 
+  cover, 
+  coverType, 
+  storyTitle,
+  bookFormat = 'square-21',
+  onClose, 
+  onUpdateCover,
+  onImageAdd,
+  onBackgroundAdd,
+}: CoverEditorProps) {
+  const formatConfig = BOOK_FORMATS.find(f => f.id === bookFormat)
+  const formatRatio = formatConfig ? formatConfig.widthMm / formatConfig.heightMm : 1
+  
+  const title = coverType === 'front' ? '📕 Couverture' : '📖 4ème de couverture'
+  const placeholder = coverType === 'front' 
+    ? 'Titre, auteur, illustration...' 
+    : 'Résumé de l\'histoire, biographie...'
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-midnight-900 rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-display text-white">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Aperçu de la couverture */}
+          <div className="flex flex-col items-center">
+            <div 
+              className="relative rounded-lg shadow-2xl overflow-hidden bg-midnight-800"
+              style={{ 
+                width: '280px',
+                height: `${280 / formatRatio}px`,
+              }}
+            >
+              {/* Fond de la couverture */}
+              {cover?.backgroundMedia?.url ? (
+                <img 
+                  src={cover.backgroundMedia.url} 
+                  alt="Fond" 
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ opacity: cover.backgroundMedia.opacity || 1 }}
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-aurora-500/20 to-stardust-500/20" />
+              )}
+              
+              {/* Images sur la couverture */}
+              {cover?.images?.map((img) => (
+                <img 
+                  key={img.id}
+                  src={img.url} 
+                  alt="" 
+                  className="absolute"
+                  style={{
+                    left: `${img.position.x}%`,
+                    top: `${img.position.y}%`,
+                    width: `${img.position.width}%`,
+                    height: `${img.position.height}%`,
+                    objectFit: 'cover',
+                  }}
+                />
+              ))}
+              
+              {/* Texte par défaut pour la couverture */}
+              {coverType === 'front' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                  <h3 className="text-2xl font-display text-white drop-shadow-lg">
+                    {storyTitle || 'Mon histoire'}
+                  </h3>
+                </div>
+              )}
+              
+              {/* Contenu texte */}
+              {cover?.content && (
+                <div className="absolute inset-0 p-4 flex items-end">
+                  <p className="text-white/80 text-sm line-clamp-4">
+                    {cover.content}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-midnight-400 text-sm mt-4">
+              Format: {formatConfig?.name || 'Standard'}
+            </p>
+          </div>
+          
+          {/* Outils d'édition */}
+          <div className="space-y-4">
+            {/* Texte */}
+            <div className="glass-card p-4">
+              <label className="block text-sm font-medium text-midnight-300 mb-2">
+                {coverType === 'front' ? 'Texte de couverture' : 'Résumé / 4ème de couverture'}
+              </label>
+              <textarea
+                value={cover?.content || ''}
+                onChange={(e) => onUpdateCover({ content: e.target.value })}
+                placeholder={placeholder}
+                rows={4}
+                className="w-full px-4 py-3 bg-midnight-800/50 border border-midnight-700 rounded-xl text-white placeholder-midnight-500 focus:outline-none focus:ring-2 focus:ring-aurora-500 resize-none"
+              />
+            </div>
+            
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={onBackgroundAdd}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
+              >
+                <ImageIcon className="w-5 h-5" />
+                <span>Fond de page</span>
+              </button>
+              
+              <button
+                onClick={onImageAdd}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Ajouter image</span>
+              </button>
+            </div>
+            
+            <p className="text-midnight-500 text-xs text-center">
+              💡 Tu peux ajouter des images, un fond, et du texte à ta couverture.
+              <br />
+              Pour un résultat optimal, utilise des images de haute qualité.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={onClose}
+            className="btn-primary"
+          >
+            <Check className="w-4 h-4 mr-2" />
+            Terminé
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ============================================================================
 // COMPOSANT : Vue Structure (chapitres et organisation)
 // ============================================================================
 
@@ -2941,14 +3603,21 @@ interface FormatBarProps {
   onBackgroundRemove?: () => void
   onBackgroundEditToggle?: () => void
   isEditingBackground?: boolean
+  // Zones de sécurité pour l'impression
+  showSafeZones?: boolean
+  onToggleSafeZones?: () => void
+  bookFormat?: BookFormat
+  onBookFormatChange?: (format: BookFormat) => void
 }
 
-function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, backgroundMedia, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onBackgroundEditToggle, isEditingBackground }: FormatBarProps) {
+function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, backgroundMedia, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onBackgroundEditToggle, isEditingBackground, showSafeZones = false, onToggleSafeZones, bookFormat, onBookFormatChange }: FormatBarProps) {
   const [showFonts, setShowFonts] = useState(false)
   const [showFontSizes, setShowFontSizes] = useState(false)
   const [showColors, setShowColors] = useState(false)
   const [showPageColors, setShowPageColors] = useState(false)
   const [showBackgroundMenu, setShowBackgroundMenu] = useState(false)
+  const [showLineSpacing, setShowLineSpacing] = useState(false)
+  const [showFormatMenu, setShowFormatMenu] = useState(false)
   const [lastUsedColor, setLastUsedColor] = useState('#ef4444')
   const [lastUsedSize, setLastUsedSize] = useState(style.fontSize)
   const [detectedFontFamily, setDetectedFontFamily] = useState(style.fontFamily)
@@ -2965,7 +3634,7 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // Si aucun menu n'est ouvert, ne rien faire
-      if (!showFonts && !showFontSizes && !showColors && !showPageColors && !showBackgroundMenu) {
+      if (!showFonts && !showFontSizes && !showColors && !showPageColors && !showBackgroundMenu && !showLineSpacing && !showFormatMenu) {
         return
       }
       
@@ -2976,12 +3645,14 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
         setShowColors(false)
         setShowPageColors(false)
         setShowBackgroundMenu(false)
+        setShowLineSpacing(false)
+        setShowFormatMenu(false)
       }
     }
     
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showFonts, showFontSizes, showColors, showPageColors, showBackgroundMenu])
+  }, [showFonts, showFontSizes, showColors, showPageColors, showBackgroundMenu, showLineSpacing, showFormatMenu])
   
   // Détecter la taille de police et la police au curseur
   useEffect(() => {
@@ -3340,35 +4011,42 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
           
           <AnimatePresence>
             {showFonts && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute top-full left-0 mt-2 p-2 bg-midnight-900 rounded-xl border border-midnight-700/50 shadow-xl z-50 w-48"
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                {FONTS.map((font) => (
-                  <button
-                    key={font.id}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => applyFontFamily(font.family)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left',
-                      detectedFontFamily === font.family 
-                        ? 'bg-aurora-500/20 text-aurora-300' 
-                        : 'hover:bg-midnight-800 text-white'
-                    )}
-                  >
-                    <span style={{ fontFamily: font.family }} className="text-xl w-8">
-                      {font.preview}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium">{font.name}</p>
-                      <p className="text-xs text-midnight-400">{font.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </motion.div>
+              <>
+                {/* Overlay pour fermer au clic extérieur */}
+                <div 
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowFonts(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full left-0 mt-2 p-2 bg-midnight-900 rounded-xl border border-midnight-700/50 shadow-xl z-50 w-48"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  {FONTS.map((font) => (
+                    <button
+                      key={font.id}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => applyFontFamily(font.family)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left',
+                        detectedFontFamily === font.family 
+                          ? 'bg-aurora-500/20 text-aurora-300' 
+                          : 'hover:bg-midnight-800 text-white'
+                      )}
+                    >
+                      <span style={{ fontFamily: font.family }} className="text-xl w-8">
+                        {font.preview}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium">{font.name}</p>
+                        <p className="text-xs text-midnight-400">{font.description}</p>
+                      </div>
+                    </button>
+                  ))}
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
@@ -3392,29 +4070,36 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
           
           <AnimatePresence>
             {showFontSizes && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="absolute top-full left-0 mt-1 glass rounded-lg shadow-xl z-50 p-1 max-h-48 overflow-y-auto"
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                {FONT_SIZES.map((size) => (
-                  <button
-                    key={size}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => applyFontSize(size)}
-                    className={cn(
-                      'w-full px-3 py-1 text-left text-sm rounded transition-colors',
-                      lastUsedSize === size
-                        ? 'bg-aurora-500/20 text-aurora-300'
-                        : 'hover:bg-midnight-800 text-midnight-300'
-                    )}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </motion.div>
+              <>
+                {/* Overlay pour fermer au clic extérieur */}
+                <div 
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowFontSizes(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="absolute top-full left-0 mt-1 glass rounded-lg shadow-xl z-50 p-1 max-h-48 overflow-y-auto"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  {FONT_SIZES.map((size) => (
+                    <button
+                      key={size}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => applyFontSize(size)}
+                      className={cn(
+                        'w-full px-3 py-1 text-left text-sm rounded transition-colors',
+                        lastUsedSize === size
+                          ? 'bg-aurora-500/20 text-aurora-300'
+                          : 'hover:bg-midnight-800 text-midnight-300'
+                      )}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
@@ -3469,6 +4154,71 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
               <Icon className="w-4 h-4" />
             </button>
           ))}
+        </div>
+      </Highlightable>
+      
+      {/* Séparateur */}
+      <div className="w-px h-6 bg-midnight-700/50" />
+      
+      {/* Espacement de ligne */}
+      <Highlightable id="book-line-spacing">
+        <div className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowLineSpacing(!showLineSpacing)}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors",
+              showLineSpacing 
+                ? "bg-dream-500/20 text-dream-300" 
+                : "text-midnight-400 hover:bg-midnight-800"
+            )}
+            title="Espacement des lignes"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+              <path d="M7 3v3M7 15v3M17 3v3M17 15v3" strokeWidth="1.5" />
+            </svg>
+          </button>
+          
+          <AnimatePresence>
+            {showLineSpacing && (
+              <>
+                {/* Overlay pour fermer au clic extérieur */}
+                <div 
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowLineSpacing(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute top-full left-0 mt-2 p-2 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[140px]"
+                >
+                  <div className="text-xs text-midnight-400 mb-2 font-medium px-2">Interligne</div>
+                  {Object.entries(LINE_SPACINGS).map(([key, { label, pixelHeight }]) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        onStyleChange({ ...style, lineSpacing: key as 'tight' | 'normal' | 'relaxed' })
+                        setShowLineSpacing(false)
+                      }}
+                      className={cn(
+                        "w-full px-3 py-2 text-left text-sm rounded-lg transition-colors flex items-center justify-between",
+                        style.lineSpacing === key
+                          ? "bg-aurora-500/20 text-aurora-300"
+                          : "hover:bg-midnight-800 text-white"
+                      )}
+                    >
+                      <span>{label}</span>
+                      <span className="text-xs text-midnight-500">{pixelHeight}px</span>
+                    </button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </Highlightable>
       
@@ -3623,6 +4373,103 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
         </Highlightable>
       )}
       
+      {/* Bouton zones de sécurité impression */}
+      {onToggleSafeZones && (
+        <Highlightable id="book-safe-zones">
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onToggleSafeZones}
+          className={cn(
+            "flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors",
+            showSafeZones 
+              ? "bg-amber-500/20 text-amber-300" 
+              : "text-midnight-400 hover:bg-midnight-800"
+          )}
+          title={showSafeZones ? "Masquer les zones d'impression" : "Afficher les zones d'impression"}
+        >
+          {/* Icône zones de sécurité (cadre avec marges) */}
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            {/* Cadre extérieur (fond perdu) */}
+            <rect x="2" y="2" width="20" height="20" rx="1" strokeDasharray="3 2" className="text-red-400" />
+            {/* Cadre intérieur (zone sûre) */}
+            <rect x="5" y="5" width="14" height="14" rx="1" strokeDasharray="2 2" className="text-amber-400" />
+          </svg>
+          <span className="text-xs hidden sm:inline">Marges</span>
+        </button>
+        </Highlightable>
+      )}
+      
+      {/* Sélecteur de format du livre */}
+      {onBookFormatChange && (
+        <Highlightable id="book-format">
+        <div className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowFormatMenu(!showFormatMenu)}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors",
+              showFormatMenu 
+                ? "bg-dream-500/20 text-dream-300" 
+                : "text-midnight-400 hover:bg-midnight-800"
+            )}
+            title="Format du livre"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="4" y="2" width="12" height="18" rx="1" />
+              <line x1="4" y1="6" x2="16" y2="6" />
+            </svg>
+            <span className="text-xs hidden sm:inline">Format</span>
+          </button>
+          
+          {/* Menu des formats */}
+          <AnimatePresence>
+            {showFormatMenu && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowFormatMenu(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute top-full left-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[220px]"
+                >
+                  <div className="text-xs text-midnight-400 mb-2 font-medium">Format du livre</div>
+                  <div className="flex flex-col gap-1">
+                    {BOOK_FORMATS.map((format) => (
+                      <button
+                        key={format.id}
+                        onClick={() => {
+                          onBookFormatChange(format.id)
+                          setShowFormatMenu(false)
+                        }}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors",
+                          bookFormat === format.id
+                            ? "bg-dream-500/20 text-dream-300"
+                            : "text-midnight-300 hover:bg-midnight-800"
+                        )}
+                      >
+                        <span className="text-lg">{format.icon}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{format.nameFr}</span>
+                          <span className="text-xs text-midnight-500">{format.widthMm}×{format.heightMm}mm</span>
+                        </div>
+                        {bookFormat === format.id && (
+                          <Check className="w-4 h-4 ml-auto text-dream-400" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+        </Highlightable>
+      )}
+      
       {/* Sélecteur de couleur du livre */}
       {onBookColorChange && (
         <Highlightable id="book-color">
@@ -3644,33 +4491,40 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
           {/* Menu de couleurs */}
           <AnimatePresence>
             {showPageColors && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute top-full left-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[200px]"
-              >
-                <div className="text-xs text-midnight-400 mb-2 font-medium">Couleur du livre</div>
-                <div className="grid grid-cols-5 gap-2">
-                  {PAGE_COLORS.map((color) => (
-                    <button
-                      key={color.id}
-                      onClick={() => {
-                        onBookColorChange(color.id)
-                        setShowPageColors(false)
-                      }}
-                      className={cn(
-                        "w-8 h-8 rounded-lg border-2 transition-all hover:scale-110",
-                        color.bg,
-                        bookColor === color.id
-                          ? "border-aurora-500 ring-2 ring-aurora-500/30"
-                          : "border-midnight-600 hover:border-midnight-500"
-                      )}
-                      title={color.name}
-                    />
-                  ))}
-                </div>
-              </motion.div>
+              <>
+                {/* Overlay pour fermer au clic extérieur */}
+                <div 
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowPageColors(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute top-full left-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[200px]"
+                >
+                  <div className="text-xs text-midnight-400 mb-2 font-medium">Couleur du livre</div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {PAGE_COLORS.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => {
+                          onBookColorChange(color.id)
+                          setShowPageColors(false)
+                        }}
+                        className={cn(
+                          "w-8 h-8 rounded-lg border-2 transition-all hover:scale-110",
+                          color.bg,
+                          bookColor === color.id
+                            ? "border-aurora-500 ring-2 ring-aurora-500/30"
+                            : "border-midnight-600 hover:border-midnight-500"
+                        )}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
@@ -3700,13 +4554,19 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
           {/* Menu fond de page */}
           <AnimatePresence>
             {showBackgroundMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute top-full right-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[220px]"
-              >
-                <div className="text-xs text-midnight-400 mb-3 font-medium">Fond de page</div>
+              <>
+                {/* Overlay pour fermer au clic extérieur */}
+                <div 
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowBackgroundMenu(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute top-full right-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[220px]"
+                >
+                  <div className="text-xs text-midnight-400 mb-3 font-medium">Fond de page</div>
                 
                 {backgroundMedia ? (
                   <>
@@ -3830,7 +4690,8 @@ function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, book
                     </button>
                   </>
                 )}
-              </motion.div>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
@@ -3860,6 +4721,7 @@ interface WritingAreaProps {
   onImagePositionChange?: (pageIndex: number, imageId: string, position: ImagePosition) => void
   onImageStyleChange?: (pageIndex: number, imageId: string, style: ImageStyle) => void
   onImageFrameChange?: (pageIndex: number, imageId: string, frame: FrameStyle) => void
+  onImageOpacityChange?: (pageIndex: number, imageId: string, opacity: number) => void
   onImageDelete?: (pageIndex: number, imageId: string) => void
   onImageBringForward?: (pageIndex: number, imageId: string) => void
   onImageSendBackward?: (pageIndex: number, imageId: string) => void
@@ -3904,18 +4766,120 @@ interface WritingAreaProps {
   onDecorationGlowChange?: (pageIndex: number, decoId: string, glowEnabled: boolean, glowColor: string, glowIntensity: number) => void
   onDecorationFlip?: (pageIndex: number, decoId: string, direction: 'h' | 'v') => void
   onDecorationDelete?: (pageIndex: number, decoId: string) => void
+  // Zones de texte flottantes
+  onTextBoxAdd?: (pageIndex: number) => void
+  onTextBoxPositionChange?: (pageIndex: number, textBoxId: string, position: { x: number; y: number; width: number; height: number }) => void
+  onTextBoxContentChange?: (pageIndex: number, textBoxId: string, content: string) => void
+  onTextBoxStyleChange?: (pageIndex: number, textBoxId: string, style: PageTextBox['style']) => void
+  onTextBoxDelete?: (pageIndex: number, textBoxId: string) => void
   // Verrouillage de l'édition (histoire terminée)
   isLocked?: boolean
   onUnlock?: () => void
+  // Format du livre (pour les proportions)
+  bookFormat?: BookFormat
+  onBookFormatChange?: (format: BookFormat) => void
+  // Afficher les zones de sécurité pour l'impression
+  showSafeZones?: boolean
+  onToggleSafeZones?: () => void
+  // Pages de couverture
+  hasFrontCover?: boolean
+  hasBackCover?: boolean
+  onShowFrontCover?: () => void
+  onShowBackCover?: () => void
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageDelete, onImageBringForward, onImageSendBackward, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, isLocked = false, onUnlock }: WritingAreaProps) {
+// Helper pour obtenir le ratio du format
+function getFormatRatio(bookFormat: BookFormat = 'portrait-a5'): number {
+  const format = BOOK_FORMATS.find(f => f.id === bookFormat)
+  if (!format) return 0.7 // Portrait par défaut (A5)
+  return format.widthMm / format.heightMm
+}
+
+// Composant pour afficher les zones de sécurité d'impression
+function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefined; side: 'left' | 'right' }) {
+  if (!format) return null
+  
+  // Calculer les pourcentages des marges
+  const safeZonePercent = (format.safeZoneMm / format.widthMm) * 100
+  const bleedPercent = (format.bleedMm / format.widthMm) * 100
+  const spineMarginPercent = (format.spineMarginMm / format.widthMm) * 100
+  
+  return (
+    <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+      {/* Zone de fond perdu (bleed) - rouge */}
+      <div 
+        className="absolute border-2 border-dashed border-red-500/40"
+        style={{
+          top: `${bleedPercent}%`,
+          bottom: `${bleedPercent}%`,
+          left: `${bleedPercent}%`,
+          right: `${bleedPercent}%`,
+        }}
+      />
+      
+      {/* Zone de sécurité intérieure - jaune */}
+      <div 
+        className="absolute border-2 border-dashed border-amber-500/60"
+        style={{
+          top: `${safeZonePercent + bleedPercent}%`,
+          bottom: `${safeZonePercent + bleedPercent}%`,
+          left: side === 'left' 
+            ? `${safeZonePercent + bleedPercent}%` 
+            : `${spineMarginPercent}%`,
+          right: side === 'right' 
+            ? `${safeZonePercent + bleedPercent}%` 
+            : `${spineMarginPercent}%`,
+        }}
+      />
+      
+      {/* Marge côté reliure - plus grande, en bleu */}
+      <div 
+        className={cn(
+          "absolute top-0 bottom-0 bg-blue-500/10 border-2 border-dashed border-blue-500/40",
+          side === 'left' ? 'right-0' : 'left-0'
+        )}
+        style={{
+          width: `${spineMarginPercent}%`,
+        }}
+      />
+      
+      {/* Labels */}
+      <div className="absolute top-1 left-1 text-[8px] text-red-400/80 bg-red-500/10 px-1 rounded">
+        Fond perdu
+      </div>
+      <div 
+        className="absolute text-[8px] text-amber-500/80 bg-amber-500/10 px-1 rounded"
+        style={{ 
+          top: `${safeZonePercent + bleedPercent + 1}%`,
+          left: side === 'left' ? `${safeZonePercent + bleedPercent + 1}%` : `${spineMarginPercent + 1}%`,
+        }}
+      >
+        Zone sûre
+      </div>
+      <div 
+        className={cn(
+          "absolute top-1/2 -translate-y-1/2 text-[8px] text-blue-400/80 bg-blue-500/10 px-1 rounded writing-vertical-lr",
+          side === 'left' ? 'right-1' : 'left-1'
+        )}
+      >
+        Reliure
+      </div>
+    </div>
+  )
+}
+
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover }: WritingAreaProps) {
+  
+  // Calculer le ratio du format (largeur/hauteur)
+  const formatRatio = getFormatRatio(bookFormat)
+  const formatConfig = BOOK_FORMATS.find(f => f.id === bookFormat)
   const style = page?.style || leftPage?.style || DEFAULT_STYLE
   const editorRef = useRef<HTMLDivElement>(null)
   const leftEditorRef = useRef<HTMLDivElement>(null)
   const zoomedEditorRef = useRef<HTMLDivElement>(null)
   const lastContentRef = useRef<string>(page?.content || '')
   const lastLeftContentRef = useRef<string>(leftPage?.content || '')
+  const lastZoomContentRef = useRef<string>('')
   
   // 🛡️ La modération du contenu est gérée par l'IA-Amie dans le chat
   
@@ -4024,13 +4988,24 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
     }
   }, [zoomedPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initialiser le contenu du mode zoom
+  // Initialiser le contenu du mode zoom (seulement quand on entre en zoom ou changement externe)
   useEffect(() => {
     if (zoomedEditorRef.current && zoomedPage) {
       const content = zoomedPage === 'left' ? leftPage?.content : page?.content
-      zoomedEditorRef.current.innerHTML = content || ''
+      const currentEditorContent = zoomedEditorRef.current.innerHTML
+      
+      // Ne réinitialiser que si :
+      // 1. L'éditeur est vide (on vient d'entrer en mode zoom)
+      // 2. Le contenu vient de l'extérieur (différent de ce qu'on a tracké)
+      if (!currentEditorContent || content !== lastZoomContentRef.current) {
+        // Vérifier aussi que ce n'est pas notre propre frappe qui a changé le content
+        if (currentEditorContent !== content) {
+          zoomedEditorRef.current.innerHTML = content || ''
+        }
+      }
+      lastZoomContentRef.current = content || ''
     }
-  }, [zoomedPage, leftPage?.content, page?.content])
+  }, [zoomedPage]) // Seulement quand on entre/sort du mode zoom
   
   // Gérer les changements de contenu
   const handleInput = () => {
@@ -4084,11 +5059,14 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
     ru: { start: 'Диктовать', stop: 'Стоп', listening: 'Слушаю...' },
   }
 
+  // Hauteur de ligne en pixels (synchronisée avec les lignes de cahier)
+  const lineHeightPx = getLineHeightPx(style.lineSpacing as 'tight' | 'normal' | 'relaxed')
+  
   // Style du texte (pour le conteneur)
   const textStyle: React.CSSProperties = {
     fontFamily: style.fontFamily,
     fontSize: `${style.fontSize}px`,
-    lineHeight: LINE_SPACINGS[style.lineSpacing as keyof typeof LINE_SPACINGS]?.value || '1.7',
+    lineHeight: `${lineHeightPx}px`,
     fontWeight: style.isBold ? 'bold' : 'normal',
     fontStyle: style.isItalic ? 'italic' : 'normal',
     textAlign: style.textAlign,
@@ -4176,6 +5154,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     onBackgroundRemove={() => onBackgroundRemove?.(activePageIndex)}
                     onBackgroundEditToggle={() => setEditingBackgroundPage(editingBackgroundPage === activePage ? null : activePage)}
                     isEditingBackground={editingBackgroundPage === activePage}
+                    showSafeZones={showSafeZones}
+                    onToggleSafeZones={onToggleSafeZones}
+                    bookFormat={bookFormat}
+                    onBookFormatChange={onBookFormatChange}
                   />
                 )
               })()}
@@ -4201,6 +5183,40 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <LayoutGrid className="w-4 h-4" />
             </button>
           )}
+          {/* Séparateur */}
+          {(onShowFrontCover || onShowBackCover) && (
+            <div className="w-px h-4 bg-midnight-700 mx-1" />
+          )}
+          {/* Bouton couverture */}
+          {onShowFrontCover && (
+            <button
+              onClick={onShowFrontCover}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors text-xs font-medium",
+                hasFrontCover 
+                  ? "bg-aurora-500/20 text-aurora-400 hover:bg-aurora-500/30"
+                  : "bg-midnight-800/50 hover:bg-midnight-800 text-midnight-400 hover:text-white"
+              )}
+              title="Éditer la couverture"
+            >
+              📕
+            </button>
+          )}
+          {/* Bouton 4ème de couverture */}
+          {onShowBackCover && (
+            <button
+              onClick={onShowBackCover}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors text-xs font-medium",
+                hasBackCover 
+                  ? "bg-aurora-500/20 text-aurora-400 hover:bg-aurora-500/30"
+                  : "bg-midnight-800/50 hover:bg-midnight-800 text-midnight-400 hover:text-white"
+              )}
+              title="Éditer la 4ème de couverture"
+            >
+              📖
+            </button>
+          )}
         </div>
       </div>
       
@@ -4214,6 +5230,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           // Mettre à jour en temps réel pendant l'édition
           if (zoomedEditorRef.current) {
             const html = zoomedEditorRef.current.innerHTML
+            // Tracker le contenu pour éviter les réinitialisations
+            lastZoomContentRef.current = html
             if (zoomedPage === 'left' && onLeftContentChange) {
               onLeftContentChange(html)
             } else {
@@ -4420,9 +5438,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 imageStyle={media.style}
                 frameStyle={media.frame}
                 zIndex={media.zIndex}
+                opacity={media.opacity}
                 onPositionChange={(pos) => onImagePositionChange?.(zPageIndex, media.id, pos)}
                 onStyleChange={(style) => onImageStyleChange?.(zPageIndex, media.id, style)}
                 onFrameChange={(frame) => onImageFrameChange?.(zPageIndex, media.id, frame)}
+                onOpacityChange={(opacity) => onImageOpacityChange?.(zPageIndex, media.id, opacity)}
                 onDelete={() => onImageDelete?.(zPageIndex, media.id)}
                 onBringForward={() => onImageBringForward?.(zPageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(zPageIndex, media.id)}
@@ -4452,16 +5472,29 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 />
               )
             })}
+
+            {/* Zones de texte flottantes en mode zoom */}
+            {zPage?.textBoxes?.map((textBox) => (
+              <DraggableTextBox
+                key={textBox.id}
+                textBox={textBox}
+                onPositionChange={(id, pos) => onTextBoxPositionChange?.(zPageIndex, id, pos)}
+                onContentChange={(id, content) => onTextBoxContentChange?.(zPageIndex, id, content)}
+                onStyleChange={(id, style) => onTextBoxStyleChange?.(zPageIndex, id, style)}
+                onDelete={(id) => onTextBoxDelete?.(zPageIndex, id)}
+                containerRef={zoomedPageContainerRef}
+              />
+            ))}
       
             {/* Zone d'écriture avec lignes intégrées */}
             <div className="flex-1 relative overflow-hidden">
-              {/* Lignes de cahier (conditionnelles) */}
+              {/* Lignes de cahier (conditionnelles) - synchronisées avec lineHeight */}
               {showLines && (
               <div 
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                  backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
-                    backgroundSize: '100% 32px',
+                  backgroundImage: `repeating-linear-gradient(transparent, transparent ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx}px)`,
+                  backgroundSize: `100% ${lineHeightPx}px`,
                 }}
               />
               )}
@@ -4480,7 +5513,6 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 style={{
                   ...textStyle,
                   color: '#3d3426',
-                  lineHeight: '32px',
                 }}
           className={cn(
                   'absolute inset-0 px-12 pt-0 pb-12 overflow-y-auto',
@@ -4552,6 +5584,34 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     <Move className="w-5 h-5" />
                   </button>
                 )}
+                <Highlightable id="book-decorations">
+                <button
+                  onClick={() => onDecorationAdd?.(zPageIndex)}
+                  className={cn(
+                    'p-2 rounded-full transition-all',
+                    (zPage.decorations?.length || 0) > 0
+                      ? 'text-amber-500 bg-amber-100'
+                      : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                  )}
+                  title="Décorations"
+                >
+                  <Gem className="w-5 h-5" />
+                </button>
+                </Highlightable>
+                <Highlightable id="book-text-box">
+                <button
+                  onClick={() => onTextBoxAdd?.(zPageIndex)}
+                  className={cn(
+                    'p-2 rounded-full transition-all',
+                    (zPage.textBoxes?.length || 0) > 0
+                      ? 'text-dream-500 bg-dream-100'
+                      : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                  )}
+                  title="Zone de texte"
+                >
+                  <Type className="w-5 h-5" />
+                </button>
+                </Highlightable>
               </div>
             </div>
             
@@ -4600,7 +5660,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             onClick={() => setActivePage('left')}
             style={{
               height: '100%',
-              width: 'calc((100vh - var(--book-height-offset, 220px)) * 2 / 3)', // Largeur = hauteur * ratio
+              width: `calc((100vh - var(--book-height-offset, 220px)) * ${formatRatio})`, // Ratio selon le format du livre
               maxWidth: 'calc(50vw - 80px)', // Max 50% du viewport moins marges
               flexShrink: 0,
               background: getPageColorStyles(bookColor).background,
@@ -4611,6 +5671,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           >
             {/* Clip pour le contenu interne */}
             <div className="absolute inset-0 overflow-hidden rounded-l-lg pointer-events-none" style={{ zIndex: 0 }} />
+            
+            {/* Overlay zones de sécurité pour l'impression */}
+            {showSafeZones && <SafeZoneOverlay format={formatConfig} side="left" />}
             
             {/* Fond de page gauche (image ou vidéo) */}
             {leftPage?.backgroundMedia && (
@@ -4671,9 +5734,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 imageStyle={media.style}
                 frameStyle={media.frame}
                 zIndex={media.zIndex}
+                opacity={media.opacity}
                 onPositionChange={(pos) => onImagePositionChange?.(leftPageIndex, media.id, pos)}
                 onStyleChange={(style) => onImageStyleChange?.(leftPageIndex, media.id, style)}
                 onFrameChange={(frame) => onImageFrameChange?.(leftPageIndex, media.id, frame)}
+                onOpacityChange={(opacity) => onImageOpacityChange?.(leftPageIndex, media.id, opacity)}
                 onDelete={() => onImageDelete?.(leftPageIndex, media.id)}
                 onBringForward={() => onImageBringForward?.(leftPageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(leftPageIndex, media.id)}
@@ -4703,6 +5768,19 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 />
               )
             })}
+
+            {/* Zones de texte flottantes de la page gauche */}
+            {leftPageIndex !== undefined && leftPage?.textBoxes?.map((textBox) => (
+              <DraggableTextBox
+                key={textBox.id}
+                textBox={textBox}
+                onPositionChange={(id, pos) => onTextBoxPositionChange?.(leftPageIndex, id, pos)}
+                onContentChange={(id, content) => onTextBoxContentChange?.(leftPageIndex, id, content)}
+                onStyleChange={(id, style) => onTextBoxStyleChange?.(leftPageIndex, id, style)}
+                onDelete={(id) => onTextBoxDelete?.(leftPageIndex, id)}
+                containerRef={leftPageContainerRef}
+              />
+            ))}
             
             {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
             {(() => {
@@ -4794,11 +5872,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               )
             })()}
             
-            {/* Lignes de cahier (conditionnelles) */}
+            {/* Lignes de cahier (conditionnelles) - synchronisées avec lineHeight */}
             {showLines && (
               <div className="absolute inset-x-4 lg:inset-x-10 top-[32px] bottom-12" style={{
-                backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
-                backgroundSize: '100% 32px',
+                backgroundImage: `repeating-linear-gradient(transparent, transparent ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx}px)`,
+                backgroundSize: `100% ${lineHeightPx}px`,
               }} />
             )}
             
@@ -4819,7 +5897,6 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 style={{
                   ...textStyle,
                   color: '#3d3426',
-                  lineHeight: '32px',
                 }}
                 className={cn(
                   'flex-1 px-4 lg:px-10 pt-0 pb-12 overflow-y-auto relative z-10',
@@ -4895,6 +5972,20 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     <Layers className="w-4 h-4" />
                   </button>
                   </Highlightable>
+                  {leftPage.backgroundMedia && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEditingBackgroundPage(editingBackgroundPage === 'left' ? null : 'left'); }}
+                      className={cn(
+                        'p-2 rounded-full transition-all',
+                        editingBackgroundPage === 'left'
+                          ? 'text-aurora-600 bg-aurora-100'
+                          : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                      )}
+                      title="Déplacer le fond"
+                    >
+                      <Move className="w-4 h-4" />
+                    </button>
+                  )}
                   <Highlightable id="book-decorations">
                   <button
                     onClick={(e) => { 
@@ -4912,6 +6003,25 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     title="Décorations"
                   >
                     <Gem className="w-4 h-4" />
+                  </button>
+                  </Highlightable>
+                  <Highlightable id="book-text-box">
+                  <button
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (leftPageIndex !== undefined) {
+                        onTextBoxAdd?.(leftPageIndex); 
+                      }
+                    }}
+                    className={cn(
+                      'p-2 rounded-full transition-all',
+                      (leftPage.textBoxes?.length || 0) > 0
+                        ? 'text-dream-500 bg-dream-100'
+                        : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                    )}
+                    title="Zone de texte"
+                  >
+                    <Type className="w-4 h-4" />
                   </button>
                   </Highlightable>
               </div>
@@ -4958,7 +6068,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             onClick={() => setActivePage('right')}
             style={{
               height: '100%',
-              width: 'calc((100vh - var(--book-height-offset, 220px)) * 2 / 3)', // Largeur = hauteur * ratio
+              width: `calc((100vh - var(--book-height-offset, 220px)) * ${formatRatio})`, // Ratio selon le format du livre
               maxWidth: 'calc(50vw - 80px)', // Max 50% du viewport moins marges
               flexShrink: 0,
               background: getPageColorStyles(bookColor).background,
@@ -4969,6 +6079,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           >
             {/* Clip pour le contenu interne */}
             <div className="absolute inset-0 overflow-hidden rounded-r-lg pointer-events-none" style={{ zIndex: 0 }} />
+            
+            {/* Overlay zones de sécurité pour l'impression */}
+            {showSafeZones && <SafeZoneOverlay format={formatConfig} side="right" />}
             
             {/* Fond de page droite (image ou vidéo) */}
             {page?.backgroundMedia && (
@@ -5029,9 +6142,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 imageStyle={media.style}
                 frameStyle={media.frame}
                 zIndex={media.zIndex}
+                opacity={media.opacity}
                 onPositionChange={(pos) => onImagePositionChange?.(pageIndex, media.id, pos)}
                 onStyleChange={(style) => onImageStyleChange?.(pageIndex, media.id, style)}
                 onFrameChange={(frame) => onImageFrameChange?.(pageIndex, media.id, frame)}
+                onOpacityChange={(opacity) => onImageOpacityChange?.(pageIndex, media.id, opacity)}
                 onDelete={() => onImageDelete?.(pageIndex, media.id)}
                 onBringForward={() => onImageBringForward?.(pageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(pageIndex, media.id)}
@@ -5061,6 +6176,19 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 />
               )
             })}
+
+            {/* Zones de texte flottantes de la page droite */}
+            {page?.textBoxes?.map((textBox) => (
+              <DraggableTextBox
+                key={textBox.id}
+                textBox={textBox}
+                onPositionChange={(id, pos) => onTextBoxPositionChange?.(pageIndex, id, pos)}
+                onContentChange={(id, content) => onTextBoxContentChange?.(pageIndex, id, content)}
+                onStyleChange={(id, style) => onTextBoxStyleChange?.(pageIndex, id, style)}
+                onDelete={(id) => onTextBoxDelete?.(pageIndex, id)}
+                containerRef={rightPageContainerRef}
+              />
+            ))}
             
             {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
             {(() => {
@@ -5152,12 +6280,12 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               )
             })()}
             
-            {/* Lignes de cahier - conditionnelles */}
+            {/* Lignes de cahier - conditionnelles - synchronisées avec lineHeight */}
             {showLines && (
               <div className="absolute inset-x-4 lg:inset-x-10 top-[32px] bottom-12" style={{
-              backgroundImage: 'repeating-linear-gradient(transparent, transparent 24px, rgba(139, 115, 85, 0.15) 24px, rgba(139, 115, 85, 0.15) 25px)',
-              backgroundSize: '100% 32px', // Même hauteur que lineHeight
-            }} />
+                backgroundImage: `repeating-linear-gradient(transparent, transparent ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx}px)`,
+                backgroundSize: `100% ${lineHeightPx}px`,
+              }} />
             )}
             
             {/* Marge rouge (conditionnelle) */}
@@ -5177,7 +6305,6 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               style={{
                 ...textStyle,
                 color: '#3d3426',
-                lineHeight: '32px',
               }}
           className={cn(
                 'flex-1 px-4 lg:px-10 pt-0 pb-12 overflow-y-auto relative z-10',
@@ -5245,6 +6372,20 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <Layers className="w-4 h-4" />
             </button>
             </Highlightable>
+            {page?.backgroundMedia && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditingBackgroundPage(editingBackgroundPage === 'right' ? null : 'right'); }}
+                className={cn(
+                  'p-2 rounded-full transition-all',
+                  editingBackgroundPage === 'right'
+                    ? 'text-aurora-600 bg-aurora-100'
+                    : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+                )}
+                title="Déplacer le fond"
+              >
+                <Move className="w-4 h-4" />
+              </button>
+            )}
             <Highlightable id="book-decorations">
             <button
               onClick={(e) => { e.stopPropagation(); onDecorationAdd?.(pageIndex); }}
@@ -5257,6 +6398,20 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               title="Décorations"
             >
               <Gem className="w-4 h-4" />
+            </button>
+            </Highlightable>
+            <Highlightable id="book-text-box">
+            <button
+              onClick={(e) => { e.stopPropagation(); onTextBoxAdd?.(pageIndex); }}
+              className={cn(
+                'p-2 rounded-full transition-all',
+                (page?.textBoxes?.length || 0) > 0
+                  ? 'text-dream-500 bg-dream-100'
+                  : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
+              )}
+              title="Zone de texte"
+            >
+              <Type className="w-4 h-4" />
             </button>
             </Highlightable>
           </div>
@@ -5952,11 +7107,11 @@ function AISidePanel({
 }
 
 // ============================================================================
-// COMPOSANT : Sélecteur de structure (simplifié)
+// COMPOSANT : Sélecteur de structure et format (2 étapes)
 // ============================================================================
 
 interface StructureSelectorProps {
-  onSelect: (structure: StoryStructure) => void
+  onSelect: (structure: StoryStructure, bookFormat: BookFormat) => void
   locale?: 'fr' | 'en' | 'ru'
 }
 
@@ -5985,7 +7140,132 @@ const STRUCTURE_CONFIG: Record<StoryStructure, {
 
 function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) {
   const structures: StoryStructure[] = ['tale', 'adventure', 'problem', 'free']
+  const [step, setStep] = useState<'structure' | 'format'>('structure')
+  const [selectedStructure, setSelectedStructure] = useState<StoryStructure | null>(null)
 
+  const handleSelectStructure = (structure: StoryStructure) => {
+    setSelectedStructure(structure)
+    setStep('format')
+  }
+
+  const handleSelectFormat = (format: BookFormat) => {
+    if (selectedStructure) {
+      onSelect(selectedStructure, format)
+    }
+  }
+
+  const handleBack = () => {
+    setStep('structure')
+    setSelectedStructure(null)
+  }
+
+  // Étape 2 : Choix du format
+  if (step === 'format') {
+    return (
+      <div className="relative max-w-6xl mx-auto">
+        {/* Bouton retour */}
+        <motion.button
+          onClick={handleBack}
+          className="absolute top-0 left-0 flex items-center gap-2 text-midnight-400 hover:text-white transition-colors"
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span className="text-sm">{locale === 'fr' ? 'Retour' : locale === 'en' ? 'Back' : 'Назад'}</span>
+        </motion.button>
+
+        {/* Titre */}
+        <motion.div 
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <h2 className="font-display text-3xl md:text-4xl text-white mb-3">
+            {locale === 'fr' ? 'Quel format pour ton livre ?' : locale === 'en' ? 'What format for your book?' : 'Какой формат книги?'}
+          </h2>
+          <p className="text-white/50 text-base">
+            {locale === 'fr' ? 'Ce format sera utilisé pour l\'impression' : locale === 'en' ? 'This format will be used for printing' : 'Этот формат будет использоваться для печати'}
+          </p>
+        </motion.div>
+
+        {/* Grille des formats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {BOOK_FORMATS.map((format, index) => (
+            <motion.button
+              key={format.id}
+              onClick={() => handleSelectFormat(format.id)}
+              className="group relative text-left focus:outline-none focus:ring-2 focus:ring-aurora-500/50 rounded-2xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.08 }}
+              whileHover={{ y: -4, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className={cn(
+                "relative overflow-hidden rounded-2xl p-6 transition-all duration-300",
+                "bg-gradient-to-br from-midnight-800/80 to-midnight-900/80",
+                "border-2 border-midnight-700/50 hover:border-aurora-500/50",
+                "shadow-lg hover:shadow-aurora-500/20",
+                format.recommended && "ring-2 ring-aurora-500/30"
+              )}>
+                {/* Badge recommandé */}
+                {format.recommended && (
+                  <div className="absolute top-3 right-3 px-2 py-1 bg-aurora-500/20 text-aurora-300 text-xs font-medium rounded-full border border-aurora-500/30">
+                    ⭐ {locale === 'fr' ? 'Recommandé' : locale === 'en' ? 'Recommended' : 'Рекомендуется'}
+                  </div>
+                )}
+
+                {/* Icône et preview du format */}
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="text-4xl">{format.icon}</div>
+                  {/* Mini preview des proportions */}
+                  <div 
+                    className="bg-amber-50/90 rounded shadow-inner border border-amber-200/50 flex-shrink-0"
+                    style={{
+                      width: `${Math.min(60, format.widthMm / 3)}px`,
+                      height: `${Math.min(80, format.heightMm / 3)}px`,
+                    }}
+                  >
+                    <div className="w-full h-full flex items-center justify-center text-amber-900/30 text-xs">
+                      {format.widthMm}×{format.heightMm}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nom et dimensions */}
+                <h3 className="text-lg font-medium text-white mb-1">{format.nameFr}</h3>
+                <p className="text-sm text-midnight-400 mb-3">
+                  {format.widthMm} × {format.heightMm} mm
+                </p>
+
+                {/* Prix estimé */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-midnight-500">{locale === 'fr' ? 'Prix estimé' : locale === 'en' ? 'Estimated price' : 'Примерная цена'}</span>
+                  <span className="text-sm font-medium text-aurora-400">{format.priceEstimate}</span>
+                </div>
+
+                {/* Hover effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-aurora-500/0 to-dream-500/0 group-hover:from-aurora-500/5 group-hover:to-dream-500/5 rounded-2xl transition-all duration-300" />
+              </div>
+            </motion.button>
+          ))}
+        </div>
+
+        {/* Note */}
+        <motion.p 
+          className="text-center text-white/40 text-sm mt-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          {locale === 'fr' ? '💡 Les pages seront adaptées à ce format' : locale === 'en' ? '💡 Pages will be adapted to this format' : '💡 Страницы будут адаптированы под этот формат'}
+        </motion.p>
+      </div>
+    )
+  }
+
+  // Étape 1 : Choix de la structure
   return (
     <div className="relative max-w-6xl mx-auto">
       {/* Titre */}
@@ -6012,7 +7292,7 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
           return (
             <motion.button
               key={structureId}
-              onClick={() => onSelect(structureId)}
+              onClick={() => handleSelectStructure(structureId)}
               className="group relative text-left focus:outline-none focus:ring-2 focus:ring-aurora-500/50 rounded-3xl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -6135,6 +7415,7 @@ export function BookMode() {
     completeStory,
     reopenStory,
     setCurrentMode,
+    updateStoryFormat,
   } = useAppStore()
   
   const [storyTitle, setStoryTitle] = useState('')
@@ -6146,11 +7427,17 @@ export function BookMode() {
   const [showStructureSelector, setShowStructureSelector] = useState(false)
   const [showStructureView, setShowStructureView] = useState(false)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
+  // État pour afficher l'éditeur de couverture
+  const [showCoverEditor, setShowCoverEditor] = useState<'front' | 'back' | null>(null)
   
-  // État local pour les pages (plus flexible)
+  // État local pour les pages de contenu (plus flexible)
   const [pages, setPages] = useState<StoryPageLocal[]>([
     { id: '1', title: '', content: '' }
   ])
+  
+  // État pour les pages de couverture (séparées des pages de contenu)
+  const [frontCover, setFrontCover] = useState<StoryPageLocal | null>(null)
+  const [backCover, setBackCover] = useState<StoryPageLocal | null>(null)
   
   // Chapitres (synchronisés avec le store)
   const [chapters, setChapters] = useState<Chapter[]>([])
@@ -6163,6 +7450,10 @@ export function BookMode() {
   const [editingChapterName, setEditingChapterName] = useState('')
   // État pour afficher/masquer les lignes de cahier (global)
   const [showLines, setShowLines] = useState(true)
+  // État pour afficher/masquer les zones de sécurité d'impression
+  const [showSafeZones, setShowSafeZones] = useState(false)
+  // État pour les alertes DPI (images basse résolution)
+  const [dpiWarning, setDpiWarning] = useState<{ imageId: string; dpi: number; message: string } | null>(null)
   
   // État pour la couleur du livre (global pour toutes les pages)
   const [bookColor, setBookColor] = useState<PageColor>('cream')
@@ -6238,10 +7529,12 @@ export function BookMode() {
       setStoryTitle(currentStory.title)
       
       if (currentStory.pages && currentStory.pages.length > 0) {
-        setPages(currentStory.pages.map((p) => ({
+        // Helper pour convertir une page du store vers le format local
+        const convertPage = (p: typeof currentStory.pages[0]): StoryPageLocal => ({
           id: p.id,
           title: p.title || '',
           content: p.content || '',
+          pageType: p.pageType,
           // Nouveau format multi-médias (cast pour compatibilité de types)
           images: p.images?.map(img => ({
             ...img,
@@ -6252,6 +7545,8 @@ export function BookMode() {
           backgroundMedia: p.backgroundMedia as BackgroundMedia | undefined,
           // Décorations (stickers, ornements)
           decorations: p.decorations as PageDecoration[] | undefined,
+          // Zones de texte flottantes
+          textBoxes: p.textBoxes as PageTextBox[] | undefined,
           // Legacy fields
           image: p.image,
           imagePosition: p.imagePosition,
@@ -6259,9 +7554,28 @@ export function BookMode() {
           frameStyle: p.frameStyle as FrameStyle | undefined,
           chapterId: p.chapterId,
           style: DEFAULT_STYLE,
-        })))
+        })
+        
+        // Séparer les pages de couverture des pages de contenu
+        const allPages = currentStory.pages
+        const front = allPages.find(p => p.pageType === 'front-cover')
+        const back = allPages.find(p => p.pageType === 'back-cover')
+        const content = allPages.filter(p => p.pageType !== 'front-cover' && p.pageType !== 'back-cover')
+        
+        // Charger les pages de couverture
+        setFrontCover(front ? convertPage(front) : null)
+        setBackCover(back ? convertPage(back) : null)
+        
+        // Charger les pages de contenu
+        if (content.length > 0) {
+          setPages(content.map(convertPage))
+        } else {
+          setPages([{ id: '1', title: '', content: '', chapterId: undefined, style: DEFAULT_STYLE }])
+        }
       } else {
         // Si pas de pages, créer une page vide
+        setFrontCover(null)
+        setBackCover(null)
         setPages([{ id: '1', title: '', content: '', chapterId: undefined, style: DEFAULT_STYLE }])
       }
       
@@ -6378,9 +7692,10 @@ export function BookMode() {
       stepIndex: 0,
       content: p.content,
       images: p.images,
-      // Fond de page et décorations
+      // Fond de page, décorations et zones de texte
       backgroundMedia: p.backgroundMedia,
       decorations: p.decorations,
+      textBoxes: p.textBoxes,
       // Legacy fields pour rétrocompatibilité
       image: p.image,
       imagePosition: p.imagePosition,
@@ -6446,6 +7761,18 @@ export function BookMode() {
     if (!pages[pageIdx]) return
     const newPages = [...pages]
     newPages[pageIdx] = updateImageInPage(newPages[pageIdx], imageId, { frame })
+    setPages(newPages)
+    
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  // Gestion de l'opacité de l'image
+  const handleImageOpacityChange = (pageIdx: number, imageId: string, opacity: number) => {
+    if (!pages[pageIdx]) return
+    const newPages = [...pages]
+    newPages[pageIdx] = updateImageInPage(newPages[pageIdx], imageId, { opacity })
     setPages(newPages)
     
     if (currentStory) {
@@ -6533,19 +7860,26 @@ export function BookMode() {
     setShowMediaPicker(true)
   }
 
-  const handleMediaSelect = (url: string, type: 'image' | 'video' | 'audio') => {
+  const handleMediaSelect = async (url: string, type: 'image' | 'video' | 'audio') => {
+    console.log('📥 BookMode - handleMediaSelect appelé:', { url: url?.substring(0, 50), type })
+    
     // On ne gère pas l'audio pour l'instant
     if (type === 'audio') return
     
     const targetIndex = mediaPickerTargetPage === 'left' ? leftPageIndex : rightPageIndex
-    if (!pages[targetIndex]) return
+    console.log('📥 BookMode - Target page index:', targetIndex, 'pages count:', pages.length)
+    if (!pages[targetIndex]) {
+      console.error('❌ BookMode - Page cible non trouvée!')
+      return
+    }
     
     const newPages = [...pages]
     const page = newPages[targetIndex]
     
     // Créer un nouveau média avec ID unique
+    const mediaId = `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const newMedia: PageMedia = {
-      id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: mediaId,
       url,
       type: type as MediaType,  // 'image' ou 'video'
       position: DEFAULT_IMAGE_POSITION,
@@ -6560,12 +7894,63 @@ export function BookMode() {
       images: [...(page.images || []), newMedia],
     }
     setPages(newPages)
+    console.log('✅ BookMode - Image ajoutée:', newMedia.id, 'à la page', targetIndex)
     
     if (currentStory) {
       updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+      console.log('✅ BookMode - Pages mises à jour dans le store')
     }
     
     setShowMediaPicker(false)
+    
+    // Vérifier la résolution de l'image pour l'impression (uniquement pour les images)
+    if (type === 'image' && currentStory?.bookFormat) {
+      const format = BOOK_FORMATS.find(f => f.id === currentStory.bookFormat)
+      if (format) {
+        try {
+          // Charger l'image pour obtenir ses dimensions
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.src = url
+          
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+          })
+          
+          // Calculer le DPI pour une impression à la taille par défaut (50% de la page)
+          const printWidthMm = format.widthMm * (DEFAULT_IMAGE_POSITION.width / 100)
+          const printHeightMm = format.heightMm * (DEFAULT_IMAGE_POSITION.height / 100)
+          
+          // Convertir mm en pouces (1 pouce = 25.4mm)
+          const printWidthInch = printWidthMm / 25.4
+          const printHeightInch = printHeightMm / 25.4
+          
+          // Calculer le DPI (pixels / pouces)
+          const dpiWidth = img.naturalWidth / printWidthInch
+          const dpiHeight = img.naturalHeight / printHeightInch
+          const effectiveDpi = Math.min(dpiWidth, dpiHeight)
+          
+          console.log(`📐 DPI calculé: ${Math.round(effectiveDpi)} (${img.naturalWidth}x${img.naturalHeight}px pour ${Math.round(printWidthMm)}x${Math.round(printHeightMm)}mm)`)
+          
+          // Alerter si le DPI est inférieur à 200 (limite acceptable pour impression)
+          if (effectiveDpi < 200) {
+            setDpiWarning({
+              imageId: mediaId,
+              dpi: Math.round(effectiveDpi),
+              message: effectiveDpi < 150 
+                ? `⚠️ Image très basse résolution (${Math.round(effectiveDpi)} DPI). Elle sera floue à l'impression.`
+                : `⚠️ Image basse résolution (${Math.round(effectiveDpi)} DPI). Qualité d'impression moyenne.`
+            })
+            
+            // Masquer l'avertissement après 6 secondes
+            setTimeout(() => setDpiWarning(null), 6000)
+          }
+        } catch (err) {
+          console.warn('Impossible de vérifier la résolution de l\'image:', err)
+        }
+      }
+    }
   }
 
   // === Gestion du fond de page ===
@@ -6823,9 +8208,113 @@ export function BookMode() {
     }
   }
 
-  const handleSelectStructure = (structure: StoryStructure) => {
-    // Créer l'histoire dans le store
-    const newStory = createStory(storyTitle, structure)
+  // ============ GESTION DES ZONES DE TEXTE ============
+  
+  const handleTextBoxAdd = (pageIndex: number) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage) return
+
+    const newTextBox: PageTextBox = {
+      id: `textbox-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      content: 'Double-cliquez pour éditer...',
+      position: { x: 20, y: 20, width: 30, height: 15 },
+      style: {
+        fontFamily: 'Georgia',
+        fontSize: 16,
+        color: '#3d3426',
+        backgroundColor: '#ffffff',
+        backgroundOpacity: 0.9,
+        textAlign: 'left',
+        lineSpacing: 'normal',
+      },
+      zIndex: (targetPage.textBoxes?.length || 0) + 1,
+    }
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      textBoxes: [...(targetPage.textBoxes || []), newTextBox],
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleTextBoxPositionChange = (pageIndex: number, textBoxId: string, position: { x: number; y: number; width: number; height: number }) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.textBoxes) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      textBoxes: targetPage.textBoxes.map(tb =>
+        tb.id === textBoxId ? { ...tb, position } : tb
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleTextBoxContentChange = (pageIndex: number, textBoxId: string, content: string) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.textBoxes) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      textBoxes: targetPage.textBoxes.map(tb =>
+        tb.id === textBoxId ? { ...tb, content } : tb
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleTextBoxStyleChange = (pageIndex: number, textBoxId: string, style: PageTextBox['style']) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.textBoxes) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      textBoxes: targetPage.textBoxes.map(tb =>
+        tb.id === textBoxId ? { ...tb, style } : tb
+      ),
+    }
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleTextBoxDelete = (pageIndex: number, textBoxId: string) => {
+    const targetPage = pages[pageIndex]
+    if (!targetPage?.textBoxes) return
+
+    const newPages = [...pages]
+    newPages[pageIndex] = {
+      ...targetPage,
+      textBoxes: targetPage.textBoxes.filter(tb => tb.id !== textBoxId),
+    }
+    setPages(newPages)
+    
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
+  const handleSelectStructure = (structure: StoryStructure, bookFormat: BookFormat) => {
+    // Créer l'histoire dans le store avec le format du livre
+    const newStory = createStory(storyTitle, structure, bookFormat)
     setCurrentStory(newStory)
     
     // Créer les pages locales selon le template
@@ -7128,6 +8617,18 @@ export function BookMode() {
               }}
               onShowStructure={() => setShowStructureView(true)}
               onShowOverview={() => setShowOverview(true)}
+              bookFormat={currentStory?.bookFormat || 'portrait-a5'}
+              onBookFormatChange={(format) => {
+                if (currentStory) {
+                  updateStoryFormat(currentStory.id, format)
+                }
+              }}
+              showSafeZones={showSafeZones}
+              onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
+              hasFrontCover={!!frontCover}
+              hasBackCover={!!backCover}
+              onShowFrontCover={() => setShowCoverEditor('front')}
+              onShowBackCover={() => setShowCoverEditor('back')}
               onZoomChange={setCurrentZoomedPage}
               externalZoomedPage={currentZoomedPage}
               showLines={showLines}
@@ -7135,6 +8636,7 @@ export function BookMode() {
               onImagePositionChange={handleImagePositionChange}
               onImageStyleChange={handleImageStyleChange}
               onImageFrameChange={handleImageFrameChange}
+              onImageOpacityChange={handleImageOpacityChange}
               onImageDelete={handleImageDelete}
               onImageBringForward={handleImageBringForward}
               onImageSendBackward={handleImageSendBackward}
@@ -7153,6 +8655,11 @@ export function BookMode() {
               onDecorationGlowChange={handleDecorationGlowChange}
               onDecorationFlip={handleDecorationFlip}
               onDecorationDelete={handleDecorationDelete}
+              onTextBoxAdd={handleTextBoxAdd}
+              onTextBoxPositionChange={handleTextBoxPositionChange}
+              onTextBoxContentChange={handleTextBoxContentChange}
+              onTextBoxStyleChange={handleTextBoxStyleChange}
+              onTextBoxDelete={handleTextBoxDelete}
               isLocked={currentStory?.isComplete}
               onUnlock={() => currentStory && reopenStory(currentStory.id)}
             />
@@ -7199,6 +8706,45 @@ export function BookMode() {
             onClose={() => setShowDecorationPicker(false)}
             onSelect={handleAddDecoration}
           />
+          
+          {/* Alerte DPI pour images basse résolution */}
+          <AnimatePresence>
+            {dpiWarning && (
+              <motion.div
+                initial={{ opacity: 0, y: 50, x: '-50%' }}
+                animate={{ opacity: 1, y: 0, x: '-50%' }}
+                exit={{ opacity: 0, y: 50, x: '-50%' }}
+                className="fixed bottom-24 left-1/2 z-50 px-4 py-3 rounded-xl shadow-2xl border max-w-md"
+                style={{
+                  background: dpiWarning.dpi < 150 
+                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(185, 28, 28, 0.95))'
+                    : 'linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(217, 119, 6, 0.95))',
+                  borderColor: dpiWarning.dpi < 150 ? 'rgba(248, 113, 113, 0.5)' : 'rgba(251, 191, 36, 0.5)',
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+                    dpiWarning.dpi < 150 ? "bg-red-400/20" : "bg-amber-400/20"
+                  )}>
+                    <ImageIcon className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white text-sm font-medium">{dpiWarning.message}</p>
+                    <p className="text-white/70 text-xs mt-1">
+                      Recommandé : 300 DPI minimum pour une impression de qualité.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setDpiWarning(null)}
+                    className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4 text-white/70" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           
           {/* Modal de confirmation pour supprimer une page */}
           <AnimatePresence>
@@ -7640,6 +9186,33 @@ export function BookMode() {
               }
             }}
             onClose={() => setShowStructureView(false)}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Éditeur de couverture */}
+      <AnimatePresence>
+        {showCoverEditor && (
+          <CoverEditor
+            cover={showCoverEditor === 'front' ? frontCover : backCover}
+            coverType={showCoverEditor}
+            storyTitle={storyTitle}
+            bookFormat={currentStory?.bookFormat}
+            onClose={() => setShowCoverEditor(null)}
+            onUpdateCover={(updates) => {
+              if (showCoverEditor === 'front') {
+                setFrontCover(prev => prev ? { ...prev, ...updates } : { id: 'front-cover', title: '', content: updates.content || '', pageType: 'front-cover', ...updates })
+              } else {
+                setBackCover(prev => prev ? { ...prev, ...updates } : { id: 'back-cover', title: '', content: updates.content || '', pageType: 'back-cover', ...updates })
+              }
+              // TODO: Sauvegarder dans le store
+            }}
+            onImageAdd={() => {
+              // TODO: Ouvrir le sélecteur d'images
+            }}
+            onBackgroundAdd={() => {
+              // TODO: Ouvrir le sélecteur de fond
+            }}
           />
         )}
       </AnimatePresence>
