@@ -5200,40 +5200,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <LayoutGrid className="w-4 h-4" />
             </button>
           )}
-          {/* Séparateur */}
-          {(onShowFrontCover || onShowBackCover) && (
-            <div className="w-px h-4 bg-midnight-700 mx-1" />
-          )}
-          {/* Bouton couverture */}
-          {onShowFrontCover && (
-            <button
-              onClick={onShowFrontCover}
-              className={cn(
-                "p-1.5 rounded-lg transition-colors text-xs font-medium",
-                hasFrontCover 
-                  ? "bg-aurora-500/20 text-aurora-400 hover:bg-aurora-500/30"
-                  : "bg-midnight-800/50 hover:bg-midnight-800 text-midnight-400 hover:text-white"
-              )}
-              title="Éditer la couverture"
-            >
-              📕
-            </button>
-          )}
-          {/* Bouton 4ème de couverture */}
-          {onShowBackCover && (
-            <button
-              onClick={onShowBackCover}
-              className={cn(
-                "p-1.5 rounded-lg transition-colors text-xs font-medium",
-                hasBackCover 
-                  ? "bg-aurora-500/20 text-aurora-400 hover:bg-aurora-500/30"
-                  : "bg-midnight-800/50 hover:bg-midnight-800 text-midnight-400 hover:text-white"
-              )}
-              title="Éditer la 4ème de couverture"
-            >
-              📖
-            </button>
-          )}
+          {/* Couvertures supprimées - Page 1 = couverture, dernière page = 4ème */}
         </div>
       </div>
       
@@ -7411,17 +7378,11 @@ export function BookMode() {
   const [showStructureSelector, setShowStructureSelector] = useState(false)
   const [showStructureView, setShowStructureView] = useState(false)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
-  // État pour afficher l'éditeur de couverture
-  const [showCoverEditor, setShowCoverEditor] = useState<'front' | 'back' | null>(null)
   
-  // État local pour les pages de contenu (plus flexible)
+  // État local pour les pages de contenu (Page 1 = couverture, dernière = 4ème)
   const [pages, setPages] = useState<StoryPageLocal[]>([
     { id: '1', title: '', content: '' }
   ])
-  
-  // État pour les pages de couverture (séparées des pages de contenu)
-  const [frontCover, setFrontCover] = useState<StoryPageLocal | null>(null)
-  const [backCover, setBackCover] = useState<StoryPageLocal | null>(null)
   
   // Chapitres (synchronisés avec le store)
   const [chapters, setChapters] = useState<Chapter[]>([])
@@ -7506,24 +7467,11 @@ export function BookMode() {
         
         // Séparer les pages de couverture des pages de contenu
         const allPages = currentStory.pages
-        const front = allPages.find(p => p.pageType === 'front-cover')
-        const back = allPages.find(p => p.pageType === 'back-cover')
-        const content = allPages.filter(p => p.pageType !== 'front-cover' && p.pageType !== 'back-cover')
-        
-        // Charger les pages de couverture
-        setFrontCover(front ? convertPage(front) : null)
-        setBackCover(back ? convertPage(back) : null)
-        
-        // Charger les pages de contenu
-        if (content.length > 0) {
-          setPages(content.map(convertPage))
-        } else {
-          setPages([{ id: '1', title: '', content: '', chapterId: undefined, style: DEFAULT_STYLE }])
-        }
+        // Toutes les pages sont traitées de la même façon
+        // Page 1 = couverture, dernière page = 4ème de couverture (à l'export)
+        setPages(allPages.map(convertPage))
       } else {
-        // Si pas de pages, créer une page vide
-        setFrontCover(null)
-        setBackCover(null)
+        // Si pas de pages, créer une page vide (qui sera la couverture)
         setPages([{ id: '1', title: '', content: '', chapterId: undefined, style: DEFAULT_STYLE }])
       }
       
@@ -8573,10 +8521,6 @@ export function BookMode() {
               }}
               showSafeZones={showSafeZones}
               onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
-              hasFrontCover={!!frontCover}
-              hasBackCover={!!backCover}
-              onShowFrontCover={() => setShowCoverEditor('front')}
-              onShowBackCover={() => setShowCoverEditor('back')}
               onZoomChange={setCurrentZoomedPage}
               externalZoomedPage={currentZoomedPage}
               showLines={showLines}
@@ -9140,29 +9084,7 @@ export function BookMode() {
       
       {/* Éditeur de couverture */}
       <AnimatePresence>
-        {showCoverEditor && (
-          <CoverEditor
-            cover={showCoverEditor === 'front' ? frontCover : backCover}
-            coverType={showCoverEditor}
-            storyTitle={storyTitle}
-            bookFormat={currentStory?.bookFormat}
-            onClose={() => setShowCoverEditor(null)}
-            onUpdateCover={(updates) => {
-              if (showCoverEditor === 'front') {
-                setFrontCover(prev => prev ? { ...prev, ...updates } : { id: 'front-cover', title: '', content: updates.content || '', pageType: 'front-cover', ...updates })
-              } else {
-                setBackCover(prev => prev ? { ...prev, ...updates } : { id: 'back-cover', title: '', content: updates.content || '', pageType: 'back-cover', ...updates })
-              }
-              // TODO: Sauvegarder dans le store
-            }}
-            onImageAdd={() => {
-              // TODO: Ouvrir le sélecteur d'images
-            }}
-            onBackgroundAdd={() => {
-              // TODO: Ouvrir le sélecteur de fond
-            }}
-          />
-        )}
+        {/* Éditeur de couverture supprimé - Page 1 = couverture, dernière page = 4ème */}
       </AnimatePresence>
       
       {/* Modale d'introduction - première visite */}
