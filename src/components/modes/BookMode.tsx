@@ -63,6 +63,7 @@ import { Highlightable } from '@/components/ui/Highlightable'
 import { VoiceSelector } from '@/components/ui/VoiceSelector'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
+import { useTranslations, useLocale } from '@/lib/i18n/context'
 
 // ============================================================================
 // TYPES
@@ -6519,66 +6520,14 @@ function AISidePanel({
   
   // Récupérer le nom personnalisé de l'IA depuis le store
   const { aiName } = useAppStore()
-  const displayName = aiName || (locale === 'fr' ? 'Mon aide' : locale === 'en' ? 'My helper' : 'Мой помощник')
   
-  const labels = {
-    fr: {
-      title: displayName,
-      subtitle: 'Ton aide pour écrire',
-      placeholder: `Écris à ${displayName}...`,
-      intro: 'Je suis là pour t\'aider à écrire ton histoire ! 📖✨ Qu\'est-ce que tu veux raconter ?',
-      readPage: '📄 Lis ma page',
-      readChapter: '📑 Lis mon chapitre',
-      readBook: '📚 Lis mon livre',
-      reading: 'Je lis...',
-      send: 'Envoyer',
-      collapse: 'Réduire',
-      expand: displayName,
-      voiceOn: 'Mode oral activé',
-      voiceOff: 'Mode écrit',
-      emptyPage: 'Je n\'ai pas encore commencé à écrire. Tu peux m\'aider ?',
-      emptyChapter: 'Ce chapitre est vide pour l\'instant. Tu veux qu\'on le commence ensemble ?',
-      emptyBook: 'Ton livre est encore vide ! Par quoi tu veux commencer ?',
-    },
-    en: {
-      title: displayName,
-      subtitle: 'Your writing helper',
-      placeholder: `Write to ${displayName}...`,
-      intro: 'I\'m here to help you write your story! 📖✨ What do you want to tell?',
-      readPage: '📄 Read my page',
-      readChapter: '📑 Read my chapter',
-      readBook: '📚 Read my book',
-      reading: 'Reading...',
-      send: 'Send',
-      collapse: 'Collapse',
-      expand: displayName,
-      voiceOn: 'Voice mode on',
-      voiceOff: 'Text mode',
-      emptyPage: 'I haven\'t started writing yet. Can you help me?',
-      emptyChapter: 'This chapter is empty for now. Want to start it together?',
-      emptyBook: 'Your book is still empty! What do you want to start with?',
-    },
-    ru: {
-      title: displayName,
-      subtitle: 'Твой помощник в письме',
-      placeholder: `Напиши ${displayName}...`,
-      intro: 'Я здесь, чтобы помочь тебе написать историю! 📖✨ Что ты хочешь рассказать?',
-      readPage: '📄 Прочитай страницу',
-      readChapter: '📑 Прочитай главу',
-      readBook: '📚 Прочитай книгу',
-      reading: 'Читаю...',
-      send: 'Отправить',
-      collapse: 'Свернуть',
-      expand: displayName,
-      voiceOn: 'Голосовой режим',
-      voiceOff: 'Текстовый режим',
-      emptyPage: 'Я ещё не начала писать. Можешь помочь?',
-      emptyChapter: 'Эта глава пока пуста. Начнём вместе?',
-      emptyBook: 'Твоя книга ещё пуста! С чего хочешь начать?',
-    },
-  }
+  // i18n
+  const currentLocale = useLocale()
+  const t = useTranslations('writing')
   
-  const t = labels[locale]
+  // Nom par défaut selon la langue
+  const defaultName = currentLocale === 'fr' ? 'Mon aide' : currentLocale === 'en' ? 'My helper' : 'Мой помощник'
+  const displayName = aiName || defaultName
 
   // Scroll to bottom when new messages
   useEffect(() => {
@@ -6588,7 +6537,7 @@ function AISidePanel({
   // Initial message
   useEffect(() => {
     if (messages.length === 0) {
-      setMessages([{ role: 'assistant', content: t.intro }])
+      setMessages([{ role: 'assistant', content: t('ai.intro') }])
     }
   }, [])
 
@@ -6669,7 +6618,7 @@ function AISidePanel({
     const cleanContent = stripHtml(pageContent).trim()
     
     if (!cleanContent) {
-      sendToAI(t.emptyPage)
+      sendToAI(t('ai.emptyPage'))
       return
     }
     
@@ -6704,7 +6653,7 @@ function AISidePanel({
       .join('\n\n')
     
     if (!chapterContent.trim() || chapterPages.every(p => !stripHtml(p.content).trim())) {
-      sendToAI(t.emptyChapter)
+      sendToAI(t('ai.emptyChapter'))
       return
     }
     
@@ -6741,7 +6690,7 @@ function AISidePanel({
       .join('\n\n')
     
     if (!bookContent.trim() || allPages.every(p => !stripHtml(p.content).trim())) {
-      sendToAI(t.emptyBook)
+      sendToAI(t('ai.emptyBook'))
       return
     }
     
@@ -6787,7 +6736,7 @@ function AISidePanel({
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-aurora-500 to-stardust-500 flex items-center justify-center">
           <Sparkles className="w-4 h-4 text-white" />
         </div>
-        <span className="text-aurora-300 font-medium">{t.expand}</span>
+        <span className="text-aurora-300 font-medium">{displayName}</span>
         <ChevronLeft className="w-4 h-4 text-aurora-400" />
       </motion.button>
     )
@@ -6841,12 +6790,12 @@ function AISidePanel({
               title={locale === 'fr' ? 'Cliquer pour renommer' : locale === 'en' ? 'Click to rename' : 'Нажмите, чтобы переименовать'}
             >
               <p className="font-medium text-white flex items-center gap-1.5">
-                {t.title}
+                {displayName}
                 <Edit3 className="w-3 h-3 text-midnight-500 group-hover:text-aurora-400 transition-colors" />
               </p>
             </button>
           )}
-          <p className="text-xs text-midnight-400">{t.subtitle}</p>
+          <p className="text-xs text-midnight-400">{t('ai.subtitle')}</p>
         </div>
         
         {/* Toggle Écrit / Oral */}
@@ -6862,7 +6811,7 @@ function AISidePanel({
                 ? 'bg-aurora-500/20 text-aurora-300 border border-aurora-500/30'
                 : 'bg-midnight-700/50 text-midnight-400 border border-midnight-600/30 hover:text-midnight-300'
             )}
-            title={autoSpeak ? t.voiceOn : t.voiceOff}
+            title={autoSpeak ? t('ai.voiceOn') : t('ai.voiceOff')}
           >
             <Volume2 className={cn("w-3.5 h-3.5", isSpeaking && "animate-pulse")} />
             {autoSpeak 
@@ -6890,7 +6839,7 @@ function AISidePanel({
         <button
           onClick={onToggle}
           className="p-2 rounded-lg hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
-          title={t.collapse}
+          title={t('ai.collapse')}
         >
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -6955,7 +6904,7 @@ function AISidePanel({
             animate={{ opacity: 1 }}
             className="bg-aurora-500/10 rounded-xl p-3 text-sm text-aurora-300"
           >
-            <span className="animate-pulse">{t.reading}</span>
+            <span className="animate-pulse">{t('ai.reading')}</span>
           </motion.div>
         )}
         
@@ -7025,9 +6974,9 @@ function AISidePanel({
                 
                 <div className="flex gap-0.5">
                   {[
-                    { action: handleReadPage, icon: FileText, label: locale === 'fr' ? 'Page' : locale === 'en' ? 'Page' : 'Страница', title: t.readPage },
-                    { action: handleReadChapter, icon: Folder, label: locale === 'fr' ? 'Chapitre' : locale === 'en' ? 'Chapter' : 'Глава', title: t.readChapter },
-                    { action: handleReadBook, icon: Book, label: locale === 'fr' ? 'Livre' : locale === 'en' ? 'Book' : 'Книга', title: t.readBook },
+                    { action: handleReadPage, icon: FileText, label: locale === 'fr' ? 'Page' : locale === 'en' ? 'Page' : 'Страница', title: t('ai.readPage') },
+                    { action: handleReadChapter, icon: Folder, label: locale === 'fr' ? 'Chapitre' : locale === 'en' ? 'Chapter' : 'Глава', title: t('ai.readChapter') },
+                    { action: handleReadBook, icon: Book, label: locale === 'fr' ? 'Livre' : locale === 'en' ? 'Book' : 'Книга', title: t('ai.readBook') },
                   ].map((item, idx) => (
                     <motion.button
                       key={item.label}
@@ -7063,7 +7012,7 @@ function AISidePanel({
             type="text"
             value={isListening ? (locale === 'fr' ? 'J\'écoute...' : locale === 'en' ? 'Listening...' : 'Слушаю...') : message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder={t.placeholder}
+            placeholder={t('ai.placeholder', { name: displayName })}
             disabled={isLoading || isListening}
             className="flex-1 px-4 py-2 rounded-xl bg-midnight-800/50 border border-midnight-700/50 text-white placeholder-midnight-500 text-sm focus:outline-none focus:border-aurora-500/30 disabled:opacity-50"
           />
@@ -7478,45 +7427,9 @@ export function BookMode() {
   const rightPageIndex = currentSpread * 2 + 1
   const totalSpreads = Math.ceil(pages.length / 2)
   
-  const locale = 'fr' // TODO: get from context
-  
-  const labels = {
-    fr: {
-      title: 'Mon Atelier d\'Histoires',
-      subtitle: 'Crée des histoires magiques',
-      newStory: 'Nouvelle histoire',
-      continue: 'Continuer',
-      previous: 'Mes histoires',
-      titlePlaceholder: 'Le titre de ton histoire...',
-      addPage: 'Nouvelle page',
-      overview: 'Vue d\'ensemble',
-      pages: 'pages',
-    },
-    en: {
-      title: 'My Story Workshop',
-      subtitle: 'Create magical stories',
-      newStory: 'New story',
-      continue: 'Continue',
-      previous: 'My stories',
-      titlePlaceholder: 'Your story title...',
-      addPage: 'New page',
-      overview: 'Overview',
-      pages: 'pages',
-    },
-    ru: {
-      title: 'Моя Мастерская',
-      subtitle: 'Создавай волшебные истории',
-      newStory: 'Новая история',
-      continue: 'Продолжить',
-      previous: 'Мои истории',
-      titlePlaceholder: 'Название истории...',
-      addPage: 'Новая страница',
-      overview: 'Обзор',
-      pages: 'страниц',
-    },
-  }
-  
-  const t = labels[locale]
+  // i18n
+  const locale = useLocale()
+  const t = useTranslations('writing')
 
   // Référence pour tracker l'ID de l'histoire chargée
   const loadedStoryIdRef = useRef<string | null>(null)
@@ -8352,9 +8265,9 @@ export function BookMode() {
       >
         <h1 className="font-display text-4xl text-aurora-300 mb-2 flex items-center gap-3">
           <Feather className="w-8 h-8" />
-            {t.title}
+            {t('workshopTitle')}
         </h1>
-          <p className="text-midnight-300">{t.subtitle}</p>
+          <p className="text-midnight-300">{t('workshopSubtitle')}</p>
       </motion.header>
 
       {/* Contenu */}
@@ -8374,7 +8287,7 @@ export function BookMode() {
                 type="text"
                 value={storyTitle}
                 onChange={(e) => setStoryTitle(e.target.value)}
-                placeholder={t.titlePlaceholder}
+                placeholder={t('titlePlaceholder')}
                 className="w-full text-center text-2xl font-display bg-transparent border-b-2 border-midnight-700 focus:border-aurora-500 text-white placeholder-midnight-600 py-2 outline-none transition-colors"
               />
             </div>
@@ -8390,14 +8303,14 @@ export function BookMode() {
               whileTap={storyTitle.trim() ? { scale: 0.95 } : {}}
             >
               <Plus className="w-5 h-5" />
-              {t.newStory}
+              {t('newStory')}
             </motion.button>
 
             {/* Histoires précédentes */}
             {stories.length > 0 && (
               <div className="mt-12 w-full max-w-lg">
                 <h3 className="text-sm uppercase tracking-wider text-midnight-400 mb-4">
-                  {t.previous}
+                  {t('myStories')}
                 </h3>
                 <div className="space-y-2">
                   {stories.slice(0, 5).map((story) => (
@@ -8421,7 +8334,7 @@ export function BookMode() {
                         </span>
                       )}
                       <span className="text-xs text-midnight-400">
-                        {story.pages.length} {t.pages}
+                        {story.pages.length} {t('pages')}
                       </span>
                       </button>
                       <button
