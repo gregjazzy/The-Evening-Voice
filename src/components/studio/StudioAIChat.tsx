@@ -631,7 +631,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             title: 'Autonomie',
             subtitle: 'Tu sais tout décrire !',
             message: 'Tu n\'as presque plus besoin de boutons ! Décris tout dans ton texte : le style, l\'ambiance, les couleurs, la lumière...',
-            highlight: '🧪 Nouveau : Tu peux essayer de garder un personnage d\'une image à l\'autre ! (Résultats variables)',
+            highlight: 'L\'IA comprend tout ce que tu écris. C\'est exactement comme ça qu\'on parle aux IA professionnelles !',
           }
         } else {
           content = {
