@@ -24,7 +24,6 @@ interface AuthState {
   initialize: () => Promise<void>
   signUp: (email: string, password: string, name: string, role: UserRole) => Promise<{ error: string | null }>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
-  signInWithMagicCode: (code: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: string | null }>
   refreshProfile: () => Promise<void>
@@ -232,32 +231,6 @@ export const useAuthStore = create<AuthState>()(
           }
 
           return { error: null }
-        } catch (error: any) {
-          set({ isLoading: false })
-          return { error: error.message || 'Erreur inconnue' }
-        }
-      },
-
-      signInWithMagicCode: async (code) => {
-        set({ isLoading: true })
-        
-        try {
-          // Chercher un profil avec ce code magique (stocké dans metadata)
-          const { data: profile, error: profileError } = await db
-            .from('profiles')
-            .select('*')
-            .contains('badges', [{ type: 'magic_code', value: code }])
-            .single()
-
-          if (profileError || !profile) {
-            set({ isLoading: false })
-            return { error: 'Code magique invalide' }
-          }
-
-          // Pour le MVP, on peut simuler une connexion
-          // En production, il faudrait un système de tokens
-          set({ isLoading: false })
-          return { error: 'Fonctionnalité en développement' }
         } catch (error: any) {
           set({ isLoading: false })
           return { error: error.message || 'Erreur inconnue' }

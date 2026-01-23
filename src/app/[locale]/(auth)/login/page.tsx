@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { useAuthStore } from '@/store/useAuthStore'
-import { Sparkles, Mail, Lock, Eye, EyeOff, ArrowRight, Wand2 } from 'lucide-react'
+import { Sparkles, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 
@@ -275,24 +275,6 @@ export default function LoginPage() {
             </button>
           )}
         </div>
-
-        {/* Séparateur */}
-        <div className="my-6 flex items-center gap-4">
-          <div className="flex-1 h-px bg-aurora-700/50" />
-          <span className="text-aurora-400 text-sm">{tCommon('or')}</span>
-          <div className="flex-1 h-px bg-aurora-700/50" />
-        </div>
-
-        {/* Connexion avec code magique (pour les enfants) */}
-        <motion.button
-          type="button"
-          className="btn-secondary w-full flex items-center justify-center gap-2 py-3"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <Wand2 className="w-5 h-5" />
-          {t('enterMagicCode')}
-        </motion.button>
 
         {/* Lien d'inscription */}
         <div className="mt-6 text-center">
