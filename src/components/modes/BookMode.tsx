@@ -5651,13 +5651,23 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         <div 
           className="relative flex shadow-2xl"
           style={{
-            // Le livre prend la hauteur max disponible, la largeur s'adapte au ratio
-            height: '100%',
-            width: 'auto',
+            // Pour les formats très larges (paysage), on limite par la largeur
+            // Pour les formats portrait/carré, on limite par la hauteur
+            ...(formatRatio > 1 ? {
+              // Format PAYSAGE (ex: A5 paysage) → on limite par la LARGEUR
+              width: 'calc(100vw - 180px)',
+              height: 'auto',
+              maxWidth: 'calc(100vw - 180px)',
+              maxHeight: 'calc(100vh - 140px)',
+            } : {
+              // Format PORTRAIT ou CARRÉ → on limite par la HAUTEUR
+              height: 'calc(100vh - 140px)',
+              width: 'auto',
+              maxHeight: 'calc(100vh - 140px)',
+              maxWidth: 'calc(100vw - 180px)',
+            }),
             // Aspect ratio pour 2 pages côte à côte = (2 * largeur) / hauteur = 2 * formatRatio
             aspectRatio: `${2 * formatRatio} / 1`,
-            maxHeight: 'calc(100vh - 140px)', // Plus d'espace vertical
-            maxWidth: 'calc(100vw - 160px)',  // Plus d'espace horizontal
             perspective: '2000px',
           }}
         >
