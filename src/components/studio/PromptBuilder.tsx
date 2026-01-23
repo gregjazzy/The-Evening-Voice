@@ -865,10 +865,22 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             prompt: currentKit.generatedPrompt,
           }
       
+      console.log('🚀 Envoi requête génération:', {
+        endpoint,
+        requestBody,
+        timestamp: new Date().toISOString(),
+      })
+      
       const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
+      })
+      
+      console.log('📥 Réponse reçue:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type'),
       })
       
       // Parser la réponse en gérant les erreurs HTML
