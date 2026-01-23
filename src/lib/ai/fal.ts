@@ -100,20 +100,20 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
     referenceImageUrl,
     characterDescription,
     aspectRatio = '3:4',
-    imagePromptStrength = 0.1,  // 0.1 = le prompt domine, l'image de référence donne juste le style/personnage
+    imagePromptStrength = 0.3,  // 0.3 = équilibre entre référence et prompt
   } = params
 
-  // Construire le prompt avec la description du personnage si fournie
+  // Construire un prompt explicite qui dit à l'IA de réutiliser le personnage
   const fullPrompt = characterDescription 
-    ? `${prompt}. Keep the same ${characterDescription} from the reference image.`
+    ? `Use the exact same character (${characterDescription}) from the reference image. New scene: ${prompt}`
     : prompt
 
-  console.log(`🔄 Flux Redux - Génération avec image de référence`)
+  console.log(`🔄 Flux Redux - Génération avec personnage de référence`)
   console.log(`   Prompt: ${fullPrompt.substring(0, 100)}...`)
   console.log(`   Référence: ${referenceImageUrl.substring(0, 50)}...`)
   console.log(`   Strength: ${imagePromptStrength}`)
 
-  // Soumettre le job via REST API
+  // Flux Redux : utilise l'image de référence pour guider la génération
   const submitResponse = await falFetch('https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra/redux', {
     method: 'POST',
     body: JSON.stringify({
@@ -121,7 +121,7 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
       image_url: referenceImageUrl,
       aspect_ratio: aspectRatio,
       image_prompt_strength: imagePromptStrength,
-      safety_tolerance: '5',  // Permissif (contenu déjà modéré)
+      safety_tolerance: '5',
       output_format: 'png',
     }),
   })
