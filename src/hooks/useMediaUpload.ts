@@ -309,6 +309,12 @@ export function useMediaUpload(): UseMediaUploadReturn {
       setError('Utilisateur non connecté')
       return null
     }
+    
+    if (!profile?.id) {
+      setError('Profil non chargé - rafraîchis la page')
+      console.error('❌ Upload impossible: profile.id manquant')
+      return null
+    }
 
     const { type, maxSizeMB } = options
     const limit = maxSizeMB || DEFAULT_LIMITS[type]
