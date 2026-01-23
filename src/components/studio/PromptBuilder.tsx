@@ -871,12 +871,20 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         body: JSON.stringify(requestBody),
       })
       
+      // Vérifier si la réponse est du HTML (erreur serveur) avant de parser JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Réponse non-JSON:', text.substring(0, 200))
+        throw new Error('Erreur serveur - réessaie dans quelques secondes')
+      }
+      
       if (!response.ok) {
         const error = await response.json()
         throw new Error(error.error || 'Erreur de génération')
       }
       
-          const data = await response.json()
+      const data = await response.json()
       const assetUrl = isVideo ? data.videoUrl : data.imageUrl
       
       if (!assetUrl) {
