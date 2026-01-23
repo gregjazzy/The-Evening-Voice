@@ -2282,7 +2282,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                             
                             {/* 🔄 Nouvelle création */}
                             <motion.button
-                              onClick={() => {
+                              onClick={async () => {
                                 // Supprimer l'ancienne de la galerie et régénérer
                                 const lastAsset = importedAssets.find(a => a.url === generatedAsset.url)
                                 if (lastAsset) {
@@ -2290,6 +2290,8 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                                 }
                                 setGeneratedAsset(null)
                                 setGenerationError(null)
+                                // Petit délai pour éviter rate limiting
+                                await new Promise(resolve => setTimeout(resolve, 500))
                                 // Relancer la génération
                                 handleDirectGenerate()
                               }}

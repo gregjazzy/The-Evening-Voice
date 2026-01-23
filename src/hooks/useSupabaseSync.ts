@@ -643,17 +643,24 @@ export function useSupabaseSync() {
     }
   }, [profile?.id])
 
-  // Charger au login
+  // Charger au login (ou reconnexion)
   useEffect(() => {
-    if (profile?.id && !hasLoadedRef.current) {
-      loadFromSupabase()
+    if (profile?.id) {
+      // Toujours recharger quand le profile change (reconnexion)
+      if (lastProfileIdRef.current !== profile.id) {
+        hasLoadedRef.current = false
+      }
+      if (!hasLoadedRef.current) {
+        loadFromSupabase()
+      }
     }
   }, [profile?.id, loadFromSupabase])
 
-  // Reset quand déconnexion
+  // Reset complet quand déconnexion
   useEffect(() => {
     if (!user) {
       hasLoadedRef.current = false
+      lastProfileIdRef.current = null
     }
   }, [user])
 

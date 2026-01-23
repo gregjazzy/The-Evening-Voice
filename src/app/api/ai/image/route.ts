@@ -6,12 +6,12 @@
  * - Résolution native 2K
  * - Meilleure interprétation des descriptions complexes
  * 
- * Coût optimisé : 2K ($0.15) + upscale x2 ($0.01) = $0.16 pour ~500 DPI
- * (vs 4K natif à $0.30 pour le même résultat)
+ * Note : L'upscale pour impression se fait à la PUBLICATION, pas ici.
+ * Ça évite les timeouts et accélère la génération créative.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { generateImageFlux, adaptChildPrompt, isFalAvailable, upscaleImageForPrint } from '@/lib/ai/fal'
+import { generateImageFlux, adaptChildPrompt, isFalAvailable } from '@/lib/ai/fal'
 
 // POST - Générer une image
 export async function POST(request: NextRequest) {
@@ -23,15 +23,11 @@ export async function POST(request: NextRequest) {
       style = 'magique', 
       ambiance = 'jour',
       aspectRatio,
-      forVideo = false, // Si true, format vidéo (16:9), sinon format livre (3:4)
       model = 'nano-banana', // Modèle par défaut: Nano Banana Pro
-      skipUpscale = false, // Pour les vidéos, pas besoin d'upscale
     } = body
     
-    // Format par défaut selon l'usage
-    // - Image livre : 3:4 portrait (pour impression)
-    // - Image pour vidéo : 16:9 paysage (standard vidéo)
-    const finalAspectRatio = aspectRatio || (forVideo ? '16:9' : '3:4')
+    // Format par défaut : 3:4 portrait (pour impression livre)
+    const finalAspectRatio = aspectRatio || '3:4'
 
     // Utiliser le prompt complet si disponible, sinon la description
     const promptText = fullPrompt || description
@@ -69,50 +65,28 @@ export async function POST(request: NextRequest) {
       resolution: '2K',
     })
 
-    let finalImageUrl = result.images[0]?.url
-    let finalWidth = result.images[0]?.width
-    let finalHeight = result.images[0]?.height
-    let wasUpscaled = false
+    const finalImageUrl = result.images[0]?.url
+    const finalWidth = result.images[0]?.width
+    const finalHeight = result.images[0]?.height
 
-    // 🔍 Upscale pour qualité impression livre (300+ DPI sur A5)
-    // Uniquement pour les images livres, pas les vidéos
-    // Coût: +$0.01 pour doubler la résolution
-    const shouldUpscale = !forVideo && !skipUpscale && finalImageUrl
-
-    if (shouldUpscale) {
-      try {
-        console.log('🔍 Upscaling image pour qualité impression (x2)...')
-        const upscaled = await upscaleImageForPrint({
-          imageUrl: finalImageUrl,
-          scale: 2,
-        })
-        finalImageUrl = upscaled.imageUrl
-        finalWidth = upscaled.width
-        finalHeight = upscaled.height
-        wasUpscaled = true
-        console.log(`✅ Image upscalée: ${finalWidth}x${finalHeight}`)
-      } catch (upscaleError) {
-        console.warn('⚠️ Upscaling échoué, utilisation de l\'image 2K:', upscaleError)
-        // Continue avec l'image 2K si l'upscaling échoue
-      }
-    } else {
-      console.log(`✅ Image générée (sans upscale): ${finalImageUrl?.substring(0, 80)}...`)
-    }
+    // ⚠️ L'upscale se fait à la PUBLICATION, pas ici
+    // Ça évite les timeouts et accélère la génération
+    console.log(`✅ Image générée: ${finalWidth}x${finalHeight} - ${finalImageUrl?.substring(0, 80)}...`)
 
     return NextResponse.json({
       status: 'completed',
       imageUrl: finalImageUrl,
       width: finalWidth,
       height: finalHeight,
-      upscaled: wasUpscaled,
       prompt: result.prompt,
       seed: result.seed,
       model: model,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Erreur API image:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la génération de l\'image'
     return NextResponse.json(
-      { error: 'Erreur lors de la génération de l\'image' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
