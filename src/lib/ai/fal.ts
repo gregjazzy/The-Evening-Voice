@@ -100,7 +100,7 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
     referenceImageUrl,
     characterDescription,
     aspectRatio = '3:4',
-    imagePromptStrength = 0.5,  // 0.5 = bon équilibre entre référence et nouveau prompt
+    imagePromptStrength = 0.1,  // 0.1 = le prompt domine, l'image de référence donne juste le style/personnage
   } = params
 
   // Construire le prompt avec la description du personnage si fournie
