@@ -5,10 +5,17 @@
 
 import { fal } from '@fal-ai/client'
 
-// Configuration fal.ai
-fal.config({
-  credentials: process.env.FAL_API_KEY,
-})
+// Configuration fal.ai - paresseuse pour Netlify
+let falConfigured = false
+function ensureFalConfigured() {
+  if (!falConfigured && process.env.FAL_API_KEY) {
+    fal.config({
+      credentials: process.env.FAL_API_KEY,
+    })
+    falConfigured = true
+    console.log('✅ fal.ai configuré avec la clé:', process.env.FAL_API_KEY?.substring(0, 8) + '...')
+  }
+}
 
 // ============================================
 // TYPES
@@ -55,6 +62,8 @@ export interface FluxImageResult {
  * - flux: Flux Pro 1.1 - Modèle historique
  */
 export async function generateImageFlux(params: FluxImageParams): Promise<FluxImageResult> {
+  ensureFalConfigured()
+  
   const {
     prompt,
     aspectRatio = '3:4', // Format portrait livre par défaut
@@ -204,6 +213,7 @@ export interface UpscaleResult {
  * - Image 1152×1536 → x2 → 2304×3072 (suffisant A5 300 DPI)
  */
 export async function upscaleImageForPrint(params: UpscaleParams): Promise<UpscaleResult> {
+  ensureFalConfigured()
   const { imageUrl, scale = 2 } = params
 
   const result = await fal.subscribe('fal-ai/real-esrgan', {
@@ -246,6 +256,7 @@ export interface KlingVideoResult {
  * Prix : $0.35 pour 5 secondes
  */
 export async function generateVideoKling(params: KlingVideoParams): Promise<KlingVideoResult> {
+  ensureFalConfigured()
   const {
     prompt,
     imageUrl,
@@ -324,6 +335,7 @@ export interface ElevenLabsVoiceResult {
  * Utilise le modèle multilingual-v2 pour un support multilingue optimal
  */
 export async function generateVoiceElevenLabs(params: ElevenLabsVoiceParams): Promise<ElevenLabsVoiceResult> {
+  ensureFalConfigured()
   const {
     text,
     voiceId,
@@ -360,6 +372,7 @@ export interface SyncLabsResult {
  * Synchronise les lèvres d'une vidéo avec un audio
  */
 export async function syncLipsWithAudio(params: SyncLabsParams): Promise<SyncLabsResult> {
+  ensureFalConfigured()
   const { videoUrl, audioUrl } = params
 
   const result = await fal.subscribe('fal-ai/sync-lipsync', {
@@ -397,6 +410,7 @@ export interface TranscriptionResult {
  * Transcrit un audio avec Whisper via fal.ai
  */
 export async function transcribeAudio(params: TranscriptionParams): Promise<TranscriptionResult> {
+  ensureFalConfigured()
   const { audioUrl, language = 'fr' } = params
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
