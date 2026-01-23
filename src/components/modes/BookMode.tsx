@@ -4884,17 +4884,17 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   
   // 📐 Hook pour calculer la taille optimale du livre selon l'écran
   // Le livre doit être entièrement visible quelque soit le format et la taille d'écran
-  const [bookDimensions, setBookDimensions] = useState({ pageWidth: 400, pageHeight: 500 })
+  const [bookDimensions, setBookDimensions] = useState({ pageWidth: 300, pageHeight: 400 })
   
   useEffect(() => {
     const calculateOptimalSize = () => {
-      // Marges et espaces fixes (sidebar, toolbar, padding)
-      const sidebarWidth = 70  // Sidebar réduite
-      const toolbarHeight = 60 // Toolbar en haut
-      const bottomPadding = 80 // Espace en bas (pagination, etc.)
-      const horizontalPadding = 100 // Padding horizontal total (marges + boutons navigation)
+      // Marges et espaces fixes - valeurs TRÈS conservatrices pour garantir que le livre tient
+      const sidebarWidth = 90   // Sidebar (peut être plus large sur certains écrans)
+      const toolbarHeight = 90  // Toolbar en haut + FormatBar + marge
+      const bottomPadding = 120 // Espace en bas (pagination, boutons, marges)
+      const horizontalPadding = 200 // Padding horizontal (marges + boutons navigation + scrollbar potentielle)
       
-      // Espace disponible pour le livre
+      // Espace disponible pour le livre (2 pages côte à côte)
       const availableWidth = window.innerWidth - sidebarWidth - horizontalPadding
       const availableHeight = window.innerHeight - toolbarHeight - bottomPadding
       
@@ -4912,28 +4912,34 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
       const widthBasedPageWidth = widthBasedTotalWidth / 2
       const widthBasedPageHeight = widthBasedPageWidth / formatRatio
       
-      // Choisir la plus petite taille pour que le livre tienne dans l'écran
+      // Choisir la plus petite taille pour que le livre tienne ENTIÈREMENT dans l'écran
       let finalPageWidth: number
       let finalPageHeight: number
       
       if (heightBasedTotalWidth <= availableWidth) {
-        // La taille basée sur la hauteur tient en largeur
+        // La taille basée sur la hauteur tient en largeur → on utilise la hauteur
         finalPageWidth = heightBasedPageWidth
         finalPageHeight = heightBasedPageHeight
       } else {
-        // La largeur est le facteur limitant
+        // La largeur est le facteur limitant → on utilise la largeur
         finalPageWidth = widthBasedPageWidth
         finalPageHeight = widthBasedPageHeight
       }
       
       // Limites minimales pour la lisibilité
-      finalPageWidth = Math.max(200, finalPageWidth)
-      finalPageHeight = Math.max(250, finalPageHeight)
+      finalPageWidth = Math.max(180, finalPageWidth)
+      finalPageHeight = Math.max(200, finalPageHeight)
+      
+      // Debug log
+      console.log(`📐 Book dimensions: ${Math.round(finalPageWidth)}x${Math.round(finalPageHeight)}px (format ratio: ${formatRatio.toFixed(2)}, available: ${availableWidth}x${availableHeight})`)
       
       setBookDimensions({ pageWidth: finalPageWidth, pageHeight: finalPageHeight })
     }
     
+    // Calculer immédiatement
     calculateOptimalSize()
+    
+    // Recalculer au redimensionnement
     window.addEventListener('resize', calculateOptimalSize)
     return () => window.removeEventListener('resize', calculateOptimalSize)
   }, [formatRatio])
@@ -5683,7 +5689,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         )
       })() : (
       /* LIVRE OUVERT - 2 pages côte à côte */
-      <div className="flex-1 flex items-start justify-center overflow-hidden pt-1">
+      <div className="flex-1 flex items-center justify-center overflow-hidden py-2">
         {/* Flèche gauche */}
         {onPrevPage && (
           <button
@@ -5705,6 +5711,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           style={{
             height: `${bookDimensions.pageHeight}px`, // Hauteur calculée dynamiquement
             maxHeight: `${bookDimensions.pageHeight}px`,
+            // Largeur totale = 2 pages
+            width: `${bookDimensions.pageWidth * 2}px`,
+            maxWidth: 'calc(100vw - 180px)', // Contrainte de sécurité
             perspective: '2000px',
           }}
         >
