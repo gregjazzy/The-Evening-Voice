@@ -5642,17 +5642,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </div>
         )
       })() : (
-      /* LIVRE OUVERT - CONTENEUR FIXE qui force le livre à rentrer SANS ASCENSEUR */
+      /* LIVRE OUVERT - TAILLE MAXIMISÉE calculée en JS */
       <div 
-        className="flex-1 flex items-center justify-center gap-2 min-h-0 overflow-hidden"
-        style={{
-          // ZONE DISPONIBLE : tout l'espace moins les marges fixes
-          padding: '8px 16px',
-          height: 'calc(100vh - 180px)',    // Hauteur FIXE
-          maxHeight: 'calc(100vh - 180px)', // Jamais plus
-          maxWidth: 'calc(100vw - 140px)',  // Espace pour sidebar + marges
-          overflow: 'hidden',               // JAMAIS de scroll
-        }}
+        className="flex-1 flex items-center justify-center gap-2 overflow-hidden"
+        style={{ padding: '8px' }}
       >
         {/* Flèche gauche */}
         {onPrevPage && (
@@ -5660,49 +5653,39 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             onClick={onPrevPage}
             disabled={!hasPrevPage}
             className={cn(
-              'p-1.5 lg:p-2 rounded-full transition-all flex-shrink-0',
+              'p-1.5 rounded-full transition-all flex-shrink-0',
               hasPrevPage 
                 ? 'text-midnight-400 hover:text-white hover:bg-midnight-800/50' 
                 : 'text-midnight-700 cursor-not-allowed'
             )}
           >
-            <ChevronLeft className="w-5 h-5 lg:w-6 lg:h-6" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
         )}
         
-        {/* Conteneur du livre + bandeau prévisualisation - JAMAIS de scroll */}
-        <div className="flex flex-col items-center max-h-full max-w-full overflow-hidden">
-          {/* Bandeau prévisualisation impression */}
+        {/* Zone du livre - dimensions calculées pour MAXIMISER la taille */}
+        <div className="flex flex-col items-center flex-1 h-full overflow-hidden">
+          {/* Bandeau prévisualisation */}
           {showSafeZones && (
-            <div className="mb-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-blue-500/20 border border-amber-500/30 flex items-center gap-4 text-xs">
-              <span className="font-semibold text-white">👁️ Prévisualisation impression</span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded border-2 border-dashed border-red-500"></span>
-                <span className="text-red-400">Coupé</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded border-2 border-solid border-emerald-500 bg-emerald-500/20"></span>
-                <span className="text-emerald-400">Zone sûre</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded bg-blue-500/30 border border-dashed border-blue-500"></span>
-                <span className="text-blue-400">Reliure</span>
-              </span>
-              <span className="text-midnight-400 ml-2">
-                Format: {formatConfig?.widthMm}×{formatConfig?.heightMm}mm
-              </span>
+            <div className="mb-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-blue-500/20 border border-amber-500/30 flex items-center gap-3 text-xs flex-shrink-0">
+              <span className="font-semibold text-white">👁️ Prévisualisation</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded border border-red-500"></span><span className="text-red-400">Coupé</span></span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/30"></span><span className="text-emerald-400">Sûr</span></span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-500/30"></span><span className="text-blue-400">Reliure</span></span>
             </div>
           )}
           
-          {/* LIVRE : s'adapte automatiquement à la zone disponible */}
+          {/* LIVRE - Prend TOUT l'espace disponible */}
           <div 
-            className="relative flex shadow-2xl"
+            className="relative flex shadow-2xl flex-1"
             style={{
+              // Le livre prend toute la place disponible
+              width: '100%',
+              height: '100%',
+              // Mais garde son ratio (2 pages côte à côte)
+              maxWidth: `calc((100vh - ${showSafeZones ? '220px' : '180px'}) * ${2 * formatRatio})`,
+              maxHeight: `calc((100vw - 200px) / ${2 * formatRatio})`,
               aspectRatio: `${2 * formatRatio} / 1`,
-              maxHeight: showSafeZones ? 'calc(100% - 50px)' : '100%',
-              maxWidth: '100%',
-              height: showSafeZones ? 'calc(100% - 50px)' : '100%',
-              width: 'auto',
               perspective: '2000px',
             }}
           >
@@ -6486,9 +6469,15 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         {onNextPage && (
           <button
             onClick={onNextPage}
-            className="p-2 rounded-full text-midnight-400 hover:text-white hover:bg-midnight-800/50 transition-all ml-2"
+            disabled={!hasNextPage}
+            className={cn(
+              'p-1.5 rounded-full transition-all flex-shrink-0',
+              hasNextPage 
+                ? 'text-midnight-400 hover:text-white hover:bg-midnight-800/50' 
+                : 'text-midnight-700 cursor-not-allowed'
+            )}
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         )}
       </div>
