@@ -1,6 +1,8 @@
 /**
  * Service fal.ai unifié
  * Gère tous les appels IA : Images (Flux), Vidéos (Kling), Voix (ElevenLabs), Sync (Sync Labs)
+ * 
+ * NOTE: Utilise fetch directement au lieu du SDK pour éviter les timeouts sur Netlify
  */
 
 import { fal } from '@fal-ai/client'
@@ -15,6 +17,23 @@ function ensureFalConfigured() {
     falConfigured = true
     console.log('✅ fal.ai configuré avec la clé:', process.env.FAL_API_KEY?.substring(0, 8) + '...')
   }
+}
+
+// Helper pour les appels REST directs à fal.ai (évite le SDK qui peut timeout)
+async function falFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
+  const apiKey = process.env.FAL_API_KEY
+  if (!apiKey) {
+    throw new Error('FAL_API_KEY non configurée')
+  }
+  
+  return fetch(endpoint, {
+    ...options,
+    headers: {
+      'Authorization': `Key ${apiKey}`,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
 }
 
 // ============================================
@@ -61,30 +80,35 @@ export interface FluxImageResult {
 /**
  * Vérifie le statut d'un job de génération d'image fal.ai
  * Appelé par le client en polling pour les jobs nano-banana
+ * Utilise REST API directement pour éviter les timeouts du SDK
  */
 export async function checkImageJobStatus(jobId: string, model: string): Promise<FluxImageResult> {
-  ensureFalConfigured()
-  
   const modelEndpoint = model === 'nano-banana' ? 'fal-ai/nano-banana-pro' : 
                         model === 'recraft' ? 'fal-ai/recraft-v3' : 
                         'fal-ai/flux-pro/v1.1'
   
   console.log(`🔍 Checking job status: ${jobId} for ${modelEndpoint}`)
   
-  const status = await fal.queue.status(modelEndpoint, {
-    requestId: jobId,
-    logs: true,
-  })
+  // Vérifier le status via REST API
+  const statusResponse = await falFetch(`https://queue.fal.run/${modelEndpoint}/requests/${jobId}/status`)
   
-  console.log(`📊 Job ${jobId} status:`, status.status)
+  if (!statusResponse.ok) {
+    console.error('❌ Erreur status fal.ai:', statusResponse.status)
+    throw new Error(`Erreur vérification status: ${statusResponse.status}`)
+  }
   
-  if (status.status === 'COMPLETED') {
-    const result = await fal.queue.result(modelEndpoint, {
-      requestId: jobId,
-    })
+  const statusData = await statusResponse.json()
+  console.log(`📊 Job ${jobId} status:`, statusData.status)
+  
+  if (statusData.status === 'COMPLETED') {
+    // Récupérer le résultat
+    const resultResponse = await falFetch(`https://queue.fal.run/${modelEndpoint}/requests/${jobId}`)
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = result.data as any
+    if (!resultResponse.ok) {
+      throw new Error(`Erreur récupération résultat: ${resultResponse.status}`)
+    }
+    
+    const data = await resultResponse.json()
     console.log('✅ Job completed, result:', JSON.stringify(data, null, 2))
     
     // Nano Banana retourne { images: [...] }
@@ -128,7 +152,7 @@ export async function checkImageJobStatus(jobId: string, model: string): Promise
     }
   }
   
-  if (status.status === 'FAILED') {
+  if (statusData.status === 'FAILED') {
     return {
       jobId,
       model: model as 'nano-banana' | 'recraft' | 'flux',
@@ -140,7 +164,7 @@ export async function checkImageJobStatus(jobId: string, model: string): Promise
   return {
     jobId,
     model: model as 'nano-banana' | 'recraft' | 'flux',
-    status: status.status === 'IN_PROGRESS' ? 'processing' : 'pending',
+    status: statusData.status === 'IN_PROGRESS' ? 'processing' : 'pending',
   }
 }
 
@@ -195,17 +219,26 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
       throw new Error('Le prompt doit avoir au moins 3 caractères')
     }
 
-    // Soumettre le job et retourner immédiatement le request_id
-    // Le polling sera fait côté client pour éviter le timeout Netlify
-    const { request_id } = await fal.queue.submit('fal-ai/nano-banana-pro', {
-      input: {
+    // Soumettre le job via REST API (évite le SDK qui peut timeout sur Netlify)
+    const submitResponse = await falFetch('https://queue.fal.run/fal-ai/nano-banana-pro', {
+      method: 'POST',
+      body: JSON.stringify({
         prompt: safePrompt,
         aspect_ratio: ratio,
         resolution: resolution,
         num_images: numImages,
         output_format: 'png',
-      },
+      }),
     })
+    
+    if (!submitResponse.ok) {
+      const errorText = await submitResponse.text()
+      console.error('❌ Erreur soumission fal.ai:', submitResponse.status, errorText)
+      throw new Error(`Erreur fal.ai: ${submitResponse.status}`)
+    }
+    
+    const submitData = await submitResponse.json()
+    const request_id = submitData.request_id
     
     console.log('🍌 Nano Banana job submitted:', request_id)
     
