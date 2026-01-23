@@ -5112,9 +5112,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const leftPageImages = getPageImages(leftPage)
   
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col h-full min-h-0">
       {/* Barre d'outils unifiée (titre + outils + actions) */}
-      <div className="flex items-center justify-between gap-2 mb-1 relative z-50 px-1">
+      <div className="flex items-center justify-between gap-2 mb-1 relative z-50 px-1 flex-shrink-0">
         {/* Gauche : Retour + Titre */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {onBack && (
@@ -5630,7 +5630,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         )
       })() : (
       /* LIVRE OUVERT - 2 pages côte à côte - S'ADAPTE AUTOMATIQUEMENT à l'écran */
-      <div className="flex-1 flex items-center justify-center gap-2 p-2 min-h-0">
+      <div className="flex-1 flex items-center justify-center gap-2 p-4 min-h-0 h-full">
         {/* Flèche gauche */}
         {onPrevPage && (
           <button
@@ -5649,14 +5649,15 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         
         {/* Conteneur du livre - utilise TOUTE la place disponible sans déborder */}
         <div 
-          className="relative flex shadow-2xl max-w-full max-h-full"
+          className="relative flex shadow-2xl"
           style={{
             // Le livre prend la hauteur max disponible, la largeur s'adapte au ratio
             height: '100%',
+            width: 'auto',
             // Aspect ratio pour 2 pages côte à côte = (2 * largeur) / hauteur = 2 * formatRatio
             aspectRatio: `${2 * formatRatio} / 1`,
-            maxHeight: 'calc(100vh - 180px)', // Ne jamais dépasser la hauteur écran
-            maxWidth: 'calc(100vw - 200px)',  // Ne jamais dépasser la largeur écran
+            maxHeight: 'calc(100vh - 140px)', // Plus d'espace vertical
+            maxWidth: 'calc(100vw - 160px)',  // Plus d'espace horizontal
             perspective: '2000px',
           }}
         >
