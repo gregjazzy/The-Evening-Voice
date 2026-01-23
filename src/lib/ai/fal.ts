@@ -64,7 +64,7 @@ export interface FluxImageParams {
 export interface FluxImageResult {
   // Cas 1: Job en attente (retourné immédiatement pour éviter timeout Netlify)
   jobId?: string
-  model?: 'nano-banana' | 'recraft' | 'flux' | 'pulid'
+  model?: 'nano-banana' | 'recraft' | 'flux' | 'flux-redux'
   status?: 'pending' | 'processing' | 'completed' | 'failed'
   
   // Cas 2: Résultat final avec images
@@ -78,95 +78,97 @@ export interface FluxImageResult {
 }
 
 // ============================================
-// PULID - Consistance de personnage
+// FLUX REDUX - Consistance de personnage/style
+// Fonctionne avec TOUT (humains, animaux, créatures, objets)
 // ============================================
 
-export interface PulidImageParams {
+export interface FluxReduxParams {
   prompt: string
-  referenceImageUrl: string  // Image contenant le personnage à garder
-  characterDescription?: string  // "le dragon bleu" - aide le modèle
-  imageSize?: 'square_hd' | 'square' | 'portrait_4_3' | 'portrait_16_9' | 'landscape_4_3' | 'landscape_16_9'
-  idWeight?: number  // 0-1, force de la ressemblance (défaut: 1)
+  referenceImageUrl: string  // Image contenant le personnage/style à garder
+  characterDescription?: string  // "le dragon bleu" - ajouté au prompt
+  aspectRatio?: '21:9' | '16:9' | '4:3' | '3:2' | '1:1' | '2:3' | '3:4' | '9:16' | '9:21'
+  imagePromptStrength?: number  // 0-1, force de l'influence de l'image (défaut: 0.5)
 }
 
 /**
- * Génère une image avec PuLID en gardant un personnage d'une image de référence
- * Utilise Flux comme base avec injection d'identité
+ * Génère une image avec Flux Redux en gardant le style/personnage d'une image de référence
+ * Contrairement à PuLID, fonctionne avec TOUT (pas besoin de visage humain)
  */
-export async function generateImagePulid(params: PulidImageParams): Promise<FluxImageResult> {
+export async function generateImageRedux(params: FluxReduxParams): Promise<FluxImageResult> {
   const {
     prompt,
     referenceImageUrl,
     characterDescription,
-    imageSize = 'portrait_4_3',
-    idWeight = 1.0,
+    aspectRatio = '3:4',
+    imagePromptStrength = 0.5,  // 0.5 = bon équilibre entre référence et nouveau prompt
   } = params
 
   // Construire le prompt avec la description du personnage si fournie
   const fullPrompt = characterDescription 
-    ? `${prompt}. The character is: ${characterDescription}`
+    ? `${prompt}. Keep the same ${characterDescription} from the reference image.`
     : prompt
 
-  console.log(`🎭 PuLID - Génération avec personnage de référence`)
+  console.log(`🔄 Flux Redux - Génération avec image de référence`)
   console.log(`   Prompt: ${fullPrompt.substring(0, 100)}...`)
   console.log(`   Référence: ${referenceImageUrl.substring(0, 50)}...`)
+  console.log(`   Strength: ${imagePromptStrength}`)
 
   // Soumettre le job via REST API
-  const submitResponse = await falFetch('https://queue.fal.run/fal-ai/flux-pulid', {
+  const submitResponse = await falFetch('https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra/redux', {
     method: 'POST',
     body: JSON.stringify({
       prompt: fullPrompt,
-      reference_image_url: referenceImageUrl,
-      image_size: imageSize,
-      id_weight: idWeight,
-      guidance_scale: 4,
-      num_inference_steps: 20,
+      image_url: referenceImageUrl,
+      aspect_ratio: aspectRatio,
+      image_prompt_strength: imagePromptStrength,
+      safety_tolerance: '5',  // Permissif (contenu déjà modéré)
+      output_format: 'png',
     }),
   })
 
   if (!submitResponse.ok) {
     const errorText = await submitResponse.text()
-    console.error('❌ Erreur soumission PuLID:', submitResponse.status, errorText)
-    throw new Error(`Erreur PuLID: ${submitResponse.status}`)
+    console.error('❌ Erreur soumission Flux Redux:', submitResponse.status, errorText)
+    throw new Error(`Erreur Flux Redux: ${submitResponse.status}`)
   }
 
   const submitData = await submitResponse.json()
   const request_id = submitData.request_id
 
-  console.log('🎭 PuLID job submitted:', request_id)
+  console.log('🔄 Flux Redux job submitted:', request_id)
 
   return {
     jobId: request_id,
-    model: 'pulid' as const,
+    model: 'flux-redux' as const,
     status: 'pending' as const,
   }
 }
 
 /**
- * Vérifie le statut d'un job PuLID
+ * Vérifie le statut d'un job Flux Redux
  */
-export async function checkPulidJobStatus(jobId: string): Promise<FluxImageResult> {
-  console.log(`🔍 Checking PuLID job status: ${jobId}`)
+export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResult> {
+  console.log(`🔍 Checking Flux Redux job status: ${jobId}`)
 
-  const statusResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pulid/requests/${jobId}/status`)
+  const statusResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra/redux/requests/${jobId}/status`)
 
   if (!statusResponse.ok) {
-    console.error('❌ Erreur status PuLID:', statusResponse.status)
-    throw new Error(`Erreur vérification status PuLID: ${statusResponse.status}`)
+    console.error('❌ Erreur status Flux Redux:', statusResponse.status)
+    throw new Error(`Erreur vérification status Flux Redux: ${statusResponse.status}`)
   }
 
   const statusData = await statusResponse.json()
-  console.log(`📊 PuLID job ${jobId} status:`, statusData.status)
+  console.log(`📊 Flux Redux job ${jobId} status:`, statusData.status)
 
   if (statusData.status === 'COMPLETED') {
-    const resultResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pulid/requests/${jobId}`)
+    const resultResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra/redux/requests/${jobId}`)
 
     if (!resultResponse.ok) {
-      throw new Error(`Erreur récupération résultat PuLID: ${resultResponse.status}`)
+      throw new Error(`Erreur récupération résultat Flux Redux: ${resultResponse.status}`)
     }
 
     const data = await resultResponse.json()
-    console.log('✅ PuLID job completed')
+    console.log('✅ Flux Redux job completed')
 
     const images = data.images?.map((img: { url: string; width?: number; height?: number }) => ({
       url: img.url,
@@ -185,14 +187,14 @@ export async function checkPulidJobStatus(jobId: string): Promise<FluxImageResul
   if (statusData.status === 'FAILED') {
     return {
       jobId,
-      model: 'pulid',
+      model: 'flux-redux',
       status: 'failed',
     }
   }
 
   return {
     jobId,
-    model: 'pulid',
+    model: 'flux-redux',
     status: statusData.status === 'IN_PROGRESS' ? 'processing' : 'pending',
   }
 }

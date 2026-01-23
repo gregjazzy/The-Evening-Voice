@@ -13,9 +13,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { 
   generateImageFlux, 
-  generateImagePulid,
+  generateImageRedux,
   checkImageJobStatus, 
-  checkPulidJobStatus,
+  checkReduxJobStatus,
   adaptChildPrompt, 
   isFalAvailable 
 } from '@/lib/ai/fal'
@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 Checking job status: ${jobId} (model: ${model})`)
     
     // Utiliser le bon checker selon le modèle
-    const result = model === 'pulid' 
-      ? await checkPulidJobStatus(jobId)
+    const result = model === 'flux-redux' 
+      ? await checkReduxJobStatus(jobId)
       : await checkImageJobStatus(jobId, model)
 
     if (result.status === 'completed' && result.images && result.images.length > 0) {
@@ -118,33 +118,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 🎭 Si une image de référence est fournie, utiliser PuLID
+    // 🔄 Si une image de référence est fournie, utiliser Flux Redux
+    // Fonctionne avec TOUT : humains, animaux, créatures, objets
     if (referenceImageUrl) {
-      console.log(`🎭 Mode PuLID activé - personnage de référence`)
+      console.log(`🔄 Mode Flux Redux activé - personnage/style de référence`)
       
-      // Convertir aspectRatio en format PuLID
-      const pulidSizeMap: Record<string, 'portrait_4_3' | 'portrait_16_9' | 'landscape_4_3' | 'landscape_16_9' | 'square' | 'square_hd'> = {
-        '3:4': 'portrait_4_3',
-        '9:16': 'portrait_16_9',
-        '4:3': 'landscape_4_3',
-        '16:9': 'landscape_16_9',
-        '1:1': 'square_hd',
-      }
-      
-      const result = await generateImagePulid({
+      const result = await generateImageRedux({
         prompt: promptText,
         referenceImageUrl,
         characterDescription,
-        imageSize: pulidSizeMap[finalAspectRatio] || 'portrait_4_3',
-        idWeight: 1.0,
+        aspectRatio: finalAspectRatio as '3:4' | '9:16' | '4:3' | '16:9' | '1:1' | '2:3' | '3:2',
+        imagePromptStrength: 0.5,  // Bon équilibre entre référence et nouveau prompt
       })
 
       if (result.jobId) {
-        console.log(`📋 PuLID job soumis: ${result.jobId}`)
+        console.log(`📋 Flux Redux job soumis: ${result.jobId}`)
         return NextResponse.json({
           status: 'pending',
           jobId: result.jobId,
-          model: 'pulid',
+          model: 'flux-redux',
         })
       }
     }
