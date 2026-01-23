@@ -5629,8 +5629,16 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </div>
         )
       })() : (
-      /* LIVRE OUVERT - 2 pages côte à côte - S'ADAPTE AUTOMATIQUEMENT à l'écran */
-      <div className="flex-1 flex items-center justify-center gap-2 p-4 min-h-0 h-full">
+      /* LIVRE OUVERT - CONTENEUR FIXE qui force le livre à rentrer */
+      <div 
+        className="flex-1 flex items-center justify-center gap-2 min-h-0"
+        style={{
+          // ZONE DISPONIBLE : tout l'espace moins les marges fixes
+          padding: '8px 16px',
+          maxHeight: 'calc(100vh - 160px)', // Espace pour barres outils/pagination
+          maxWidth: 'calc(100vw - 120px)',  // Espace pour sidebar + marges
+        }}
+      >
         {/* Flèche gauche */}
         {onPrevPage && (
           <button
@@ -5647,28 +5655,18 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </button>
         )}
         
-        {/* Conteneur du livre - utilise TOUTE la place disponible sans déborder */}
-        {/* IMPORTANT: 180px de marge verticale = ~50px barre outils + ~80px barre pagination + ~50px marge sécurité */}
+        {/* LIVRE : s'adapte automatiquement à la zone disponible */}
+        {/* La magie : aspect-ratio + max-height + max-width = le navigateur calcule tout seul ! */}
         <div 
           className="relative flex shadow-2xl"
           style={{
-            // Pour les formats très larges (paysage), on limite par la largeur
-            // Pour les formats portrait/carré, on limite par la hauteur
-            ...(formatRatio > 1 ? {
-              // Format PAYSAGE (ex: A5 paysage) → on limite par la LARGEUR
-              width: 'calc(100vw - 200px)',
-              height: 'auto',
-              maxWidth: 'calc(100vw - 200px)',
-              maxHeight: 'calc(100vh - 180px)', // Assez de marge pour la barre d'outils
-            } : {
-              // Format PORTRAIT ou CARRÉ → on limite par la HAUTEUR
-              height: 'calc(100vh - 180px)',
-              width: 'auto',
-              maxHeight: 'calc(100vh - 180px)', // Assez de marge pour la barre d'outils
-              maxWidth: 'calc(100vw - 200px)',
-            }),
-            // Aspect ratio pour 2 pages côte à côte = (2 * largeur) / hauteur = 2 * formatRatio
             aspectRatio: `${2 * formatRatio} / 1`,
+            // Le livre ne peut JAMAIS dépasser ces limites
+            maxHeight: '100%',
+            maxWidth: '100%',
+            // On part de la hauteur max, la largeur s'adapte au ratio
+            height: '100%',
+            width: 'auto',
             perspective: '2000px',
           }}
         >
