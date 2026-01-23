@@ -5125,7 +5125,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const leftPageImages = getPageImages(leftPage)
   
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0">
+    <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
       {/* Barre d'outils unifiée (titre + outils + actions) */}
       <div className="flex items-center justify-between gap-2 mb-1 relative z-50 px-1 flex-shrink-0">
         {/* Gauche : Retour + Titre */}
@@ -5642,14 +5642,16 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </div>
         )
       })() : (
-      /* LIVRE OUVERT - CONTENEUR FIXE qui force le livre à rentrer */
+      /* LIVRE OUVERT - CONTENEUR FIXE qui force le livre à rentrer SANS ASCENSEUR */
       <div 
-        className="flex-1 flex items-center justify-center gap-2 min-h-0"
+        className="flex-1 flex items-center justify-center gap-2 min-h-0 overflow-hidden"
         style={{
           // ZONE DISPONIBLE : tout l'espace moins les marges fixes
           padding: '8px 16px',
-          maxHeight: 'calc(100vh - 160px)', // Espace pour barres outils/pagination
-          maxWidth: 'calc(100vw - 120px)',  // Espace pour sidebar + marges
+          height: 'calc(100vh - 180px)',    // Hauteur FIXE
+          maxHeight: 'calc(100vh - 180px)', // Jamais plus
+          maxWidth: 'calc(100vw - 140px)',  // Espace pour sidebar + marges
+          overflow: 'hidden',               // JAMAIS de scroll
         }}
       >
         {/* Flèche gauche */}
@@ -5668,8 +5670,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </button>
         )}
         
-        {/* Conteneur du livre + bandeau prévisualisation */}
-        <div className="flex flex-col items-center max-h-full max-w-full">
+        {/* Conteneur du livre + bandeau prévisualisation - JAMAIS de scroll */}
+        <div className="flex flex-col items-center max-h-full max-w-full overflow-hidden">
           {/* Bandeau prévisualisation impression */}
           {showSafeZones && (
             <div className="mb-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-blue-500/20 border border-amber-500/30 flex items-center gap-4 text-xs">
