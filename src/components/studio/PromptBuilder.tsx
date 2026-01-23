@@ -1583,15 +1583,20 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                       </motion.div>
                     )}
                     
-                    {/* Aperçu de la sélection */}
+                    {/* Aperçu de la sélection - montre le prompt final */}
                     {characterReferenceUrl && characterDescription && (
                       <motion.div
-                        className="p-3 rounded-xl bg-aurora-500/10 border border-aurora-500/20 text-aurora-300 text-sm flex items-center gap-2"
+                        className="p-3 rounded-xl bg-aurora-500/10 border border-aurora-500/20 text-aurora-300 text-sm"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
-                        <CheckCircle className="w-4 h-4" />
-                        &quot;{characterDescription}&quot; sera gardé dans ta nouvelle image !
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="font-medium">Prompt envoyé à l&apos;IA :</span>
+                        </div>
+                        <p className="text-xs text-midnight-300 italic bg-midnight-900/50 p-2 rounded">
+                          &quot;Use the exact same character ({characterDescription}) from the reference image. New scene: {currentKit?.generatedPrompt || '...'}&quot;
+                        </p>
                       </motion.div>
                     )}
                   </motion.div>
