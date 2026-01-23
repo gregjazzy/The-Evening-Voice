@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 Checking job status: ${jobId} (model: ${model})`)
     
     // Utiliser le bon checker selon le modèle
-    const result = model === 'flux-redux' 
+    const result = model === 'ip-adapter' 
       ? await checkReduxJobStatus(jobId)
       : await checkImageJobStatus(jobId, model)
 
@@ -128,7 +128,6 @@ export async function POST(request: NextRequest) {
         referenceImageUrl,
         characterDescription,
         aspectRatio: finalAspectRatio as '3:4' | '9:16' | '4:3' | '16:9' | '1:1' | '2:3' | '3:2',
-        imagePromptStrength: 0.5,  // 0.5 = équilibre 50/50 entre référence (personnage) et prompt (scène)
       })
 
       if (result.jobId) {
@@ -136,7 +135,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           status: 'pending',
           jobId: result.jobId,
-          model: 'flux-redux',
+          model: 'ip-adapter',
         })
       }
     }

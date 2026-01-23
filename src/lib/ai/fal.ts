@@ -64,7 +64,7 @@ export interface FluxImageParams {
 export interface FluxImageResult {
   // Cas 1: Job en attente (retourné immédiatement pour éviter timeout Netlify)
   jobId?: string
-  model?: 'nano-banana' | 'recraft' | 'flux' | 'flux-redux'
+  model?: 'nano-banana' | 'recraft' | 'flux' | 'ip-adapter'
   status?: 'pending' | 'processing' | 'completed' | 'failed'
   
   // Cas 2: Résultat final avec images
@@ -79,7 +79,8 @@ export interface FluxImageResult {
 
 // ============================================
 // FLUX REDUX - Consistance de personnage/style
-// Fonctionne avec TOUT (humains, animaux, créatures, objets)
+// IP-Adapter : Extrait le concept visuel d'une image et l'injecte dans la génération
+// Meilleur que Flux Redux pour garder un personnage cohérent
 // ============================================
 
 export interface FluxReduxParams {
@@ -87,12 +88,11 @@ export interface FluxReduxParams {
   referenceImageUrl: string  // Image contenant le personnage/style à garder
   characterDescription?: string  // "le dragon bleu" - ajouté au prompt
   aspectRatio?: '21:9' | '16:9' | '4:3' | '3:2' | '1:1' | '2:3' | '3:4' | '9:16' | '9:21'
-  imagePromptStrength?: number  // 0-1, force de l'influence de l'image (défaut: 0.5)
 }
 
 /**
- * Génère une image avec Flux Redux en gardant le style/personnage d'une image de référence
- * Contrairement à PuLID, fonctionne avec TOUT (pas besoin de visage humain)
+ * Génère une image avec IP-Adapter en gardant le personnage d'une image de référence
+ * Extrait les features visuelles et les injecte dans la génération
  */
 export async function generateImageRedux(params: FluxReduxParams): Promise<FluxImageResult> {
   const {
@@ -100,7 +100,6 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
     referenceImageUrl,
     characterDescription,
     aspectRatio = '3:4',
-    imagePromptStrength = 0.5,  // 0.5 = équilibre 50/50 entre référence et prompt
   } = params
 
   // Construire un prompt explicite qui dit à l'IA de réutiliser le personnage
@@ -108,21 +107,32 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
     ? `Use the exact same character (${characterDescription}) from the reference image. New scene: ${prompt}`
     : prompt
 
-  console.log(`🔄 Flux Redux - Génération avec personnage de référence`)
+  console.log(`🎨 IP-Adapter - Génération avec personnage de référence`)
   console.log(`   Prompt: ${fullPrompt.substring(0, 100)}...`)
   console.log(`   Référence: ${referenceImageUrl.substring(0, 50)}...`)
-  console.log(`   Strength: ${imagePromptStrength}`)
 
-  // Flux Redux : utilise l'image de référence pour guider la génération
-  const submitResponse = await falFetch('https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra/redux', {
+  // Convertir aspect ratio en taille
+  const sizeMap: Record<string, { width: number; height: number }> = {
+    '3:4': { width: 768, height: 1024 },
+    '4:3': { width: 1024, height: 768 },
+    '16:9': { width: 1024, height: 576 },
+    '9:16': { width: 576, height: 1024 },
+    '1:1': { width: 1024, height: 1024 },
+  }
+  const size = sizeMap[aspectRatio] || sizeMap['3:4']
+
+  // IP-Adapter : extrait le concept visuel de l'image et l'injecte dans la génération
+  const submitResponse = await falFetch('https://queue.fal.run/fal-ai/ip-adapter-face-id', {
     method: 'POST',
     body: JSON.stringify({
       prompt: fullPrompt,
-      image_url: referenceImageUrl,
-      aspect_ratio: aspectRatio,
-      image_prompt_strength: imagePromptStrength,
-      safety_tolerance: '5',
-      output_format: 'png',
+      face_image_url: referenceImageUrl,
+      negative_prompt: "blurry, low quality, distorted, deformed",
+      num_inference_steps: 30,
+      guidance_scale: 7.5,
+      ip_adapter_scale: 0.6,  // Force du personnage de référence
+      width: size.width,
+      height: size.height,
     }),
   })
 
@@ -139,7 +149,7 @@ export async function generateImageRedux(params: FluxReduxParams): Promise<FluxI
 
   return {
     jobId: request_id,
-    model: 'flux-redux' as const,
+    model: 'ip-adapter' as const,
     status: 'pending' as const,
   }
 }
@@ -189,14 +199,14 @@ export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResul
   if (statusData.status === 'FAILED') {
     return {
       jobId,
-      model: 'flux-redux',
+      model: 'ip-adapter',
       status: 'failed',
     }
   }
 
   return {
     jobId,
-    model: 'flux-redux',
+    model: 'ip-adapter',
     status: statusData.status === 'IN_PROGRESS' ? 'processing' : 'pending',
   }
 }
@@ -209,6 +219,7 @@ export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResul
 export async function checkImageJobStatus(jobId: string, model: string): Promise<FluxImageResult> {
   const modelEndpoint = model === 'nano-banana' ? 'fal-ai/nano-banana-pro' : 
                         model === 'recraft' ? 'fal-ai/recraft-v3' : 
+                        model === 'ip-adapter' ? 'fal-ai/ip-adapter-face-id' :
                         'fal-ai/flux-pro/v1.1'
   
   console.log(`🔍 Checking job status: ${jobId} for ${modelEndpoint}`)
@@ -258,6 +269,23 @@ export async function checkImageJobStatus(jobId: string, model: string): Promise
         width: 1024,
         height: 1024,
       })) || []
+      
+      return {
+        status: 'completed',
+        images,
+        seed: 0,
+        prompt: '',
+      }
+    }
+    
+    // IP-Adapter retourne { image: { url, width, height } } (pas images[])
+    if (model === 'ip-adapter') {
+      const image = data.image || data.images?.[0]
+      const images = image ? [{
+        url: image.url,
+        width: image.width || 1024,
+        height: image.height || 1024,
+      }] : []
       
       return {
         status: 'completed',
