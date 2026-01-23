@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
     // Utiliser le prompt complet si disponible, sinon la description
     const promptText = fullPrompt || description
 
-    if (!promptText) {
+    if (!promptText || promptText.length < 3) {
       return NextResponse.json(
-        { error: 'Description requise' },
+        { error: 'Description requise (minimum 3 caractères)' },
         { status: 400 }
       )
     }

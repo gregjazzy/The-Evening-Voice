@@ -96,15 +96,21 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
     }
     const ratio = nanoBananaRatios[aspectRatio] || '3:4'
 
-    console.log(`📐 Nano Banana - Ratio: ${ratio}`)
+    console.log(`📐 Nano Banana - Ratio: ${ratio}, Resolution: ${resolution}`)
+    
+    // Validation : prompt doit avoir minimum 3 caractères
+    if (!safePrompt || safePrompt.length < 3) {
+      throw new Error('Le prompt doit avoir au moins 3 caractères')
+    }
 
-    // Note: Nano Banana Pro n'accepte peut-être pas tous les paramètres
-    // On garde uniquement les paramètres documentés
+    // Paramètres validés selon le schéma OpenAPI fal.ai
     const result = await fal.subscribe('fal-ai/nano-banana-pro', {
       input: {
         prompt: safePrompt,
         aspect_ratio: ratio,
+        resolution: resolution, // "1K", "2K", ou "4K"
         num_images: numImages,
+        output_format: 'png', // "jpeg", "png", ou "webp"
       },
       logs: true,
     })
