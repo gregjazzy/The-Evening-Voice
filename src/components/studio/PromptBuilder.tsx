@@ -818,6 +818,11 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [isSavingToCloud, setIsSavingToCloud] = useState(false) // Pour l'upload permanent (Supabase/R2)
   
+  // 🎭 PuLID - Garder un personnage d'une image existante
+  const [keepCharacter, setKeepCharacter] = useState(false)
+  const [characterReferenceUrl, setCharacterReferenceUrl] = useState<string | null>(null)
+  const [characterDescription, setCharacterDescription] = useState('')
+  
   // Niveaux 1-2 utilisent fal.ai directement, 3+ copient vers fal.ai playground
   const useDirectGeneration = currentLevel <= 2
   
@@ -863,6 +868,11 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             ambiance: currentKit.ambiance || 'jour',
             aspectRatio: formatMap[currentKit.format || 'portrait'] || '3:4',
             prompt: currentKit.generatedPrompt,
+            // 🎭 PuLID : si on veut garder un personnage
+            ...(keepCharacter && characterReferenceUrl ? {
+              referenceImageUrl: characterReferenceUrl,
+              characterDescription: characterDescription || undefined,
+            } : {}),
           }
       
       console.log('🚀 Envoi requête génération:', {
@@ -1487,6 +1497,106 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             >
               <CheckCircle className="w-4 h-4" />
               Super ! Ton idée est validée ! 🌟
+            </motion.div>
+          )}
+          
+          {/* 🎭 Option PuLID : Garder un personnage d'une image existante */}
+          {currentCreationType === 'image' && (
+            <motion.div
+              className="mt-4 p-4 rounded-xl bg-midnight-800/50 border border-midnight-700"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={keepCharacter}
+                  onChange={(e) => {
+                    setKeepCharacter(e.target.checked)
+                    if (!e.target.checked) {
+                      setCharacterReferenceUrl(null)
+                      setCharacterDescription('')
+                    }
+                  }}
+                  className="w-5 h-5 rounded border-2 border-aurora-500/50 bg-midnight-900 checked:bg-aurora-500 checked:border-aurora-500 focus:ring-aurora-500/50 focus:ring-2 transition-all"
+                />
+                <span className="text-white group-hover:text-aurora-300 transition-colors">
+                  🎭 Garder un personnage d&apos;une image existante
+                </span>
+              </label>
+              
+              <AnimatePresence>
+                {keepCharacter && (
+                  <motion.div
+                    className="mt-4 space-y-4"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    {/* Sélection de l'image de référence */}
+                    <div>
+                      <p className="text-sm text-midnight-300 mb-2">Choisis l&apos;image avec le personnage :</p>
+                      <div className="flex flex-wrap gap-2">
+                        {importedAssets
+                          .filter(a => a.type === 'image' && (a.cloudUrl || a.url))
+                          .map(asset => (
+                            <button
+                              key={asset.id}
+                              onClick={() => setCharacterReferenceUrl(asset.cloudUrl || asset.url)}
+                              className={cn(
+                                "w-16 h-16 rounded-lg overflow-hidden border-2 transition-all",
+                                characterReferenceUrl === (asset.cloudUrl || asset.url)
+                                  ? "border-aurora-500 ring-2 ring-aurora-500/50"
+                                  : "border-midnight-600 hover:border-aurora-500/50"
+                              )}
+                            >
+                              <img 
+                                src={asset.cloudUrl || asset.url} 
+                                alt={asset.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          ))
+                        }
+                        {importedAssets.filter(a => a.type === 'image').length === 0 && (
+                          <p className="text-sm text-midnight-400 italic">
+                            Génère d&apos;abord une image pour pouvoir réutiliser un personnage
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Description du personnage */}
+                    {characterReferenceUrl && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <p className="text-sm text-midnight-300 mb-2">Quel personnage garder ?</p>
+                        <input
+                          type="text"
+                          value={characterDescription}
+                          onChange={(e) => setCharacterDescription(e.target.value)}
+                          placeholder="Ex: le dragon bleu, la petite fille, le chat..."
+                          className="w-full rounded-xl px-4 py-3 bg-midnight-900/50 text-white placeholder:text-midnight-400 border border-midnight-700 focus:border-aurora-500/50 focus:ring-2 focus:ring-aurora-500/50 focus:outline-none transition-all"
+                        />
+                      </motion.div>
+                    )}
+                    
+                    {/* Aperçu de la sélection */}
+                    {characterReferenceUrl && characterDescription && (
+                      <motion.div
+                        className="p-3 rounded-xl bg-aurora-500/10 border border-aurora-500/20 text-aurora-300 text-sm flex items-center gap-2"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        &quot;{characterDescription}&quot; sera gardé dans ta nouvelle image !
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
       </motion.section>

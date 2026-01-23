@@ -1,15 +1,24 @@
 /**
- * API Route - Génération d'images avec Nano Banana Pro (Google Gemini 3 Pro Image via fal.ai)
+ * API Route - Génération d'images via fal.ai
+ * 
+ * Modèles supportés :
+ * - Nano Banana Pro : Génération standard (défaut)
+ * - PuLID : Génération avec personnage de référence (si referenceImageUrl fourni)
  * 
  * Architecture polling pour éviter le timeout Netlify (10s) :
  * - POST : Soumet le job à fal.ai, retourne { jobId, status: 'pending' } immédiatement
  * - GET : Vérifie le status d'un job, retourne l'image quand prête
- * 
- * Le client fait le polling toutes les 2 secondes jusqu'à completion.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { generateImageFlux, checkImageJobStatus, adaptChildPrompt, isFalAvailable } from '@/lib/ai/fal'
+import { 
+  generateImageFlux, 
+  generateImagePulid,
+  checkImageJobStatus, 
+  checkPulidJobStatus,
+  adaptChildPrompt, 
+  isFalAvailable 
+} from '@/lib/ai/fal'
 
 // GET - Vérifier le status d'un job
 export async function GET(request: NextRequest) {
@@ -32,8 +41,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log(`🔍 Checking job status: ${jobId}`)
-    const result = await checkImageJobStatus(jobId, model)
+    console.log(`🔍 Checking job status: ${jobId} (model: ${model})`)
+    
+    // Utiliser le bon checker selon le modèle
+    const result = model === 'pulid' 
+      ? await checkPulidJobStatus(jobId)
+      : await checkImageJobStatus(jobId, model)
 
     if (result.status === 'completed' && result.images && result.images.length > 0) {
       const image = result.images[0]
@@ -80,6 +93,9 @@ export async function POST(request: NextRequest) {
       ambiance = 'jour',
       aspectRatio,
       model = 'nano-banana', // Modèle par défaut: Nano Banana Pro
+      // Nouveaux paramètres pour PuLID (consistance personnage)
+      referenceImageUrl,  // Si fourni, utilise PuLID
+      characterDescription,  // "le dragon bleu"
     } = body
     
     // Format par défaut : 3:4 portrait (pour impression livre)
@@ -102,7 +118,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 🍌 Nano Banana Pro comprend le français nativement !
+    // 🎭 Si une image de référence est fournie, utiliser PuLID
+    if (referenceImageUrl) {
+      console.log(`🎭 Mode PuLID activé - personnage de référence`)
+      
+      // Convertir aspectRatio en format PuLID
+      const pulidSizeMap: Record<string, 'portrait_4_3' | 'portrait_16_9' | 'landscape_4_3' | 'landscape_16_9' | 'square' | 'square_hd'> = {
+        '3:4': 'portrait_4_3',
+        '9:16': 'portrait_16_9',
+        '4:3': 'landscape_4_3',
+        '16:9': 'landscape_16_9',
+        '1:1': 'square_hd',
+      }
+      
+      const result = await generateImagePulid({
+        prompt: promptText,
+        referenceImageUrl,
+        characterDescription,
+        imageSize: pulidSizeMap[finalAspectRatio] || 'portrait_4_3',
+        idWeight: 1.0,
+      })
+
+      if (result.jobId) {
+        console.log(`📋 PuLID job soumis: ${result.jobId}`)
+        return NextResponse.json({
+          status: 'pending',
+          jobId: result.jobId,
+          model: 'pulid',
+        })
+      }
+    }
+
+    // 🍌 Sinon, utiliser Nano Banana Pro (comportement par défaut)
     const prompt = fullPrompt 
       ? promptText 
       : adaptChildPrompt(promptText, style, ambiance)

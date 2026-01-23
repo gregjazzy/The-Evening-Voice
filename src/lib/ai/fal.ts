@@ -64,7 +64,7 @@ export interface FluxImageParams {
 export interface FluxImageResult {
   // Cas 1: Job en attente (retourné immédiatement pour éviter timeout Netlify)
   jobId?: string
-  model?: 'nano-banana' | 'recraft' | 'flux'
+  model?: 'nano-banana' | 'recraft' | 'flux' | 'pulid'
   status?: 'pending' | 'processing' | 'completed' | 'failed'
   
   // Cas 2: Résultat final avec images
@@ -75,6 +75,126 @@ export interface FluxImageResult {
   }>
   seed?: number
   prompt?: string
+}
+
+// ============================================
+// PULID - Consistance de personnage
+// ============================================
+
+export interface PulidImageParams {
+  prompt: string
+  referenceImageUrl: string  // Image contenant le personnage à garder
+  characterDescription?: string  // "le dragon bleu" - aide le modèle
+  imageSize?: 'square_hd' | 'square' | 'portrait_4_3' | 'portrait_16_9' | 'landscape_4_3' | 'landscape_16_9'
+  idWeight?: number  // 0-1, force de la ressemblance (défaut: 1)
+}
+
+/**
+ * Génère une image avec PuLID en gardant un personnage d'une image de référence
+ * Utilise Flux comme base avec injection d'identité
+ */
+export async function generateImagePulid(params: PulidImageParams): Promise<FluxImageResult> {
+  const {
+    prompt,
+    referenceImageUrl,
+    characterDescription,
+    imageSize = 'portrait_4_3',
+    idWeight = 1.0,
+  } = params
+
+  // Construire le prompt avec la description du personnage si fournie
+  const fullPrompt = characterDescription 
+    ? `${prompt}. The character is: ${characterDescription}`
+    : prompt
+
+  console.log(`🎭 PuLID - Génération avec personnage de référence`)
+  console.log(`   Prompt: ${fullPrompt.substring(0, 100)}...`)
+  console.log(`   Référence: ${referenceImageUrl.substring(0, 50)}...`)
+
+  // Soumettre le job via REST API
+  const submitResponse = await falFetch('https://queue.fal.run/fal-ai/flux-pulid', {
+    method: 'POST',
+    body: JSON.stringify({
+      prompt: fullPrompt,
+      reference_image_url: referenceImageUrl,
+      image_size: imageSize,
+      id_weight: idWeight,
+      guidance_scale: 4,
+      num_inference_steps: 20,
+    }),
+  })
+
+  if (!submitResponse.ok) {
+    const errorText = await submitResponse.text()
+    console.error('❌ Erreur soumission PuLID:', submitResponse.status, errorText)
+    throw new Error(`Erreur PuLID: ${submitResponse.status}`)
+  }
+
+  const submitData = await submitResponse.json()
+  const request_id = submitData.request_id
+
+  console.log('🎭 PuLID job submitted:', request_id)
+
+  return {
+    jobId: request_id,
+    model: 'pulid' as const,
+    status: 'pending' as const,
+  }
+}
+
+/**
+ * Vérifie le statut d'un job PuLID
+ */
+export async function checkPulidJobStatus(jobId: string): Promise<FluxImageResult> {
+  console.log(`🔍 Checking PuLID job status: ${jobId}`)
+
+  const statusResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pulid/requests/${jobId}/status`)
+
+  if (!statusResponse.ok) {
+    console.error('❌ Erreur status PuLID:', statusResponse.status)
+    throw new Error(`Erreur vérification status PuLID: ${statusResponse.status}`)
+  }
+
+  const statusData = await statusResponse.json()
+  console.log(`📊 PuLID job ${jobId} status:`, statusData.status)
+
+  if (statusData.status === 'COMPLETED') {
+    const resultResponse = await falFetch(`https://queue.fal.run/fal-ai/flux-pulid/requests/${jobId}`)
+
+    if (!resultResponse.ok) {
+      throw new Error(`Erreur récupération résultat PuLID: ${resultResponse.status}`)
+    }
+
+    const data = await resultResponse.json()
+    console.log('✅ PuLID job completed')
+
+    const images = data.images?.map((img: { url: string; width?: number; height?: number }) => ({
+      url: img.url,
+      width: img.width || 1024,
+      height: img.height || 1024,
+    })) || []
+
+    return {
+      status: 'completed',
+      images,
+      seed: data.seed || 0,
+      prompt: data.prompt || '',
+    }
+  }
+
+  if (statusData.status === 'FAILED') {
+    return {
+      jobId,
+      model: 'pulid',
+      status: 'failed',
+    }
+  }
+
+  return {
+    jobId,
+    model: 'pulid',
+    status: statusData.status === 'IN_PROGRESS' ? 'processing' : 'pending',
+  }
 }
 
 /**
