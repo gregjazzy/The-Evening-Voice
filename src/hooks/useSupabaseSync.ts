@@ -294,16 +294,15 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
  */
 export function useSupabaseSync() {
   const { user, profile } = useAuthStore()
-  const {
-    // Données à synchroniser
-    diaryEntries,
-    chatHistory,
-    stories,
-    userName,
-    aiName, // Nom personnalisé de l'IA
-    emotionalContext,
-    // Setters (à créer si nécessaire)
-  } = useAppStore()
+  
+  // IMPORTANT: Utiliser des selectors individuels pour que Zustand
+  // déclenche les re-renders quand ces valeurs changent !
+  const diaryEntries = useAppStore((state) => state.diaryEntries)
+  const chatHistory = useAppStore((state) => state.chatHistory)
+  const stories = useAppStore((state) => state.stories)
+  const userName = useAppStore((state) => state.userName)
+  const aiName = useAppStore((state) => state.aiName)
+  const emotionalContext = useAppStore((state) => state.emotionalContext)
 
   const isLoadingRef = useRef(false)
   const hasLoadedRef = useRef(false)
