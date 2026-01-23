@@ -601,33 +601,54 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
         content = {
           level: 2,
           title: 'Nouveau palier',
-          subtitle: 'Tu progresses',
+          subtitle: 'Tu progresses !',
           message: `Tu vas maintenant pouvoir voir le prompt — c'est le texte qu'on envoie à l'IA pour créer tes ${creationType}.`,
           highlight: 'Observer comment c\'est écrit t\'aidera à comprendre comment parler aux IA.',
         }
       } else if (level === 3) {
-        content = {
-          level: 3,
-          title: 'Prête pour le monde réel',
-          subtitle: 'Une étape importante',
-          message: 'Tu vas maintenant utiliser fal.ai — le même outil que les créateurs professionnels.',
-          highlight: 'Ce que tu as appris ici fonctionne exactement de la même façon là-bas. Tu es prête.',
+        // Messages différents pour images et vidéos
+        if (type === 'image') {
+          content = {
+            level: 3,
+            title: 'Plus de liberté',
+            subtitle: 'Tu grandis !',
+            message: 'Les boutons de style et d\'ambiance disparaissent ! Maintenant, c\'est toi qui les décris dans ton texte.',
+            highlight: 'Écris des mots comme "style dessin animé", "la nuit", "couleurs vives"... L\'IA comprend tout !',
+          }
+        } else {
+          content = {
+            level: 3,
+            title: 'Plus de liberté',
+            subtitle: 'Tu grandis !',
+            message: 'Tu continues à progresser ! Bientôt tu pourras décrire le mouvement toi-même, sans bouton.',
+            highlight: 'Continue comme ça, tu apprends très vite !',
+          }
         }
       } else if (level === 4) {
-        content = {
-          level: 4,
-          title: 'Autonomie',
-          subtitle: 'Tu sais décrire',
-          message: 'Tu n\'as plus besoin des boutons pour choisir le style ou l\'ambiance. Tu sais les décrire toi-même dans ton texte.',
-          highlight: 'C\'est exactement comme ça qu\'on communique avec toutes les IA.',
+        if (type === 'image') {
+          content = {
+            level: 4,
+            title: 'Autonomie',
+            subtitle: 'Tu sais tout décrire !',
+            message: 'Tu n\'as presque plus besoin de boutons ! Décris tout dans ton texte : le style, l\'ambiance, les couleurs, la lumière...',
+            highlight: '🧪 Nouveau : Tu peux essayer de garder un personnage d\'une image à l\'autre ! (Résultats variables)',
+          }
+        } else {
+          content = {
+            level: 4,
+            title: 'Autonomie',
+            subtitle: 'Tu sais tout décrire !',
+            message: 'Le bouton de mouvement disparaît ! Maintenant, décris comment ça bouge dans ton texte : "lentement", "avec énergie", "doucement"...',
+            highlight: 'Tu décris l\'action ET le mouvement. C\'est comme ça que font les pros !',
+          }
         }
       } else if (level === 5) {
         content = {
           level: 5,
           title: 'Experte',
-          subtitle: 'Tu maîtrises l\'art du prompting',
-          message: 'Tu sais maintenant parler à n\'importe quelle IA — ChatGPT, Midjourney, DALL-E, et bien d\'autres.',
-          highlight: 'Les compétences que tu as développées ici te serviront partout. Tu peux même aider les autres à apprendre.',
+          subtitle: 'Tu maîtrises l\'art du prompting !',
+          message: `Tu sais maintenant créer des ${creationType} en décrivant tout toi-même. Tu peux parler à n'importe quelle IA !`,
+          highlight: 'Tu peux explorer d\'autres outils : Midjourney, DALL-E, ChatGPT... Ce que tu as appris ici fonctionne partout !',
         }
       }
       

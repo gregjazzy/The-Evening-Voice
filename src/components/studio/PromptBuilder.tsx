@@ -250,14 +250,17 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   // Formation progressive : les boutons restent visibles plus longtemps
   // Niveau 4+ = l'enfant décrit style/ambiance dans son texte
   // Niveau 5  = l'enfant décrit tout (détails + format inclus) dans son texte
-  const showStyleButtons = currentLevel < 4    // Visible niveaux 1-3 (avant: < 3)
-  const showAmbianceButtons = currentLevel < 4 // Visible niveaux 1-3 (avant: < 3)
-  const showLightOptions = currentLevel < 5    // Visible niveaux 1-4 (avant: < 4)
+  // === IMAGES : Progression des boutons ===
+  const showStyleButtons = currentLevel < 4    // Visible niveaux 1-3
+  const showAmbianceButtons = currentLevel < 4 // Visible niveaux 1-3
+  const showLightOptions = currentLevel < 5    // Visible niveaux 1-4
   // Format TOUJOURS visible pour les images (important pour livre vs montage)
-  // Au niveau 5, l'enfant peut aussi le décrire dans le texte
-  // Les vidéos sont toujours en 16:9 (pas de choix)
   const showFormatButtons = currentCreationType === 'image'
-  const showMovementButtons = currentCreationType === 'video'
+  
+  // === VIDÉOS : Progression des boutons ===
+  // Niveau 1-3 : Bouton mouvement visible
+  // Niveau 4+ : L'enfant décrit le mouvement dans son texte
+  const showMovementButtons = currentCreationType === 'video' && currentLevel < 4
   const { addImportedAsset } = useStudioStore()
   const { user } = useAuthStore()
   const { uploadFromUrl, isUploading: isUploadingToCloud } = useMediaUpload()
