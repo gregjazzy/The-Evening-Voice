@@ -12,11 +12,15 @@ import { useAuthStore } from '@/store/useAuthStore'
 
 export function useSyncUserPreferences() {
   const { profile, updateProfile, isInitialized } = useAuthStore()
-  const { 
-    aiName, setAiName,
-    aiVoice, setAiVoice,
-    userName, setUserName,
-  } = useAppStore()
+  
+  // IMPORTANT: Utiliser des selectors individuels pour que Zustand
+  // déclenche les re-renders quand ces valeurs changent !
+  const aiName = useAppStore((state) => state.aiName)
+  const setAiName = useAppStore((state) => state.setAiName)
+  const aiVoice = useAppStore((state) => state.aiVoice)
+  const setAiVoice = useAppStore((state) => state.setAiVoice)
+  const userName = useAppStore((state) => state.userName)
+  const setUserName = useAppStore((state) => state.setUserName)
   
   // État pour savoir si les préférences ont été chargées depuis Supabase
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)

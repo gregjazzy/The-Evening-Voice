@@ -22,7 +22,8 @@ const SYNC_DEBOUNCE_MS = 2000
 
 export function useMontageSync() {
   const { profile } = useAuthStore()
-  const { currentProject } = useMontageStore()
+  // IMPORTANT: Utiliser un selector pour que Zustand déclenche les re-renders !
+  const currentProject = useMontageStore((state) => state.currentProject)
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSyncedRef = useRef<string | null>(null)
 
