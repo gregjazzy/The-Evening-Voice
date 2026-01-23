@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         referenceImageUrl,
         characterDescription,
         aspectRatio: finalAspectRatio as '3:4' | '9:16' | '4:3' | '16:9' | '1:1' | '2:3' | '3:2',
-        imagePromptStrength: 0.3,  // 0.3 = équilibre entre référence (personnage) et prompt (scène)
+        imagePromptStrength: 0.5,  // 0.5 = équilibre 50/50 entre référence (personnage) et prompt (scène)
       })
 
       if (result.jobId) {
