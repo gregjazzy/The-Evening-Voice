@@ -4882,6 +4882,62 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const lastLeftContentRef = useRef<string>(leftPage?.content || '')
   const lastZoomContentRef = useRef<string>('')
   
+  // 📐 Hook pour calculer la taille optimale du livre selon l'écran
+  // Le livre doit être entièrement visible quelque soit le format et la taille d'écran
+  const [bookDimensions, setBookDimensions] = useState({ pageWidth: 400, pageHeight: 500 })
+  
+  useEffect(() => {
+    const calculateOptimalSize = () => {
+      // Marges et espaces fixes (sidebar, toolbar, padding)
+      const sidebarWidth = 70  // Sidebar réduite
+      const toolbarHeight = 60 // Toolbar en haut
+      const bottomPadding = 80 // Espace en bas (pagination, etc.)
+      const horizontalPadding = 100 // Padding horizontal total (marges + boutons navigation)
+      
+      // Espace disponible pour le livre
+      const availableWidth = window.innerWidth - sidebarWidth - horizontalPadding
+      const availableHeight = window.innerHeight - toolbarHeight - bottomPadding
+      
+      // Le livre a 2 pages côte à côte, donc largeur totale = 2 * largeur page
+      // Pour une page : largeur = hauteur * formatRatio
+      // Largeur totale livre = 2 * hauteur * formatRatio
+      
+      // Calcul basé sur la hauteur disponible
+      const heightBasedPageHeight = availableHeight
+      const heightBasedPageWidth = heightBasedPageHeight * formatRatio
+      const heightBasedTotalWidth = heightBasedPageWidth * 2
+      
+      // Calcul basé sur la largeur disponible
+      const widthBasedTotalWidth = availableWidth
+      const widthBasedPageWidth = widthBasedTotalWidth / 2
+      const widthBasedPageHeight = widthBasedPageWidth / formatRatio
+      
+      // Choisir la plus petite taille pour que le livre tienne dans l'écran
+      let finalPageWidth: number
+      let finalPageHeight: number
+      
+      if (heightBasedTotalWidth <= availableWidth) {
+        // La taille basée sur la hauteur tient en largeur
+        finalPageWidth = heightBasedPageWidth
+        finalPageHeight = heightBasedPageHeight
+      } else {
+        // La largeur est le facteur limitant
+        finalPageWidth = widthBasedPageWidth
+        finalPageHeight = widthBasedPageHeight
+      }
+      
+      // Limites minimales pour la lisibilité
+      finalPageWidth = Math.max(200, finalPageWidth)
+      finalPageHeight = Math.max(250, finalPageHeight)
+      
+      setBookDimensions({ pageWidth: finalPageWidth, pageHeight: finalPageHeight })
+    }
+    
+    calculateOptimalSize()
+    window.addEventListener('resize', calculateOptimalSize)
+    return () => window.removeEventListener('resize', calculateOptimalSize)
+  }, [formatRatio])
+  
   // 🛡️ La modération du contenu est gérée par l'IA-Amie dans le chat
   
   // Refs pour les conteneurs de page (pour le drag & drop des images)
@@ -5271,9 +5327,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             exit={{ scale: 0.8, opacity: 0 }}
             className="relative flex flex-col shadow-2xl"
             style={{
-              height: 'calc(100vh - 220px)',
-              maxHeight: 'calc(100vh - 220px)',
-              width: 'calc((100vh - 220px) * 2 / 3)', // Largeur = hauteur * ratio (compatible Safari)
+              // En mode zoom, on affiche une seule page plus grande (1.4x la taille normale)
+              height: `${bookDimensions.pageHeight * 1.4}px`,
+              width: `${bookDimensions.pageWidth * 1.4}px`,
+              maxHeight: 'calc(100vh - 120px)',
+              maxWidth: 'calc(100vw - 200px)',
               background: getPageColorStyles(bookColor).background,
               borderRadius: '12px',
               overflow: 'visible',
@@ -5645,9 +5703,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         <div 
           className="relative flex shadow-2xl"
           style={{
-            height: 'calc(100vh - var(--book-height-offset, 220px))', // Hauteur responsive via CSS variable
-            maxHeight: 'calc(100vh - var(--book-height-offset, 220px))',
-            maxWidth: 'calc(100vw - 140px)', // Largeur max = viewport - sidebar - marges
+            height: `${bookDimensions.pageHeight}px`, // Hauteur calculée dynamiquement
+            maxHeight: `${bookDimensions.pageHeight}px`,
             perspective: '2000px',
           }}
         >
@@ -5661,8 +5718,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             onClick={() => setActivePage('left')}
             style={{
               height: '100%',
-              width: `calc((100vh - var(--book-height-offset, 220px)) * ${formatRatio})`, // Ratio selon le format du livre
-              maxWidth: 'calc(50vw - 80px)', // Max 50% du viewport moins marges
+              width: `${bookDimensions.pageWidth}px`, // Largeur calculée dynamiquement selon le format
               flexShrink: 0,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '8px 0 0 8px',
@@ -6069,8 +6125,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             onClick={() => setActivePage('right')}
             style={{
               height: '100%',
-              width: `calc((100vh - var(--book-height-offset, 220px)) * ${formatRatio})`, // Ratio selon le format du livre
-              maxWidth: 'calc(50vw - 80px)', // Max 50% du viewport moins marges
+              width: `${bookDimensions.pageWidth}px`, // Largeur calculée dynamiquement selon le format
               flexShrink: 0,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '0 8px 8px 0',
@@ -7111,48 +7166,48 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
   // Étape 2 : Choix du format
   if (step === 'format') {
     return (
-      <div className="relative max-w-6xl mx-auto">
+      <div className="relative max-w-6xl mx-auto px-2 sm:px-4">
         {/* Bouton retour */}
         <motion.button
           onClick={handleBack}
-          className="absolute top-0 left-0 flex items-center gap-2 text-midnight-400 hover:text-white transition-colors"
+          className="absolute top-0 left-2 sm:left-0 flex items-center gap-1 sm:gap-2 text-midnight-400 hover:text-white transition-colors"
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
         >
-          <ChevronLeft className="w-5 h-5" />
-          <span className="text-sm">{locale === 'fr' ? 'Retour' : locale === 'en' ? 'Back' : 'Назад'}</span>
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="text-xs sm:text-sm">{locale === 'fr' ? 'Retour' : locale === 'en' ? 'Back' : 'Назад'}</span>
         </motion.button>
 
-        {/* Titre */}
+        {/* Titre - adapté aux écrans 14 pouces */}
         <motion.div 
-          className="text-center mb-10"
+          className="text-center mb-6 lg:mb-10"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <h2 className="font-display text-3xl md:text-4xl text-white mb-3">
+          <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white mb-2 lg:mb-3">
             {locale === 'fr' ? 'Quel format pour ton livre ?' : locale === 'en' ? 'What format for your book?' : 'Какой формат книги?'}
           </h2>
-          <p className="text-white/50 text-base">
+          <p className="text-white/50 text-sm lg:text-base">
             {locale === 'fr' ? 'Ce format sera utilisé pour l\'impression' : locale === 'en' ? 'This format will be used for printing' : 'Этот формат будет использоваться для печати'}
           </p>
         </motion.div>
 
-        {/* Grille des formats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {/* Grille des formats - adaptée aux écrans 14 pouces */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 max-w-5xl mx-auto">
           {BOOK_FORMATS.map((format, index) => (
             <motion.button
               key={format.id}
               onClick={() => handleSelectFormat(format.id)}
-              className="group relative text-left focus:outline-none focus:ring-2 focus:ring-aurora-500/50 rounded-2xl"
+              className="group relative text-left focus:outline-none focus:ring-2 focus:ring-aurora-500/50 rounded-xl lg:rounded-2xl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.08 }}
-              whileHover={{ y: -4, scale: 1.02 }}
+              transition={{ duration: 0.4, delay: index * 0.05 }}
+              whileHover={{ y: -2, scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
             >
               <div className={cn(
-                "relative overflow-hidden rounded-2xl p-6 transition-all duration-300",
+                "relative overflow-hidden rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-5 transition-all duration-300",
                 "bg-gradient-to-br from-midnight-800/80 to-midnight-900/80",
                 "border-2 border-midnight-700/50 hover:border-aurora-500/50",
                 "shadow-lg hover:shadow-aurora-500/20",
@@ -7160,42 +7215,42 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
               )}>
                 {/* Badge recommandé */}
                 {format.recommended && (
-                  <div className="absolute top-3 right-3 px-2 py-1 bg-aurora-500/20 text-aurora-300 text-xs font-medium rounded-full border border-aurora-500/30">
+                  <div className="absolute top-2 right-2 lg:top-3 lg:right-3 px-1.5 py-0.5 lg:px-2 lg:py-1 bg-aurora-500/20 text-aurora-300 text-[10px] lg:text-xs font-medium rounded-full border border-aurora-500/30">
                     ⭐ {locale === 'fr' ? 'Recommandé' : locale === 'en' ? 'Recommended' : 'Рекомендуется'}
                   </div>
                 )}
 
                 {/* Icône et preview du format */}
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="text-4xl">{format.icon}</div>
+                <div className="flex items-start gap-2 lg:gap-4 mb-2 lg:mb-4">
+                  <div className="text-2xl lg:text-4xl">{format.icon}</div>
                   {/* Mini preview des proportions */}
                   <div 
                     className="bg-amber-50/90 rounded shadow-inner border border-amber-200/50 flex-shrink-0"
                     style={{
-                      width: `${Math.min(60, format.widthMm / 3)}px`,
-                      height: `${Math.min(80, format.heightMm / 3)}px`,
+                      width: `${Math.min(40, format.widthMm / 4)}px`,
+                      height: `${Math.min(55, format.heightMm / 4)}px`,
                     }}
                   >
-                    <div className="w-full h-full flex items-center justify-center text-amber-900/30 text-xs">
+                    <div className="w-full h-full flex items-center justify-center text-amber-900/30 text-[8px] lg:text-xs">
                       {format.widthMm}×{format.heightMm}
                     </div>
                   </div>
                 </div>
 
                 {/* Nom et dimensions */}
-                <h3 className="text-lg font-medium text-white mb-1">{format.nameFr}</h3>
-                <p className="text-sm text-midnight-400 mb-3">
+                <h3 className="text-sm lg:text-lg font-medium text-white mb-0.5 lg:mb-1">{format.nameFr}</h3>
+                <p className="text-xs lg:text-sm text-midnight-400 mb-2 lg:mb-3">
                   {format.widthMm} × {format.heightMm} mm
                 </p>
 
                 {/* Prix estimé */}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-midnight-500">{locale === 'fr' ? 'Prix estimé' : locale === 'en' ? 'Estimated price' : 'Примерная цена'}</span>
-                  <span className="text-sm font-medium text-aurora-400">{format.priceEstimate}</span>
+                  <span className="text-[10px] lg:text-xs text-midnight-500">{locale === 'fr' ? 'Prix estimé' : locale === 'en' ? 'Estimated price' : 'Примерная цена'}</span>
+                  <span className="text-xs lg:text-sm font-medium text-aurora-400">{format.priceEstimate}</span>
                 </div>
 
                 {/* Hover effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-aurora-500/0 to-dream-500/0 group-hover:from-aurora-500/5 group-hover:to-dream-500/5 rounded-2xl transition-all duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-br from-aurora-500/0 to-dream-500/0 group-hover:from-aurora-500/5 group-hover:to-dream-500/5 rounded-xl lg:rounded-2xl transition-all duration-300" />
               </div>
             </motion.button>
           ))}
@@ -7203,7 +7258,7 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
 
         {/* Note */}
         <motion.p 
-          className="text-center text-white/40 text-sm mt-8"
+          className="text-center text-white/40 text-xs lg:text-sm mt-4 lg:mt-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -7217,23 +7272,23 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
   // Étape 1 : Choix de la structure
   return (
     <div className="relative max-w-6xl mx-auto">
-      {/* Titre */}
+      {/* Titre - adapté aux écrans 14 pouces */}
       <motion.div 
-        className="text-center mb-10"
+        className="text-center mb-6 lg:mb-10"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h2 className="font-display text-3xl md:text-4xl text-white mb-3">
+        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white mb-2 lg:mb-3">
           {locale === 'fr' ? 'Quel type d\'histoire ?' : locale === 'en' ? 'What kind of story?' : 'Какой тип истории?'}
         </h2>
-        <p className="text-white/50 text-base">
+        <p className="text-white/50 text-sm lg:text-base">
           {locale === 'fr' ? 'Choisis une structure pour commencer' : locale === 'en' ? 'Choose a structure to start' : 'Выбери структуру для начала'}
         </p>
       </motion.div>
 
-      {/* Grille 2x2 équilibrée */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 md:gap-12 max-w-5xl mx-auto">
+      {/* Grille 2x2 équilibrée - adaptée aux écrans 14 pouces */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 max-w-5xl mx-auto px-2 sm:px-4">
         {structures.map((structureId, index) => {
           const template = STORY_TEMPLATES[structureId]
           const config = STRUCTURE_CONFIG[structureId]
@@ -7242,15 +7297,15 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
             <motion.button
               key={structureId}
               onClick={() => handleSelectStructure(structureId)}
-              className="group relative text-left focus:outline-none focus:ring-2 focus:ring-aurora-500/50 rounded-3xl"
+              className="group relative text-left focus:outline-none focus:ring-2 focus:ring-aurora-500/50 rounded-2xl lg:rounded-3xl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: index * 0.08 }}
-              whileHover={{ y: -8, scale: 1.02 }}
+              whileHover={{ y: -4, scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
             >
-              {/* Carte avec image de fond */}
-              <div className="relative overflow-hidden rounded-3xl aspect-[16/11] shadow-[0_8px_32px_0_rgba(0,0,0,0.4)] group-hover:shadow-[0_20px_60px_0_rgba(0,0,0,0.6)] transition-all duration-500">
+              {/* Carte avec image de fond - ratio adaptatif selon la taille d'écran */}
+              <div className="relative overflow-hidden rounded-2xl lg:rounded-3xl aspect-[16/10] lg:aspect-[16/11] shadow-[0_4px_20px_0_rgba(0,0,0,0.3)] group-hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.5)] transition-all duration-500">
                 {/* Image de fond générée par IA - lumineuse et colorée */}
                 <div 
                   className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-105"
@@ -7302,26 +7357,26 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
                   }}
                 />
                 
-                {/* Contenu */}
-                <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8 z-10">
+                {/* Contenu - adapté aux petits écrans desktop */}
+                <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-5 lg:p-6 z-10">
                   {/* Badge icône avec effet glass */}
-                  <div className="absolute top-5 left-5 w-14 h-14 rounded-2xl bg-black/60 backdrop-blur-xl flex items-center justify-center border border-white/30 shadow-2xl group-hover:scale-110 transition-transform duration-300">
-                    <span className="text-3xl drop-shadow-lg">{config.icon}</span>
+                  <div className="absolute top-3 left-3 sm:top-4 sm:left-4 w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl bg-black/60 backdrop-blur-xl flex items-center justify-center border border-white/30 shadow-2xl group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-xl sm:text-2xl lg:text-3xl drop-shadow-lg">{config.icon}</span>
                   </div>
                   
                   {/* Texte avec meilleur contraste */}
                   <div>
-                    <h3 className="font-display text-2xl md:text-3xl text-white mb-2 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] group-hover:scale-105 transition-transform duration-300 origin-left">
+                    <h3 className="font-display text-lg sm:text-xl lg:text-2xl xl:text-3xl text-white mb-1 lg:mb-2 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] group-hover:scale-105 transition-transform duration-300 origin-left">
                       {template.name[locale]}
                     </h3>
-                    <p className="text-base text-white/95 leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+                    <p className="text-sm lg:text-base text-white/95 leading-snug lg:leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] line-clamp-2 lg:line-clamp-none">
                       {template.description[locale]}
                     </p>
                   </div>
                   
-                  {/* Bouton Commencer premium */}
-                  <div className="mt-5 flex items-center gap-2 text-base font-semibold text-white opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
-                    <span className="px-6 py-3 rounded-full bg-white/30 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-white/40 hover:scale-105 transition-all duration-300">
+                  {/* Bouton Commencer premium - caché sur très petits écrans */}
+                  <div className="mt-3 lg:mt-5 hidden sm:flex items-center gap-2 text-sm lg:text-base font-semibold text-white opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+                    <span className="px-4 py-2 lg:px-6 lg:py-3 rounded-full bg-white/30 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-white/40 hover:scale-105 transition-all duration-300">
                       Commencer →
                     </span>
                   </div>
@@ -7334,7 +7389,7 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
       
       {/* Note */}
       <motion.p 
-        className="text-center text-white/40 text-sm mt-10"
+        className="text-center text-white/40 text-xs lg:text-sm mt-6 lg:mt-10"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6 }}

@@ -24,7 +24,7 @@ export default function RegisterPage() {
   
   const { signUp, isLoading, user } = useAuthStore()
   
-  const [step, setStep] = useState(1) // 1: rôle, 2: infos, 3: avatar
+  const [step, setStep] = useState(1) // 1: rôle, 2: infos, 3: avatar, 4: confirmation email
   const [role, setRole] = useState<UserRole | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,6 +32,7 @@ export default function RegisterPage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
 
   // Rediriger si déjà connecté
   useEffect(() => {
@@ -88,7 +89,9 @@ export default function RegisterPage() {
     if (signUpError) {
       setError(signUpError)
     } else {
-      router.push(`/${locale}`)
+      // Afficher l'écran de confirmation email
+      setEmailSent(true)
+      setStep(4)
     }
   }
 
@@ -189,7 +192,8 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* Indicateur d'étape */}
+        {/* Indicateur d'étape - caché à l'étape 4 */}
+        {step < 4 && (
         <div className="flex justify-center gap-2 mb-8">
           {[1, 2, 3].map((s) => (
             <motion.div
@@ -203,6 +207,7 @@ export default function RegisterPage() {
             />
           ))}
         </div>
+        )}
 
         <AnimatePresence mode="wait">
           {/* Étape 1: Choix du rôle */}
@@ -358,6 +363,62 @@ export default function RegisterPage() {
               </div>
             </motion.div>
           )}
+
+          {/* Étape 4: Confirmation email envoyé */}
+          {step === 4 && emailSent && (
+            <motion.div
+              key="step4"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center space-y-6"
+            >
+              <motion.div
+                className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center"
+                animate={{ 
+                  boxShadow: [
+                    '0 0 20px rgba(34, 197, 94, 0.3)',
+                    '0 0 40px rgba(34, 197, 94, 0.5)',
+                    '0 0 20px rgba(34, 197, 94, 0.3)'
+                  ]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <Mail className="w-10 h-10 text-white" />
+              </motion.div>
+              
+              <div>
+                <h2 className="text-2xl font-display text-white mb-2">
+                  {locale === 'fr' ? 'Vérifie ta boîte mail !' : locale === 'en' ? 'Check your email!' : 'Проверь почту!'}
+                </h2>
+                <p className="text-aurora-200">
+                  {locale === 'fr' 
+                    ? `Un email de confirmation a été envoyé à` 
+                    : locale === 'en' 
+                    ? `A confirmation email has been sent to`
+                    : `Письмо с подтверждением отправлено на`}
+                </p>
+                <p className="text-aurora-400 font-semibold mt-1">{email}</p>
+              </div>
+
+              <div className="glass-card p-4 rounded-xl text-left">
+                <p className="text-aurora-200 text-sm">
+                  {locale === 'fr' 
+                    ? '📧 Clique sur le lien dans l\'email pour activer ton compte, puis reviens ici pour te connecter !'
+                    : locale === 'en'
+                    ? '📧 Click the link in the email to activate your account, then come back here to log in!'
+                    : '📧 Нажми на ссылку в письме, чтобы активировать аккаунт, затем вернись сюда для входа!'}
+                </p>
+              </div>
+
+              <Link
+                href={`/${locale}/login`}
+                className="btn-primary inline-flex items-center gap-2 px-6 py-3"
+              >
+                {locale === 'fr' ? 'Aller à la connexion' : locale === 'en' ? 'Go to login' : 'Перейти к входу'}
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         {/* Erreur */}
@@ -374,7 +435,8 @@ export default function RegisterPage() {
           )}
         </AnimatePresence>
 
-        {/* Navigation */}
+        {/* Navigation - caché à l'étape 4 */}
+        {step < 4 && (
         <div className="mt-8 flex gap-4">
           {step > 1 && (
             <motion.button
@@ -424,8 +486,10 @@ export default function RegisterPage() {
             </motion.button>
           )}
         </div>
+        )}
 
-        {/* Lien de connexion */}
+        {/* Lien de connexion - caché à l'étape 4 */}
+        {step < 4 && (
         <div className="mt-6 text-center">
           <p className="text-aurora-300">
             {t('hasAccount')}{' '}
@@ -437,6 +501,7 @@ export default function RegisterPage() {
             </Link>
           </p>
         </div>
+        )}
       </motion.div>
     </div>
   )
