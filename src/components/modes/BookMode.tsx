@@ -52,6 +52,7 @@ import {
   Clapperboard,
   Edit3,
   Settings,
+  Wand2,
 } from 'lucide-react'
 import { useAppStore, type Story, type BookFormat } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
@@ -64,6 +65,7 @@ import { VoiceSelector } from '@/components/ui/VoiceSelector'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
+import { CharacterImageCreator } from '@/components/studio/CharacterImageCreator'
 
 // ============================================================================
 // TYPES
@@ -974,6 +976,7 @@ interface DraggableMediaProps {
   onDelete: () => void
   onBringForward?: () => void
   onSendBackward?: () => void
+  onCreateNewImage?: () => void  // Créer une nouvelle image avec ce personnage
   containerRef: React.RefObject<HTMLDivElement>
   totalMedia?: number
 }
@@ -986,7 +989,7 @@ const DEFAULT_IMAGE_POSITION: ImagePosition = {
   rotation: 0, // Pas de rotation par défaut
 }
 
-function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, opacity = 1, onPositionChange, onStyleChange, onFrameChange, onOpacityChange, onDelete, onBringForward, onSendBackward, containerRef, totalMedia = 1 }: DraggableMediaProps) {
+function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, opacity = 1, onPositionChange, onStyleChange, onFrameChange, onOpacityChange, onDelete, onBringForward, onSendBackward, onCreateNewImage, containerRef, totalMedia = 1 }: DraggableMediaProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [isRotating, setIsRotating] = useState(false)
@@ -1551,6 +1554,21 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
           title="Cadres"
         >
           <Frame className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Bouton nouvelle image avec ce personnage (seulement pour images) */}
+      {showControls && mediaType === 'image' && onCreateNewImage && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onCreateNewImage()
+          }}
+          className="absolute top-1/2 -right-10 -translate-y-1/2 p-2 rounded-full bg-gradient-to-r from-aurora-500 to-stardust-500 text-white hover:shadow-lg hover:shadow-aurora-500/25 transition-all z-30 shadow-lg"
+          onMouseDown={(e) => e.stopPropagation()}
+          title="Créer une nouvelle image avec ce personnage"
+        >
+          <Wand2 className="w-4 h-4" />
         </button>
       )}
 
@@ -4726,6 +4744,7 @@ interface WritingAreaProps {
   onImageDelete?: (pageIndex: number, imageId: string) => void
   onImageBringForward?: (pageIndex: number, imageId: string) => void
   onImageSendBackward?: (pageIndex: number, imageId: string) => void
+  onImageCreateNew?: (imageUrl: string, pageIndex: number) => void  // Créer nouvelle image avec même personnage
   locale?: 'fr' | 'en' | 'ru'
   onPrevPage?: () => void
   onNextPage?: () => void
@@ -4882,7 +4901,7 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
   )
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover }: WritingAreaProps) {
   
   // Calculer le ratio du format (largeur/hauteur)
   const formatRatio = getFormatRatio(bookFormat)
@@ -5432,6 +5451,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onDelete={() => onImageDelete?.(zPageIndex, media.id)}
                 onBringForward={() => onImageBringForward?.(zPageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(zPageIndex, media.id)}
+                onCreateNewImage={() => onImageCreateNew?.(media.url, zPageIndex)}
                 containerRef={zoomedPageContainerRef}
                 totalMedia={zPageImages.length}
               />
@@ -5742,6 +5762,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onDelete={() => onImageDelete?.(leftPageIndex, media.id)}
                 onBringForward={() => onImageBringForward?.(leftPageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(leftPageIndex, media.id)}
+                onCreateNewImage={() => onImageCreateNew?.(media.url, leftPageIndex)}
                 containerRef={leftPageContainerRef}
                 totalMedia={leftPageImages.length}
               />
@@ -6146,6 +6167,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onDelete={() => onImageDelete?.(pageIndex, media.id)}
                 onBringForward={() => onImageBringForward?.(pageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(pageIndex, media.id)}
+                onCreateNewImage={() => onImageCreateNew?.(media.url, pageIndex)}
                 containerRef={rightPageContainerRef}
                 totalMedia={rightPageImages.length}
               />
@@ -7411,6 +7433,11 @@ export function BookMode() {
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false)
   const [backgroundPickerTargetPage, setBackgroundPickerTargetPage] = useState<number>(0)
   
+  // État pour le CharacterImageCreator (nouvelle image avec même personnage)
+  const [showCharacterCreator, setShowCharacterCreator] = useState(false)
+  const [characterCreatorRefImage, setCharacterCreatorRefImage] = useState<string>('')
+  const [characterCreatorTargetPage, setCharacterCreatorTargetPage] = useState<number>(0)
+  
   // État pour le DecorationPicker
   const [showDecorationPicker, setShowDecorationPicker] = useState(false)
   const [decorationPickerTargetPage, setDecorationPickerTargetPage] = useState<number>(0)
@@ -7847,6 +7874,56 @@ export function BookMode() {
         }
       }
     }
+  }
+
+  // === Gestion de la création d'image avec même personnage ===
+  const handleOpenCharacterCreator = (imageUrl: string, pageIndex: number) => {
+    setCharacterCreatorRefImage(imageUrl)
+    setCharacterCreatorTargetPage(pageIndex)
+    setShowCharacterCreator(true)
+  }
+
+  const handleCharacterImageCreated = (imageUrl: string) => {
+    console.log('🎨 Nouvelle image avec personnage créée:', imageUrl.substring(0, 50))
+    
+    const targetIndex = characterCreatorTargetPage
+    if (!pages[targetIndex]) {
+      console.error('❌ Page cible non trouvée!')
+      return
+    }
+    
+    const newPages = [...pages]
+    const page = newPages[targetIndex]
+    
+    // Créer un nouveau média avec ID unique
+    const mediaId = `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const newMedia: PageMedia = {
+      id: mediaId,
+      url: imageUrl,
+      type: 'image' as MediaType,
+      position: {
+        ...DEFAULT_IMAGE_POSITION,
+        x: 55,  // Légèrement décalé pour ne pas superposer l'original
+        y: 25,
+      },
+      style: 'normal',
+      frame: 'none',
+      zIndex: (page.images?.length || 0) + 1,
+    }
+    
+    // Ajouter au tableau de médias
+    newPages[targetIndex] = { 
+      ...page, 
+      images: [...(page.images || []), newMedia],
+    }
+    setPages(newPages)
+    console.log('✅ Image ajoutée depuis CharacterCreator:', newMedia.id)
+    
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+    
+    setShowCharacterCreator(false)
   }
 
   // === Gestion du fond de page ===
@@ -8532,6 +8609,7 @@ export function BookMode() {
               onImageDelete={handleImageDelete}
               onImageBringForward={handleImageBringForward}
               onImageSendBackward={handleImageSendBackward}
+              onImageCreateNew={handleOpenCharacterCreator}
               bookColor={bookColor}
               onBookColorChange={setBookColor}
               onBackgroundAdd={handleOpenBackgroundPicker}
@@ -8590,6 +8668,14 @@ export function BookMode() {
             onSelect={handleBackgroundSelect}
             allowedTypes="all"
             title="Ajouter un média"
+          />
+          
+          {/* CharacterImageCreator pour créer une nouvelle image avec même personnage */}
+          <CharacterImageCreator
+            isOpen={showCharacterCreator}
+            onClose={() => setShowCharacterCreator(false)}
+            referenceImageUrl={characterCreatorRefImage}
+            onImageCreated={handleCharacterImageCreated}
           />
           
           {/* DecorationPicker pour les décorations premium */}
