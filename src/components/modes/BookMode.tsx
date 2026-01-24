@@ -2417,7 +2417,9 @@ function DraggableDecoration({
             : 'none',
           transition: 'filter 0.3s ease'
         }}
-        dangerouslySetInnerHTML={{ __html: decorationItem.svg }}
+        dangerouslySetInnerHTML={{ 
+          __html: decorationItem.svg.replace('<svg ', '<svg width="100%" height="100%" ')
+        }}
       />
 
       {/* SVG indicator quand sélectionné */}
@@ -2762,7 +2764,9 @@ function DecorationPicker({ isOpen, onClose, onSelect }: DecorationPickerProps) 
                   <div
                     className="w-full h-full flex items-center justify-center transition-transform group-hover:scale-110"
                     style={{ color: deco.defaultColor }}
-                    dangerouslySetInnerHTML={{ __html: deco.svg }}
+                    dangerouslySetInnerHTML={{ 
+                      __html: deco.svg.replace('<svg ', '<svg width="100%" height="100%" ')
+                    }}
                   />
                   <div className="absolute inset-x-0 bottom-0 p-2 text-center">
                     <span className="text-xs text-midnight-400 group-hover:text-white transition-colors">
@@ -4735,7 +4739,7 @@ interface WritingAreaProps {
   onChapterChange: (chapterId: string | undefined) => void
   onCreateChapter: (title: string) => void
   onUpdateChapter?: (chapterId: string, updates: Partial<Chapter>) => void
-  onImageAdd: () => void
+  onImageAdd: (pageIndex: number) => void
   // Callbacks multi-images (nouveau)
   onImagePositionChange?: (pageIndex: number, imageId: string, position: ImagePosition) => void
   onImageStyleChange?: (pageIndex: number, imageId: string, style: ImageStyle) => void
@@ -5967,7 +5971,12 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   </button>
                   <Highlightable id="book-add-image">
                   <button
-                    onClick={(e) => { e.stopPropagation(); onImageAdd(); }}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (leftPageIndex !== undefined) {
+                        onImageAdd(leftPageIndex); 
+                      }
+                    }}
                     className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
                     title="Ajouter une image"
                   >
@@ -6369,7 +6378,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 </button>
             <Highlightable id="book-add-image">
             <button
-              onClick={(e) => { e.stopPropagation(); onImageAdd(); }}
+              onClick={(e) => { e.stopPropagation(); onImageAdd(pageIndex); }}
                   className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
                   title="Ajouter une image"
             >
@@ -8541,7 +8550,10 @@ export function BookMode() {
                 c.id === chapterId ? { ...c, ...updates } : c
               ))
             }}
-            onImageAdd={() => handleOpenMediaPicker('right')}
+            onImageAdd={(targetPageIndex) => {
+              setMediaPickerTargetPage(targetPageIndex === leftPageIndex ? 'left' : 'right')
+              setShowMediaPicker(true)
+            }}
               locale={locale}
               // Navigation par spread (2 pages à la fois)
               onPrevPage={() => setCurrentSpread(Math.max(0, currentSpread - 1))}
