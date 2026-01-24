@@ -852,21 +852,19 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'lavoixdusoir-storage',
+      // NOTE: Les données principales (stories, diary, chat) sont gérées par Supabase
+      // On ne persiste ici que les préférences locales et la progression
       partialize: (state) => ({
-        diaryEntries: state.diaryEntries,
-        chatHistory: state.chatHistory,
-        stories: state.stories,
-        currentStory: state.currentStory,
-        projects: state.projects,
-        currentProject: state.currentProject,
-        generatedAssets: state.generatedAssets,
+        // Préférences utilisateur (cache local, Supabase est la source de vérité)
         userName: state.userName,
-        aiName: state.aiName, // Nom personnalisé de l'IA - persisté pour chaque utilisateur
-        aiVoice: state.aiVoice, // Voix de l'IA - persistée pour chaque utilisateur
-        narrationVoiceId: state.narrationVoiceId, // Voix ElevenLabs pour narration
-        emotionalContext: state.emotionalContext,
+        aiName: state.aiName,
+        aiVoice: state.aiVoice,
+        narrationVoiceId: state.narrationVoiceId,
+        // Progression pédagogique (synchronisée avec Supabase)
         promptingProgress: state.promptingProgress,
         writingProgress: state.writingProgress,
+        // NOTE: stories, currentStory, diaryEntries, chatHistory ne sont PAS persistés
+        // en localStorage - Supabase est la seule source de vérité
       }),
     }
   )

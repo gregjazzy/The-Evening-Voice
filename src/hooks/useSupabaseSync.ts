@@ -205,6 +205,7 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
       current_page: story.currentStep + 1,
       metadata: {
         structure: story.structure,
+        bookFormat: story.bookFormat || 'portrait-a5', // Format du livre pour l'impression
         chapters: story.chapters || [],
       },
       created_at: toISOStringSafe(story.createdAt),
@@ -247,15 +248,24 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
         title: page.title,
         text_blocks: [{ content: page.content || '' }],
         media_layers: {
+          // Médias (images et vidéos)
           images: page.images || [],
+          // Décorations (stickers, ornements)
           decorations: page.decorations || [],
+          // Zones de texte flottantes
           textBoxes: page.textBoxes || [],
+          // Référence au chapitre
           chapterId: page.chapterId,
+          // Type de page (front-cover, back-cover, content)
+          pageType: page.pageType || 'content',
+          // Fond de page complet (avec opacité, position, scale)
+          backgroundMedia: page.backgroundMedia || null,
         },
+        // URLs de fond pour compatibilité (sans les métadonnées)
         background_image_url: page.backgroundMedia?.type === 'image' ? page.backgroundMedia.url : null,
         background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
       }
-      console.log(`   📄 Page ${i + 1}: "${(page.content || '').substring(0, 30)}..."`)
+      console.log(`   📄 Page ${i + 1} (${pageData.media_layers.pageType}): "${(page.content || '').substring(0, 30)}..." - ${page.images?.length || 0} images, ${page.decorations?.length || 0} décos`)
       return pageData
     })
     
@@ -408,29 +418,39 @@ export function useSupabaseSync() {
           id: s.id,
           title: s.title,
           structure: (s.metadata?.structure as StoryStructure) || 'free',
+          bookFormat: s.metadata?.bookFormat || 'portrait-a5', // Format du livre
           currentStep: s.current_page - 1,
           pages: (s.story_pages || [])
             .sort((a: any, b: any) => a.page_number - b.page_number)
             .map((p: any) => {
-              // media_layers peut être un objet {images, decorations, chapterId} ou un array legacy
+              // media_layers peut être un objet {images, decorations, chapterId, pageType, backgroundMedia} ou un array legacy
               const mediaLayers = p.media_layers || {}
-              const isNewFormat = mediaLayers && !Array.isArray(mediaLayers) && mediaLayers.images
+              const isNewFormat = mediaLayers && !Array.isArray(mediaLayers) && (mediaLayers.images !== undefined)
               
-              // Reconstruire backgroundMedia depuis les colonnes séparées
+              // Reconstruire backgroundMedia : priorité à media_layers.backgroundMedia (complet avec opacité, etc.)
+              // Sinon fallback sur les colonnes séparées (compatibilité)
               let backgroundMedia = undefined
-              if (p.background_image_url) {
-                backgroundMedia = { type: 'image', url: p.background_image_url }
+              if (isNewFormat && mediaLayers.backgroundMedia) {
+                backgroundMedia = mediaLayers.backgroundMedia
+              } else if (p.background_image_url) {
+                backgroundMedia = { type: 'image', url: p.background_image_url, opacity: 1 }
               } else if (p.background_video_url) {
-                backgroundMedia = { type: 'video', url: p.background_video_url }
+                backgroundMedia = { type: 'video', url: p.background_video_url, opacity: 1 }
               }
               
               return {
                 id: p.id,
                 stepIndex: p.page_number - 1,
+                // Type de page (front-cover, back-cover, content)
+                pageType: isNewFormat ? (mediaLayers.pageType || 'content') : 'content',
                 content: p.text_blocks?.[0]?.content || '',
-                images: isNewFormat ? mediaLayers.images : (Array.isArray(mediaLayers) ? mediaLayers : []),
+                // Médias (images et vidéos sur la page)
+                images: isNewFormat ? (mediaLayers.images || []) : (Array.isArray(mediaLayers) ? mediaLayers : []),
+                // Fond de page (image ou vidéo avec opacité)
                 backgroundMedia,
+                // Décorations (stickers, ornements)
                 decorations: isNewFormat ? (mediaLayers.decorations || []) : [],
+                // Zones de texte flottantes
                 textBoxes: isNewFormat ? (mediaLayers.textBoxes || []) : [],
                 order: p.page_number - 1,
                 chapterId: isNewFormat ? mediaLayers.chapterId : undefined,
@@ -754,10 +774,13 @@ export function useSupabaseSync() {
   }, [profile?.id])
 
   // Versions debounced pour éviter trop de requêtes
-  // Réduit à 1s pour sauvegarder plus rapidement le contenu
-  const debouncedSaveStory = useDebouncedCallback(saveStory, 1000)
+  // Réduit à 500ms pour sauvegarder plus rapidement le contenu
+  const debouncedSaveStory = useDebouncedCallback(saveStory, 500)
   const debouncedSaveEmotionalContext = useDebouncedCallback(saveEmotionalContext, 5000)
   const debouncedSaveAiName = useDebouncedCallback(saveAiName, 1000)
+  
+  // Référence pour la dernière histoire modifiée (pour sauvegarde avant fermeture)
+  const pendingStoryRef = useRef<Story | null>(null)
 
   // ============================================
   // ÉCOUTE DES CHANGEMENTS DU STORE
@@ -809,6 +832,7 @@ export function useSupabaseSync() {
       const newStory = stories[stories.length - 1]
       console.log('📝 Nouvelle histoire créée, sauvegarde immédiate:', newStory.title)
       saveStory(newStory) // Sauvegarde immédiate !
+      pendingStoryRef.current = null // Pas besoin de re-sauvegarder
     }
     // Détecter une histoire MODIFIÉE (sauvegarde debounced)
     else if (storiesKey !== prevStoriesRef.current) {
@@ -823,6 +847,7 @@ export function useSupabaseSync() {
         console.log('📝 Histoire modifiée, sauvegarde debounced:', changedStory.title, 
           '- pages:', changedStory.pages.length,
           '- contenu page 1:', changedStory.pages[0]?.content?.substring(0, 50) || '(vide)')
+        pendingStoryRef.current = changedStory // Garder en mémoire pour beforeunload
         debouncedSaveStory(changedStory)
       }
     }
@@ -830,6 +855,45 @@ export function useSupabaseSync() {
     prevStoriesRef.current = storiesKey
     prevStoriesCountRef.current = stories.length
   }, [stories, profile?.id, debouncedSaveStory, saveStory])
+
+  // ============================================
+  // SAUVEGARDE AVANT FERMETURE DE LA PAGE
+  // ============================================
+  useEffect(() => {
+    if (!profile?.id) return
+    
+    const handleBeforeUnload = () => {
+      // Déclencher la sauvegarde de l'histoire en attente
+      // La requête sera au moins initiée même si la page se ferme
+      if (pendingStoryRef.current) {
+        const story = pendingStoryRef.current
+        console.log('🚨 Sauvegarde d\'urgence avant fermeture:', story.title)
+        
+        // Appeler saveStory directement (sans debounce)
+        // Même si async, la requête sera envoyée avant la fermeture
+        saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+        pendingStoryRef.current = null
+      }
+    }
+    
+    // Écouter aussi visibilitychange pour sauvegarder quand l'onglet perd le focus
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && pendingStoryRef.current) {
+        const story = pendingStoryRef.current
+        console.log('💾 Sauvegarde auto (onglet masqué):', story.title)
+        saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+        pendingStoryRef.current = null
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [profile?.id, userName])
 
   // Sauvegarder le contexte émotionnel
   const prevEmotionalContextRef = useRef<string>('')

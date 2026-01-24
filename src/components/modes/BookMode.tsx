@@ -7619,10 +7619,11 @@ export function BookMode() {
 
   // Helper pour convertir les pages vers le format de sauvegarde
   const pagesToStoreFormat = (pagesArray: StoryPageLocal[]) => {
-    return pagesArray.map(p => ({
+    return pagesArray.map((p, index) => ({
       id: p.id,
-      stepIndex: 0,
+      stepIndex: index,
       content: p.content,
+      pageType: p.pageType, // Important: préserver le type de page (front-cover, back-cover, content)
       images: p.images,
       // Fond de page, décorations et zones de texte
       backgroundMedia: p.backgroundMedia,
@@ -7633,7 +7634,7 @@ export function BookMode() {
       imagePosition: p.imagePosition,
       imageStyle: p.imageStyle,
       frameStyle: p.frameStyle,
-      order: 0,
+      order: index,
       chapterId: p.chapterId,
       title: p.title,
     }))
