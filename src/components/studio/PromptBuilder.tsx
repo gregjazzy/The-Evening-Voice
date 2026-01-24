@@ -900,16 +900,21 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       }
 
       // 🔄 POLLING : Si on reçoit un jobId, on doit poll jusqu'à completion
-      if (data.status === 'pending' && data.jobId && !isVideo) {
-        console.log('⏳ Job en attente, démarrage du polling...', data.jobId)
+      if (data.status === 'pending' && data.jobId) {
+        console.log('⏳ Job en attente, démarrage du polling...', data.jobId, isVideo ? '(vidéo)' : '(image)')
         
-        const maxPolls = 60 // 2 minutes max (60 x 2s)
+        // Vidéos prennent plus de temps : 3 minutes max vs 2 minutes pour images
+        const maxPolls = isVideo ? 90 : 60 // 90 x 2s = 3 min pour vidéos
         const pollInterval = 2000 // 2 secondes
         
         for (let i = 0; i < maxPolls; i++) {
           await new Promise(resolve => setTimeout(resolve, pollInterval))
           
-          const statusUrl = `/api/ai/image?jobId=${encodeURIComponent(data.jobId)}&model=${encodeURIComponent(data.model || 'nano-banana')}`
+          // URL différente selon le type (image ou vidéo)
+          const statusUrl = isVideo 
+            ? `/api/ai/video?jobId=${encodeURIComponent(data.jobId)}&hasImage=${data.hasImage || 'false'}`
+            : `/api/ai/image?jobId=${encodeURIComponent(data.jobId)}&model=${encodeURIComponent(data.model || 'nano-banana')}`
+          
           console.log(`🔍 Poll ${i + 1}/${maxPolls}...`)
           
           const statusResponse = await fetch(statusUrl)
@@ -917,7 +922,12 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           
           console.log('📊 Status:', statusData.status)
           
-          if (statusData.status === 'completed' && statusData.imageUrl) {
+          // Pour les vidéos, on cherche videoUrl, pour les images imageUrl
+          const assetReady = isVideo 
+            ? (statusData.status === 'completed' && statusData.videoUrl)
+            : (statusData.status === 'completed' && statusData.imageUrl)
+          
+          if (assetReady) {
             data = statusData
             break
           }

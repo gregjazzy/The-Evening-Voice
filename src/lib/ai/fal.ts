@@ -512,13 +512,22 @@ export interface KlingVideoResult {
   duration: number
 }
 
+// Résultat pour le polling vidéo
+export interface KlingVideoJobResult {
+  jobId?: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  videoUrl?: string
+  duration?: number
+}
+
 /**
  * Génère une vidéo avec Kling 2.5 Turbo Pro (text-to-video)
  * Pas besoin d'image ! Juste un prompt texte.
  * Prix : $0.35 pour 5 secondes
+ * 
+ * NOTE: Retourne un jobId pour polling (évite timeout serveur)
  */
-export async function generateVideoKling(params: KlingVideoParams): Promise<KlingVideoResult> {
-  ensureFalConfigured()
+export async function generateVideoKling(params: KlingVideoParams): Promise<KlingVideoResult | KlingVideoJobResult> {
   const {
     prompt,
     imageUrl,
@@ -550,15 +559,80 @@ Style: gentle movement, child-friendly, magical atmosphere, cute, wholesome`
     input.image_url = imageUrl
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await fal.subscribe(endpoint, {
-    input,
-    logs: true,
-  }) as any
+  console.log(`🎬 Soumission job vidéo Kling: ${endpoint}`)
+
+  // Soumettre le job via REST API (évite le timeout du SDK)
+  const submitResponse = await falFetch(`https://queue.fal.run/${endpoint}`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+
+  if (!submitResponse.ok) {
+    const errorText = await submitResponse.text()
+    console.error('❌ Erreur soumission vidéo Kling:', submitResponse.status, errorText)
+    throw new Error(`Erreur Kling: ${submitResponse.status}`)
+  }
+
+  const submitData = await submitResponse.json()
+  const request_id = submitData.request_id
+
+  console.log('🎬 Kling video job submitted:', request_id)
+
+  // Retourner le jobId pour polling côté client
+  return {
+    jobId: request_id,
+    status: 'pending',
+    duration: parseInt(duration),
+  }
+}
+
+/**
+ * Vérifie le statut d'un job vidéo Kling
+ */
+export async function checkVideoJobStatus(jobId: string, hasImage: boolean): Promise<KlingVideoJobResult> {
+  const endpoint = hasImage 
+    ? 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video'
+    : 'fal-ai/kling-video/v2.5-turbo/pro/text-to-video'
+
+  console.log(`🔍 Checking Kling video job status: ${jobId}`)
+
+  const statusResponse = await falFetch(`https://queue.fal.run/${endpoint}/requests/${jobId}/status`)
+
+  if (!statusResponse.ok) {
+    console.error('❌ Erreur status Kling:', statusResponse.status)
+    throw new Error(`Erreur vérification status Kling: ${statusResponse.status}`)
+  }
+
+  const statusData = await statusResponse.json()
+  console.log(`📊 Kling job ${jobId} status:`, statusData.status)
+
+  if (statusData.status === 'COMPLETED') {
+    const resultResponse = await falFetch(`https://queue.fal.run/${endpoint}/requests/${jobId}`)
+
+    if (!resultResponse.ok) {
+      throw new Error(`Erreur récupération résultat Kling: ${resultResponse.status}`)
+    }
+
+    const data = await resultResponse.json()
+    console.log('✅ Kling video job completed')
+
+    return {
+      status: 'completed',
+      videoUrl: data.video?.url || '',
+      duration: 5,
+    }
+  }
+
+  if (statusData.status === 'FAILED') {
+    return {
+      jobId,
+      status: 'failed',
+    }
+  }
 
   return {
-    videoUrl: result.data?.video?.url || '',
-    duration: parseInt(duration),
+    jobId,
+    status: statusData.status === 'IN_PROGRESS' ? 'processing' : 'pending',
   }
 }
 

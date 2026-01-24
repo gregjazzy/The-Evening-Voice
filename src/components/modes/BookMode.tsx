@@ -7743,14 +7743,21 @@ export function BookMode() {
     }
   }
 
-  // Mettre une image devant
+  // Mettre une image devant (augmente son zIndex au-dessus de toutes les autres)
   const handleImageBringForward = (pageIdx: number, imageId: string) => {
-    if (!pages[pageIdx]?.images) return
+    if (!pages[pageIdx]?.images || pages[pageIdx].images!.length < 2) return
     const newPages = [...pages]
     const page = newPages[pageIdx]
     
     if (page.images) {
+      const currentImage = page.images.find(img => img.id === imageId)
+      if (!currentImage) return
+      
       const maxZIndex = Math.max(...page.images.map(img => img.zIndex))
+      
+      // Si l'image est déjà au premier plan, ne rien faire
+      if (currentImage.zIndex >= maxZIndex) return
+      
       newPages[pageIdx] = {
         ...page,
         images: page.images.map(img => 
@@ -7765,18 +7772,27 @@ export function BookMode() {
     }
   }
 
-  // Envoyer une image derrière
+  // Envoyer une image derrière (diminue son zIndex en dessous de toutes les autres)
   const handleImageSendBackward = (pageIdx: number, imageId: string) => {
-    if (!pages[pageIdx]?.images) return
+    if (!pages[pageIdx]?.images || pages[pageIdx].images!.length < 2) return
     const newPages = [...pages]
     const page = newPages[pageIdx]
     
     if (page.images) {
+      const currentImage = page.images.find(img => img.id === imageId)
+      if (!currentImage) return
+      
       const minZIndex = Math.min(...page.images.map(img => img.zIndex))
+      
+      // Si l'image est déjà à l'arrière-plan, ne rien faire
+      if (currentImage.zIndex <= minZIndex) return
+      
+      // Augmenter le zIndex de toutes les autres images au lieu de baisser celui de l'image courante
+      // (évite les zIndex négatifs ou nuls)
       newPages[pageIdx] = {
         ...page,
         images: page.images.map(img => 
-          img.id === imageId ? { ...img, zIndex: Math.max(1, minZIndex - 1) } : img
+          img.id === imageId ? img : { ...img, zIndex: img.zIndex + 1 }
         ),
       }
       setPages(newPages)
