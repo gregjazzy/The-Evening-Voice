@@ -10,6 +10,7 @@
  */
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 // Configuration R2 (compatible S3)
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || ''
@@ -71,6 +72,31 @@ export async function deleteFromR2(key: string): Promise<void> {
  */
 export function isR2Configured(): boolean {
   return !!(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_PUBLIC_URL)
+}
+
+/**
+ * Génère une URL signée pour upload direct vers R2
+ * Valide pendant 1 heure
+ */
+export async function getPresignedUploadUrl(
+  fileName: string,
+  contentType: string,
+  userId: string
+): Promise<{ uploadUrl: string; key: string; publicUrl: string }> {
+  const key = `videos/${userId}/${fileName}`
+  
+  const command = new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+    CacheControl: 'public, max-age=31536000',
+  })
+
+  // URL valide pendant 1 heure
+  const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 })
+  const publicUrl = `${R2_PUBLIC_URL}/${key}`
+  
+  return { uploadUrl, key, publicUrl }
 }
 
 export { R2_PUBLIC_URL, R2_BUCKET_NAME }

@@ -19,14 +19,19 @@ const MAX_SIZE = 200 * 1024 * 1024
  * POST - Upload une vidéo
  */
 export async function POST(request: NextRequest) {
+  console.log('📹 POST /api/upload/video - Début')
+  
   try {
     // Vérifier que R2 est configuré
     if (!isR2Configured()) {
+      console.error('❌ R2 non configuré')
       return NextResponse.json(
         { error: 'R2 non configuré. Voir .env.local' },
         { status: 500 }
       )
     }
+    
+    console.log('✅ R2 configuré')
 
     // Récupérer le form data
     const formData = await request.formData()
@@ -124,9 +129,9 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Erreur upload vidéo:', error)
+    console.error('❌ Erreur upload vidéo:', error)
     return NextResponse.json(
-      { error: 'Erreur serveur' },
+      { error: error instanceof Error ? error.message : 'Erreur serveur' },
       { status: 500 }
     )
   }

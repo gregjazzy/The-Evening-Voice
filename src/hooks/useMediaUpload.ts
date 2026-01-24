@@ -174,39 +174,70 @@ export function useMediaUpload(): UseMediaUploadReturn {
   const [error, setError] = useState<string | null>(null)
 
   /**
-   * Upload une VIDÉO vers R2 (via API route)
+   * Upload une VIDÉO vers R2 (upload direct avec URL signée)
+   * Évite la limite de taille de Netlify (10 Mo)
    */
   const uploadVideoToR2 = useCallback(async (
     file: File | Blob,
     options: UploadOptions
   ): Promise<UploadResult | null> => {
     const { source = 'upload', storyId } = options
+    const fileName = file instanceof File ? file.name : `video-${Date.now()}.mp4`
+    const contentType = file.type || 'video/mp4'
 
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('userId', user!.id)
-    formData.append('profileId', profile?.id || '')
-    formData.append('source', source)
-    if (storyId) formData.append('storyId', storyId)
+    console.log('📹 [1/4] Demande URL signée pour upload direct...')
+    setProgress(10)
 
-    setProgress(30)
-
-    const response = await fetch('/api/upload/video', {
+    // 1. Obtenir une URL signée
+    const presignResponse = await fetch('/api/upload/presign', {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName,
+        contentType,
+        userId: user!.id,
+        profileId: profile?.id || '',
+        storyId,
+        source,
+        fileSize: file.size,
+      }),
     })
 
-    setProgress(90)
-
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.error || 'Erreur upload vidéo')
+    if (!presignResponse.ok) {
+      const errorData = await presignResponse.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Erreur obtention URL signée')
     }
 
-    const result = await response.json()
+    const { uploadUrl, publicUrl, assetId, fileName: finalFileName } = await presignResponse.json()
+    console.log('📹 [2/4] URL signée obtenue, upload direct vers R2...')
+    setProgress(30)
+
+    // 2. Upload direct vers R2
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': contentType,
+      },
+    })
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Erreur upload R2: ${uploadResponse.status}`)
+    }
+
+    console.log('📹 [3/4] Upload R2 terminé !')
+    setProgress(90)
+
+    console.log('📹 [4/4] Vidéo sauvegardée avec succès')
     setProgress(100)
 
-    return result
+    return {
+      url: publicUrl,
+      assetId,
+      fileName: finalFileName,
+      fileSize: file.size,
+      mimeType: contentType,
+    }
 
   }, [user, profile])
 
