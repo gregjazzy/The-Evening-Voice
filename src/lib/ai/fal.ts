@@ -588,13 +588,14 @@ Style: gentle movement, child-friendly, magical atmosphere, cute, wholesome`
 
 /**
  * Vérifie le statut d'un job vidéo Kling
+ * Note: fal.ai utilise un endpoint simplifié pour le status (sans le sous-chemin complet)
  */
 export async function checkVideoJobStatus(jobId: string, hasImage: boolean): Promise<KlingVideoJobResult> {
-  const endpoint = hasImage 
-    ? 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video'
-    : 'fal-ai/kling-video/v2.5-turbo/pro/text-to-video'
+  // Pour le status ET le résultat, fal.ai utilise le modèle de base (pas le sous-chemin complet)
+  const endpoint = 'fal-ai/kling-video'
 
   console.log(`🔍 Checking Kling video job status: ${jobId}`)
+  console.log(`   Endpoint: ${endpoint}`)
 
   const statusResponse = await falFetch(`https://queue.fal.run/${endpoint}/requests/${jobId}/status`)
 
@@ -614,11 +615,28 @@ export async function checkVideoJobStatus(jobId: string, hasImage: boolean): Pro
     }
 
     const data = await resultResponse.json()
-    console.log('✅ Kling video job completed')
+    console.log('✅ Kling video job completed, raw data:', JSON.stringify(data, null, 2))
+
+    // Kling peut retourner l'URL dans différentes structures selon la version
+    // - data.video.url (format documenté)
+    // - data.video_url (format alternatif)
+    // - data.output.video.url (format nested)
+    // - data.videos[0].url (format array)
+    const videoUrl = 
+      data.video?.url || 
+      data.video_url || 
+      data.output?.video?.url ||
+      data.videos?.[0]?.url ||
+      data.url ||
+      ''
+
+    if (!videoUrl) {
+      console.error('❌ Aucune URL vidéo trouvée dans la réponse:', Object.keys(data))
+    }
 
     return {
       status: 'completed',
-      videoUrl: data.video?.url || '',
+      videoUrl,
       duration: 5,
     }
   }

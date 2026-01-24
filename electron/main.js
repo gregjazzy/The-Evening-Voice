@@ -493,6 +493,14 @@ app.on('window-all-closed', () => {
   }
 })
 
+// Notifier le renderer avant la fermeture pour sauvegarder les données
+app.on('before-quit', (event) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    console.log('📤 Notification de fermeture envoyée au renderer')
+    mainWindow.webContents.send('app-will-quit')
+  }
+})
+
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
   if (url.startsWith('https://localhost')) {
     event.preventDefault()

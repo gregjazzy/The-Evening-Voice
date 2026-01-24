@@ -238,7 +238,18 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: async () => {
-        await db.auth.signOut()
+        console.log('🚪 Déconnexion en cours...')
+        
+        try {
+          const { error } = await db.auth.signOut()
+          if (error) {
+            console.error('❌ Erreur Supabase signOut:', error)
+            // Continuer quand même la déconnexion locale
+          }
+        } catch (err) {
+          console.error('❌ Exception signOut:', err)
+          // Continuer quand même la déconnexion locale
+        }
         
         // IMPORTANT: Vider le localStorage pour éviter le mélange de données entre comptes
         if (typeof window !== 'undefined') {
@@ -251,11 +262,14 @@ export const useAuthStore = create<AuthState>()(
           console.log('🧹 LocalStorage vidé à la déconnexion')
         }
         
+        // Toujours réinitialiser le state local (même si Supabase échoue)
         set({
           user: null,
           session: null,
           profile: null,
         })
+        
+        console.log('✅ Déconnexion terminée')
       },
 
       updateProfile: async (updates) => {

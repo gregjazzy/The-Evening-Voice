@@ -43,9 +43,24 @@ export function UserMenu() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  
   const handleSignOut = async () => {
-    await signOut()
-    router.push('/login')
+    if (isSigningOut) return // Éviter les double-clics
+    
+    setIsSigningOut(true)
+    setIsOpen(false) // Fermer le menu immédiatement
+    
+    try {
+      await signOut()
+      router.push('/login')
+    } catch (error) {
+      console.error('Erreur déconnexion:', error)
+      // Rediriger quand même vers login
+      router.push('/login')
+    } finally {
+      setIsSigningOut(false)
+    }
   }
 
   const getRoleIcon = () => {
@@ -169,10 +184,14 @@ export function UserMenu() {
               
               <button
                 onClick={handleSignOut}
-                className="w-full px-4 py-2 flex items-center gap-3 text-red-400 hover:bg-red-500/10 transition-colors"
+                disabled={isSigningOut}
+                className={cn(
+                  "w-full px-4 py-2 flex items-center gap-3 text-red-400 hover:bg-red-500/10 transition-colors",
+                  isSigningOut && "opacity-50 cursor-not-allowed"
+                )}
               >
-                <LogOut className="w-4 h-4" />
-                <span>{t('logout')}</span>
+                <LogOut className={cn("w-4 h-4", isSigningOut && "animate-spin")} />
+                <span>{isSigningOut ? 'Déconnexion...' : t('logout')}</span>
               </button>
             </div>
 

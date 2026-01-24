@@ -16,6 +16,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkPermissions: () => ipcRenderer.invoke('check-permissions'),
   requestMicrophoneAccess: () => ipcRenderer.invoke('request-microphone-access'),
   
+  // === APP LIFECYCLE ===
+  // Écouter la fermeture de l'app pour sauvegarder les données
+  onAppWillQuit: (callback) => {
+    ipcRenderer.on('app-will-quit', () => {
+      console.log('📤 App va se fermer - sauvegarde en cours...')
+      callback()
+    })
+  },
+  
   // === CAPTURE D'ÉCRAN ===
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
   getScreenSize: () => ipcRenderer.invoke('get-screen-size'),

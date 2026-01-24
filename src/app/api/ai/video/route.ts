@@ -2,10 +2,12 @@
  * API Route - Génération de vidéos avec Kling 2.5 Turbo Pro (via fal.ai)
  * - Text-to-video : $0.35/5s (pas besoin d'image)
  * - Image-to-video : si imageUrl fournie
+ * 
+ * Utilise un système de polling pour éviter les timeouts serveur
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { generateVideoKling, generateVideoFromImage, isFalAvailable } from '@/lib/ai/fal'
+import { generateVideoKling, checkVideoJobStatus, isFalAvailable } from '@/lib/ai/fal'
 
 // Prompts d'ambiance pour les vidéos
 const ambiancePrompts: Record<string, string> = {
@@ -19,7 +21,7 @@ const ambiancePrompts: Record<string, string> = {
   ocean: 'gentle waves, water reflection, peaceful ocean movement',
 }
 
-// POST - Générer une vidéo
+// POST - Soumettre un job de génération vidéo
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -40,29 +42,25 @@ export async function POST(request: NextRequest) {
     // Construire le prompt
     const videoPrompt = prompt || ambiancePrompts[ambiance] || 'gentle magical movement'
 
-    console.log('🎬 Génération vidéo Kling 2.1:', videoPrompt.substring(0, 100) + '...')
+    console.log('🎬 Soumission vidéo Kling:', videoPrompt.substring(0, 100) + '...')
 
-    let result
+    // Soumettre le job (retourne immédiatement avec un jobId)
+    const result = await generateVideoKling({
+      prompt: videoPrompt,
+      imageUrl,
+      duration: duration as '5' | '10',
+    })
 
-    if (imageUrl) {
-      // Image-to-video
-      result = await generateVideoFromImage(imageUrl, videoPrompt, duration as '5' | '10')
-    } else {
-      // Text-to-video
-      result = await generateVideoKling({
-        prompt: videoPrompt,
-        duration: duration as '5' | '10',
-      })
-    }
+    console.log('📤 Job vidéo soumis:', result.jobId)
 
     return NextResponse.json({
-      status: 'completed',
-      videoUrl: result.videoUrl,
-      duration: result.duration,
+      status: 'pending',
+      jobId: result.jobId,
+      hasImage: !!imageUrl,
       service: 'kling',
     })
   } catch (error) {
-    console.error('Erreur API video:', error)
+    console.error('❌ Erreur API video:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la génération vidéo' },
       { status: 500 }
@@ -70,3 +68,39 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// GET - Vérifier le statut d'un job vidéo
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const jobId = searchParams.get('jobId')
+    const hasImage = searchParams.get('hasImage') === 'true'
+
+    if (!jobId) {
+      return NextResponse.json(
+        { error: 'jobId requis' },
+        { status: 400 }
+      )
+    }
+
+    if (!isFalAvailable()) {
+      return NextResponse.json(
+        { error: 'Clé API fal.ai non configurée' },
+        { status: 500 }
+      )
+    }
+
+    console.log('🔍 Vérification status job vidéo:', jobId)
+
+    const result = await checkVideoJobStatus(jobId, hasImage)
+
+    console.log('📊 Status:', result.status, result.videoUrl ? '✅ URL reçue' : '')
+
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error('❌ Erreur vérification status vidéo:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la vérification du statut' },
+      { status: 500 }
+    )
+  }
+}

@@ -899,6 +899,8 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         throw new Error(data.error || 'Erreur de génération')
       }
 
+      console.log('📦 Données reçues du serveur:', JSON.stringify(data, null, 2))
+
       // 🔄 POLLING : Si on reçoit un jobId, on doit poll jusqu'à completion
       if (data.status === 'pending' && data.jobId) {
         console.log('⏳ Job en attente, démarrage du polling...', data.jobId, isVideo ? '(vidéo)' : '(image)')

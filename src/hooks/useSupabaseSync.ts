@@ -858,20 +858,35 @@ export function useSupabaseSync() {
 
   // ============================================
   // SAUVEGARDE AVANT FERMETURE DE LA PAGE
+  // Utilise sendBeacon pour garantir l'envoi même pendant la fermeture
   // ============================================
   useEffect(() => {
     if (!profile?.id) return
     
     const handleBeforeUnload = () => {
-      // Déclencher la sauvegarde de l'histoire en attente
-      // La requête sera au moins initiée même si la page se ferme
+      // Utiliser sendBeacon pour une sauvegarde fiable même pendant la fermeture
       if (pendingStoryRef.current) {
         const story = pendingStoryRef.current
-        console.log('🚨 Sauvegarde d\'urgence avant fermeture:', story.title)
+        console.log('🚨 Sauvegarde d\'urgence (sendBeacon):', story.title)
         
-        // Appeler saveStory directement (sans debounce)
-        // Même si async, la requête sera envoyée avant la fermeture
-        saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+        const data = JSON.stringify({
+          story,
+          profileId: profile.id,
+          userName: userName || 'Anonyme',
+        })
+        
+        // sendBeacon garantit l'envoi même si la page se ferme (97%+ des navigateurs)
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('/api/story/save', data)
+        } else {
+          // Fallback pour très vieux navigateurs (IE, etc.)
+          // Sync XHR est déprécié mais c'est le seul moyen pour les vieux navigateurs
+          const xhr = new XMLHttpRequest()
+          xhr.open('POST', '/api/story/save', false) // false = synchrone
+          xhr.setRequestHeader('Content-Type', 'application/json')
+          xhr.send(data)
+        }
+        
         pendingStoryRef.current = null
       }
     }
@@ -881,13 +896,44 @@ export function useSupabaseSync() {
       if (document.visibilityState === 'hidden' && pendingStoryRef.current) {
         const story = pendingStoryRef.current
         console.log('💾 Sauvegarde auto (onglet masqué):', story.title)
-        saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+        
+        // Utiliser sendBeacon aussi pour visibilitychange (plus fiable)
+        const data = JSON.stringify({
+          story,
+          profileId: profile.id,
+          userName: userName || 'Anonyme',
+        })
+        
+        navigator.sendBeacon('/api/story/save', data)
         pendingStoryRef.current = null
       }
     }
     
     window.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Support Electron : écouter l'événement de fermeture de l'app
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const electronAPI = (window as any).electronAPI
+    if (electronAPI?.onAppWillQuit) {
+      electronAPI.onAppWillQuit(() => {
+        if (pendingStoryRef.current) {
+          const story = pendingStoryRef.current
+          console.log('🚨 Sauvegarde Electron avant fermeture:', story.title)
+          
+          const data = JSON.stringify({
+            story,
+            profileId: profile.id,
+            userName: userName || 'Anonyme',
+          })
+          
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon('/api/story/save', data)
+          }
+          pendingStoryRef.current = null
+        }
+      })
+    }
     
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
