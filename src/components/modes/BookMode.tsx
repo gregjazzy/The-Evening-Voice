@@ -5559,7 +5559,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 </button>
                 <Highlightable id="book-add-image">
                 <button
-                  onClick={onImageAdd}
+                  onClick={() => onImageAdd(zPageIndex)}
                   className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
                   title="Ajouter une image"
                 >
