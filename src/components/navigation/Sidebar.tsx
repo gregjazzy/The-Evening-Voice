@@ -203,8 +203,7 @@ export function Sidebar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute left-0 lg:left-3 lg:right-3 top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden min-w-[180px] lg:min-w-0"
-                style={{ left: 'auto', right: '-120px' }}
+                className="absolute top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden w-[220px] max-w-[280px] left-full ml-2 lg:left-0 lg:ml-0 lg:right-0 lg:w-auto"
               >
                 {/* Titre du dropdown */}
                 <div className="px-3 py-2 border-b border-midnight-700 bg-midnight-800/50">
@@ -228,14 +227,14 @@ export function Sidebar() {
                       >
                         <button
                           onClick={() => handleSelectStory(story)}
-                          className="flex-1 flex items-center gap-2 text-left min-w-0"
+                          className="flex-1 flex items-center gap-2 text-left min-w-0 overflow-hidden"
                         >
                           <Book className={cn(
                             'w-4 h-4 flex-shrink-0',
                             currentStory?.id === story.id ? 'text-aurora-400' : 'text-midnight-500'
                           )} />
                           <span className={cn(
-                            'flex-1 text-xs truncate',
+                            'flex-1 text-xs truncate block max-w-[160px]',
                             currentStory?.id === story.id ? 'text-white' : 'text-midnight-300'
                           )}>
                             {story.title || 'Sans titre'}
