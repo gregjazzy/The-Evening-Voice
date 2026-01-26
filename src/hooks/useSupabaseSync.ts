@@ -246,7 +246,11 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
         story_id: story.id,
         page_number: i + 1, // Toujours utiliser l'index pour garantir l'unicité
         title: page.title,
-        text_blocks: [{ content: page.content || '' }],
+        text_blocks: [{ 
+          content: page.content || '',
+          // Style de texte de la page (police, alignement, taille, etc.)
+          style: page.style || null,
+        }],
         media_layers: {
           // Médias (images et vidéos)
           images: page.images || [],
@@ -444,6 +448,8 @@ export function useSupabaseSync() {
                 // Type de page (front-cover, back-cover, content)
                 pageType: isNewFormat ? (mediaLayers.pageType || 'content') : 'content',
                 content: p.text_blocks?.[0]?.content || '',
+                // Style de texte de la page (police, alignement, taille, etc.)
+                style: p.text_blocks?.[0]?.style || undefined,
                 // Médias (images et vidéos sur la page)
                 images: isNewFormat ? (mediaLayers.images || []) : (Array.isArray(mediaLayers) ? mediaLayers : []),
                 // Fond de page (image ou vidéo avec opacité)
