@@ -2934,6 +2934,7 @@ function EditableBackground({
 interface PageTabProps {
   page: StoryPageLocal
   index: number
+  totalPages: number
   isActive: boolean
   chapter?: Chapter
   onClick: () => void
@@ -2941,9 +2942,20 @@ interface PageTabProps {
   canDelete: boolean
 }
 
-function PageTab({ page, index, isActive, chapter, onClick, onDelete, canDelete }: PageTabProps) {
+function PageTab({ page, index, totalPages, isActive, chapter, onClick, onDelete, canDelete }: PageTabProps) {
   const hasContent = page.content.length > 0
   const hasImage = !!page.image || (page.images && page.images.length > 0)
+  
+  // Déterminer si c'est une page de couverture
+  const isFrontCover = index === 0
+  const isBackCover = index === totalPages - 1 && totalPages > 1
+  
+  // Label de la page
+  const getPageLabel = () => {
+    if (isFrontCover) return '📕 Couverture'
+    if (isBackCover) return '📗 4ème couv.'
+    return page.title || `Page ${index + 1}`
+  }
   
   return (
     <motion.button
@@ -2953,17 +2965,30 @@ function PageTab({ page, index, isActive, chapter, onClick, onDelete, canDelete 
         'border-t border-l border-r',
         isActive 
           ? 'bg-midnight-800 border-aurora-500/30 text-white -mb-px z-10' 
-          : 'bg-midnight-900/50 border-midnight-700/30 text-midnight-400 hover:text-white hover:bg-midnight-800/50'
+          : 'bg-midnight-900/50 border-midnight-700/30 text-midnight-400 hover:text-white hover:bg-midnight-800/50',
+        // Style spécial pour les couvertures
+        isFrontCover && 'border-t-amber-500/50',
+        isBackCover && 'border-t-emerald-500/50'
       )}
       style={{
-        borderTopColor: chapter ? chapter.color : undefined,
-        borderTopWidth: chapter ? '3px' : '1px'
+        borderTopColor: isFrontCover ? '#f59e0b' : isBackCover ? '#10b981' : chapter ? chapter.color : undefined,
+        borderTopWidth: (isFrontCover || isBackCover || chapter) ? '3px' : '1px'
       }}
       whileHover={{ y: -2 }}
       layout
     >
-      {/* Chapitre si assigné */}
-      {chapter && (
+      {/* Badge couverture */}
+      {(isFrontCover || isBackCover) && (
+        <span className={cn(
+          "text-[9px] font-medium truncate w-full",
+          isFrontCover ? "text-amber-400" : "text-emerald-400"
+        )}>
+          {isFrontCover ? 'COUVERTURE' : '4ÈME COUV.'}
+        </span>
+      )}
+      
+      {/* Chapitre si assigné (et pas une couverture) */}
+      {chapter && !isFrontCover && !isBackCover && (
         <span 
           className="text-[9px] font-medium truncate w-full"
           style={{ color: chapter.color }}
@@ -2981,7 +3006,7 @@ function PageTab({ page, index, isActive, chapter, onClick, onDelete, canDelete 
       </div>
       
         <span className="truncate text-xs">
-        {page.title || `Page ${index + 1}`}
+        {getPageLabel()}
       </span>
       
       {/* Bouton supprimer */}
@@ -3039,7 +3064,11 @@ function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) 
         </div>
         
         <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-          {pages.map((page, index) => (
+          {pages.map((page, index) => {
+            const isFrontCover = index === 0
+            const isBackCover = index === pages.length - 1 && pages.length > 1
+            
+            return (
             <motion.button
               key={page.id}
               onClick={() => {
@@ -3047,15 +3076,29 @@ function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) 
                 onClose()
               }}
               className={cn(
-                'aspect-[3/4] rounded-xl p-3 flex flex-col items-center justify-center gap-2 transition-all',
+                'aspect-[3/4] rounded-xl p-3 flex flex-col items-center justify-center gap-2 transition-all relative',
                 'border-2',
                 currentPage === index
                   ? 'border-aurora-500 bg-aurora-500/10'
-                  : 'border-midnight-700 bg-midnight-800/50 hover:border-midnight-600'
+                  : isFrontCover
+                    ? 'border-amber-500/50 bg-amber-500/5 hover:border-amber-400'
+                    : isBackCover
+                      ? 'border-emerald-500/50 bg-emerald-500/5 hover:border-emerald-400'
+                      : 'border-midnight-700 bg-midnight-800/50 hover:border-midnight-600'
               )}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
+              {/* Badge couverture */}
+              {(isFrontCover || isBackCover) && (
+                <div className={cn(
+                  "absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[8px] font-bold whitespace-nowrap",
+                  isFrontCover ? "bg-amber-500 text-amber-950" : "bg-emerald-500 text-emerald-950"
+                )}>
+                  {isFrontCover ? '📕 COUVERTURE' : '📗 4ÈME COUV.'}
+                </div>
+              )}
+              
               {/* Miniature */}
               {page.image ? (
                 <div 
@@ -3077,12 +3120,19 @@ function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) 
               {/* Titre */}
               <span className={cn(
                 'text-xs truncate w-full text-center',
-                currentPage === index ? 'text-aurora-300' : 'text-midnight-400'
+                currentPage === index 
+                  ? 'text-aurora-300' 
+                  : isFrontCover 
+                    ? 'text-amber-300'
+                    : isBackCover
+                      ? 'text-emerald-300'
+                      : 'text-midnight-400'
               )}>
-                {page.title || `Page ${index + 1}`}
+                {isFrontCover ? 'Couverture' : isBackCover ? '4ème couv.' : (page.title || `Page ${index + 1}`)}
               </span>
             </motion.button>
-          ))}
+          )}
+          )}
         </div>
       </motion.div>
     </motion.div>
