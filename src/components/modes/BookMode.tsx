@@ -5675,9 +5675,20 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               </div>
             </div>
             
-            {/* Numéro de page */}
-            <div className="text-center pb-4 text-amber-600/40 text-sm font-serif relative z-10">
-              — Page {zPageIndex + 1} —
+            {/* Numéro de page / Badge couverture */}
+            <div className={cn(
+              "text-center pb-4 text-sm font-serif relative z-10",
+              zPageIndex === 0 
+                ? "text-amber-500 font-bold" 
+                : zPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
+                  ? "text-emerald-500 font-bold"
+                  : "text-amber-600/40"
+            )}>
+              {zPageIndex === 0 
+                ? "📕 COUVERTURE" 
+                : zPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
+                  ? "📗 4ÈME DE COUVERTURE"
+                  : `— Page ${zPageIndex + 1} —`}
             </div>
           </motion.div>
           </div>
@@ -6108,9 +6119,20 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             </div>
             )}
             
-            {/* Numéro de page en bas */}
-            <div className="text-center pb-3 text-amber-600/40 text-xs font-serif">
-              — {leftPageIndex !== undefined ? leftPageIndex + 1 : '—'} —
+            {/* Numéro de page en bas / Badge couverture */}
+            <div className={cn(
+              "text-center pb-3 text-xs font-serif",
+              leftPageIndex === 0 
+                ? "text-amber-500 font-bold" 
+                : leftPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
+                  ? "text-emerald-500 font-bold"
+                  : "text-amber-600/40"
+            )}>
+              {leftPageIndex === 0 
+                ? "📕 COUVERTURE" 
+                : leftPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
+                  ? "📗 4ÈME COUV."
+                  : `— ${leftPageIndex !== undefined ? leftPageIndex + 1 : '—'} —`}
             </div>
             
             {/* Bouton zoom en haut à gauche (symétrique avec page droite) */}
@@ -6494,9 +6516,20 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </div>
         </div>
             
-            {/* Numéro de page en bas */}
-            <div className="text-center pb-3 text-amber-600/40 text-xs font-serif relative z-10">
-              — {pageIndex + 1} —
+            {/* Numéro de page en bas / Badge couverture */}
+            <div className={cn(
+              "text-center pb-3 text-xs font-serif relative z-10",
+              pageIndex === 0 
+                ? "text-amber-500 font-bold" 
+                : pageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
+                  ? "text-emerald-500 font-bold"
+                  : "text-amber-600/40"
+            )}>
+              {pageIndex === 0 
+                ? "📕 COUVERTURE" 
+                : pageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
+                  ? "📗 4ÈME COUV."
+                  : `— ${pageIndex + 1} —`}
             </div>
             
             {/* Bouton zoom en haut à droite */}
