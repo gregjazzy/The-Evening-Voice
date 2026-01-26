@@ -3664,6 +3664,7 @@ function StructureView({
 interface FormatBarProps {
   style: TextStyle
   onStyleChange: (style: Partial<TextStyle>) => void
+  activePageIndex: number
   showLines?: boolean
   onToggleLines?: () => void
   bookColor?: PageColor
@@ -3683,7 +3684,7 @@ interface FormatBarProps {
   onBookFormatChange?: (format: BookFormat) => void
 }
 
-function FormatBar({ style, onStyleChange, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, backgroundMedia, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onBackgroundEditToggle, isEditingBackground, showSafeZones = false, onToggleSafeZones, bookFormat, onBookFormatChange }: FormatBarProps) {
+function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, backgroundMedia, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onBackgroundEditToggle, isEditingBackground, showSafeZones = false, onToggleSafeZones, bookFormat, onBookFormatChange }: FormatBarProps) {
   const [showFonts, setShowFonts] = useState(false)
   const [showFontSizes, setShowFontSizes] = useState(false)
   const [showColors, setShowColors] = useState(false)
@@ -4785,7 +4786,7 @@ interface WritingAreaProps {
   chapters: Chapter[]
   onContentChange: (content: string) => void
   onTitleChange: (title: string) => void
-  onStyleChange: (style: Partial<TextStyle>) => void
+  onStyleChange: (pageIndex: number, style: Partial<TextStyle>) => void
   onChapterChange: (chapterId: string | undefined) => void
   onCreateChapter: (title: string) => void
   onUpdateChapter?: (chapterId: string, updates: Partial<Chapter>) => void
@@ -4960,7 +4961,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   // Calculer le ratio du format (largeur/hauteur)
   const formatRatio = getFormatRatio(bookFormat)
   const formatConfig = BOOK_FORMATS.find(f => f.id === bookFormat)
-  const style = page?.style || leftPage?.style || DEFAULT_STYLE
+  // Styles séparés pour chaque page
+  const rightStyle = page?.style || DEFAULT_STYLE
+  const leftStyle = leftPage?.style || DEFAULT_STYLE
   const editorRef = useRef<HTMLDivElement>(null)
   const leftEditorRef = useRef<HTMLDivElement>(null)
   const zoomedEditorRef = useRef<HTMLDivElement>(null)
@@ -5149,17 +5152,28 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
     ru: { start: 'Диктовать', stop: 'Стоп', listening: 'Слушаю...' },
   }
 
-  // Hauteur de ligne en pixels (synchronisée avec les lignes de cahier)
-  const lineHeightPx = getLineHeightPx(style.lineSpacing as 'tight' | 'normal' | 'relaxed')
+  // Hauteur de ligne en pixels pour chaque page
+  const rightLineHeightPx = getLineHeightPx(rightStyle.lineSpacing as 'tight' | 'normal' | 'relaxed')
+  const leftLineHeightPx = getLineHeightPx(leftStyle.lineSpacing as 'tight' | 'normal' | 'relaxed')
   
-  // Style du texte (pour le conteneur)
-  const textStyle: React.CSSProperties = {
-    fontFamily: style.fontFamily,
-    fontSize: `${style.fontSize}px`,
-    lineHeight: `${lineHeightPx}px`,
-    fontWeight: style.isBold ? 'bold' : 'normal',
-    fontStyle: style.isItalic ? 'italic' : 'normal',
-    textAlign: style.textAlign,
+  // Style du texte pour la page droite
+  const rightTextStyle: React.CSSProperties = {
+    fontFamily: rightStyle.fontFamily,
+    fontSize: `${rightStyle.fontSize}px`,
+    lineHeight: `${rightLineHeightPx}px`,
+    fontWeight: rightStyle.isBold ? 'bold' : 'normal',
+    fontStyle: rightStyle.isItalic ? 'italic' : 'normal',
+    textAlign: rightStyle.textAlign,
+  }
+  
+  // Style du texte pour la page gauche
+  const leftTextStyle: React.CSSProperties = {
+    fontFamily: leftStyle.fontFamily,
+    fontSize: `${leftStyle.fontSize}px`,
+    lineHeight: `${leftLineHeightPx}px`,
+    fontWeight: leftStyle.isBold ? 'bold' : 'normal',
+    fontStyle: leftStyle.isItalic ? 'italic' : 'normal',
+    textAlign: leftStyle.textAlign,
   }
 
   // Compter les mots (enlever les balises HTML)
@@ -5229,10 +5243,12 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               {(() => {
                 const activePageIndex = activePage === 'left' ? (leftPageIndex ?? pageIndex) : pageIndex
                 const activePageData = activePage === 'left' ? leftPage : page
+                const activeStyle = activePageData?.style || DEFAULT_STYLE
                 return (
               <FormatBar 
-                style={style} 
-                onStyleChange={onStyleChange}
+                style={activeStyle} 
+                onStyleChange={(styleUpdate) => onStyleChange(activePageIndex, styleUpdate)}
+                activePageIndex={activePageIndex}
                 showLines={showLines}
                 onToggleLines={onToggleLines}
                 bookColor={bookColor}
@@ -5283,6 +5299,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         const zPage = zoomedPage === 'left' ? leftPage : page
         const zPageIndex = zoomedPage === 'left' ? (leftPageIndex ?? 0) : pageIndex
         const zPageImages = getPageImages(zPage)
+        // Utiliser le style de la page zoomée
+        const zTextStyle = zoomedPage === 'left' ? leftTextStyle : rightTextStyle
+        const zLineHeightPx = zoomedPage === 'left' ? leftLineHeightPx : rightLineHeightPx
         const zHandleInput = () => {
           // Mettre à jour en temps réel pendant l'édition
           if (zoomedEditorRef.current) {
@@ -5553,8 +5572,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <div 
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                  backgroundImage: `repeating-linear-gradient(transparent, transparent ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx}px)`,
-                  backgroundSize: `100% ${lineHeightPx}px`,
+                  backgroundImage: `repeating-linear-gradient(transparent, transparent ${zLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${zLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${zLineHeightPx}px)`,
+                  backgroundSize: `100% ${zLineHeightPx}px`,
                 }}
               />
               )}
@@ -5571,7 +5590,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onInput={zHandleInput}
                 data-placeholder={placeholders[locale]}
                 style={{
-                  ...textStyle,
+                  ...zTextStyle,
                   color: '#3d3426',
                 }}
           className={cn(
@@ -5961,8 +5980,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {/* Lignes de cahier (conditionnelles) - synchronisées avec lineHeight */}
             {showLines && (
               <div className="absolute inset-x-4 lg:inset-x-10 top-[32px] bottom-12" style={{
-                backgroundImage: `repeating-linear-gradient(transparent, transparent ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx}px)`,
-                backgroundSize: `100% ${lineHeightPx}px`,
+                backgroundImage: `repeating-linear-gradient(transparent, transparent ${leftLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${leftLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${leftLineHeightPx}px)`,
+                backgroundSize: `100% ${leftLineHeightPx}px`,
               }} />
             )}
             
@@ -5981,7 +6000,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onClick={(e) => { e.stopPropagation(); setActivePage('left'); }}
                 data-placeholder={placeholders[locale]}
                 style={{
-                  ...textStyle,
+                  ...leftTextStyle,
                   color: '#3d3426',
                 }}
                 className={cn(
@@ -6382,8 +6401,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {/* Lignes de cahier - conditionnelles - synchronisées avec lineHeight */}
             {showLines && (
               <div className="absolute inset-x-4 lg:inset-x-10 top-[32px] bottom-12" style={{
-                backgroundImage: `repeating-linear-gradient(transparent, transparent ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${lineHeightPx}px)`,
-                backgroundSize: `100% ${lineHeightPx}px`,
+                backgroundImage: `repeating-linear-gradient(transparent, transparent ${rightLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${rightLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${rightLineHeightPx}px)`,
+                backgroundSize: `100% ${rightLineHeightPx}px`,
               }} />
             )}
             
@@ -6402,7 +6421,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               onClick={(e) => { e.stopPropagation(); setActivePage('right'); }}
               data-placeholder={placeholders[locale]}
               style={{
-                ...textStyle,
+                ...rightTextStyle,
                 color: '#3d3426',
               }}
           className={cn(
@@ -7689,12 +7708,12 @@ export function BookMode() {
     setPages(newPages)
   }
 
-  const handleStyleChange = (styleUpdate: Partial<TextStyle>) => {
-    if (!pages[rightPageIndex]) return
+  const handleStyleChange = (pageIndex: number, styleUpdate: Partial<TextStyle>) => {
+    if (!pages[pageIndex]) return
     const newPages = [...pages]
-    const currentStyle = newPages[rightPageIndex].style || DEFAULT_STYLE
-    newPages[rightPageIndex] = { 
-      ...newPages[rightPageIndex], 
+    const currentStyle = newPages[pageIndex].style || DEFAULT_STYLE
+    newPages[pageIndex] = { 
+      ...newPages[pageIndex], 
       style: { ...currentStyle, ...styleUpdate } 
     }
     setPages(newPages)
