@@ -103,7 +103,8 @@ function SelectStoryStep() {
   const { stories } = useAppStore()
   const { selectedStory, setSelectedStory, setCurrentStep } = usePublishStore()
   
-  const completedStories = stories.filter(s => s.pages.length >= 4)
+  // Permettre les livres avec au moins 1 page (on peut toujours compléter plus tard)
+  const completedStories = stories.filter(s => s.pages.length >= 1)
   
   return (
     <motion.div
@@ -126,7 +127,7 @@ function SelectStoryStep() {
           <BookOpen className="w-16 h-16 text-midnight-500 mx-auto mb-4" />
           <h3 className="text-xl text-white mb-2">Pas encore d'histoire prête</h3>
           <p className="text-midnight-400 mb-4">
-            Crée d'abord une histoire dans le mode Écriture (minimum 4 pages)
+            Crée d'abord une histoire dans le mode Écriture
           </p>
           <button
             onClick={() => useAppStore.getState().setCurrentMode('book')}
