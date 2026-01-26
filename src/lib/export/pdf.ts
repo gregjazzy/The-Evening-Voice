@@ -77,6 +77,41 @@ export interface ImageQualityResult {
   isOk: boolean // true si >= 300 DPI
 }
 
+// Map de polices pour l'export (avec fallbacks)
+const FONT_MAP: Record<string, string> = {
+  'Georgia, serif': 'Georgia, Times New Roman, serif',
+  'Palatino Linotype, serif': 'Palatino Linotype, Book Antiqua, Palatino, serif',
+  'Book Antiqua, serif': 'Book Antiqua, Palatino, serif',
+  'Garamond, serif': 'Garamond, Times New Roman, serif',
+  'Times New Roman, serif': 'Times New Roman, Times, serif',
+  'Baskerville, serif': 'Baskerville, Georgia, serif',
+  'Crimson Text, serif': 'Crimson Text, Georgia, serif',
+  'Merriweather, serif': 'Merriweather, Georgia, serif',
+  'Playfair Display, serif': 'Playfair Display, Georgia, serif',
+  'Lora, serif': 'Lora, Georgia, serif',
+  'Libre Baskerville, serif': 'Libre Baskerville, Georgia, serif',
+  'EB Garamond, serif': 'EB Garamond, Garamond, serif',
+  'Cormorant Garamond, serif': 'Cormorant Garamond, Garamond, serif',
+  'Dancing Script, cursive': 'Dancing Script, cursive',
+  'Great Vibes, cursive': 'Great Vibes, cursive',
+  'Pacifico, cursive': 'Pacifico, cursive',
+  'Satisfy, cursive': 'Satisfy, cursive',
+  'Tangerine, cursive': 'Tangerine, cursive',
+  'Allura, cursive': 'Allura, cursive',
+  'Alex Brush, cursive': 'Alex Brush, cursive',
+  'Pinyon Script, cursive': 'Pinyon Script, cursive',
+}
+
+// Convertir lineSpacing en valeur CSS
+const getLineHeight = (spacing: string | undefined): string => {
+  switch (spacing) {
+    case 'tight': return '1.4'
+    case 'relaxed': return '2.2'
+    case 'normal':
+    default: return '1.8'
+  }
+}
+
 /**
  * Génère le HTML d'une page du livre
  */
@@ -95,6 +130,20 @@ function generatePageHTML(
   const innerMargin = isLeftPage ? '8%' : '12%'
   const outerMargin = isLeftPage ? '12%' : '8%'
   
+  // Récupérer les styles de la page
+  const style = page.style || {}
+  const fontFamily = FONT_MAP[style.fontFamily || ''] || style.fontFamily || 'Georgia, serif'
+  // Adapter la taille de police pour l'impression (300 DPI)
+  // La taille dans l'éditeur est en pixels écran, il faut la convertir
+  const baseFontSize = style.fontSize || 16
+  // Scale factor pour 300 DPI (environ 3x la taille écran)
+  const fontSize = Math.round(baseFontSize * (DPI / SCREEN_DPI))
+  const textAlign = style.textAlign || 'left'
+  const lineHeight = getLineHeight(style.lineSpacing)
+  const fontWeight = style.isBold ? 'bold' : 'normal'
+  const fontStyle = style.isItalic ? 'italic' : 'normal'
+  const textColor = style.color || '#2D3748'
+  
   // Contenu texte (HTML)
   const textContent = page.content || ''
   
@@ -102,7 +151,7 @@ function generatePageHTML(
   const mediasHTML = (page.images || []).map((media: PageMedia) => {
     if (media.type !== 'image') return ''
     
-    const style = `
+    const imgStyle = `
       position: absolute;
       left: ${media.position.x}%;
       top: ${media.position.y}%;
@@ -115,7 +164,7 @@ function generatePageHTML(
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     `
     
-    return `<img src="${media.url}" style="${style}" crossorigin="anonymous" />`
+    return `<img src="${media.url}" style="${imgStyle}" crossorigin="anonymous" />`
   }).join('')
   
   // Fond de page
@@ -135,20 +184,37 @@ function generatePageHTML(
     `
   }
   
-  // Décorations
+  // Décorations - utiliser les vraies images si disponibles
   const decorationsHTML = (page.decorations || []).map((deco: PageDecoration) => {
+    // Utiliser l'URL de l'image de décoration si disponible
+    if (deco.imageUrl) {
+      const decoStyle = `
+        position: absolute;
+        left: ${deco.position.x}%;
+        top: ${deco.position.y}%;
+        transform: translate(-50%, -50%) scale(${deco.scale || 1}) rotate(${deco.rotation || 0}deg) ${deco.flipX ? 'scaleX(-1)' : ''} ${deco.flipY ? 'scaleY(-1)' : ''};
+        width: ${Math.round(100 * (deco.scale || 1))}px;
+        height: auto;
+        opacity: ${deco.opacity || 1};
+        z-index: 100;
+        ${deco.glow ? 'filter: drop-shadow(0 0 8px gold);' : ''}
+      `
+      return `<img src="${deco.imageUrl}" style="${decoStyle}" crossorigin="anonymous" />`
+    }
+    
+    // Fallback emoji si pas d'image
     const emoji = DECORATION_SVGS[deco.decorationId] || '✨'
-    const style = `
+    const decoStyle = `
       position: absolute;
       left: ${deco.position.x}%;
       top: ${deco.position.y}%;
       transform: translate(-50%, -50%) scale(${deco.scale || 1}) rotate(${deco.rotation || 0}deg) ${deco.flipX ? 'scaleX(-1)' : ''} ${deco.flipY ? 'scaleY(-1)' : ''};
-      font-size: ${32 * (deco.scale || 1)}px;
+      font-size: ${Math.round(64 * (deco.scale || 1))}px;
       opacity: ${deco.opacity || 1};
       z-index: 100;
       ${deco.glow ? 'filter: drop-shadow(0 0 8px gold);' : ''}
     `
-    return `<span style="${style}">${emoji}</span>`
+    return `<span style="${decoStyle}">${emoji}</span>`
   }).join('')
   
   return `
@@ -158,7 +224,7 @@ function generatePageHTML(
       background-color: ${bgColor};
       position: relative;
       overflow: hidden;
-      font-family: 'Merriweather', Georgia, serif;
+      font-family: ${fontFamily};
     ">
       ${backgroundHTML}
       
@@ -173,9 +239,12 @@ function generatePageHTML(
           display: flex;
           flex-direction: column;
           justify-content: flex-start;
-          line-height: 1.8;
-          font-size: ${Math.round(width * 0.018)}px;
-          color: #2D3748;
+          line-height: ${lineHeight};
+          font-size: ${fontSize}px;
+          font-weight: ${fontWeight};
+          font-style: ${fontStyle};
+          text-align: ${textAlign};
+          color: ${textColor};
         ">
           ${textContent}
         </div>
