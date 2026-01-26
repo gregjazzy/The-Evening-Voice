@@ -203,7 +203,7 @@ export function Sidebar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden w-[220px] max-w-[280px] left-full ml-2 lg:left-0 lg:ml-0 lg:right-0 lg:w-auto"
+                className="absolute top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden w-[280px] left-full ml-2 lg:left-0 lg:ml-0 lg:w-full"
               >
                 {/* Titre du dropdown */}
                 <div className="px-3 py-2 border-b border-midnight-700 bg-midnight-800/50">
@@ -234,7 +234,7 @@ export function Sidebar() {
                             currentStory?.id === story.id ? 'text-aurora-400' : 'text-midnight-500'
                           )} />
                           <span className={cn(
-                            'flex-1 text-xs truncate block max-w-[160px]',
+                            'flex-1 text-xs truncate',
                             currentStory?.id === story.id ? 'text-white' : 'text-midnight-300'
                           )}>
                             {story.title || 'Sans titre'}
