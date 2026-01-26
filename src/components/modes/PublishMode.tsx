@@ -49,9 +49,6 @@ import { cn } from '@/lib/utils'
 
 const STEPS: { id: PublishStep; label: string; icon: React.ReactNode }[] = [
   { id: 'select-story', label: 'Histoire', icon: <BookOpen className="w-4 h-4" /> },
-  { id: 'choose-format', label: 'Format', icon: <Ruler className="w-4 h-4" /> },
-  { id: 'design-cover', label: 'Couverture', icon: <Palette className="w-4 h-4" /> },
-  { id: 'preview', label: 'Aperçu', icon: <Eye className="w-4 h-4" /> },
   { id: 'quality-check', label: 'Qualité', icon: <CheckCircle2 className="w-4 h-4" /> },
   { id: 'order', label: 'Commander', icon: <ShoppingCart className="w-4 h-4" /> },
 ]
@@ -181,13 +178,25 @@ function SelectStoryStep() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-8 flex justify-center"
+          className="mt-8 flex flex-col items-center gap-4"
         >
+          {selectedStory.bookFormat && (
+            <p className="text-sm text-aurora-400 flex items-center gap-2">
+              <Check className="w-4 h-4" />
+              Format : {BOOK_FORMATS.find(f => f.id === selectedStory.bookFormat)?.nameFr}
+            </p>
+          )}
           <button
-            onClick={() => setCurrentStep('choose-format')}
+            onClick={() => {
+              // Appliquer le format de l'histoire si défini
+              if (selectedStory.bookFormat) {
+                usePublishStore.getState().setSelectedFormat(selectedStory.bookFormat as any)
+              }
+              setCurrentStep('quality-check')
+            }}
             className="btn-primary text-lg px-8 py-3"
           >
-            Continuer
+            Vérifier la qualité
             <ChevronRight className="w-5 h-5 ml-2" />
           </button>
         </motion.div>
@@ -213,6 +222,13 @@ function ChooseFormatStep() {
     estimatedPrice,
     calculatePrice,
   } = usePublishStore()
+  
+  // Si le format est déjà défini dans l'histoire, l'utiliser automatiquement
+  useEffect(() => {
+    if (selectedStory?.bookFormat && !selectedFormat) {
+      setSelectedFormat(selectedStory.bookFormat as any)
+    }
+  }, [selectedStory?.bookFormat, selectedFormat, setSelectedFormat])
   
   useEffect(() => {
     calculatePrice()
@@ -1978,9 +1994,6 @@ export function PublishMode() {
       <div className="flex-1 overflow-y-auto px-6 py-8">
         <AnimatePresence mode="wait">
           {currentStep === 'select-story' && <SelectStoryStep key="select" />}
-          {currentStep === 'choose-format' && <ChooseFormatStep key="format" />}
-          {currentStep === 'design-cover' && <DesignCoverStep key="cover" />}
-          {currentStep === 'preview' && <PreviewStep key="preview" />}
           {currentStep === 'quality-check' && <QualityCheckStep key="quality" />}
           {currentStep === 'order' && <OrderStep key="order" />}
         </AnimatePresence>
