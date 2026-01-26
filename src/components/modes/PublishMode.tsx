@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils'
 
 const STEPS: { id: PublishStep; label: string; icon: React.ReactNode }[] = [
   { id: 'select-story', label: 'Histoire', icon: <BookOpen className="w-4 h-4" /> },
+  { id: 'choose-format', label: 'Options', icon: <Ruler className="w-4 h-4" /> },
   { id: 'quality-check', label: 'Qualité', icon: <CheckCircle2 className="w-4 h-4" /> },
   { id: 'order', label: 'Commander', icon: <ShoppingCart className="w-4 h-4" /> },
 ]
@@ -192,11 +193,11 @@ function SelectStoryStep() {
               if (selectedStory.bookFormat) {
                 usePublishStore.getState().setSelectedFormat(selectedStory.bookFormat as any)
               }
-              setCurrentStep('quality-check')
+              setCurrentStep('choose-format')
             }}
             className="btn-primary text-lg px-8 py-3"
           >
-            Vérifier la qualité
+            Choisir les options
             <ChevronRight className="w-5 h-5 ml-2" />
           </button>
         </motion.div>
@@ -376,10 +377,10 @@ function ChooseFormatStep() {
           Retour
         </button>
         <button
-          onClick={() => setCurrentStep('design-cover')}
+          onClick={() => setCurrentStep('quality-check')}
           className="btn-primary"
         >
-          Continuer
+          Vérifier la qualité
           <ChevronRight className="w-4 h-4 ml-2" />
         </button>
       </div>
@@ -1359,7 +1360,7 @@ function QualityCheckStep() {
       {/* Navigation */}
       <div className="flex justify-between">
         <button
-          onClick={() => setCurrentStep('preview')}
+          onClick={() => setCurrentStep('choose-format')}
           className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
@@ -1379,7 +1380,7 @@ function QualityCheckStep() {
 }
 
 // ============================================================================
-// ÉTAPE 6 : Commande
+// ÉTAPE : Commande
 // ============================================================================
 
 function OrderStep() {
@@ -1994,6 +1995,7 @@ export function PublishMode() {
       <div className="flex-1 overflow-y-auto px-6 py-8">
         <AnimatePresence mode="wait">
           {currentStep === 'select-story' && <SelectStoryStep key="select" />}
+          {currentStep === 'choose-format' && <ChooseFormatStep key="format" />}
           {currentStep === 'quality-check' && <QualityCheckStep key="quality" />}
           {currentStep === 'order' && <OrderStep key="order" />}
         </AnimatePresence>

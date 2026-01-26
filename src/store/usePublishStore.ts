@@ -250,7 +250,7 @@ export interface ShippingAddress {
 // ÉTAT DU STORE
 // ============================================================================
 
-export type PublishStep = 'select-story' | 'quality-check' | 'order'
+export type PublishStep = 'select-story' | 'choose-format' | 'quality-check' | 'order'
 
 interface PublishState {
   // Étape courante
