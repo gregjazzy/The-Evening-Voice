@@ -1140,13 +1140,19 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   
   // Invalider les champs si le texte change après validation
   useEffect(() => {
-    if (validatedFields.subject && currentKit?.subject !== prevSubjectRef.current) {
+    // Éviter les updates inutiles : ne faire quelque chose que si le sujet a vraiment changé
+    const currentSubject = currentKit?.subject || ''
+    if (currentSubject === prevSubjectRef.current) return
+    
+    // Le sujet a changé
+    if (validatedFields.subject) {
       setValidatedFields(prev => ({ ...prev, subject: false }))
       if (completedSteps.includes('describe')) {
-      uncompleteStep('describe')
+        uncompleteStep('describe')
+      }
     }
-    }
-    prevSubjectRef.current = currentKit?.subject || ''
+    prevSubjectRef.current = currentSubject
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentKit?.subject])
 
   useEffect(() => {
@@ -1767,7 +1773,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-dream-400" />
               <h3 className="font-semibold text-white">✨ Ajouter des détails</h3>
-              {completedSteps.includes('choose_extra') && currentKit.subjectDetails && (
+              {completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
@@ -1785,14 +1791,15 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               placeholder="Ex: avec des ailes dorées, des fleurs violettes, un ciel rose..."
               className={cn(
                 "w-full rounded-xl px-4 py-3 text-white placeholder:text-midnight-400",
-                completedSteps.includes('choose_extra') && currentKit.subjectDetails
+                completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10
                   ? "bg-dream-500/10 border border-dream-500/30"
                   : "bg-midnight-900/50"
               )}
               data-mentor-target="studio-details"
             />
             {/* Bouton Valider Détails */}
-            {currentKit.subjectDetails && currentKit.subjectDetails.length >= 3 && !completedSteps.includes('choose_extra') && (
+            {/* Minimum 10 caractères pour valider les détails */}
+            {currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && !completedSteps.includes('choose_extra') && (
               <motion.button
                 onClick={() => validateTextField('details', currentKit.subjectDetails || '')}
                 className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-dream-500/10 text-dream-300 border border-dream-500/20 hover:bg-dream-500/20 transition-all text-sm"
@@ -1805,7 +1812,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 Valider ✓
               </motion.button>
             )}
-            {completedSteps.includes('choose_extra') && currentKit.subjectDetails && (
+            {/* Message d'aide si texte trop court */}
+            {currentKit.subjectDetails && currentKit.subjectDetails.length > 0 && currentKit.subjectDetails.length < 10 && !completedSteps.includes('choose_extra') && (
+              <p className="mt-2 text-xs text-midnight-400">
+                💡 Ajoute plus de détails (encore {10 - currentKit.subjectDetails.length} caractères)
+              </p>
+            )}
+            {completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && (
               <p className="mt-2 text-xs text-dream-400 flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" /> Validé !
               </p>
