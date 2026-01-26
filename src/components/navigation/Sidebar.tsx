@@ -203,7 +203,7 @@ export function Sidebar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden w-[280px] left-full ml-2 lg:left-0 lg:ml-0 lg:w-full"
+                className="absolute top-full mt-1 z-50 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl overflow-hidden w-[280px] left-full ml-2"
               >
                 {/* Titre du dropdown */}
                 <div className="px-3 py-2 border-b border-midnight-700 bg-midnight-800/50">
