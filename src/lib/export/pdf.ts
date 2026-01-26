@@ -9,6 +9,7 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import type { Story, StoryPage, PageMedia, PageDecoration } from '@/store/useAppStore'
 import type { BookFormatConfig, BookCover } from '@/store/usePublishStore'
+import { findDecorationById, svgToDataUrl } from '@/data/decorations'
 
 // Helper pour accéder aux dimensions du format
 const getFormatDimensions = (format: BookFormatConfig) => ({
@@ -184,25 +185,33 @@ function generatePageHTML(
     `
   }
   
-  // Décorations - utiliser les vraies images si disponibles
+  // Décorations - utiliser les vrais SVG depuis les données de décorations
   const decorationsHTML = (page.decorations || []).map((deco: PageDecoration) => {
-    // Utiliser l'URL de l'image de décoration si disponible
-    if (deco.imageUrl) {
+    // Trouver la décoration dans les données
+    const decorationItem = findDecorationById(deco.decorationId)
+    
+    if (decorationItem) {
+      // Utiliser le vrai SVG converti en data URL
+      const color = deco.color || decorationItem.defaultColor || '#D4AF37'
+      const svgDataUrl = svgToDataUrl(decorationItem.svg, color)
+      // Taille de base plus grande pour l'impression (300 DPI)
+      const baseSize = Math.round(150 * (deco.scale || 1))
+      
       const decoStyle = `
         position: absolute;
         left: ${deco.position.x}%;
         top: ${deco.position.y}%;
-        transform: translate(-50%, -50%) scale(${deco.scale || 1}) rotate(${deco.rotation || 0}deg) ${deco.flipX ? 'scaleX(-1)' : ''} ${deco.flipY ? 'scaleY(-1)' : ''};
-        width: ${Math.round(100 * (deco.scale || 1))}px;
+        transform: translate(-50%, -50%) rotate(${deco.rotation || 0}deg) ${deco.flipX ? 'scaleX(-1)' : ''} ${deco.flipY ? 'scaleY(-1)' : ''};
+        width: ${baseSize}px;
         height: auto;
         opacity: ${deco.opacity || 1};
         z-index: 100;
-        ${deco.glow ? 'filter: drop-shadow(0 0 8px gold);' : ''}
+        ${deco.glow ? 'filter: drop-shadow(0 0 12px gold);' : ''}
       `
-      return `<img src="${deco.imageUrl}" style="${decoStyle}" crossorigin="anonymous" />`
+      return `<img src="${svgDataUrl}" style="${decoStyle}" />`
     }
     
-    // Fallback emoji si pas d'image
+    // Fallback emoji si décoration non trouvée
     const emoji = DECORATION_SVGS[deco.decorationId] || '✨'
     const decoStyle = `
       position: absolute;
