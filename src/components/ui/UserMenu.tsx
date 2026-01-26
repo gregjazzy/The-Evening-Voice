@@ -45,19 +45,35 @@ export function UserMenu() {
 
   const [isSigningOut, setIsSigningOut] = useState(false)
   
-  const handleSignOut = async () => {
-    if (isSigningOut) return // Éviter les double-clics
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     
+    if (isSigningOut) {
+      console.log('⏳ Déconnexion déjà en cours...')
+      return
+    }
+    
+    console.log('🔴 Clic sur Déconnexion')
     setIsSigningOut(true)
-    setIsOpen(false) // Fermer le menu immédiatement
+    setIsOpen(false)
+    
+    // Timeout de sécurité : si signOut prend trop de temps, forcer la redirection
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Timeout déconnexion, redirection forcée')
+      window.location.href = '/login'
+    }, 5000)
     
     try {
       await signOut()
+      clearTimeout(timeoutId)
+      console.log('✅ Déconnexion réussie, redirection...')
       router.push('/login')
     } catch (error) {
-      console.error('Erreur déconnexion:', error)
-      // Rediriger quand même vers login
-      router.push('/login')
+      clearTimeout(timeoutId)
+      console.error('❌ Erreur déconnexion:', error)
+      // Forcer la redirection même en cas d'erreur
+      window.location.href = '/login'
     } finally {
       setIsSigningOut(false)
     }
@@ -190,7 +206,7 @@ export function UserMenu() {
                   isSigningOut && "opacity-50 cursor-not-allowed"
                 )}
               >
-                <LogOut className={cn("w-4 h-4", isSigningOut && "animate-spin")} />
+                <LogOut className="w-4 h-4" />
                 <span>{isSigningOut ? 'Déconnexion...' : t('logout')}</span>
               </button>
             </div>

@@ -943,7 +943,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-lg">{sound.emoji}</span>
                           <div className="flex flex-wrap gap-1">
-                            {sound.moods.slice(0, 2).map(mood => (
+                            {(sound.moods || []).slice(0, 2).map(mood => (
                               <span key={mood} className="text-[10px] px-1.5 py-0.5 rounded bg-midnight-700 text-midnight-300">
                                 {MOOD_LABELS[mood]?.emoji} {MOOD_LABELS[mood]?.label}
                               </span>
@@ -1040,7 +1040,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                 <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto pr-2">
                   {(realSoundCategory === 'ambiance' ? AMBIANCE_SOUNDS : EFFECT_SOUNDS)
                     .filter(s => searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .filter(s => realSoundCategory !== 'effect' || !effectThemeFilter || s.themes.includes(effectThemeFilter as any))
+                    .filter(s => realSoundCategory !== 'effect' || !effectThemeFilter || (s.themes || []).includes(effectThemeFilter as any))
                     .map((sound) => (
                     <motion.div
                       key={sound.id}
@@ -1077,7 +1077,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-white truncate">{sound.name}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {sound.themes.slice(0, 2).map(theme => (
+                          {(sound.themes || []).slice(0, 2).map(theme => (
                             <span key={theme} className="text-[10px] px-1.5 py-0.5 rounded bg-midnight-700 text-midnight-300">
                               {THEME_LABELS[theme]?.emoji} {THEME_LABELS[theme]?.label}
                             </span>

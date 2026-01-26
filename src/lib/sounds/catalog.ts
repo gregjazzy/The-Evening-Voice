@@ -941,19 +941,19 @@ export function getSoundsByCategory(category: SoundCategory): Sound[] {
 }
 
 export function getSoundsByMood(mood: SoundMood): Sound[] {
-  return ALL_SOUNDS.filter(s => s.moods.includes(mood))
+  return ALL_SOUNDS.filter(s => (s.moods || []).includes(mood))
 }
 
 export function getSoundsByTheme(theme: SoundTheme): Sound[] {
-  return ALL_SOUNDS.filter(s => s.themes.includes(theme))
+  return ALL_SOUNDS.filter(s => (s.themes || []).includes(theme))
 }
 
 export function searchSounds(query: string): Sound[] {
   const q = query.toLowerCase()
   return ALL_SOUNDS.filter(s => 
     s.name.toLowerCase().includes(q) ||
-    s.moods.some(m => m.includes(q)) ||
-    s.themes.some(t => t.includes(q))
+    (s.moods || []).some(m => m.includes(q)) ||
+    (s.themes || []).some(t => t.includes(q))
   )
 }
 
