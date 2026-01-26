@@ -7600,7 +7600,16 @@ export function BookMode() {
           imageStyle: p.imageStyle as ImageStyle | undefined,
           frameStyle: p.frameStyle as FrameStyle | undefined,
           chapterId: p.chapterId,
-          style: DEFAULT_STYLE,
+          // Charger le style depuis la page stockée, ou utiliser le style par défaut
+          style: p.style ? {
+            fontFamily: p.style.fontFamily || DEFAULT_STYLE.fontFamily,
+            fontSize: p.style.fontSize || DEFAULT_STYLE.fontSize,
+            color: p.style.color || DEFAULT_STYLE.color,
+            isBold: p.style.isBold ?? DEFAULT_STYLE.isBold,
+            isItalic: p.style.isItalic ?? DEFAULT_STYLE.isItalic,
+            textAlign: p.style.textAlign || DEFAULT_STYLE.textAlign,
+            lineSpacing: p.style.lineSpacing || DEFAULT_STYLE.lineSpacing,
+          } : DEFAULT_STYLE,
         })
         
         // Séparer les pages de couverture des pages de contenu
@@ -7644,20 +7653,9 @@ export function BookMode() {
     // Aller au spread contenant la nouvelle page (dernière page)
     setCurrentSpread(Math.floor((newPages.length - 1) / 2))
     
-    // Sauvegarder dans le store
+    // Sauvegarder dans le store (utilise pagesToStoreFormat pour inclure tous les champs)
     if (currentStory) {
-      updateStoryPages(currentStory.id, newPages.map(p => ({
-        id: p.id,
-        stepIndex: 0,
-        content: p.content,
-        image: p.image,
-        imagePosition: p.imagePosition,
-        imageStyle: p.imageStyle,
-        frameStyle: p.frameStyle,
-        order: 0,
-        chapterId: p.chapterId,
-        title: p.title,
-      })))
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
     }
   }
 
@@ -7671,20 +7669,9 @@ export function BookMode() {
       setCurrentSpread(Math.max(0, newTotalSpreads - 1))
     }
     
-    // Sauvegarder dans le store
+    // Sauvegarder dans le store (utilise pagesToStoreFormat pour inclure tous les champs)
     if (currentStory) {
-      updateStoryPages(currentStory.id, newPages.map(p => ({
-        id: p.id,
-        stepIndex: 0,
-        content: p.content,
-        image: p.image,
-        imagePosition: p.imagePosition,
-        imageStyle: p.imageStyle,
-        frameStyle: p.frameStyle,
-        order: 0,
-        chapterId: p.chapterId,
-        title: p.title,
-      })))
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
     }
   }
 
@@ -7717,6 +7704,11 @@ export function BookMode() {
       style: { ...currentStyle, ...styleUpdate } 
     }
     setPages(newPages)
+    
+    // Sauvegarder les styles dans le store
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
   }
 
   // Helper pour convertir les pages vers le format de sauvegarde
@@ -7726,6 +7718,8 @@ export function BookMode() {
       stepIndex: index,
       content: p.content,
       pageType: p.pageType, // Important: préserver le type de page (front-cover, back-cover, content)
+      // Style de texte de la page (police, taille, alignement, etc.)
+      style: p.style,
       images: p.images,
       // Fond de page, décorations et zones de texte
       backgroundMedia: p.backgroundMedia,

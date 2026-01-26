@@ -226,7 +226,29 @@ function generatePageHTML(
     return `<span style="${decoStyle}">${emoji}</span>`
   }).join('')
   
+  // CSS pour forcer l'héritage des styles sur tous les éléments enfants
+  const inheritStyles = `
+    <style>
+      #page-${page.id} .text-content,
+      #page-${page.id} .text-content * {
+        font-family: ${fontFamily} !important;
+        font-size: ${fontSize}px !important;
+        font-weight: ${fontWeight} !important;
+        font-style: ${fontStyle} !important;
+        text-align: ${textAlign} !important;
+        color: ${textColor} !important;
+        line-height: ${lineHeight} !important;
+      }
+      #page-${page.id} .text-content div,
+      #page-${page.id} .text-content p {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  `
+  
   return `
+    ${inheritStyles}
     <div id="page-${page.id}" style="
       width: ${width}px;
       height: ${height}px;
@@ -243,7 +265,7 @@ function generatePageHTML(
         padding: 8% ${outerMargin} 8% ${innerMargin};
         z-index: 1;
       ">
-        <div style="
+        <div class="text-content" style="
           height: 100%;
           display: flex;
           flex-direction: column;

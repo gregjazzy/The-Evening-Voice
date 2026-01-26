@@ -204,12 +204,25 @@ export interface PageTextBox {
 // Type de page (couverture, contenu, 4ème de couverture)
 export type PageType = 'front-cover' | 'content' | 'back-cover'
 
+// Style de texte pour une page
+export interface PageTextStyle {
+  fontFamily?: string
+  fontSize?: number
+  color?: string
+  isBold?: boolean
+  isItalic?: boolean
+  textAlign?: 'left' | 'center' | 'right'
+  lineSpacing?: 'tight' | 'normal' | 'relaxed'
+}
+
 export interface StoryPage {
   id: string
   stepIndex: number
   content: string
   // Type de page (par défaut: 'content' pour rétrocompatibilité)
   pageType?: PageType
+  // Style de texte de la page
+  style?: PageTextStyle
   // Nouveau format multi-médias (images et vidéos)
   images?: PageMedia[]
   // Fond de page (image ou vidéo avec opacité)
