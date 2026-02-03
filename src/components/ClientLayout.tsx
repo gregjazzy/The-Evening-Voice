@@ -89,15 +89,13 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       if (voiceFound) {
         console.log('🎤 Voix trouvée:', voiceName)
       } else {
-        console.log('🎤 Voix non disponible:', voiceName)
+        // Voix non disponible → reset silencieux, PAS d'onboarding
+        // L'utilisateur a déjà un ai_name, on ne le force pas à refaire
+        // l'onboarding juste pour la voix. Il peut la rechoisir dans les réglages.
+        console.log('🎤 Voix non disponible:', voiceName, '→ reset silencieux')
         const voices = window.speechSynthesis.getVoices()
         console.log('🎤 Voix disponibles:', voices.map(v => v.name).join(', '))
         setAiVoice('')
-        if (!welcomeOpenRef.current) {
-          welcomeOpenRef.current = true
-          setVoiceOnlyMode(true)
-          setShowWelcomeSequence(true)
-        }
       }
     }
 
