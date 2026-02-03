@@ -42,7 +42,8 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     }
 
     // IMPORTANT: Attendre que les préférences soient chargées depuis Supabase
-    // Sinon on risque de montrer l'onboarding alors que l'utilisateur a déjà un aiName en base
+    // preferencesLoaded = true SEULEMENT quand le profil a été lu et ai_name chargé
+    // Cela empêche de montrer l'onboarding pendant que Supabase charge le profil
     if (!preferencesLoaded) {
       return
     }

@@ -35,14 +35,9 @@ export function useSyncUserPreferences() {
       return
     }
 
-    // Si pas de profil (session error, utilisateur déconnecté, etc.)
-    // → on marque quand même les préférences comme "chargées" pour débloquer l'onboarding
-    // mais on ne met PAS hasLoadedFromSupabase pour permettre un rechargement si le profil arrive plus tard
+    // Si pas de profil, NE PAS marquer comme chargé — attendre que le profil arrive
+    // Sinon on risque de montrer l'onboarding alors que l'utilisateur a déjà un aiName en base
     if (!profile) {
-      console.log('⚠️ Pas de profil Supabase - utilisation du cache localStorage')
-      if (!preferencesLoaded) {
-        setPreferencesLoaded(true)
-      }
       return
     }
 
