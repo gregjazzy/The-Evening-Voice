@@ -682,9 +682,14 @@ export function useSupabaseSync() {
         }
 
         // SIMPLE : Supabase remplace tout, pas de fusion
+        // Préserver currentStory si elle existe toujours après le rechargement
+        const prevCurrentStory = useAppStore.getState().currentStory
+        const refreshedCurrentStory = prevCurrentStory
+          ? cleanedStories.find(s => s.id === prevCurrentStory.id) || null
+          : null
         useAppStore.setState({
           stories: cleanedStories,
-          currentStory: null // Reset pour éviter les références cassées
+          currentStory: refreshedCurrentStory,
         })
         console.log(`   ✅ ${cleanedStories.length} histoires chargées depuis Supabase (source unique)`)
       } else if (storiesError) {
