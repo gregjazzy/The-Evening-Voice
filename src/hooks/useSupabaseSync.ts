@@ -527,13 +527,10 @@ export function useSupabaseSync() {
       // Plus de fusion avec localStorage !
       // ========================================
       
-      // Charger les stories avec leurs pages depuis Supabase
+      // Charger les stories depuis Supabase
       const { data: storiesData, error: storiesError } = await supabase
         .from('stories')
-        .select(`
-          *,
-          story_pages (*)
-        `)
+        .select('*')
         .eq('profile_id', profile.id)
         .order('created_at', { ascending: false })
 
@@ -541,31 +538,35 @@ export function useSupabaseSync() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const typedStoriesData = storiesData as any[]
 
-        // Diagnostic RAW : log brut de ce que Supabase retourne AVANT reconstruction
-        let rlsWarning = false
-        for (const s of typedStoriesData) {
-          const rawPages = s.story_pages || []
-          console.log(`   🔍 RAW DB story "${s.title}" (${s.id}): ${rawPages.length} pages brutes, total_pages=${s.total_pages}`)
-          // ALERTE RLS : si la story dit avoir des pages mais le JOIN retourne vide
-          if (s.total_pages > 0 && rawPages.length === 0) {
-            console.error(`   🚨 ALERTE RLS: story "${s.title}" a total_pages=${s.total_pages} mais story_pages JOIN retourne 0 pages !`)
-            console.error(`   🚨 Vérifiez que la policy RLS "Users can manage own pages" existe sur la table story_pages`)
-            rlsWarning = true
-          }
-          for (const p of rawPages) {
-            const ml = p.media_layers
-            const mlType = ml ? (Array.isArray(ml) ? 'array' : 'object') : 'null'
-            const imgCount = ml?.images?.length ?? 'N/A'
-            const decoCount = ml?.decorations?.length ?? 'N/A'
-            const hasContent = (p.text_blocks?.[0]?.content?.length || 0) > 0
-            console.log(`      📄 Page ${p.page_number} (${p.id}): media_layers=${mlType}, images=${imgCount}, décos=${decoCount}, hasContent=${hasContent}`)
+        // Charger les pages SÉPARÉMENT (le JOIN PostgREST peut échouer avec certaines configs RLS)
+        const storyIds = typedStoriesData.map((s: any) => s.id)
+        let allPagesData: any[] = []
+        if (storyIds.length > 0) {
+          const { data: pagesData, error: pagesError } = await supabase
+            .from('story_pages')
+            .select('*')
+            .in('story_id', storyIds)
+            .order('page_number')
+
+          if (pagesError) {
+            console.error('❌ Erreur chargement story_pages:', pagesError.message, pagesError.code)
+            if (pagesError.message?.includes('row-level security') || pagesError.code === '42501') {
+              console.error('🚨 ERREUR RLS sur story_pages ! La policy est manquante ou incorrecte.')
+              notify.error(
+                'Erreur de chargement des pages',
+                'Les pages sont bloquées par les permissions Supabase (RLS). Contactez l\'administrateur.'
+              )
+            }
+          } else {
+            allPagesData = pagesData || []
+            console.log(`   📄 ${allPagesData.length} pages chargées séparément`)
           }
         }
-        if (rlsWarning) {
-          notify.error(
-            'Erreur de chargement des pages',
-            'Les pages semblent bloquées par les permissions Supabase (RLS). Contactez l\'administrateur.'
-          )
+
+        // Attacher les pages à chaque story
+        for (const s of typedStoriesData) {
+          s.story_pages = allPagesData.filter((p: any) => p.story_id === s.id)
+          console.log(`   🔍 Story "${s.title}": ${s.story_pages.length} pages (total_pages=${s.total_pages})`)
         }
 
         const supabaseStories: Story[] = typedStoriesData.map((s) => ({
