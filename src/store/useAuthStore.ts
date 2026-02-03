@@ -5,6 +5,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/lib/supabase/client'
+import { flushPendingStorySave } from '@/hooks/useSupabaseSync'
 import type { User, Session, SupabaseClient } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/supabase/client'
 
@@ -239,7 +240,10 @@ export const useAuthStore = create<AuthState>()(
 
       signOut: async () => {
         console.log('🚪 Déconnexion en cours...')
-        
+
+        // Sauvegarder immédiatement toute histoire en attente AVANT de couper la session
+        flushPendingStorySave()
+
         try {
           const { error } = await db.auth.signOut()
           if (error) {

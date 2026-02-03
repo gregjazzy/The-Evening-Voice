@@ -52,20 +52,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: storyError.message }, { status: 500 })
     }
 
-    // Supprimer les anciennes pages
-    await supabaseAdmin
-      .from('story_pages')
-      .delete()
-      .eq('story_id', story.id)
-
-    // Insérer les nouvelles pages
+    // Upsert les pages (safe : pas de fenêtre sans données)
     if (story.pages && story.pages.length > 0) {
       const pagesData = story.pages.map((page: any, i: number) => ({
         id: page.id,
         story_id: story.id,
         page_number: i + 1,
         title: page.title,
-        text_blocks: [{ content: page.content || '' }],
+        text_blocks: [{ content: page.content || '', style: page.style || null }],
         media_layers: {
           images: page.images || [],
           decorations: page.decorations || [],
@@ -78,13 +72,23 @@ export async function POST(request: NextRequest) {
         background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
       }))
 
-      const { error: pagesError } = await supabaseAdmin
+      const { error: upsertError } = await supabaseAdmin
         .from('story_pages')
-        .insert(pagesData)
+        .upsert(pagesData, { onConflict: 'id' })
 
-      if (pagesError) {
-        console.error('❌ Erreur sauvegarde pages:', pagesError)
-        return NextResponse.json({ error: pagesError.message }, { status: 500 })
+      if (upsertError) {
+        console.error('❌ Erreur upsert pages:', upsertError)
+        return NextResponse.json({ error: upsertError.message }, { status: 500 })
+      }
+
+      // Supprimer les pages supprimées (qui ne sont plus dans l'histoire)
+      const currentPageIds = story.pages.map((p: any) => p.id).filter(Boolean)
+      if (currentPageIds.length > 0) {
+        await supabaseAdmin
+          .from('story_pages')
+          .delete()
+          .eq('story_id', story.id)
+          .not('id', 'in', `(${currentPageIds.join(',')})`)
       }
     }
 

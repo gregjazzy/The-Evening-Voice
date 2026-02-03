@@ -88,8 +88,6 @@ export function ExactPageRenderer({
         background: colorConfig.gradient,
         position: 'relative',
         overflow: 'hidden',
-        borderRadius: '8px',
-        boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
       }}
     >
       {/* Background media */}
@@ -99,7 +97,6 @@ export function ExactPageRenderer({
             position: 'absolute',
             inset: 0,
             overflow: 'hidden',
-            borderRadius: '8px',
             zIndex: 0,
           }}
         >
@@ -135,19 +132,7 @@ export function ExactPageRenderer({
         </div>
       )}
 
-      {/* Paper texture */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          opacity: 0.3,
-          borderRadius: '8px',
-          overflow: 'hidden',
-          pointerEvents: 'none',
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
-          zIndex: 1,
-        }}
-      />
+      {/* Paper texture removed for print — screen-only effect */}
 
       {/* Notebook lines — paddings in % (aligned with BookMode) */}
       {showLines && !isFrontCover && !isBackCover && (
@@ -201,8 +186,6 @@ export function ExactPageRenderer({
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 opacity: (media as PageMedia & { opacity?: number }).opacity ?? 1,
               }}
               muted
@@ -217,8 +200,6 @@ export function ExactPageRenderer({
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 opacity: (media as PageMedia & { opacity?: number }).opacity ?? 1,
               }}
             />

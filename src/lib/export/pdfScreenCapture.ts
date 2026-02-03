@@ -56,17 +56,17 @@ async function captureElementToCanvas(
     scale,
     useCORS: true,
     allowTaint: false,
-    logging: true, // Activer pour debug
-    backgroundColor: '#FFFBEB', // Fond crème par défaut (évite le noir)
+    logging: false,
+    backgroundColor: null, // Transparent — let the page gradient show through
     imageTimeout: 30000,
   })
 }
 
 /**
- * Convertit un canvas en Data URL
+ * Convertit un canvas en Data URL (PNG lossless)
  */
-function canvasToDataUrl(canvas: HTMLCanvasElement, quality: number = 0.92): string {
-  return canvas.toDataURL('image/jpeg', quality)
+function canvasToDataUrl(canvas: HTMLCanvasElement): string {
+  return canvas.toDataURL('image/png')
 }
 
 /**
@@ -136,8 +136,8 @@ export async function generatePdfFromScreenCaptures(
   const targetHeightPx = mmToPx(pdfHeightMm)
 
   // Calculer le scale pour html2canvas
-  // On capture à une résolution suffisante pour l'upscale
-  const captureScale = useUpscale ? 2 : 3 // x2 si upscale après, x3 sinon
+  // scale 5 → 500px * 5 = 2500px, proche de 300 DPI pour A5 (2480px)
+  const captureScale = 5
 
   // Créer le PDF
   const pdf = new jsPDF({
@@ -162,9 +162,9 @@ export async function generatePdfFromScreenCaptures(
       `Capture de la page ${i + 1}/${totalPages}...`
     )
 
-    // 1. Capturer l'élément en canvas
+    // 1. Capturer l'élément en canvas (PNG lossless)
     const canvas = await captureElementToCanvas(element, captureScale)
-    let imageDataUrl = canvasToDataUrl(canvas, 0.95)
+    let imageDataUrl = canvasToDataUrl(canvas)
 
     // 2. Upscaler si nécessaire et demandé
     if (useUpscale) {
@@ -173,9 +173,9 @@ export async function generatePdfFromScreenCaptures(
         `Amélioration qualité page ${i + 1}/${totalPages}...`
       )
       
-      // Calculer si l'upscale est nécessaire
+      // Calculer si l'upscale est nécessaire (scale 5 donne déjà ~2500px)
       const currentWidthPx = canvas.width
-      const needsUpscale = currentWidthPx < targetWidthPx * 0.8 // 80% de la cible
+      const needsUpscale = currentWidthPx < targetWidthPx * 0.7 // 70% de la cible
 
       if (needsUpscale) {
         imageDataUrl = await upscaleImage(imageDataUrl, 2)
@@ -188,7 +188,7 @@ export async function generatePdfFromScreenCaptures(
     }
 
     // Ajouter l'image (elle sera redimensionnée pour tenir dans la page)
-    pdf.addImage(imageDataUrl, 'JPEG', 0, 0, pdfWidthMm, pdfHeightMm)
+    pdf.addImage(imageDataUrl, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm)
 
     processedPages++
   }

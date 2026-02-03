@@ -406,10 +406,35 @@ CREATE POLICY "Users can manage own stories"
   ON stories FOR ALL
   USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
 
+-- Policies pour story_pages (via la story parente)
+CREATE POLICY "Users can manage own pages"
+  ON story_pages FOR ALL
+  USING (story_id IN (SELECT id FROM stories WHERE profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid())));
+
+-- Policies pour assets
+CREATE POLICY "Users can manage own assets"
+  ON assets FOR ALL
+  USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
+
 -- Policies pour diary_entries (très privé)
 CREATE POLICY "Users can manage own diary"
   ON diary_entries FOR ALL
   USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
+
+-- Policies pour chat_messages
+CREATE POLICY "Users can manage own chat"
+  ON chat_messages FOR ALL
+  USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
+
+-- Policies pour generation_jobs
+CREATE POLICY "Users can manage own jobs"
+  ON generation_jobs FOR ALL
+  USING (profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
+
+-- Policies pour mentor_sessions
+CREATE POLICY "Mentors can manage sessions"
+  ON mentor_sessions FOR ALL
+  USING (mentor_id IN (SELECT id FROM profiles WHERE user_id = auth.uid()));
 
 -- Policies pour montage_projects
 CREATE POLICY "Users can manage own montage projects"

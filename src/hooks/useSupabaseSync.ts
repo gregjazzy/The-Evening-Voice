@@ -16,6 +16,7 @@ import { useAppStore, type DiaryEntry, type ChatMessage, type Story, type StoryP
 import { useMontageStore, type MontageProject } from '@/store/useMontageStore'
 import { useStudioProgressStore, type StudioBadge, type StudioCreation } from '@/store/useStudioProgressStore'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
+import { notify } from '@/store/useNotificationStore'
 import type { StoryStructure } from '@/lib/ai/prompting-pedagogy'
 
 // Types Supabase pour ce fichier (contourner les problèmes de typage)
@@ -98,6 +99,35 @@ function toISOStringSafe(date: Date | string | undefined | null): string {
 }
 
 
+// Référence module-level pour le flush avant déconnexion
+let _pendingStoryForFlush: { story: Story; profileId: string; userName: string } | null = null
+
+/**
+ * Flush immédiat de la sauvegarde en attente (appelé avant signOut)
+ * Utilise sendBeacon + API service-role pour ne pas dépendre de la session
+ */
+export function flushPendingStorySave(): void {
+  if (!_pendingStoryForFlush) return
+
+  const { story, profileId, userName } = _pendingStoryForFlush
+  const data = JSON.stringify({ story, profileId, userName })
+
+  console.log('🚨 Flush avant déconnexion:', story.title)
+
+  if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+    navigator.sendBeacon('/api/story/save', data)
+  } else if (typeof fetch !== 'undefined') {
+    fetch('/api/story/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: data,
+      keepalive: true,
+    }).catch(console.error)
+  }
+
+  _pendingStoryForFlush = null
+}
+
 // Debounce pour éviter trop de requêtes
 function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
@@ -178,128 +208,220 @@ async function saveStudioProgressToSupabase(
   return true
 }
 
+// Détecte les URLs temporaires (blob: ou fal.ai CDN) dans les pages
+function warnTemporaryUrls(story: Story) {
+  const warnings: string[] = []
+  for (const page of story.pages) {
+    const urls: string[] = []
+    if (page.backgroundMedia?.url) urls.push(page.backgroundMedia.url)
+    for (const img of page.images || []) {
+      if (img.url) urls.push(img.url)
+    }
+    for (const url of urls) {
+      if (url.startsWith('blob:')) {
+        warnings.push(`Page ${page.stepIndex + 1}: URL blob: détectée (perdue au refresh)`)
+      } else if (url.includes('fal.media') || url.includes('fal.ai')) {
+        warnings.push(`Page ${page.stepIndex + 1}: URL fal.ai temporaire détectée`)
+      }
+    }
+  }
+  if (warnings.length > 0) {
+    console.warn('⚠️ URLs temporaires dans l\'histoire:', warnings)
+  }
+  return warnings
+}
+
 // Lock pour éviter les sauvegardes concurrentes par histoire
 const storySaveLocks = new Map<string, boolean>()
+const pendingSaves = new Map<string, { story: Story; profileId: string; userName: string }>()
+
+// Retry helper avec backoff exponentiel
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 2,
+  delays: number[] = [1000, 3000]
+): Promise<T> {
+  let lastError: unknown
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err
+      if (attempt < maxRetries) {
+        const delay = delays[attempt] || delays[delays.length - 1]
+        console.log(`🔄 Retry ${attempt + 1}/${maxRetries} dans ${delay}ms...`)
+        await new Promise(r => setTimeout(r, delay))
+      }
+    }
+  }
+  throw lastError
+}
 
 // Fonction utilitaire pour sauvegarder une histoire (hors hook)
 async function saveStoryToSupabase(story: Story, profileId: string, userName: string) {
   // Vérifier si une sauvegarde est déjà en cours pour cette histoire
   if (storySaveLocks.get(story.id)) {
-    console.log(`⏳ Sauvegarde déjà en cours pour "${story.title}", ignoré`)
-    return true // Retourne true car une sauvegarde est en cours
+    console.log(`⏳ Sauvegarde déjà en cours pour "${story.title}", mise en file d'attente`)
+    pendingSaves.set(story.id, { story, profileId, userName })
+    return true
   }
-  
+
+  // Détecter les URLs temporaires (log warning mais ne bloque pas la sauvegarde)
+  warnTemporaryUrls(story)
+
   // Acquérir le lock
   storySaveLocks.set(story.id, true)
   console.log(`🔒 Lock acquis pour "${story.title}"`)
-  
+
   try {
-    // Sauvegarder l'histoire
-    const storyData = {
-      id: story.id,
-      profile_id: profileId,
-      title: story.title,
-      author: userName || 'Anonyme',
-      status: story.isComplete ? 'completed' : 'in_progress',
-      total_pages: story.pages.length,
-      current_page: story.currentStep + 1,
-      metadata: {
-        structure: story.structure,
-        bookFormat: story.bookFormat || 'portrait-a5', // Format du livre pour l'impression
-        chapters: story.chapters || [],
-      },
-      created_at: toISOStringSafe(story.createdAt),
-      updated_at: toISOStringSafe(story.updatedAt),
-      completed_at: story.isComplete ? new Date().toISOString() : null,
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: storyError } = await supabase.from('stories').upsert(storyData as any)
-
-    if (storyError) {
-      console.error('Erreur sauvegarde story:', storyError)
-      return false
-    }
-
-    // Supprimer les anciennes pages puis insérer les nouvelles
-    // (évite les conflits sur la contrainte UNIQUE story_id,page_number)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: deleteData, error: deleteError, count: deleteCount } = await supabase
-      .from('story_pages')
-      .delete()
-      .eq('story_id', story.id)
-      .select() as any
-
-    console.log(`🗑️ DELETE pages pour story ${story.id}:`, { 
-      deleted: deleteData?.length || 0, 
-      error: deleteError 
-    })
-
-    if (deleteError) {
-      console.error('Erreur suppression pages:', deleteError)
-      return false
-    }
-
-    // Préparer toutes les pages avec page_number unique basé sur l'index
-    const pagesData = story.pages.map((page, i) => {
-      const pageData = {
-        id: page.id,
-        story_id: story.id,
-        page_number: i + 1, // Toujours utiliser l'index pour garantir l'unicité
-        title: page.title,
-        text_blocks: [{ 
-          content: page.content || '',
-          // Style de texte de la page (police, alignement, taille, etc.)
-          style: page.style || null,
-        }],
-        media_layers: {
-          // Médias (images et vidéos)
-          images: page.images || [],
-          // Décorations (stickers, ornements)
-          decorations: page.decorations || [],
-          // Zones de texte flottantes
-          textBoxes: page.textBoxes || [],
-          // Référence au chapitre
-          chapterId: page.chapterId,
-          // Type de page (front-cover, back-cover, content)
-          pageType: page.pageType || 'content',
-          // Fond de page complet (avec opacité, position, scale)
-          backgroundMedia: page.backgroundMedia || null,
+    // Sauvegarder avec retry automatique
+    const saved = await withRetry(async () => {
+      // Sauvegarder l'histoire
+      const storyData = {
+        id: story.id,
+        profile_id: profileId,
+        title: story.title,
+        author: userName || 'Anonyme',
+        status: story.isComplete ? 'completed' : 'in_progress',
+        total_pages: story.pages.length,
+        current_page: story.currentStep + 1,
+        metadata: {
+          structure: story.structure,
+          bookFormat: story.bookFormat || 'portrait-a5',
+          chapters: story.chapters || [],
         },
-        // URLs de fond pour compatibilité (sans les métadonnées)
-        background_image_url: page.backgroundMedia?.type === 'image' ? page.backgroundMedia.url : null,
-        background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
+        created_at: toISOStringSafe(story.createdAt),
+        updated_at: toISOStringSafe(story.updatedAt),
+        completed_at: story.isComplete ? new Date().toISOString() : null,
       }
-      console.log(`   📄 Page ${i + 1} (${pageData.media_layers.pageType}): "${(page.content || '').substring(0, 30)}..." - ${page.images?.length || 0} images, ${page.decorations?.length || 0} décos`)
-      return pageData
-    })
-    
-    // Vérifier les doublons de page_number
-    const pageNumbers = pagesData.map(p => p.page_number)
-    const uniquePageNumbers = new Set(pageNumbers)
-    if (pageNumbers.length !== uniquePageNumbers.size) {
-      console.error('❌ DOUBLONS DÉTECTÉS dans page_number:', pageNumbers)
-    }
-    console.log(`📄 INSERT ${pagesData.length} pages:`, pageNumbers)
-
-    // Insérer toutes les pages d'un coup
-    if (pagesData.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: insertError } = await supabase
-        .from('story_pages')
-        .insert(pagesData as any)
+      const { error: storyError } = await supabase.from('stories').upsert(storyData as any)
 
-      if (insertError) {
-        console.error('Erreur insertion pages:', insertError)
-        return false
+      if (storyError) {
+        throw new Error(`Erreur sauvegarde story: ${storyError.message}`)
+      }
+
+      // Préparer toutes les pages
+      const pagesData = story.pages.map((page, i) => {
+        const pageData = {
+          id: page.id,
+          story_id: story.id,
+          page_number: i + 1,
+          title: page.title,
+          text_blocks: [{
+            content: page.content || '',
+            style: page.style || null,
+          }],
+          media_layers: {
+            images: page.images || [],
+            decorations: page.decorations || [],
+            textBoxes: page.textBoxes || [],
+            chapterId: page.chapterId,
+            pageType: page.pageType || 'content',
+            backgroundMedia: page.backgroundMedia || null,
+          },
+          background_image_url: page.backgroundMedia?.type === 'image' ? page.backgroundMedia.url : null,
+          background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
+        }
+        console.log(`   📄 Page ${i + 1} (${pageData.media_layers.pageType}): "${(page.content || '').substring(0, 30)}..." - ${page.images?.length || 0} images, ${page.decorations?.length || 0} décos`)
+        return pageData
+      })
+
+      console.log(`📄 UPSERT ${pagesData.length} pages pour story ${story.id}`)
+
+      // UPSERT toutes les pages (safe : pas de fenêtre sans données)
+      if (pagesData.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: upsertError } = await supabase
+          .from('story_pages')
+          .upsert(pagesData as any, { onConflict: 'id' })
+
+        if (upsertError) {
+          // Détecter spécifiquement les erreurs RLS
+          if (upsertError.message?.includes('row-level security') || upsertError.code === '42501') {
+            console.error('🚨 ERREUR RLS: La policy "Users can manage own pages" manque sur story_pages !')
+            console.error('🚨 Exécutez: CREATE POLICY "Users can manage own pages" ON story_pages FOR ALL USING (story_id IN (SELECT id FROM stories WHERE profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid())));')
+          }
+          throw new Error(`Erreur upsert pages: ${upsertError.message}`)
+        }
+      }
+
+      // Supprimer SEULEMENT les pages qui n'existent plus dans l'histoire
+      const currentPageIds = story.pages.map(p => p.id).filter(Boolean)
+      if (currentPageIds.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: deleteError } = await supabase
+          .from('story_pages')
+          .delete()
+          .eq('story_id', story.id)
+          .not('id', 'in', `(${currentPageIds.join(',')})`) as any
+
+        if (deleteError) {
+          // Non-fatal : les anciennes pages restent mais ne cassent rien
+          console.warn('⚠️ Nettoyage anciennes pages échoué:', deleteError.message)
+        }
+      }
+
+      // Vérification : relire les pages depuis Supabase pour confirmer
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('story_pages')
+        .select('id, page_number, media_layers')
+        .eq('story_id', story.id)
+        .order('page_number')
+
+      if (verifyError) {
+        console.error('⚠️ Vérification post-save échouée:', verifyError.message)
+      } else {
+        const savedCount = verifyData?.length || 0
+        const expectedCount = story.pages.length
+        if (savedCount !== expectedCount) {
+          console.error(`❌ INCOHÉRENCE: ${expectedCount} pages envoyées mais ${savedCount} en base !`)
+          notify.error('Erreur de sauvegarde', `Seulement ${savedCount}/${expectedCount} pages sauvegardées. Réessaie de sauvegarder.`)
+        } else {
+          // Vérifier que media_layers contient bien les images/décos
+          for (const dbPage of verifyData!) {
+            const localPage = story.pages.find((_, i) => i + 1 === dbPage.page_number)
+            if (!localPage) continue
+            const ml = dbPage.media_layers as any
+            const dbImages = ml?.images?.length || 0
+            const dbDecos = ml?.decorations?.length || 0
+            const localImages = localPage.images?.length || 0
+            const localDecos = localPage.decorations?.length || 0
+            if (dbImages !== localImages || dbDecos !== localDecos) {
+              console.error(`❌ INCOHÉRENCE page ${dbPage.page_number}: local=${localImages}img/${localDecos}déco, DB=${dbImages}img/${dbDecos}déco`)
+            }
+          }
+          console.log(`✅ Vérification OK: ${savedCount} pages confirmées en base`)
+        }
+      }
+
+      return true
+    }).catch((err) => {
+      console.error('❌ Sauvegarde échouée après retries:', err)
+      notify.error('Erreur de sauvegarde', `L'histoire "${story.title}" n'a pas pu être sauvegardée après plusieurs tentatives. Vérifie ta connexion.`)
+      return false
+    })
+
+    if (saved) {
+      console.log(`✅ Histoire "${story.title}" sauvegardée (${story.pages.length} pages)`)
+      // Vider le pending flush puisque la sauvegarde a réussi
+      if (_pendingStoryForFlush?.story.id === story.id) {
+        _pendingStoryForFlush = null
       }
     }
-
-    console.log(`✅ Histoire "${story.title}" sauvegardée (${story.pages.length} pages)`)
-    return true
+    return saved
   } finally {
     // Libérer le lock
     storySaveLocks.delete(story.id)
     console.log(`🔓 Lock libéré pour "${story.title}"`)
+
+    // Relancer la sauvegarde si des données sont en attente
+    const pending = pendingSaves.get(story.id)
+    if (pending) {
+      pendingSaves.delete(story.id)
+      console.log(`🔄 Relance sauvegarde en attente pour "${pending.story.title}"`)
+      saveStoryToSupabase(pending.story, pending.profileId, pending.userName)
+    }
   }
 }
 
@@ -418,6 +540,34 @@ export function useSupabaseSync() {
       if (!storiesError && storiesData) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const typedStoriesData = storiesData as any[]
+
+        // Diagnostic RAW : log brut de ce que Supabase retourne AVANT reconstruction
+        let rlsWarning = false
+        for (const s of typedStoriesData) {
+          const rawPages = s.story_pages || []
+          console.log(`   🔍 RAW DB story "${s.title}" (${s.id}): ${rawPages.length} pages brutes, total_pages=${s.total_pages}`)
+          // ALERTE RLS : si la story dit avoir des pages mais le JOIN retourne vide
+          if (s.total_pages > 0 && rawPages.length === 0) {
+            console.error(`   🚨 ALERTE RLS: story "${s.title}" a total_pages=${s.total_pages} mais story_pages JOIN retourne 0 pages !`)
+            console.error(`   🚨 Vérifiez que la policy RLS "Users can manage own pages" existe sur la table story_pages`)
+            rlsWarning = true
+          }
+          for (const p of rawPages) {
+            const ml = p.media_layers
+            const mlType = ml ? (Array.isArray(ml) ? 'array' : 'object') : 'null'
+            const imgCount = ml?.images?.length ?? 'N/A'
+            const decoCount = ml?.decorations?.length ?? 'N/A'
+            const hasContent = (p.text_blocks?.[0]?.content?.length || 0) > 0
+            console.log(`      📄 Page ${p.page_number} (${p.id}): media_layers=${mlType}, images=${imgCount}, décos=${decoCount}, hasContent=${hasContent}`)
+          }
+        }
+        if (rlsWarning) {
+          notify.error(
+            'Erreur de chargement des pages',
+            'Les pages semblent bloquées par les permissions Supabase (RLS). Contactez l\'administrateur.'
+          )
+        }
+
         const supabaseStories: Story[] = typedStoriesData.map((s) => ({
           id: s.id,
           title: s.title,
@@ -469,12 +619,73 @@ export function useSupabaseSync() {
           isComplete: s.status === 'completed',
         }))
         
+        // Diagnostic : log détaillé de ce qui vient de Supabase
+        for (const story of supabaseStories) {
+          console.log(`   📖 Story "${story.title}" (${story.id}): ${story.pages.length} pages`)
+          for (const page of story.pages) {
+            const imgCount = page.images?.length || 0
+            const decoCount = page.decorations?.length || 0
+            const tbCount = page.textBoxes?.length || 0
+            const hasBg = !!page.backgroundMedia
+            if (imgCount > 0 || decoCount > 0 || tbCount > 0 || hasBg) {
+              console.log(`      📄 Page ${page.stepIndex + 1}: ${imgCount} images, ${decoCount} décos, ${tbCount} textBoxes, bg=${hasBg}`)
+            }
+          }
+        }
+
+        // Nettoyer les URLs cassées (blob: URLs sont mortes après refresh)
+        let cleanedCount = 0
+        const cleanedStories = supabaseStories.map(story => ({
+          ...story,
+          pages: story.pages.map(page => {
+            let cleaned = { ...page }
+            // Supprimer backgroundMedia avec blob: URL
+            if (cleaned.backgroundMedia?.url?.startsWith('blob:')) {
+              cleaned = { ...cleaned, backgroundMedia: undefined }
+              cleanedCount++
+            }
+            // Filtrer les images avec blob: URL
+            if (cleaned.images?.some((img: any) => img.url?.startsWith('blob:'))) {
+              cleaned = { ...cleaned, images: cleaned.images.filter((img: any) => !img.url?.startsWith('blob:')) }
+              cleanedCount++
+            }
+            return cleaned
+          }),
+        }))
+        if (cleanedCount > 0) {
+          console.warn(`   🧹 ${cleanedCount} URLs blob: supprimées (invalides après refresh)`)
+        }
+
+        // Diagnostic : comparer les données en mémoire avec celles de Supabase
+        const currentStories = useAppStore.getState().stories
+        if (currentStories.length > 0) {
+          for (const memStory of currentStories) {
+            const dbStory = cleanedStories.find(s => s.id === memStory.id)
+            if (!dbStory) continue
+            for (const memPage of memStory.pages) {
+              const dbPage = dbStory.pages.find(p => p.id === memPage.id)
+              if (!dbPage) continue
+              const memImg = memPage.images?.length || 0
+              const dbImg = dbPage.images?.length || 0
+              const memDeco = memPage.decorations?.length || 0
+              const dbDeco = dbPage.decorations?.length || 0
+              if (memImg > dbImg || memDeco > dbDeco) {
+                console.error(`   🚨 PERTE DE DONNÉES DÉTECTÉE page ${memPage.stepIndex + 1} de "${memStory.title}":`)
+                console.error(`      Mémoire: ${memImg} images, ${memDeco} décos`)
+                console.error(`      Supabase: ${dbImg} images, ${dbDeco} décos`)
+                console.error(`      → Les données en mémoire sont PLUS RICHES que Supabase !`)
+                console.error(`      → Cela signifie que la sauvegarde précédente a échoué ou été écrasée.`)
+              }
+            }
+          }
+        }
+
         // SIMPLE : Supabase remplace tout, pas de fusion
-        useAppStore.setState({ 
-          stories: supabaseStories, 
+        useAppStore.setState({
+          stories: cleanedStories,
           currentStory: null // Reset pour éviter les références cassées
         })
-        console.log(`   ✅ ${supabaseStories.length} histoires chargées depuis Supabase (source unique)`)
+        console.log(`   ✅ ${cleanedStories.length} histoires chargées depuis Supabase (source unique)`)
       } else if (storiesError) {
         console.error('Erreur chargement stories:', storiesError)
         // En cas d'erreur, vider pour éviter les données obsolètes
@@ -651,9 +862,15 @@ export function useSupabaseSync() {
           projectId: asset.story_id || undefined,
         }))
         
+        // Filtrer les assets avec blob: URL (ne devraient pas exister en DB mais sécurité)
+        const validAssets = loadedAssets.filter(a => !a.url.startsWith('blob:'))
+        if (validAssets.length < loadedAssets.length) {
+          console.warn(`   🧹 ${loadedAssets.length - validAssets.length} assets avec blob: URL ignorés`)
+        }
+
         // SIMPLE : Supabase remplace tout, pas de fusion
-        useStudioStore.setState({ importedAssets: loadedAssets })
-        console.log(`   ✅ ${loadedAssets.length} assets chargés depuis Supabase (source unique)`)
+        useStudioStore.setState({ importedAssets: validAssets })
+        console.log(`   ✅ ${validAssets.length} assets chargés depuis Supabase (source unique)`)
       } else if (assetsError) {
         console.warn('   ⚠️ Erreur chargement assets:', assetsError.message)
         useStudioStore.setState({ importedAssets: [] })
@@ -690,6 +907,15 @@ export function useSupabaseSync() {
     if (!user) {
       hasLoadedRef.current = false
       lastProfileIdRef.current = null
+      // IMPORTANT: Réinitialiser les refs de tracking pour éviter les faux positifs après re-login
+      prevStoriesRef.current = ''
+      prevStoriesCountRef.current = -1
+      prevDiaryCountRef.current = 0
+      prevChatCountRef.current = 0
+      prevEmotionalContextRef.current = ''
+      prevAiNameRef.current = ''
+      pendingStoryRef.current = null
+      _pendingStoryForFlush = null
     }
   }, [user])
 
@@ -742,7 +968,13 @@ export function useSupabaseSync() {
   // Sauvegarder une histoire
   const saveStory = useCallback(async (story: Story) => {
     if (!profile?.id) return
-    await saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+    const success = await saveStoryToSupabase(story, profile.id, userName || 'Anonyme')
+    // Nettoyer les refs de sauvegarde pendante après succès
+    if (success) {
+      if (pendingStoryRef.current?.id === story.id) {
+        pendingStoryRef.current = null
+      }
+    }
   }, [profile?.id, userName])
 
   // Sauvegarder le contexte émotionnel
@@ -821,7 +1053,9 @@ export function useSupabaseSync() {
   const prevStoriesRef = useRef<string>('')
   const prevStoriesCountRef = useRef<number>(-1) // -1 = pas encore initialisé
   useEffect(() => {
-    if (!profile?.id) return
+    // IMPORTANT: Ne pas tracker les histoires AVANT que le chargement initial soit terminé !
+    // Sinon on risque de sauvegarder des données vides/incorrectes vers Supabase
+    if (!profile?.id || !hasLoadedRef.current) return
     
     const storiesKey = JSON.stringify(stories.map(s => ({ id: s.id, updatedAt: s.updatedAt })))
     
@@ -839,6 +1073,7 @@ export function useSupabaseSync() {
       console.log('📝 Nouvelle histoire créée, sauvegarde immédiate:', newStory.title)
       saveStory(newStory) // Sauvegarde immédiate !
       pendingStoryRef.current = null // Pas besoin de re-sauvegarder
+      _pendingStoryForFlush = null
     }
     // Détecter une histoire MODIFIÉE (sauvegarde debounced)
     else if (storiesKey !== prevStoriesRef.current) {
@@ -850,10 +1085,19 @@ export function useSupabaseSync() {
         return !prevStory || prevTime !== currentTime
       })
       if (changedStory) {
-        console.log('📝 Histoire modifiée, sauvegarde debounced:', changedStory.title, 
-          '- pages:', changedStory.pages.length,
-          '- contenu page 1:', changedStory.pages[0]?.content?.substring(0, 50) || '(vide)')
+        // Diagnostic détaillé : log EXACT de ce qui va être sauvegardé
+        const totalImgs = changedStory.pages.reduce((sum, p) => sum + (p.images?.length || 0), 0)
+        const totalDecos = changedStory.pages.reduce((sum, p) => sum + (p.decorations?.length || 0), 0)
+        const totalTbs = changedStory.pages.reduce((sum, p) => sum + (p.textBoxes?.length || 0), 0)
+        const totalBg = changedStory.pages.filter(p => !!p.backgroundMedia).length
+        console.log(`📝 Histoire modifiée, sauvegarde debounced: "${changedStory.title}"`,
+          `- ${changedStory.pages.length} pages`,
+          `- ${totalImgs} imgs, ${totalDecos} décos, ${totalTbs} tbs, ${totalBg} bgs`)
+        if (totalImgs === 0 && totalDecos === 0 && totalBg === 0) {
+          console.log('   ℹ️ Aucun média dans cette sauvegarde (normal si seul le texte a changé)')
+        }
         pendingStoryRef.current = changedStory // Garder en mémoire pour beforeunload
+        _pendingStoryForFlush = { story: changedStory, profileId: profile!.id, userName: userName || 'Anonyme' }
         debouncedSaveStory(changedStory)
       }
     }
@@ -1060,6 +1304,63 @@ export function useSupabaseSync() {
       hasLoadedRef.current = false
       loadFromSupabase()
     },
+  }
+}
+
+// ============================================
+// DIAGNOSTIC : Fonction de debug pour la console navigateur
+// Appeler window.__debugStorySync() dans la console pour voir l'état
+// ============================================
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__debugStorySync = async () => {
+    const appState = useAppStore.getState()
+    const stories = appState.stories
+
+    console.log('=== DEBUG STORY SYNC ===')
+    console.log(`Stories en mémoire: ${stories.length}`)
+
+    for (const story of stories) {
+      console.log(`\n📖 "${story.title}" (${story.id})`)
+      console.log(`   updatedAt: ${story.updatedAt}`)
+      console.log(`   Pages: ${story.pages.length}`)
+
+      for (const page of story.pages) {
+        const imgs = page.images?.length || 0
+        const decos = page.decorations?.length || 0
+        const tbs = page.textBoxes?.length || 0
+        const bg = page.backgroundMedia ? `${page.backgroundMedia.type}:${page.backgroundMedia.url?.substring(0, 50)}` : 'none'
+        console.log(`   📄 Page ${page.stepIndex + 1} (${page.id}): ${imgs} imgs, ${decos} décos, ${tbs} tbs, bg=${bg}, content="${(page.content || '').substring(0, 40)}"`)
+      }
+
+      // Comparer avec Supabase
+      console.log(`   --- Lecture directe Supabase ---`)
+      const { data: dbPages, error } = await supabase
+        .from('story_pages')
+        .select('id, page_number, media_layers, text_blocks')
+        .eq('story_id', story.id)
+        .order('page_number')
+
+      if (error) {
+        console.error(`   ❌ Erreur lecture Supabase: ${error.message} (code: ${error.code})`)
+        if (error.message?.includes('row-level security') || error.code === '42501') {
+          console.error('   🚨 ERREUR RLS ! La policy story_pages est manquante ou incorrecte.')
+        }
+      } else if (!dbPages || dbPages.length === 0) {
+        console.error(`   🚨 0 pages dans Supabase ! (mais ${story.pages.length} en mémoire)`)
+      } else {
+        console.log(`   ${dbPages.length} pages dans Supabase`)
+        for (const dbPage of dbPages) {
+          const ml = dbPage.media_layers as any
+          const mlType = ml ? (Array.isArray(ml) ? 'array' : 'object') : 'null'
+          const dbImgs = ml?.images?.length ?? 0
+          const dbDecos = ml?.decorations?.length ?? 0
+          const dbContent = (dbPage.text_blocks as any)?.[0]?.content || ''
+          console.log(`   📄 DB Page ${dbPage.page_number} (${dbPage.id}): ml=${mlType}, ${dbImgs} imgs, ${dbDecos} décos, content="${dbContent.substring(0, 40)}"`)
+        }
+      }
+    }
+    console.log('\n=== FIN DEBUG ===')
   }
 }
 
