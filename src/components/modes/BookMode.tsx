@@ -7899,9 +7899,22 @@ export function BookMode() {
             return display
           })
           
+          // Remplacer les <img> object-cover par des <div> background-image
+          // (html2canvas ne supporte pas objectFit: cover)
+          const imageBackups: { parent: HTMLElement; img: HTMLImageElement; placeholder: HTMLDivElement }[] = []
+          pageRef.querySelectorAll('img').forEach((img) => {
+            const computed = window.getComputedStyle(img)
+            if (computed.objectFit === 'cover' && img.parentElement) {
+              const div = document.createElement('div')
+              div.style.cssText = `width:100%;height:100%;background-image:url(${img.src});background-size:cover;background-position:center;opacity:${computed.opacity};`
+              imageBackups.push({ parent: img.parentElement, img, placeholder: div })
+              img.parentElement.replaceChild(div, img)
+            }
+          })
+
           // Attendre que le DOM se mette à jour
           await new Promise(resolve => setTimeout(resolve, 50))
-          
+
           // === CAPTURER ===
           const canvas = await html2canvas(pageRef, {
             scale: 3,
@@ -7910,8 +7923,12 @@ export function BookMode() {
             backgroundColor: null,
             logging: false,
           })
-          
+
           // === RESTAURER ===
+          // Restaurer les images originales
+          imageBackups.forEach(({ parent, img, placeholder }) => {
+            parent.replaceChild(img, placeholder)
+          })
           pageRef.setAttribute('style', originalStyle)
           elementsToHide.forEach((el, i) => {
             el.style.display = originalDisplays[i]
