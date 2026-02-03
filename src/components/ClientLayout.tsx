@@ -15,38 +15,28 @@ interface ClientLayoutProps {
 }
 
 export function ClientLayout({ children }: ClientLayoutProps) {
-  const { aiName, aiVoice, setAiVoice } = useAppStore()
-  const { isInitialized, user } = useAuthStore()
+  const { setAiVoice } = useAppStore()
+  const { isInitialized, user, profile } = useAuthStore()
   const [showWelcomeSequence, setShowWelcomeSequence] = useState(false)
   const [voiceOnlyMode, setVoiceOnlyMode] = useState(false)
   const hasTriggeredRef = useRef(false)
   const hasCheckedVoiceRef = useRef(false)
   const welcomeOpenRef = useRef(false)
-  
+
   // Charger la configuration (clés API, famille) au démarrage
   useAppConfig()
-  
+
   // Synchroniser les préférences utilisateur avec Supabase
-  const { preferencesLoaded } = useSyncUserPreferences()
+  useSyncUserPreferences()
 
   // Afficher la séquence d'accueil si pas de nom d'IA ET utilisateur connecté
-  // IMPORTANT: Attendre que les préférences soient chargées depuis Supabase
+  // On vérifie profile.ai_name directement (source de vérité Supabase)
+  // au lieu de aiName du store Zustand (qui dépend du sync async et du localStorage
+  // vidé à la déconnexion — cause de race condition après logout→refresh→login)
   useEffect(() => {
-    if (hasTriggeredRef.current || aiName) {
-      return
-    }
-
-    // IMPORTANT: Ne pas afficher l'onboarding si pas initialisé ou pas connecté
-    if (!isInitialized || !user) {
-      return
-    }
-
-    // IMPORTANT: Attendre que les préférences soient chargées depuis Supabase
-    // preferencesLoaded = true SEULEMENT quand le profil a été lu et ai_name chargé
-    // Cela empêche de montrer l'onboarding pendant que Supabase charge le profil
-    if (!preferencesLoaded) {
-      return
-    }
+    if (hasTriggeredRef.current) return
+    if (!isInitialized || !user || !profile) return
+    if (profile.ai_name) return
 
     hasTriggeredRef.current = true
 
@@ -57,38 +47,38 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     }, 1500)
 
     return () => clearTimeout(timer)
-  }, [isInitialized, aiName, user, preferencesLoaded])
+  }, [isInitialized, user, profile])
 
   // Vérifier si la voix sauvegardée est disponible dans ce navigateur
-  // IMPORTANT: Attendre preferencesLoaded pour que aiName/aiVoice soient les valeurs Supabase
+  // On utilise profile.preferred_voice_id directement (source de vérité Supabase)
   useEffect(() => {
-    if (!aiName || !aiVoice || hasCheckedVoiceRef.current || !isInitialized || !preferencesLoaded) {
+    const voiceName = profile?.preferred_voice_id
+    if (!profile?.ai_name || !voiceName || hasCheckedVoiceRef.current || !isInitialized) {
       return
     }
 
-    // Attendre que les voix soient chargées
     const checkVoiceAvailability = () => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
         return
       }
 
       const voices = window.speechSynthesis.getVoices()
-      
+
       // Les voix peuvent ne pas être encore chargées
       if (voices.length === 0) {
         return
       }
 
       hasCheckedVoiceRef.current = true
-      
+
       // Vérifier si la voix sauvegardée est disponible
-      const voiceExists = voices.some(v => v.name === aiVoice)
-      
+      const voiceExists = voices.some(v => v.name === voiceName)
+
       if (!voiceExists) {
         // La voix n'est pas disponible (changement de navigateur)
-        console.log('🎤 Voix sauvegardée non disponible:', aiVoice)
+        console.log('🎤 Voix sauvegardée non disponible:', voiceName)
         console.log('🎤 Voix disponibles:', voices.map(v => v.name).join(', '))
-        
+
         // Reset la voix - NE PAS afficher la séquence si elle est déjà ouverte
         setAiVoice('')
         if (!welcomeOpenRef.current) {
@@ -97,13 +87,13 @@ export function ClientLayout({ children }: ClientLayoutProps) {
           setShowWelcomeSequence(true)
         }
       } else {
-        console.log('🎤 Voix trouvée:', aiVoice)
+        console.log('🎤 Voix trouvée:', voiceName)
       }
     }
 
     // Vérifier immédiatement
     checkVoiceAvailability()
-    
+
     // Et aussi quand les voix sont chargées (peut être asynchrone)
     window.speechSynthesis.onvoiceschanged = checkVoiceAvailability
 
@@ -112,7 +102,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
         window.speechSynthesis.onvoiceschanged = null
       }
     }
-  }, [isInitialized, aiName, aiVoice, setAiVoice, preferencesLoaded])
+  }, [isInitialized, profile, setAiVoice])
 
   return (
     <ToastProvider>
