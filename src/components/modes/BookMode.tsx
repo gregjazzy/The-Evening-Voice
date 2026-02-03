@@ -7899,16 +7899,30 @@ export function BookMode() {
             return display
           })
           
-          // Remplacer les <img> object-cover par des <div> background-image
-          // (html2canvas ne supporte pas objectFit: cover)
-          const imageBackups: { parent: HTMLElement; img: HTMLImageElement; placeholder: HTMLDivElement }[] = []
+          // Simuler objectFit: cover manuellement pour html2canvas
+          // (html2canvas v1.4.1 ne supporte pas objectFit)
+          // On calcule les dimensions réelles pour couvrir le conteneur
+          // en gardant le ratio de l'image, puis le parent overflow:hidden fait le crop.
+          const imageFixups: { img: HTMLImageElement; origStyle: string }[] = []
           pageRef.querySelectorAll('img').forEach((img) => {
             const computed = window.getComputedStyle(img)
-            if (computed.objectFit === 'cover' && img.parentElement) {
-              const div = document.createElement('div')
-              div.style.cssText = `width:100%;height:100%;background-image:url(${img.src});background-size:cover;background-position:center;opacity:${computed.opacity};`
-              imageBackups.push({ parent: img.parentElement, img, placeholder: div })
-              img.parentElement.replaceChild(div, img)
+            if (computed.objectFit === 'cover') {
+              const cW = img.clientWidth
+              const cH = img.clientHeight
+              const nW = img.naturalWidth
+              const nH = img.naturalHeight
+              if (nW > 0 && nH > 0 && cW > 0 && cH > 0) {
+                const scale = Math.max(cW / nW, cH / nH)
+                const sW = Math.ceil(nW * scale)
+                const sH = Math.ceil(nH * scale)
+                imageFixups.push({ img, origStyle: img.style.cssText })
+                img.style.objectFit = 'none'
+                img.style.width = `${sW}px`
+                img.style.height = `${sH}px`
+                img.style.maxWidth = 'none'
+                img.style.marginLeft = `${Math.round((cW - sW) / 2)}px`
+                img.style.marginTop = `${Math.round((cH - sH) / 2)}px`
+              }
             }
           })
 
@@ -7925,9 +7939,8 @@ export function BookMode() {
           })
 
           // === RESTAURER ===
-          // Restaurer les images originales
-          imageBackups.forEach(({ parent, img, placeholder }) => {
-            parent.replaceChild(img, placeholder)
+          imageFixups.forEach(({ img, origStyle }) => {
+            img.style.cssText = origStyle
           })
           pageRef.setAttribute('style', originalStyle)
           elementsToHide.forEach((el, i) => {
