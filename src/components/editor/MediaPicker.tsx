@@ -27,6 +27,7 @@ interface MediaPickerProps {
   onSelect: (url: string, type: 'image' | 'video' | 'audio') => void
   allowedTypes?: MediaType
   title?: string
+  storyId?: string // Filtrer les assets par histoire (si fourni)
 }
 
 export function MediaPicker({
@@ -35,8 +36,14 @@ export function MediaPicker({
   onSelect,
   allowedTypes = 'all',
   title = 'Ajouter un média',
+  storyId,
 }: MediaPickerProps) {
-  const { importedAssets } = useStudioStore()
+  const { importedAssets, getProjectAssets } = useStudioStore()
+  
+  // Si storyId est fourni, filtrer les assets par histoire
+  const baseAssets = storyId
+    ? importedAssets.filter(a => a.projectId === storyId)
+    : importedAssets
   const { upload, isUploading, progress } = useMediaUpload()
   const [activeTab, setActiveTab] = useState<'studio' | 'upload'>('studio')
   const [isDragging, setIsDragging] = useState(false)
@@ -44,7 +51,7 @@ export function MediaPicker({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Filtrer les assets selon le type autorisé
-  const filteredAssets = importedAssets.filter((asset) => {
+  const filteredAssets = baseAssets.filter((asset) => {
     if (allowedTypes === 'all') return true
     if (allowedTypes === 'image') return asset.type === 'image'
     if (allowedTypes === 'video') return asset.type === 'video'
@@ -69,14 +76,14 @@ export function MediaPicker({
       else if (file.type.startsWith('audio/')) type = 'audio'
 
       // Upload vers Supabase (images/audio) ou R2 (videos)
-      const result = await upload(file, { type, source: 'upload' })
+      const result = await upload(file, { type, source: 'upload', storyId })
       
       if (result) {
         onSelect(result.url, type)
         onClose()
       }
     },
-    [upload, onSelect, onClose]
+    [upload, onSelect, onClose, storyId]
   )
 
   const handleDrop = useCallback(

@@ -955,21 +955,41 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       console.log('✅ Asset généré:', assetUrl)
       setGeneratedAsset({ url: assetUrl, type: isVideo ? 'video' : 'image' })
       
-      // Ajouter automatiquement à la galerie (lié au projet actuel)
-      // ⚠️ L'URL est temporaire ! L'utilisateur doit cliquer "Garder" pour l'upload permanent
-      const assetName = isVideo 
+      // Auto-upload vers Supabase Storage pour URL permanente
+      const assetName = isVideo
         ? (currentKit.action?.substring(0, 30) || 'Vidéo') + '...'
         : (currentKit.subject?.substring(0, 30) || 'Image') + '...'
-      
-      addImportedAsset({
-        name: assetName,
-        url: assetUrl,
+
+      const uploadResult = await uploadFromUrl(assetUrl, {
         type: isVideo ? 'video' : 'image',
-        file: null,
-        source: isVideo ? 'runway' : 'midjourney', // Utiliser les types existants
-        promptUsed: currentKit.generatedPrompt,
-        projectId: currentStory?.id, // Lier à l'histoire actuelle
+        source: isVideo ? 'runway' : 'midjourney',
+        storyId: currentStory?.id,
       })
+
+      if (uploadResult) {
+        // Upload réussi - mettre à jour l'asset avec promptUsed et nom lisible
+        const assets = useStudioStore.getState().importedAssets
+        const uploaded = assets.find(a => a.cloudUrl === uploadResult.url)
+        if (uploaded) {
+          useStudioStore.getState().updateAsset(uploaded.id, {
+            name: assetName,
+            promptUsed: currentKit.generatedPrompt,
+            projectId: currentStory?.id,
+          })
+        }
+      } else {
+        // Fallback : URL temporaire si l'upload échoue
+        console.warn('⚠️ Auto-upload échoué, URL temporaire utilisée')
+        addImportedAsset({
+          name: assetName,
+          url: assetUrl,
+          type: isVideo ? 'video' : 'image',
+          file: null,
+          source: isVideo ? 'runway' : 'midjourney',
+          promptUsed: currentKit.generatedPrompt,
+          projectId: currentStory?.id,
+        })
+      }
       
       // Marquer les étapes comme complétées
       completeStep('review_prompt')
