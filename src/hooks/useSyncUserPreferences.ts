@@ -31,35 +31,51 @@ export function useSyncUserPreferences() {
   
   // Charger les préférences depuis Supabase au démarrage
   useEffect(() => {
-    if (!isInitialized || !profile || hasLoadedFromSupabase.current) {
+    if (!isInitialized || hasLoadedFromSupabase.current) {
       return
     }
-    
+
+    // Si pas de profil (session error, utilisateur déconnecté, etc.)
+    // → on marque quand même les préférences comme "chargées" pour débloquer l'onboarding
+    // mais on ne met PAS hasLoadedFromSupabase pour permettre un rechargement si le profil arrive plus tard
+    if (!profile) {
+      console.log('⚠️ Pas de profil Supabase - utilisation du cache localStorage')
+      if (!preferencesLoaded) {
+        setPreferencesLoaded(true)
+      }
+      return
+    }
+
     console.log('📥 Chargement des préférences depuis Supabase...')
     hasLoadedFromSupabase.current = true
-    
+
     // Charger le nom de l'IA depuis Supabase (priorité sur localStorage)
-    if (profile.ai_name && profile.ai_name !== aiName) {
-      console.log('📥 Nom IA depuis Supabase:', profile.ai_name)
-      setAiName(profile.ai_name)
+    // Supabase est la source de vérité : écraser la valeur localStorage
+    const supabaseAiName = profile.ai_name || ''
+    if (supabaseAiName !== aiName) {
+      console.log('📥 Nom IA depuis Supabase:', supabaseAiName || '(vide)')
+      setAiName(supabaseAiName)
     }
-    
+
     // Charger la voix depuis Supabase
-    if (profile.preferred_voice_id && profile.preferred_voice_id !== aiVoice) {
-      console.log('📥 Voix depuis Supabase:', profile.preferred_voice_id)
-      setAiVoice(profile.preferred_voice_id)
+    const supabaseVoice = profile.preferred_voice_id || ''
+    if (supabaseVoice !== aiVoice) {
+      console.log('📥 Voix depuis Supabase:', supabaseVoice || '(vide)')
+      setAiVoice(supabaseVoice)
     }
-    
+
     // Charger le nom de l'enfant (c'est le champ 'name' dans profiles)
     if (profile.name && profile.name !== userName) {
       console.log('📥 Prénom enfant depuis Supabase:', profile.name)
       setUserName(profile.name)
     }
-    
+
     // Marquer les préférences comme chargées
     setPreferencesLoaded(true)
     console.log('✅ Préférences chargées depuis Supabase')
-  }, [isInitialized, profile, aiName, aiVoice, userName, setAiName, setAiVoice, setUserName])
+  }, [isInitialized, profile, setAiName, setAiVoice, setUserName]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: aiName, aiVoice, userName exclus des deps volontairement pour éviter
+  // une boucle (on les lit une fois, puis on les écrase avec les valeurs Supabase)
   
   // Sauvegarder vers Supabase (debounced)
   const saveToSupabase = useCallback(async (updates: {

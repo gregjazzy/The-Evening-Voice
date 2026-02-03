@@ -3,6 +3,7 @@
 import { ReactNode, useState, useEffect, useRef } from 'react'
 import { MentorProvider } from './mentor/MentorProvider'
 import { ToastProvider } from './ui/Toast'
+import { GlobalNotifications } from './ui/GlobalNotifications'
 import { AIWelcomeSequence } from './ui/AIWelcomeSequence'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -20,6 +21,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   const [voiceOnlyMode, setVoiceOnlyMode] = useState(false)
   const hasTriggeredRef = useRef(false)
   const hasCheckedVoiceRef = useRef(false)
+  const welcomeOpenRef = useRef(false)
   
   // Charger la configuration (clés API, famille) au démarrage
   useAppConfig()
@@ -33,30 +35,33 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     if (hasTriggeredRef.current || aiName) {
       return
     }
-    
+
     // IMPORTANT: Ne pas afficher l'onboarding si pas initialisé ou pas connecté
     if (!isInitialized || !user) {
       return
     }
-    
+
     // IMPORTANT: Attendre que les préférences soient chargées depuis Supabase
     // Sinon on risque de montrer l'onboarding alors que l'utilisateur a déjà un aiName en base
     if (!preferencesLoaded) {
       return
     }
-    
+
     hasTriggeredRef.current = true
-    
-    setTimeout(() => {
+
+    const timer = setTimeout(() => {
+      welcomeOpenRef.current = true
       setShowWelcomeSequence(true)
       setVoiceOnlyMode(false)
     }, 1500)
+
+    return () => clearTimeout(timer)
   }, [isInitialized, aiName, user, preferencesLoaded])
 
   // Vérifier si la voix sauvegardée est disponible dans ce navigateur
+  // IMPORTANT: Attendre preferencesLoaded pour que aiName/aiVoice soient les valeurs Supabase
   useEffect(() => {
-    // Ne vérifier que si on a un nom ET une voix sauvegardée
-    if (!aiName || !aiVoice || hasCheckedVoiceRef.current || !isInitialized) {
+    if (!aiName || !aiVoice || hasCheckedVoiceRef.current || !isInitialized || !preferencesLoaded) {
       return
     }
 
@@ -85,7 +90,8 @@ export function ClientLayout({ children }: ClientLayoutProps) {
         
         // Reset la voix - NE PAS afficher la séquence si elle est déjà ouverte
         setAiVoice('')
-        if (!showWelcomeSequence) {
+        if (!welcomeOpenRef.current) {
+          welcomeOpenRef.current = true
           setVoiceOnlyMode(true)
           setShowWelcomeSequence(true)
         }
@@ -105,7 +111,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
         window.speechSynthesis.onvoiceschanged = null
       }
     }
-  }, [isInitialized, aiName, aiVoice, setAiVoice])
+  }, [isInitialized, aiName, aiVoice, setAiVoice, preferencesLoaded])
 
   return (
     <ToastProvider>
@@ -115,9 +121,12 @@ export function ClientLayout({ children }: ClientLayoutProps) {
         {/* Séquence d'accueil interactive avec l'IA */}
         <AIWelcomeSequence
           isOpen={showWelcomeSequence}
-          onComplete={() => setShowWelcomeSequence(false)}
+          onComplete={() => { welcomeOpenRef.current = false; setShowWelcomeSequence(false) }}
           voiceOnlyMode={voiceOnlyMode}
         />
+        
+        {/* Notifications globales (erreurs de sync, etc.) */}
+        <GlobalNotifications />
       </MentorProvider>
     </ToastProvider>
   )
