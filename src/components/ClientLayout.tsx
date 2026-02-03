@@ -29,6 +29,16 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   // Synchroniser les préférences utilisateur avec Supabase
   useSyncUserPreferences()
 
+  // Reset des refs quand l'utilisateur se déconnecte
+  // (le composant ne remonte pas entre logout→login si pas de refresh)
+  useEffect(() => {
+    if (!user) {
+      hasTriggeredRef.current = false
+      hasCheckedVoiceRef.current = false
+      welcomeOpenRef.current = false
+    }
+  }, [user])
+
   // Afficher la séquence d'accueil si pas de nom d'IA ET utilisateur connecté
   // On vérifie profile.ai_name directement (source de vérité Supabase)
   // au lieu de aiName du store Zustand (qui dépend du sync async et du localStorage
@@ -51,53 +61,73 @@ export function ClientLayout({ children }: ClientLayoutProps) {
 
   // Vérifier si la voix sauvegardée est disponible dans ce navigateur
   // On utilise profile.preferred_voice_id directement (source de vérité Supabase)
+  //
+  // IMPORTANT: speechSynthesis.getVoices() peut retourner une liste PARTIELLE
+  // au premier appel (voix système uniquement). Les voix premium/enhanced
+  // arrivent plus tard via l'event onvoiceschanged. On ne doit PAS décider
+  // que la voix est absente sur la liste partielle — sinon faux positif aléatoire.
+  //
+  // Stratégie : si la voix est trouvée immédiatement → OK, terminé.
+  // Si non trouvée → attendre onvoiceschanged (ou timeout 3s) avant de conclure.
   useEffect(() => {
     const voiceName = profile?.preferred_voice_id
     if (!profile?.ai_name || !voiceName || hasCheckedVoiceRef.current || !isInitialized) {
       return
     }
 
-    const checkVoiceAvailability = () => {
-      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-        return
-      }
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return
+    }
 
-      const voices = window.speechSynthesis.getVoices()
+    let resolved = false
 
-      // Les voix peuvent ne pas être encore chargées
-      if (voices.length === 0) {
-        return
-      }
-
+    const resolve = (voiceFound: boolean) => {
+      if (resolved) return
+      resolved = true
       hasCheckedVoiceRef.current = true
 
-      // Vérifier si la voix sauvegardée est disponible
-      const voiceExists = voices.some(v => v.name === voiceName)
-
-      if (!voiceExists) {
-        // La voix n'est pas disponible (changement de navigateur)
-        console.log('🎤 Voix sauvegardée non disponible:', voiceName)
+      if (voiceFound) {
+        console.log('🎤 Voix trouvée:', voiceName)
+      } else {
+        console.log('🎤 Voix non disponible:', voiceName)
+        const voices = window.speechSynthesis.getVoices()
         console.log('🎤 Voix disponibles:', voices.map(v => v.name).join(', '))
-
-        // Reset la voix - NE PAS afficher la séquence si elle est déjà ouverte
         setAiVoice('')
         if (!welcomeOpenRef.current) {
           welcomeOpenRef.current = true
           setVoiceOnlyMode(true)
           setShowWelcomeSequence(true)
         }
-      } else {
-        console.log('🎤 Voix trouvée:', voiceName)
       }
     }
 
-    // Vérifier immédiatement
-    checkVoiceAvailability()
+    const checkVoices = (isFinalCheck: boolean) => {
+      if (resolved) return
+      const voices = window.speechSynthesis.getVoices()
+      if (voices.length === 0) return
 
-    // Et aussi quand les voix sont chargées (peut être asynchrone)
-    window.speechSynthesis.onvoiceschanged = checkVoiceAvailability
+      const voiceExists = voices.some(v => v.name === voiceName)
+      if (voiceExists) {
+        // Voix trouvée → résoudre immédiatement
+        resolve(true)
+      } else if (isFinalCheck) {
+        // Check final (après onvoiceschanged ou timeout) → voix absente
+        resolve(false)
+      }
+      // Si pas trouvée et pas final → on attend onvoiceschanged/timeout
+    }
+
+    // Check immédiat : résout seulement si la voix EST trouvée
+    checkVoices(false)
+
+    // onvoiceschanged : la liste complète est disponible → check final
+    window.speechSynthesis.onvoiceschanged = () => checkVoices(true)
+
+    // Fallback : si onvoiceschanged ne se déclenche jamais (certains navigateurs)
+    const fallback = setTimeout(() => checkVoices(true), 3000)
 
     return () => {
+      clearTimeout(fallback)
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = null
       }
