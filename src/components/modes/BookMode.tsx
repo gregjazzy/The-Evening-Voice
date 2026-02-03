@@ -53,6 +53,7 @@ import {
   Edit3,
   Settings,
   Wand2,
+  Download,
 } from 'lucide-react'
 import { useAppStore, type Story, type BookFormat } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
@@ -66,6 +67,8 @@ import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { CharacterImageCreator } from '@/components/studio/CharacterImageCreator'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 
 // ============================================================================
 // TYPES
@@ -945,15 +948,21 @@ function useSpeechRecognition(locale: string = 'fr'): UseSpeechRecognitionReturn
   return { isListening, isSupported, transcript, startListening, stopListening, resetTranscript }
 }
 
-const LINE_SPACINGS = {
-  tight: { label: 'Serré', value: '1.4', pixelHeight: 24 },
-  normal: { label: 'Normal', value: '1.7', pixelHeight: 32 },
-  relaxed: { label: 'Aéré', value: '2.2', pixelHeight: 40 },
-}
+import {
+  LINE_SPACINGS,
+  REFERENCE_PAGE_WIDTH,
+  DECORATION_BASE_SIZE,
+  PAGE_PADDING,
+  getPageScale,
+  getBaseLineHeightPx,
+  getScaledLineHeightPx,
+  getScaledFontSize,
+} from '@/lib/rendering/pageRendering'
+import type { LineSpacing } from '@/lib/rendering/pageRendering'
 
-// Fonction helper pour calculer la hauteur de ligne en pixels
+// Fonction helper pour calculer la hauteur de ligne en pixels (à la taille de référence)
 const getLineHeightPx = (lineSpacing: 'tight' | 'normal' | 'relaxed') => {
-  return LINE_SPACINGS[lineSpacing]?.pixelHeight || 32
+  return getBaseLineHeightPx(lineSpacing as LineSpacing)
 }
 
 // ============================================================================
@@ -1757,9 +1766,10 @@ interface DraggableTextBoxProps {
   onStyleChange: (id: string, style: PageTextBox['style']) => void
   onDelete: (id: string) => void
   containerRef: React.RefObject<HTMLDivElement>
+  pageWidth?: number
 }
 
-function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleChange, onDelete, containerRef }: DraggableTextBoxProps) {
+function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleChange, onDelete, containerRef, pageWidth = REFERENCE_PAGE_WIDTH }: DraggableTextBoxProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -1880,7 +1890,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
     setIsEditing(false)
   }
 
-  const lineHeightPx = getLineHeightPx(textBox.style.lineSpacing || 'normal')
+  const lineHeightPx = getScaledLineHeightPx((textBox.style.lineSpacing || 'normal') as LineSpacing, pageWidth)
 
   return (
     <div
@@ -1927,12 +1937,13 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
             }
           }}
           className={cn(
-            "w-full h-full p-2 overflow-auto outline-none",
+            "w-full h-full overflow-auto outline-none",
             !isEditing && "pointer-events-none"
           )}
           style={{
+            padding: `${8 * getPageScale(pageWidth)}px`,
             fontFamily: textBox.style.fontFamily,
-            fontSize: `${textBox.style.fontSize}px`,
+            fontSize: `${getScaledFontSize(textBox.style.fontSize, pageWidth)}px`,
             color: textBox.style.color,
             textAlign: textBox.style.textAlign,
             fontWeight: textBox.style.isBold ? 'bold' : 'normal',
@@ -2408,9 +2419,11 @@ function DraggableDecoration({
 
       {/* SVG de la décoration - pointer-events:none pour que le clic soit capturé par le parent */}
       <div
-        className="w-16 h-16 transition-transform hover:scale-110"
-        style={{ 
-          color, 
+        className="transition-transform hover:scale-110"
+        style={{
+          width: `${DECORATION_BASE_SIZE}px`,
+          height: `${DECORATION_BASE_SIZE}px`,
+          color,
           pointerEvents: 'none',
           filter: glowEnabled 
             ? `drop-shadow(0 0 ${Math.round(glowIntensity / 10)}px ${glowColor}) drop-shadow(0 0 ${Math.round(glowIntensity / 5)}px ${glowColor})`
@@ -4861,6 +4874,10 @@ interface WritingAreaProps {
   hasBackCover?: boolean
   onShowFrontCover?: () => void
   onShowBackCover?: () => void
+  // Export PDF
+  onExportPdf?: () => void
+  isExportingPdf?: boolean
+  exportStatus?: string
 }
 
 // Helper pour obtenir le ratio du format
@@ -4956,11 +4973,79 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
   )
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
   
   // Calculer le ratio du format (largeur/hauteur)
   const formatRatio = getFormatRatio(bookFormat)
   const formatConfig = BOOK_FORMATS.find(f => f.id === bookFormat)
+  
+  // 📐 Calcul des dimensions du livre en JavaScript (compatible Safari)
+  const SPINE_WIDTH = 16 // Largeur de la reliure en px (w-4)
+  const bookContainerRef = useRef<HTMLDivElement>(null)
+  const [bookDimensions, setBookDimensions] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const calculateBookDimensions = () => {
+      if (!bookContainerRef.current) return
+
+      const container = bookContainerRef.current
+      const containerRect = container.getBoundingClientRect()
+      const availableWidth = containerRect.width - 60 // Padding pour les flèches
+      const availableHeight = containerRect.height - 40
+
+      if (availableWidth <= 0 || availableHeight <= 0) return
+
+      // L'espace disponible pour les 2 pages (sans le spine)
+      const pageAreaWidth = availableWidth - SPINE_WIDTH
+
+      // Le spread fait 2 pages côte à côte, donc ratio = 2 * formatRatio
+      const spreadRatio = 2 * formatRatio
+
+      // Calculer la taille max qui "contient" le livre dans l'espace disponible
+      let bookWidth: number
+      let bookHeight: number
+
+      if (pageAreaWidth / availableHeight > spreadRatio) {
+        // L'espace est plus large que le ratio -> limité par la hauteur
+        bookHeight = availableHeight
+        bookWidth = bookHeight * spreadRatio
+      } else {
+        // L'espace est plus haut que le ratio -> limité par la largeur
+        bookWidth = pageAreaWidth
+        bookHeight = bookWidth / spreadRatio
+      }
+
+      // bookDimensions.width = largeur des 2 pages SANS spine
+      setBookDimensions({ width: Math.round(bookWidth), height: Math.round(bookHeight) })
+    }
+    
+    // Utiliser ResizeObserver pour Safari (plus fiable que window.resize)
+    const resizeObserver = new ResizeObserver(() => {
+      calculateBookDimensions()
+    })
+    
+    if (bookContainerRef.current) {
+      resizeObserver.observe(bookContainerRef.current)
+    }
+    
+    // Calcul initial après un délai (pour que le layout soit prêt)
+    const timeout1 = setTimeout(calculateBookDimensions, 50)
+    const timeout2 = setTimeout(calculateBookDimensions, 200)
+    const timeout3 = setTimeout(calculateBookDimensions, 500)
+    
+    return () => {
+      resizeObserver.disconnect()
+      clearTimeout(timeout1)
+      clearTimeout(timeout2)
+      clearTimeout(timeout3)
+    }
+  }, [formatRatio])
+
+  // Scale factor: le livre fait 2 pages, chaque page = moitié de la largeur (sans spine)
+  const singlePageWidth = bookDimensions.width > 0 ? bookDimensions.width / 2 : 0
+  const pageWidth = singlePageWidth > 0 ? singlePageWidth : REFERENCE_PAGE_WIDTH
+  const pageScale = getPageScale(pageWidth)
+
   // Styles séparés pour chaque page
   const rightStyle = page?.style || DEFAULT_STYLE
   const leftStyle = leftPage?.style || DEFAULT_STYLE
@@ -4970,6 +5055,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const lastContentRef = useRef<string>(page?.content || '')
   const lastLeftContentRef = useRef<string>(leftPage?.content || '')
   const lastZoomContentRef = useRef<string>('')
+  const [pageFullIndicator, setPageFullIndicator] = useState<'left' | 'right' | 'zoom' | null>(null)
+  const pageFullTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   
   // 📐 Le ratio du format détermine les proportions CSS (aspect-ratio)
   // Le livre s'adapte automatiquement à l'espace disponible via CSS flexbox
@@ -4998,6 +5085,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   
   // État pour tracker quelle page est en mode dictée
   const [dictatingPage, setDictatingPage] = useState<'left' | 'right' | 'zoom' | null>(null)
+  
   
   // Helper pour obtenir les styles de couleur de page
   const getPageColorStyles = (color?: PageColor) => {
@@ -5031,6 +5119,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
       setZoomedPage(externalZoomedPage)
     }
   }, [externalZoomedPage])
+  
   
   // Speech recognition for dictation
   const { isListening, isSupported, transcript, startListening, stopListening, resetTranscript } = useSpeechRecognition(locale)
@@ -5100,9 +5189,42 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
     }
   }, [zoomedPage]) // Seulement quand on entre/sort du mode zoom
   
+  // Helper : placer le curseur à la fin d'un élément contentEditable
+  const placeCaretAtEnd = (el: HTMLElement) => {
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    range.collapse(false)
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(range)
+  }
+
+  // Helper : afficher l'indicateur "page pleine" pendant 2 secondes
+  const showPageFullIndicator = (which: 'left' | 'right' | 'zoom') => {
+    if (pageFullTimerRef.current) clearTimeout(pageFullTimerRef.current)
+    setPageFullIndicator(which)
+    pageFullTimerRef.current = setTimeout(() => setPageFullIndicator(null), 2000)
+  }
+
+  // Helper : vérifier si un éditeur déborde et revenir au contenu précédent
+  const checkOverflowAndRevert = (
+    editor: HTMLElement,
+    lastRef: React.MutableRefObject<string>,
+    page: 'left' | 'right' | 'zoom'
+  ): boolean => {
+    if (editor.scrollHeight > editor.clientHeight) {
+      editor.innerHTML = lastRef.current
+      placeCaretAtEnd(editor)
+      showPageFullIndicator(page)
+      return true // overflow détecté
+    }
+    return false
+  }
+
   // Gérer les changements de contenu
   const handleInput = () => {
     if (editorRef.current) {
+      if (checkOverflowAndRevert(editorRef.current, lastContentRef, 'right')) return
       const html = editorRef.current.innerHTML
       lastContentRef.current = html
       onContentChange(html)
@@ -5111,23 +5233,59 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
 
   const handleLeftInput = () => {
     if (leftEditorRef.current && onLeftContentChange) {
+      if (checkOverflowAndRevert(leftEditorRef.current, lastLeftContentRef, 'left')) return
       const html = leftEditorRef.current.innerHTML
       lastLeftContentRef.current = html
       onLeftContentChange(html)
     }
   }
-  
+
+  // Gérer le copier-coller avec vérification de débordement
+  const handlePaste = (
+    editor: React.RefObject<HTMLDivElement | null>,
+    lastRef: React.MutableRefObject<string>,
+    page: 'left' | 'right' | 'zoom',
+    onChange: (html: string) => void
+  ) => (e: React.ClipboardEvent) => {
+    // Sauvegarder le contenu avant le paste
+    const savedContent = lastRef.current
+    // Laisser le paste se produire, puis vérifier le débordement
+    requestAnimationFrame(() => {
+      if (editor.current && editor.current.scrollHeight > editor.current.clientHeight) {
+        // Débordement : revenir au contenu avant le paste
+        editor.current.innerHTML = savedContent
+        placeCaretAtEnd(editor.current)
+        showPageFullIndicator(page)
+      } else if (editor.current) {
+        const html = editor.current.innerHTML
+        lastRef.current = html
+        onChange(html)
+      }
+    })
+  }
+
   // Append transcript to content when dictation stops
   useEffect(() => {
     if (!isListening && transcript && dictatingPage) {
       // Sélectionner le bon éditeur selon la page en dictée
-      const targetEditor = dictatingPage === 'left' ? leftEditorRef.current 
-                         : dictatingPage === 'zoom' ? zoomedEditorRef.current 
+      const targetEditor = dictatingPage === 'left' ? leftEditorRef.current
+                         : dictatingPage === 'zoom' ? zoomedEditorRef.current
                          : editorRef.current
-      
+      const targetLastRef = dictatingPage === 'left' ? lastLeftContentRef
+                          : dictatingPage === 'zoom' ? lastZoomContentRef
+                          : lastContentRef
+      const targetPage = dictatingPage === 'zoom' ? 'zoom' as const : dictatingPage as 'left' | 'right'
+
       if (targetEditor) {
+        const savedContent = targetLastRef.current
         targetEditor.focus()
         document.execCommand('insertText', false, transcript)
+        // Vérifier le débordement après insertion de la dictée
+        if (targetEditor.scrollHeight > targetEditor.clientHeight) {
+          targetEditor.innerHTML = savedContent
+          placeCaretAtEnd(targetEditor)
+          showPageFullIndicator(targetPage)
+        }
         resetTranscript()
         setDictatingPage(null)
       }
@@ -5152,24 +5310,24 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
     ru: { start: 'Диктовать', stop: 'Стоп', listening: 'Слушаю...' },
   }
 
-  // Hauteur de ligne en pixels pour chaque page
-  const rightLineHeightPx = getLineHeightPx(rightStyle.lineSpacing as 'tight' | 'normal' | 'relaxed')
-  const leftLineHeightPx = getLineHeightPx(leftStyle.lineSpacing as 'tight' | 'normal' | 'relaxed')
-  
-  // Style du texte pour la page droite
+  // Hauteur de ligne en pixels pour chaque page (scalées)
+  const rightLineHeightPx = getScaledLineHeightPx((rightStyle.lineSpacing || 'normal') as LineSpacing, pageWidth)
+  const leftLineHeightPx = getScaledLineHeightPx((leftStyle.lineSpacing || 'normal') as LineSpacing, pageWidth)
+
+  // Style du texte pour la page droite (scalé)
   const rightTextStyle: React.CSSProperties = {
     fontFamily: rightStyle.fontFamily,
-    fontSize: `${rightStyle.fontSize}px`,
+    fontSize: `${getScaledFontSize(rightStyle.fontSize, pageWidth)}px`,
     lineHeight: `${rightLineHeightPx}px`,
     fontWeight: rightStyle.isBold ? 'bold' : 'normal',
     fontStyle: rightStyle.isItalic ? 'italic' : 'normal',
     textAlign: rightStyle.textAlign,
   }
-  
-  // Style du texte pour la page gauche
+
+  // Style du texte pour la page gauche (scalé)
   const leftTextStyle: React.CSSProperties = {
     fontFamily: leftStyle.fontFamily,
-    fontSize: `${leftStyle.fontSize}px`,
+    fontSize: `${getScaledFontSize(leftStyle.fontSize, pageWidth)}px`,
     lineHeight: `${leftLineHeightPx}px`,
     fontWeight: leftStyle.isBold ? 'bold' : 'normal',
     fontStyle: leftStyle.isItalic ? 'italic' : 'normal',
@@ -5289,9 +5447,34 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <LayoutGrid className="w-4 h-4" />
             </button>
           )}
-          {/* Couvertures supprimées - Page 1 = couverture, dernière page = 4ème */}
+          {/* Bouton Export PDF HD */}
+          {onExportPdf && (
+            <button
+              onClick={onExportPdf}
+              disabled={isExportingPdf}
+              className="p-1.5 rounded-lg bg-aurora-600/50 hover:bg-aurora-600 text-white/80 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-wait"
+              title="Exporter PDF HD (300 DPI)"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+          {exportStatus && (
+            <span className="text-xs text-aurora-400 animate-pulse">{exportStatus}</span>
+          )}
         </div>
       </div>
+      
+      {/* Overlay pendant l'export - positionné en haut pour ne pas gêner la capture */}
+      {exportStatus && (
+        <div 
+          data-export-overlay="true"
+          className="export-overlay fixed top-4 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
+        >
+          <div className="bg-midnight-900 px-8 py-4 rounded-xl shadow-2xl border border-white/20">
+            <p className="text-white font-medium text-lg">{exportStatus}</p>
+          </div>
+        </div>
+      )}
       
       {/* MODE ZOOM - Page unique agrandie */}
       {zoomedPage ? (() => {
@@ -5305,6 +5488,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         const zHandleInput = () => {
           // Mettre à jour en temps réel pendant l'édition
           if (zoomedEditorRef.current) {
+            if (checkOverflowAndRevert(zoomedEditorRef.current, lastZoomContentRef, 'zoom')) return
             const html = zoomedEditorRef.current.innerHTML
             // Tracker le contenu pour éviter les réinitialisations
             lastZoomContentRef.current = html
@@ -5346,11 +5530,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             exit={{ scale: 0.8, opacity: 0 }}
             className="relative flex flex-col shadow-2xl"
             style={{
-              // En mode zoom, une seule page qui remplit l'espace disponible
-              height: '100%',
+              // En mode zoom, une seule page qui respecte le ratio du format
               aspectRatio: `${formatRatio} / 1`,
-              maxHeight: 'calc(100vh - 120px)',
-              maxWidth: 'calc(100vw - 200px)',
+              // Hauteur = min entre (hauteur dispo) et (largeur dispo / ratio)
+              height: `min(calc(100vh - 140px), calc((100vw - 250px) / ${formatRatio}))`,
+              width: 'auto',
               background: getPageColorStyles(bookColor).background,
               borderRadius: '12px',
               overflow: 'visible',
@@ -5562,6 +5746,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onStyleChange={(id, style) => onTextBoxStyleChange?.(zPageIndex, id, style)}
                 onDelete={(id) => onTextBoxDelete?.(zPageIndex, id)}
                 containerRef={zoomedPageContainerRef}
+                pageWidth={pageWidth}
               />
             ))}
       
@@ -5570,8 +5755,12 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               {/* Lignes de cahier (conditionnelles) - synchronisées avec lineHeight */}
               {showLines && (
               <div 
-                className="absolute inset-0 pointer-events-none"
+                className="absolute pointer-events-none"
                 style={{
+                  left: '10%',
+                  right: '10%',
+                  top: '8%',
+                  bottom: '12%',
                   backgroundImage: `repeating-linear-gradient(transparent, transparent ${zLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${zLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${zLineHeightPx}px)`,
                   backgroundSize: `100% ${zLineHeightPx}px`,
                 }}
@@ -5580,7 +5769,11 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               
               {/* Marge rouge (conditionnelle) */}
               {showLines && (
-              <div className="absolute left-12 top-0 bottom-0 w-px bg-red-300/40 pointer-events-none" />
+              <div 
+                data-pdf-hide="true"
+                className="absolute w-px bg-red-300/40 pointer-events-none" 
+                style={{ left: '10%', top: '8%', bottom: '12%' }}
+              />
               )}
       
               {/* Zone de texte contentEditable */}
@@ -5588,13 +5781,21 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 ref={zoomedEditorRef}
                 contentEditable={!isLocked}
                 onInput={zHandleInput}
+                onPaste={handlePaste(zoomedEditorRef, lastZoomContentRef, 'zoom', (html) => {
+                  if (zoomedPage === 'left' && onLeftContentChange) onLeftContentChange(html)
+                  else onContentChange(html)
+                })}
                 data-placeholder={placeholders[locale]}
                 style={{
                   ...zTextStyle,
                   color: '#3d3426',
+                  paddingLeft: '10%',
+                  paddingRight: '10%',
+                  paddingTop: '8%',
+                  paddingBottom: '12%',
                 }}
           className={cn(
-                  'absolute inset-0 px-12 pt-0 pb-12 overflow-y-auto',
+                  'absolute inset-0 overflow-hidden',
                   'font-serif',
                   'focus:outline-none',
                   'empty:before:content-[attr(data-placeholder)] empty:before:text-amber-500/40 empty:before:pointer-events-none'
@@ -5602,8 +5803,17 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               />
           </div>
           
+        {/* Indicateur page pleine - zoom */}
+            {pageFullIndicator === 'zoom' && (
+              <div data-pdf-hide="true" className="absolute bottom-[14%] left-0 right-0 z-20 flex justify-center pointer-events-none animate-in fade-in duration-300">
+                <span className="bg-amber-100/90 text-amber-700 text-sm font-serif px-4 py-1.5 rounded-full shadow-sm border border-amber-200/60">
+                  {locale === 'fr' ? 'Page pleine !' : 'Page full!'}
+                </span>
+              </div>
+            )}
+
         {/* Barre d'outils en bas */}
-            <div className="relative z-10 px-8 py-3 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent">
+            <div data-pdf-hide="true" className="relative z-10 px-8 py-3 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent">
               <span className="text-sm text-amber-700/50 font-serif">{getWordCount(zPage.content)} {locale === 'fr' ? 'mots' : 'words'}</span>
           <div className="flex items-center gap-2">
                 <button
@@ -5695,7 +5905,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             </div>
             
             {/* Numéro de page / Badge couverture */}
-            <div className={cn(
+            <div 
+              data-pdf-hide="true"
+              className={cn(
               "text-center pb-4 text-sm font-serif relative z-10",
               zPageIndex === 0 
                 ? "text-amber-500 font-bold" 
@@ -5735,18 +5947,23 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         )}
         
         {/* Zone du livre - TOUT l'espace disponible */}
-        <div className="relative flex-1 h-full overflow-hidden flex items-center justify-center">
-          {/* LIVRE - Prend TOUT l'espace disponible */}
-          <div 
+        <div 
+          ref={bookContainerRef}
+          className="relative flex-1 h-full overflow-hidden flex items-center justify-center"
+        >
+          {/* LIVRE - Dimensions calculées en JS (compatible Safari) */}
+          <div
             className="relative flex shadow-2xl"
             style={{
-              // Le livre prend toute la place disponible
-              width: '100%',
-              height: '100%',
-              // Mais garde son ratio (2 pages côte à côte)
-              maxWidth: `calc((100vh - 180px) * ${2 * formatRatio})`,
-              maxHeight: `calc((100vw - 200px) / ${2 * formatRatio})`,
-              aspectRatio: `${2 * formatRatio} / 1`,
+              // Largeur totale = 2 pages + spine
+              width: bookDimensions.width > 0 ? `${bookDimensions.width + SPINE_WIDTH}px` : 'auto',
+              height: bookDimensions.height > 0 ? `${bookDimensions.height}px` : 'auto',
+              // Fallback CSS si JS n'a pas encore calculé
+              ...(bookDimensions.width === 0 && {
+                aspectRatio: `${2 * formatRatio} / 1`,
+                maxHeight: 'calc(100vh - 200px)',
+                maxWidth: 'calc(100vw - 450px)',
+              }),
               perspective: '2000px',
             }}
           >
@@ -5762,11 +5979,13 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             <div className="absolute -bottom-4 left-4 right-4 h-8 bg-black/30 blur-xl rounded-full" />
           
           {/* PAGE GAUCHE (page d'écriture) */}
-          <div 
+          <div
             ref={leftPageContainerRef}
-            className="relative flex flex-col group w-1/2 h-full"
+            data-page-side="left"
+            className="relative group h-full"
             onClick={() => setActivePage('left')}
             style={{
+              width: singlePageWidth > 0 ? `${singlePageWidth}px` : '50%',
               background: getPageColorStyles(bookColor).background,
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
@@ -5884,17 +6103,19 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onStyleChange={(id, style) => onTextBoxStyleChange?.(leftPageIndex, id, style)}
                 onDelete={(id) => onTextBoxDelete?.(leftPageIndex, id)}
                 containerRef={leftPageContainerRef}
+                pageWidth={pageWidth}
               />
             ))}
-            
-            {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
+
+            {/* En-tête avec chapitre - overlay absolu dans la zone de padding top */}
             {(() => {
               const leftChapter = chapters.find(c => c.id === leftPage?.chapterId)
               const alignment = leftChapter?.titleAlignment || 'center'
               if (alignment === 'hidden') {
                 return (
-                  <div 
-                    className="min-h-[32px] border-b border-amber-300/20 flex-shrink-0 cursor-pointer hover:bg-amber-100/30 transition-colors relative"
+                  <div
+                    data-pdf-hide="true"
+                    className="absolute top-0 left-0 right-0 z-20 min-h-[32px] border-b border-amber-300/20 cursor-pointer hover:bg-amber-100/30 transition-colors"
                     onClick={() => leftChapter && setAlignmentMenuOpen(alignmentMenuOpen === 'left' ? null : 'left')}
                   >
                     {alignmentMenuOpen === 'left' && leftChapter && (
@@ -5927,9 +6148,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 )
               }
               return (
-                <div 
+                <div
+                  data-pdf-hide="true"
                   className={cn(
-                    "px-4 pt-2 pb-1 border-b border-amber-300/20 relative z-10 min-h-[32px] flex items-center flex-shrink-0 cursor-pointer hover:bg-amber-100/30 transition-colors",
+                    "absolute top-0 left-0 right-0 z-20 px-4 pt-2 pb-1 border-b border-amber-300/20 min-h-[32px] flex items-center cursor-pointer hover:bg-amber-100/30 transition-colors",
                     alignment === 'left' && 'justify-start',
                     alignment === 'center' && 'justify-center',
                     alignment === 'right' && 'justify-end'
@@ -5946,7 +6168,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   ) : (
                     <span className="text-amber-400/20 text-xs">—</span>
                   )}
-                  
+
                   {alignmentMenuOpen === 'left' && leftChapter && (
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
                       {[
@@ -5979,49 +6201,75 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Lignes de cahier (conditionnelles) - synchronisées avec lineHeight */}
             {showLines && (
-              <div className="absolute inset-x-4 lg:inset-x-10 top-[32px] bottom-12" style={{
-                backgroundImage: `repeating-linear-gradient(transparent, transparent ${leftLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${leftLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${leftLineHeightPx}px)`,
-                backgroundSize: `100% ${leftLineHeightPx}px`,
-              }} />
+              <div 
+                className="absolute"
+                style={{
+                  left: '10%',
+                  right: '10%',
+                  top: '8%',
+                  bottom: '12%',
+                  backgroundImage: `repeating-linear-gradient(transparent, transparent ${leftLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${leftLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${leftLineHeightPx}px)`,
+                  backgroundSize: `100% ${leftLineHeightPx}px`,
+                }} 
+              />
             )}
             
             {/* Marge rouge (à droite pour page gauche, conditionnelle) */}
             {showLines && (
-              <div className="absolute right-4 lg:right-10 top-[32px] bottom-12 w-px bg-red-300/40" />
+              <div 
+                data-pdf-hide="true"
+                className="absolute w-px bg-red-300/40" 
+                style={{ right: '10%', top: '8%', bottom: '12%' }}
+              />
             )}
             
-            {/* Zone d'écriture - page gauche TipTap */}
+            {/* Zone d'écriture - page gauche - absolute, même layout que ExactPageRenderer */}
             {leftPage ? (
               <div
                 key={`left-${leftPageIndex}-${zoomedPage === null}`}
                 ref={leftEditorRef}
                 contentEditable={!isLocked}
                 onInput={handleLeftInput}
+                onPaste={handlePaste(leftEditorRef, lastLeftContentRef, 'left', onLeftContentChange!)}
                 onClick={(e) => { e.stopPropagation(); setActivePage('left'); }}
                 data-placeholder={placeholders[locale]}
                 style={{
                   ...leftTextStyle,
                   color: '#3d3426',
+                  paddingLeft: '10%',
+                  paddingRight: '10%',
+                  paddingTop: '8%',
+                  paddingBottom: '12%',
                 }}
                 className={cn(
-                  'flex-1 px-4 lg:px-10 pt-0 pb-12 overflow-y-auto relative z-10',
+                  'absolute inset-0 overflow-hidden z-10',
                   'font-serif',
                   'focus:outline-none',
                   'empty:before:content-[attr(data-placeholder)] empty:before:text-amber-500/40 empty:before:pointer-events-none'
                 )}
               />
             ) : (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-amber-600/30 text-sm font-serif italic">
                   {locale === 'fr' ? 'Début du livre' : 'Start of book'}
                 </span>
-                    </div>
+              </div>
             )}
             
-            {/* Barre d'outils en bas - page gauche */}
+            {/* Indicateur page pleine - gauche */}
+            {pageFullIndicator === 'left' && (
+              <div data-pdf-hide="true" className="absolute bottom-[14%] left-0 right-0 z-20 flex justify-center pointer-events-none animate-in fade-in duration-300">
+                <span className="bg-amber-100/90 text-amber-700 text-xs font-serif px-3 py-1 rounded-full shadow-sm border border-amber-200/60">
+                  {locale === 'fr' ? 'Page pleine !' : 'Page full!'}
+                </span>
+              </div>
+            )}
+
+            {/* Barre d'outils en bas - page gauche - overlay absolu */}
             {leftPage && leftPageIndex !== undefined && (
-              <div 
-                className="relative z-10 px-6 py-2 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent"
+              <div
+                data-pdf-hide="true"
+                className="absolute bottom-0 left-0 right-0 z-20 px-6 py-2 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent"
                 onClick={(e) => e.stopPropagation()}
               >
                 <span className="text-xs text-amber-700/50 font-serif">
@@ -6137,35 +6385,29 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               </div>
             </div>
             )}
-            
-            {/* Numéro de page en bas / Badge couverture */}
-            <div className={cn(
-              "text-center pb-3 text-xs font-serif",
-              leftPageIndex === 0 
-                ? "text-amber-500 font-bold" 
+
+            {/* Numéro de page en bas / Badge couverture - overlay absolu */}
+            <div
+              data-pdf-hide="true"
+              className={cn(
+                "absolute left-0 right-0 z-20 text-center pb-1 text-xs font-serif pointer-events-none",
+                leftPageIndex === 0
+                  ? "text-amber-500 font-bold"
+                  : leftPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
+                    ? "text-emerald-500 font-bold"
+                    : "text-amber-600/40"
+              )}
+              style={{ bottom: leftPage && leftPageIndex !== undefined ? '34px' : '4px' }}
+            >
+              {leftPageIndex === 0
+                ? "COUVERTURE"
                 : leftPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
-                  ? "text-emerald-500 font-bold"
-                  : "text-amber-600/40"
-            )}>
-              {leftPageIndex === 0 
-                ? "📕 COUVERTURE" 
-                : leftPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
-                  ? "📗 4ÈME COUV."
+                  ? "4EME COUV."
                   : `— ${leftPageIndex !== undefined ? leftPageIndex + 1 : '—'} —`}
             </div>
-            
-            {/* Bouton zoom en haut à gauche (symétrique avec page droite) */}
-            {leftPage && (
-              <button
-                onClick={() => setZoomedPage('left')}
-                className="absolute top-2 left-2 z-20 p-2 rounded-full bg-amber-200/80 hover:bg-amber-300 text-amber-700 transition-all shadow-sm hover:shadow group-hover:scale-110"
-                title="Agrandir la page"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-            )}
+
           </div>
-          
+
           {/* RELIURE CENTRALE */}
           <div 
             className="relative z-10 w-4 flex-shrink-0"
@@ -6183,11 +6425,13 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </div>
           
           {/* PAGE DROITE (page d'écriture) */}
-          <div 
+          <div
             ref={rightPageContainerRef}
-            className="relative flex flex-col group w-1/2 h-full"
+            data-page-side="right"
+            className="relative group h-full"
             onClick={() => setActivePage('right')}
             style={{
+              width: singlePageWidth > 0 ? `${singlePageWidth}px` : '50%',
               background: getPageColorStyles(bookColor).background,
               borderRadius: '0 8px 8px 0',
               boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
@@ -6305,17 +6549,19 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onStyleChange={(id, style) => onTextBoxStyleChange?.(pageIndex, id, style)}
                 onDelete={(id) => onTextBoxDelete?.(pageIndex, id)}
                 containerRef={rightPageContainerRef}
+                pageWidth={pageWidth}
               />
             ))}
-            
-            {/* En-tête avec chapitre (toujours présent pour garder la marge) */}
+
+            {/* En-tête avec chapitre - overlay absolu dans la zone de padding top */}
             {(() => {
               const rightChapter = chapters.find(c => c.id === page?.chapterId)
               const alignment = rightChapter?.titleAlignment || 'center'
               if (alignment === 'hidden') {
                 return (
-                  <div 
-                    className="min-h-[32px] border-b border-amber-300/20 flex-shrink-0 cursor-pointer hover:bg-amber-100/30 transition-colors relative"
+                  <div
+                    data-pdf-hide="true"
+                    className="absolute top-0 left-0 right-0 z-20 min-h-[32px] border-b border-amber-300/20 cursor-pointer hover:bg-amber-100/30 transition-colors"
                     onClick={() => rightChapter && setAlignmentMenuOpen(alignmentMenuOpen === 'right' ? null : 'right')}
                   >
                     {alignmentMenuOpen === 'right' && rightChapter && (
@@ -6348,9 +6594,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 )
               }
               return (
-                <div 
+                <div
+                  data-pdf-hide="true"
                   className={cn(
-                    "px-4 pt-2 pb-1 border-b border-amber-300/20 relative z-10 min-h-[32px] flex items-center flex-shrink-0 cursor-pointer hover:bg-amber-100/30 transition-colors",
+                    "absolute top-0 left-0 right-0 z-20 px-4 pt-2 pb-1 border-b border-amber-300/20 min-h-[32px] flex items-center cursor-pointer hover:bg-amber-100/30 transition-colors",
                     alignment === 'left' && 'justify-start',
                     alignment === 'center' && 'justify-center',
                     alignment === 'right' && 'justify-end'
@@ -6367,7 +6614,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   ) : (
                     <span className="text-amber-400/20 text-xs">—</span>
                   )}
-                  
+
                   {alignmentMenuOpen === 'right' && rightChapter && (
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
                       {[
@@ -6400,48 +6647,74 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             
             {/* Lignes de cahier - conditionnelles - synchronisées avec lineHeight */}
             {showLines && (
-              <div className="absolute inset-x-4 lg:inset-x-10 top-[32px] bottom-12" style={{
-                backgroundImage: `repeating-linear-gradient(transparent, transparent ${rightLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${rightLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${rightLineHeightPx}px)`,
-                backgroundSize: `100% ${rightLineHeightPx}px`,
-              }} />
+              <div 
+                className="absolute"
+                style={{
+                  left: '10%',
+                  right: '10%',
+                  top: '8%',
+                  bottom: '12%',
+                  backgroundImage: `repeating-linear-gradient(transparent, transparent ${rightLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${rightLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${rightLineHeightPx}px)`,
+                  backgroundSize: `100% ${rightLineHeightPx}px`,
+                }} 
+              />
             )}
             
             {/* Marge rouge (conditionnelle) */}
             {showLines && (
-              <div className="absolute left-4 lg:left-10 top-[32px] bottom-12 w-px bg-red-300/40" />
+              <div 
+                data-pdf-hide="true"
+                className="absolute w-px bg-red-300/40" 
+                style={{ left: '10%', top: '8%', bottom: '12%' }}
+              />
             )}
             
-            {/* Zone d'écriture - page droite TipTap */}
+            {/* Zone d'écriture - page droite - absolute, même layout que ExactPageRenderer */}
             {page ? (
             <div
                 key={`right-${pageIndex}-${zoomedPage === null}`}
               ref={editorRef}
               contentEditable={!isLocked}
               onInput={handleInput}
+              onPaste={handlePaste(editorRef, lastContentRef, 'right', onContentChange)}
               onClick={(e) => { e.stopPropagation(); setActivePage('right'); }}
               data-placeholder={placeholders[locale]}
               style={{
                 ...rightTextStyle,
                 color: '#3d3426',
+                paddingLeft: '10%',
+                paddingRight: '10%',
+                paddingTop: '8%',
+                paddingBottom: '12%',
               }}
           className={cn(
-                'flex-1 px-4 lg:px-10 pt-0 pb-12 overflow-y-auto relative z-10',
+                'absolute inset-0 overflow-hidden z-10',
                   'font-serif',
                 'focus:outline-none',
                 'empty:before:content-[attr(data-placeholder)] empty:before:text-amber-500/40 empty:before:pointer-events-none'
           )}
         />
             ) : (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-amber-600/30 text-sm font-serif italic">
                   {locale === 'fr' ? 'Page suivante...' : 'Next page...'}
                 </span>
               </div>
             )}
         
-        {/* Barre d'outils en bas */}
-            <div 
-              className="relative z-10 px-6 py-2 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent"
+        {/* Indicateur page pleine - droite */}
+            {pageFullIndicator === 'right' && (
+              <div data-pdf-hide="true" className="absolute bottom-[14%] left-0 right-0 z-20 flex justify-center pointer-events-none animate-in fade-in duration-300">
+                <span className="bg-amber-100/90 text-amber-700 text-xs font-serif px-3 py-1 rounded-full shadow-sm border border-amber-200/60">
+                  {locale === 'fr' ? 'Page pleine !' : 'Page full!'}
+                </span>
+              </div>
+            )}
+
+        {/* Barre d'outils en bas - overlay absolu */}
+            <div
+              data-pdf-hide="true"
+              className="absolute bottom-0 left-0 right-0 z-20 px-6 py-2 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent"
               onClick={(e) => e.stopPropagation()}
             >
               <span className="text-xs text-amber-700/50 font-serif">{getWordCount(page?.content)} {locale === 'fr' ? 'mots' : 'words'}</span>
@@ -6535,30 +6808,26 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           </div>
         </div>
             
-            {/* Numéro de page en bas / Badge couverture */}
-            <div className={cn(
-              "text-center pb-3 text-xs font-serif relative z-10",
-              pageIndex === 0 
-                ? "text-amber-500 font-bold" 
+            {/* Numéro de page en bas / Badge couverture - overlay absolu */}
+            <div
+              data-pdf-hide="true"
+              className={cn(
+                "absolute left-0 right-0 z-20 text-center pb-1 text-xs font-serif pointer-events-none",
+                pageIndex === 0
+                  ? "text-amber-500 font-bold"
+                  : pageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
+                    ? "text-emerald-500 font-bold"
+                    : "text-amber-600/40"
+              )}
+              style={{ bottom: '34px' }}
+            >
+              {pageIndex === 0
+                ? "COUVERTURE"
                 : pageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
-                  ? "text-emerald-500 font-bold"
-                  : "text-amber-600/40"
-            )}>
-              {pageIndex === 0 
-                ? "📕 COUVERTURE" 
-                : pageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
-                  ? "📗 4ÈME COUV."
+                  ? "4EME COUV."
                   : `— ${pageIndex + 1} —`}
             </div>
-            
-            {/* Bouton zoom en haut à droite */}
-            <button
-              onClick={() => setZoomedPage('right')}
-              className="absolute top-2 right-2 z-20 p-2 rounded-full bg-amber-200/80 hover:bg-amber-300 text-amber-700 transition-all shadow-sm hover:shadow group-hover:scale-110"
-              title="Agrandir la page"
-            >
-              <Eye className="w-4 h-4" />
-            </button>
+
           </div>
         </div>
         </div>
@@ -7490,7 +7759,6 @@ export function BookMode() {
     currentStory, 
     createStory,
     setCurrentStory,
-    updateStoryPage,
     updateStoryPages,
     deleteStory,
     addStoryChapter,
@@ -7555,6 +7823,148 @@ export function BookMode() {
   
   // État pour la confirmation de suppression de page
   const [pageToDelete, setPageToDelete] = useState<number | null>(null)
+  
+  // ============================================================================
+  // EXPORT PDF - États
+  // ============================================================================
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [exportStatus, setExportStatus] = useState('')
+  
+  // Ref pour savoir si on est en mode capture (pour éviter les overlays)
+  const isCapturingRef = useRef(false)
+  
+  // Fonction d'export PDF - capture directe des pages de l'éditeur
+  const handleExportPdf = useCallback(async () => {
+    if (!currentStory || pages.length === 0) return
+    
+    // Marquer qu'on est en mode capture AVANT de mettre isExportingPdf
+    isCapturingRef.current = true
+    setExportStatus('Préparation...')
+    
+    try {
+      // Récupérer le format du livre depuis l'histoire
+      const storyFormat = currentStory.bookFormat || 'portrait-a5'
+      const formatConfig = BOOK_FORMATS.find(f => f.id === storyFormat) || BOOK_FORMATS[0]
+      const pageWidthMm = formatConfig.widthMm
+      const pageHeightMm = formatConfig.heightMm
+      
+      // Créer le PDF avec les bonnes dimensions
+      const pdf = new jsPDF({
+        orientation: pageHeightMm > pageWidthMm ? 'portrait' : 'landscape',
+        unit: 'mm',
+        format: [pageWidthMm, pageHeightMm],
+      })
+      
+      const savedSpread = currentSpread
+      const totalPagesCount = pages.length
+      
+      // Pour chaque page
+      for (let pageIdx = 0; pageIdx < totalPagesCount; pageIdx++) {
+        setExportStatus(`Page ${pageIdx + 1}/${totalPagesCount}...`)
+        
+        // Calculer le spread et la position (gauche ou droite)
+        const spreadIdx = Math.floor(pageIdx / 2)
+        const isLeftPage = pageIdx % 2 === 0
+        
+        // Naviguer au bon spread
+        setCurrentSpread(spreadIdx)
+        
+        // Attendre le rendu
+        await new Promise(resolve => setTimeout(resolve, 400))
+        
+        // Trouver le conteneur de la page à capturer via sélecteur CSS
+        const pageSelector = isLeftPage ? '[data-page-side="left"]' : '[data-page-side="right"]'
+        const pageRef = document.querySelector(pageSelector) as HTMLElement
+        
+        if (pageRef) {
+          // === PRÉPARER LA PAGE POUR LA CAPTURE ===
+          // Sauvegarder le style original
+          const originalStyle = pageRef.getAttribute('style') || ''
+          
+          // Retirer l'ombre de reliure
+          pageRef.style.boxShadow = 'none'
+          
+          // Collecter et cacher les éléments UI
+          const elementsToHide: HTMLElement[] = []
+          
+          // Barres d'outils, indicateurs, etc.
+          pageRef.querySelectorAll('[data-pdf-hide="true"]').forEach((el) => {
+            elementsToHide.push(el as HTMLElement)
+          })
+          
+          // Sauvegarder les displays originaux et cacher
+          const originalDisplays = elementsToHide.map(el => {
+            const display = el.style.display
+            el.style.display = 'none'
+            return display
+          })
+          
+          // Attendre que le DOM se mette à jour
+          await new Promise(resolve => setTimeout(resolve, 50))
+          
+          // === CAPTURER ===
+          const canvas = await html2canvas(pageRef, {
+            scale: 3,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            logging: false,
+          })
+          
+          // === RESTAURER ===
+          pageRef.setAttribute('style', originalStyle)
+          elementsToHide.forEach((el, i) => {
+            el.style.display = originalDisplays[i]
+          })
+          
+          // Ajouter l'image au PDF
+          const imgData = canvas.toDataURL('image/jpeg', 0.95)
+          
+          if (pageIdx > 0) {
+            pdf.addPage([pageWidthMm, pageHeightMm])
+          }
+          
+          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, pageHeightMm)
+          
+          // Ajouter le numéro de page
+          // - Page 0 = Couverture → pas de numéro
+          // - Page 1 = Page de garde → pas de numéro
+          // - Pages 2 à N-2 → numéros de page (commençant à 1)
+          // - Page N-1 = 4ème de couverture → pas de numéro
+          const shouldHavePageNumber = pageIdx >= 2 && pageIdx < totalPagesCount - 1
+          if (shouldHavePageNumber) {
+            const pageNumber = pageIdx - 1 // Page 2 → 1, Page 3 → 2, etc.
+            pdf.setFontSize(10)
+            pdf.setTextColor(100, 80, 60) // Couleur ambrée/sépia
+            
+            // Centrer le numéro en bas de la page
+            const textWidth = pdf.getTextWidth(String(pageNumber))
+            const xPos = (pageWidthMm - textWidth) / 2
+            const yPos = pageHeightMm - 8 // 8mm du bas
+            
+            pdf.text(String(pageNumber), xPos, yPos)
+          }
+        }
+      }
+      
+      // Revenir au spread d'origine
+      setCurrentSpread(savedSpread)
+      
+      // Sauvegarder le PDF
+      const filename = `${currentStory.title.replace(/[^a-zA-Z0-9]/g, '_')}_${formatConfig.name}.pdf`
+      pdf.save(filename)
+      
+      setExportStatus('PDF créé avec succès !')
+      setTimeout(() => setExportStatus(''), 3000)
+      
+    } catch (error) {
+      console.error('Erreur export PDF:', error)
+      setExportStatus('Erreur lors de l\'export')
+    } finally {
+      isCapturingRef.current = false
+      setIsExportingPdf(false)
+    }
+  }, [currentStory, pages, currentSpread])
   
   // Calcul des indices de pages pour le spread courant
   const leftPageIndex = currentSpread * 2
@@ -7684,7 +8094,7 @@ export function BookMode() {
     
     // Sauvegarder dans le store
     if (currentStory) {
-      updateStoryPage(currentStory.id, rightPageIndex, content, newPages[rightPageIndex].image)
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
     }
   }
 
@@ -7693,6 +8103,9 @@ export function BookMode() {
     const newPages = [...pages]
     newPages[rightPageIndex] = { ...newPages[rightPageIndex], title }
     setPages(newPages)
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
   }
 
   const handleStyleChange = (pageIndex: number, styleUpdate: Partial<TextStyle>) => {
@@ -8175,6 +8588,10 @@ export function BookMode() {
       ),
     }
     setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
   }
 
   const handleDecorationScaleChange = (pageIndex: number, decoId: string, scale: number) => {
@@ -8608,20 +9025,12 @@ export function BookMode() {
               onStyleChange={handleStyleChange}
             onChapterChange={(chapterId) => {
               if (!rightPage) return
-              const newPages = pages.map((p, i) => 
+              const newPages = pages.map((p, i) =>
                   i === rightPageIndex ? { ...p, chapterId } : p
               )
               setPages(newPages)
               if (currentStory) {
-                updateStoryPages(currentStory.id, newPages.map(p => ({
-                  id: p.id,
-                  stepIndex: 0,
-                  content: p.content,
-                  image: p.image,
-                  order: 0,
-                  chapterId: p.chapterId,
-                  title: p.title,
-                })))
+                updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
               }
             }}
             onCreateChapter={(title) => {
@@ -8642,20 +9051,12 @@ export function BookMode() {
                 })
               }
               if (!rightPage) return
-              const newPages = pages.map((p, i) => 
+              const newPages = pages.map((p, i) =>
                   i === rightPageIndex ? { ...p, chapterId: newChapter.id } : p
               )
               setPages(newPages)
               if (currentStory) {
-                updateStoryPages(currentStory.id, newPages.map(p => ({
-                  id: p.id,
-                  stepIndex: 0,
-                  content: p.content,
-                  image: p.image,
-                  order: 0,
-                  chapterId: p.chapterId,
-                  title: p.title,
-                })))
+                updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
               }
             }}
             onUpdateChapter={(chapterId, updates) => {
@@ -8687,20 +9088,12 @@ export function BookMode() {
               leftPageIndex={leftPageIndex}
               onLeftContentChange={(content) => {
                 if (leftPage) {
-                  const newPages = pages.map((p, i) => 
+                  const newPages = pages.map((p, i) =>
                     i === leftPageIndex ? { ...p, content } : p
                   )
                   setPages(newPages)
                   if (currentStory) {
-                    updateStoryPages(currentStory.id, newPages.map(p => ({
-                      id: p.id,
-                      stepIndex: 0,
-                      content: p.content,
-                      image: p.image,
-                      order: 0,
-                      chapterId: p.chapterId,
-                      title: p.title,
-                    })))
+                    updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
                   }
                 }
               }}
@@ -8757,6 +9150,10 @@ export function BookMode() {
               onTextBoxDelete={handleTextBoxDelete}
               isLocked={currentStory?.isComplete}
               onUnlock={() => currentStory && reopenStory(currentStory.id)}
+              // Export PDF
+              onExportPdf={handleExportPdf}
+              isExportingPdf={isExportingPdf}
+              exportStatus={exportStatus}
             />
         )}
         </div>
@@ -8784,6 +9181,7 @@ export function BookMode() {
             onClose={() => setShowMediaPicker(false)}
             onSelect={handleMediaSelect}
             allowedTypes="all"
+            storyId={currentStory?.id}
           />
           
           {/* MediaPicker pour les fonds de page */}
@@ -8793,6 +9191,7 @@ export function BookMode() {
             onSelect={handleBackgroundSelect}
             allowedTypes="all"
             title="Ajouter un média"
+            storyId={currentStory?.id}
           />
           
           {/* CharacterImageCreator pour créer une nouvelle image avec même personnage */}
@@ -9271,21 +9670,13 @@ export function BookMode() {
               }
             }}
             onAssignPageToChapter={(pageIndex, chapterId) => {
-              const newPages = pages.map((p, i) => 
+              const newPages = pages.map((p, i) =>
                 i === pageIndex ? { ...p, chapterId } : p
               )
               setPages(newPages)
               // Sauvegarder dans le store
               if (currentStory) {
-                updateStoryPages(currentStory.id, newPages.map(p => ({
-                  id: p.id,
-                  stepIndex: 0,
-                  content: p.content,
-                  image: p.image,
-                  order: 0,
-                  chapterId: p.chapterId,
-                  title: p.title,
-                })))
+                updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
               }
             }}
             onClose={() => setShowStructureView(false)}

@@ -40,6 +40,7 @@ import {
   type BookFormatConfig,
 } from '@/store/usePublishStore'
 import { exportToPDF } from '@/lib/export/pdf'
+import { usePdfExport } from '@/hooks/usePdfExport'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { cn } from '@/lib/utils'
 
@@ -1419,13 +1420,18 @@ function OrderStep() {
   const [localExportProgress, setLocalExportProgress] = useState(0)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
+  const [useScreenCapture, setUseScreenCapture] = useState(true) // Nouvelle méthode par défaut
   
-  // Charger le devis Gelato au montage
+  // Hook pour l'export PDF par capture d'écran
+  const pdfExport = usePdfExport()
+  
+  // Charger le devis Gelato au montage (une seule fois)
+  // Note: on n'appelle pas si quoteError existe pour éviter une boucle infinie
   useEffect(() => {
-    if (selectedStory && !gelatoQuote && !isLoadingQuote) {
+    if (selectedStory && !gelatoQuote && !isLoadingQuote && !quoteError) {
       fetchGelatoQuote()
     }
-  }, [selectedStory, gelatoQuote, isLoadingQuote, fetchGelatoQuote])
+  }, [selectedStory, gelatoQuote, isLoadingQuote, quoteError, fetchGelatoQuote])
   
   // Générer ET uploader le PDF
   const handleExportPdf = async () => {
@@ -1435,19 +1441,40 @@ function OrderStep() {
     setLocalExportProgress(0)
     
     try {
-      // 1. Générer le PDF
-      const result = await exportToPDF(selectedStory, format, cover, {
-        onProgress: (progress) => {
-          setLocalExportProgress(Math.round(progress * 0.5)) // 0-50%
-        },
-        includeBleed: true,
-      })
+      let blob: Blob
       
-      setPdfBlob(result.blob)
-      setLocalExportProgress(50)
+      if (useScreenCapture) {
+        // NOUVELLE MÉTHODE : Capture d'écran + upscale fal.ai
+        const result = await pdfExport.exportToPdf(selectedStory, {
+          format,
+          pageColor: 'cream', // TODO: récupérer depuis l'histoire
+          showLines: true,
+          includePageNumbers: true,
+          useUpscale: true, // Activer l'upscale fal.ai pour 300 DPI
+        })
+        
+        if (!result) {
+          throw new Error('Échec de la génération du PDF')
+        }
+        
+        blob = result.blob
+        setLocalExportProgress(50)
+      } else {
+        // ANCIENNE MÉTHODE : Génération HTML directe
+        const result = await exportToPDF(selectedStory, format, cover, {
+          onProgress: (progress) => {
+            setLocalExportProgress(Math.round(progress * 0.5)) // 0-50%
+          },
+          includeBleed: true,
+        })
+        blob = result.blob
+        setLocalExportProgress(50)
+      }
+      
+      setPdfBlob(blob)
       
       // 2. Uploader vers Supabase pour Gelato
-      const publicUrl = await uploadPdfToSupabase(result.blob, selectedStory, user.id)
+      const publicUrl = await uploadPdfToSupabase(blob, selectedStory, user.id)
       
       if (publicUrl) {
         setShowExportSuccess(true)
@@ -1482,10 +1509,19 @@ function OrderStep() {
   
   // Calculer la progression totale (génération + upload)
   const totalProgress = isGeneratingPdf 
-    ? localExportProgress 
+    ? (useScreenCapture ? pdfExport.progress : localExportProgress)
     : isUploadingPdf 
       ? 50 + Math.round(uploadPdfProgress * 0.5)
       : showExportSuccess ? 100 : 0
+  
+  // Message de progression
+  const progressMessage = useScreenCapture && pdfExport.isExporting 
+    ? pdfExport.message 
+    : isGeneratingPdf 
+      ? 'Génération du PDF...'
+      : isUploadingPdf 
+        ? 'Upload du PDF...' 
+        : ''
   
   if (!format) return null
   
