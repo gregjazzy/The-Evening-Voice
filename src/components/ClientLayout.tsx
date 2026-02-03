@@ -9,6 +9,8 @@ import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useAppConfig } from '@/hooks/useAppConfig'
 import { useSyncUserPreferences } from '@/hooks/useSyncUserPreferences'
+import { findBestVoice } from '@/hooks/useTTS'
+import { useLocale } from '@/lib/i18n/context'
 
 interface ClientLayoutProps {
   children: ReactNode
@@ -17,6 +19,7 @@ interface ClientLayoutProps {
 export function ClientLayout({ children }: ClientLayoutProps) {
   const { setAiVoice } = useAppStore()
   const { isInitialized, user, profile } = useAuthStore()
+  const locale = useLocale()
   const [showWelcomeSequence, setShowWelcomeSequence] = useState(false)
   const [voiceOnlyMode, setVoiceOnlyMode] = useState(false)
   const hasTriggeredRef = useRef(false)
@@ -89,13 +92,16 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       if (voiceFound) {
         console.log('🎤 Voix trouvée:', voiceName)
       } else {
-        // Voix non disponible → reset silencieux, PAS d'onboarding
-        // L'utilisateur a déjà un ai_name, on ne le force pas à refaire
-        // l'onboarding juste pour la voix. Il peut la rechoisir dans les réglages.
-        console.log('🎤 Voix non disponible:', voiceName, '→ reset silencieux')
-        const voices = window.speechSynthesis.getVoices()
-        console.log('🎤 Voix disponibles:', voices.map(v => v.name).join(', '))
-        setAiVoice('')
+        // Voix non disponible → trouver la meilleure voix de remplacement
+        // pour la langue courante (FR/EN/RU), PAS d'onboarding
+        const fallbackVoice = findBestVoice(locale)
+        if (fallbackVoice) {
+          console.log('🎤 Voix', voiceName, 'non disponible → remplacement:', fallbackVoice.name)
+          setAiVoice(fallbackVoice.name)
+        } else {
+          console.log('🎤 Voix', voiceName, 'non disponible, aucun remplacement trouvé')
+          setAiVoice('')
+        }
       }
     }
 
@@ -130,7 +136,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
         window.speechSynthesis.onvoiceschanged = null
       }
     }
-  }, [isInitialized, profile, setAiVoice])
+  }, [isInitialized, profile, setAiVoice, locale])
 
   return (
     <ToastProvider>

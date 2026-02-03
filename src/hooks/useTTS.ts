@@ -92,7 +92,8 @@ function cleanTextForTTS(text: string): string {
 }
 
 // Helper pour trouver la meilleure voix (ou une voix spécifique)
-function findBestVoice(locale: string, preferredVoiceName?: string): SpeechSynthesisVoice | null {
+// Exporté pour être utilisé par ClientLayout (fallback quand la voix sauvegardée n'est pas disponible)
+export function findBestVoice(locale: string, preferredVoiceName?: string): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   
   // 1. Si une voix spécifique est demandée, la chercher
