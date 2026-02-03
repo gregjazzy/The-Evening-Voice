@@ -90,7 +90,7 @@ export function ExactPageRenderer({
         overflow: 'hidden',
       }}
     >
-      {/* Background media */}
+      {/* Background media — use background-image for html2canvas compatibility */}
       {page.backgroundMedia && (
         <div
           style={{
@@ -115,14 +115,13 @@ export function ExactPageRenderer({
               playsInline
             />
           ) : (
-            <img
-              src={page.backgroundMedia.url}
-              alt=""
-              crossOrigin="anonymous"
+            <div
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
+                backgroundImage: `url(${page.backgroundMedia.url})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
                 opacity: page.backgroundMedia.opacity,
                 transform: `translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1})`,
                 transformOrigin: 'center center',
@@ -165,47 +164,43 @@ export function ExactPageRenderer({
         />
       )}
 
-      {/* Floating images — NO translate(-50%, -50%), same as BookMode */}
-      {page.images?.map((media: PageMedia) => (
-        <div
-          key={media.id}
-          style={{
-            position: 'absolute',
-            left: `${media.position.x}%`,
-            top: `${media.position.y}%`,
-            width: `${media.position.width}%`,
-            height: `${media.position.height}%`,
-            transform: media.position.rotation ? `rotate(${media.position.rotation}deg)` : undefined,
-            zIndex: media.zIndex || 10,
-          }}
-        >
-          {media.type === 'video' ? (
-            <video
-              src={media.url}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                opacity: (media as PageMedia & { opacity?: number }).opacity ?? 1,
-              }}
-              muted
-              playsInline
-            />
-          ) : (
-            <img
-              src={media.url}
-              alt=""
-              crossOrigin="anonymous"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                opacity: (media as PageMedia & { opacity?: number }).opacity ?? 1,
-              }}
-            />
-          )}
-        </div>
-      ))}
+      {/* Floating images — use background-image for html2canvas compatibility
+          (html2canvas does not support objectFit: 'cover' on <img> tags) */}
+      {page.images?.map((media: PageMedia) => {
+        const opacity = (media as PageMedia & { opacity?: number }).opacity ?? 1
+        return (
+          <div
+            key={media.id}
+            style={{
+              position: 'absolute',
+              left: `${media.position.x}%`,
+              top: `${media.position.y}%`,
+              width: `${media.position.width}%`,
+              height: `${media.position.height}%`,
+              transform: media.position.rotation ? `rotate(${media.position.rotation}deg)` : undefined,
+              zIndex: media.zIndex || 10,
+              backgroundImage: media.type !== 'video' ? `url(${media.url})` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity,
+            }}
+          >
+            {media.type === 'video' && (
+              <video
+                src={media.url}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  opacity,
+                }}
+                muted
+                playsInline
+              />
+            )}
+          </div>
+        )
+      })}
 
       {/* Decorations — base size from shared constant, deco.scale in transform */}
       {page.decorations?.map((deco: PageDecoration) => {
