@@ -47,10 +47,22 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   // au lieu de aiName du store Zustand (qui dépend du sync async et du localStorage
   // vidé à la déconnexion — cause de race condition après logout→refresh→login)
   useEffect(() => {
+    console.log('🎯 ClientLayout check:', {
+      hasTriggered: hasTriggeredRef.current,
+      isInitialized,
+      user: !!user,
+      profile: !!profile,
+      ai_name: profile?.ai_name
+    })
+
     if (hasTriggeredRef.current) return
     if (!isInitialized || !user || !profile) return
-    if (profile.ai_name) return
+    if (profile.ai_name) {
+      console.log('🎯 Skipping welcome sequence - ai_name exists:', profile.ai_name)
+      return
+    }
 
+    console.log('🎯 Triggering welcome sequence!')
     hasTriggeredRef.current = true
 
     const timer = setTimeout(() => {

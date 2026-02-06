@@ -130,7 +130,17 @@ export const useAuthStore = create<AuthState>()(
 
       signUp: async (email, password, name, role) => {
         set({ isLoading: true })
-        
+
+        // IMPORTANT: Vider le localStorage AVANT l'inscription
+        // pour éviter que des données d'un ancien compte polluent le nouveau
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('lavoixdusoir-storage')
+          localStorage.removeItem('lavoixdusoir-studio')
+          localStorage.removeItem('lavoixdusoir-montage-v3')
+          localStorage.removeItem('lavoixdusoir-studio-progress')
+          console.log('🧹 localStorage vidé avant inscription')
+        }
+
         try {
           // Créer l'utilisateur
           const { data: authData, error: authError } = await db.auth.signUp({

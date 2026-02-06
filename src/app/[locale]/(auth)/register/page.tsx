@@ -85,13 +85,12 @@ export default function RegisterPage() {
     const tempName = email.split('@')[0] || 'Ami'
     
     const { error: signUpError } = await signUp(email, password, tempName, role)
-    
+
     if (signUpError) {
       setError(signUpError)
     } else {
-      // Afficher l'écran de confirmation email
-      setEmailSent(true)
-      setStep(4)
+      // Rediriger directement vers l'app (pas de confirmation email requise)
+      router.push(`/${locale}`)
     }
   }
 
