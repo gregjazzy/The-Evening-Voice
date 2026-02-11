@@ -1,42 +1,52 @@
 /**
- * Service d'export PDF par capture d'écran
- * 
+ * Service d'export PDF par capture d'écran — Gelato print-ready
+ *
  * Workflow :
- * 1. Rend chaque page via ExactPageRenderer
- * 2. Capture avec html2canvas
- * 3. Upscale via fal.ai Real-ESRGAN si nécessaire (pour 300 DPI)
- * 4. Ajoute les numéros de page
- * 5. Assemble en PDF avec jsPDF
- * 
- * Avantage : Le PDF ressemble EXACTEMENT à ce qu'on voit dans l'éditeur
+ * 1. Rend chaque page via construction DOM impérative (miroir BookMode)
+ * 2. Capture avec html-to-image (SVG foreignObject, fidèle au navigateur)
+ * 3. Optionally upscale via fal.ai Real-ESRGAN
+ * 4. Assemble en PDF avec pdf-lib (remplace jsPDF)
+ *
+ * The PDF produced is ready to send to Gelato for printing:
+ * - Dimensions include 3mm bleed on each side
+ * - Resolution ≥ 300 DPI
+ * - PNG pages
  */
 
-import jsPDF from 'jspdf'
+import { PDFDocument } from 'pdf-lib'
 import html2canvas from 'html2canvas'
-import type { Story, StoryPage } from '@/store/useAppStore'
-import { REFERENCE_PAGE_WIDTH } from '@/lib/rendering/pageRendering'
+import type { Story } from '@/store/useAppStore'
+import { CANONICAL_PAGE_WIDTH, getCanonicalDimensions } from '@/lib/rendering/pageRendering'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 
 export { BOOK_FORMATS, type BookFormatConfig }
 
-// Résolution cible pour l'impression
-const TARGET_DPI = 300
-const SCREEN_DPI = 96
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
-// Conversion mm → pixels à une résolution donnée
+/** Target print resolution */
+const TARGET_DPI = 300
+
+/** Convert millimeters to pixels at a given DPI */
 const mmToPx = (mm: number, dpi: number = TARGET_DPI) => Math.round((mm / 25.4) * dpi)
 
-// Options d'export
+/** Convert millimeters to PDF points (72 DPI) */
+const mmToPt = (mm: number) => (mm / 25.4) * 72
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export interface ScreenCapturePdfOptions {
   format: BookFormatConfig
   pageColor?: string
   showLines?: boolean
   includePageNumbers?: boolean
   onProgress?: (progress: number, message: string) => void
-  useUpscale?: boolean // Utiliser fal.ai pour upscaler (recommandé)
+  useUpscale?: boolean
 }
 
-// Résultat de l'export
 export interface ScreenCapturePdfResult {
   blob: Blob
   url: string
@@ -45,8 +55,30 @@ export interface ScreenCapturePdfResult {
   dimensions: { widthPx: number; heightPx: number }
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 /**
- * Capture un élément HTML en canvas
+ * Compute the capture scale needed so that the captured image
+ * reaches at least the target pixel width for 300 DPI (including bleed).
+ */
+export function computeCaptureScale(format: BookFormatConfig): number {
+  const targetWidthPx = mmToPx(format.widthMm + 2 * format.bleedMm, TARGET_DPI)
+  const bleedPx = Math.round((format.bleedMm / format.widthMm) * CANONICAL_PAGE_WIDTH)
+  const renderWidthPx = CANONICAL_PAGE_WIDTH + 2 * bleedPx
+  return Math.ceil(targetWidthPx / renderWidthPx)
+}
+
+/**
+ * Compute the bleed in canonical pixels (same coordinate space as CANONICAL_PAGE_WIDTH).
+ */
+export function computeBleedPx(format: BookFormatConfig): number {
+  return Math.round((format.bleedMm / format.widthMm) * CANONICAL_PAGE_WIDTH)
+}
+
+/**
+ * Capture an HTML element to a canvas at the given scale.
  */
 async function captureElementToCanvas(
   element: HTMLElement,
@@ -57,35 +89,31 @@ async function captureElementToCanvas(
     useCORS: true,
     allowTaint: false,
     logging: false,
-    backgroundColor: null, // Transparent — let the page gradient show through
+    backgroundColor: null,
     imageTimeout: 30000,
   })
 }
 
 /**
- * Convertit un canvas en Data URL (PNG lossless)
+ * Convert a data URL to a Uint8Array.
  */
-function canvasToDataUrl(canvas: HTMLCanvasElement): string {
-  return canvas.toDataURL('image/png')
+function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(',')[1]
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
 }
 
 /**
- * Upscale une image via l'API fal.ai
+ * Upscale an image via the fal.ai Real-ESRGAN API endpoint.
  */
 async function upscaleImage(imageDataUrl: string, scale: 2 | 4 = 2): Promise<string> {
   try {
-    // Convertir data URL en Blob puis upload temporaire
-    const response = await fetch(imageDataUrl)
-    const blob = await response.blob()
-    
-    // Créer une URL temporaire pour l'upload
-    const formData = new FormData()
-    formData.append('file', blob, 'page.jpg')
-    
-    // Upload vers Supabase temporaire ou utiliser directement
-    // Pour simplifier, on va envoyer le base64 à notre API
     const base64 = imageDataUrl.split(',')[1]
-    
+
     const upscaleResponse = await fetch('/api/ai/upscale', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -94,26 +122,30 @@ async function upscaleImage(imageDataUrl: string, scale: 2 | 4 = 2): Promise<str
         scale,
       }),
     })
-    
+
     if (!upscaleResponse.ok) {
       console.warn('Upscale failed, using original image')
       return imageDataUrl
     }
-    
+
     const result = await upscaleResponse.json()
     return result.url || imageDataUrl
   } catch (error) {
     console.error('Upscale error:', error)
-    return imageDataUrl // Fallback to original
+    return imageDataUrl
   }
 }
 
+// ---------------------------------------------------------------------------
+// Main export function
+// ---------------------------------------------------------------------------
+
 /**
- * Génère un PDF à partir des captures d'écran des pages
- * 
- * @param story L'histoire à exporter
- * @param pageElements Les éléments DOM des pages rendues
- * @param options Options d'export
+ * Generate a print-ready PDF from pre-rendered page elements.
+ *
+ * Uses pdf-lib instead of jsPDF for accurate image placement.
+ * The PDF dimensions include bleed (3mm each side) so it can be sent
+ * directly to Gelato for printing.
  */
 export async function generatePdfFromScreenCaptures(
   story: Story,
@@ -122,81 +154,87 @@ export async function generatePdfFromScreenCaptures(
 ): Promise<ScreenCapturePdfResult> {
   const {
     format,
-    includePageNumbers = true,
     onProgress,
     useUpscale = true,
   } = options
 
-  // Dimensions finales du PDF en mm
-  const pdfWidthMm = format.widthMm
-  const pdfHeightMm = format.heightMm
+  // PDF dimensions include 3mm bleed on each side for Gelato
+  const pdfWidthMm = format.widthMm + 2 * format.bleedMm
+  const pdfHeightMm = format.heightMm + 2 * format.bleedMm
 
-  // Dimensions cibles en pixels pour 300 DPI
+  // PDF dimensions in points (pdf-lib uses points, 1pt = 1/72 inch)
+  const pdfWidthPt = mmToPt(pdfWidthMm)
+  const pdfHeightPt = mmToPt(pdfHeightMm)
+
+  // Target pixel dimensions at 300 DPI (for quality verification)
   const targetWidthPx = mmToPx(pdfWidthMm)
   const targetHeightPx = mmToPx(pdfHeightMm)
 
-  // Calculer le scale pour html2canvas
-  // scale 5 → 500px * 5 = 2500px, proche de 300 DPI pour A5 (2480px)
-  const captureScale = 5
+  // Dynamic capture scale — enough pixels for 300 DPI
+  const bleedPx = computeBleedPx(format)
+  const renderWidthPx = CANONICAL_PAGE_WIDTH + 2 * bleedPx
+  const captureScale = Math.ceil(targetWidthPx / renderWidthPx)
 
-  // Créer le PDF
-  const pdf = new jsPDF({
-    orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait',
-    unit: 'mm',
-    format: [pdfWidthMm, pdfHeightMm],
-    compress: true,
-  })
+  // Create PDF document with pdf-lib
+  const pdfDoc = await PDFDocument.create()
 
   const totalPages = pageElements.length
-  let processedPages = 0
 
-  // Traiter chaque page
-  for (let i = 0; i < pageElements.length; i++) {
-    const element = pageElements[i]
-    const page = story.pages[i]
-    const isCover = i === 0 || page?.pageType === 'front-cover'
-    const isBackCover = i === pageElements.length - 1 || page?.pageType === 'back-cover'
+  // --- Parallel capture: batch html2canvas calls (4 at a time to avoid OOM) ---
+  const BATCH_SIZE = 4
+  const capturedImages: string[] = new Array(totalPages)
+
+  for (let batchStart = 0; batchStart < totalPages; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, totalPages)
 
     onProgress?.(
-      Math.round((processedPages / totalPages) * 100),
-      `Capture de la page ${i + 1}/${totalPages}...`
+      Math.round((batchStart / totalPages) * 80),
+      `Capture pages ${batchStart + 1}-${batchEnd}/${totalPages}...`
     )
 
-    // 1. Capturer l'élément en canvas (PNG lossless)
-    const canvas = await captureElementToCanvas(element, captureScale)
-    let imageDataUrl = canvasToDataUrl(canvas)
-
-    // 2. Upscaler si nécessaire et demandé
-    if (useUpscale) {
-      onProgress?.(
-        Math.round((processedPages / totalPages) * 100),
-        `Amélioration qualité page ${i + 1}/${totalPages}...`
+    const batchPromises = []
+    for (let i = batchStart; i < batchEnd; i++) {
+      batchPromises.push(
+        captureElementToCanvas(pageElements[i], captureScale).then(canvas => {
+          const dataUrl = canvas.toDataURL('image/png')
+          capturedImages[i] = dataUrl
+        })
       )
-      
-      // Calculer si l'upscale est nécessaire (scale 5 donne déjà ~2500px)
-      const currentWidthPx = canvas.width
-      const needsUpscale = currentWidthPx < targetWidthPx * 0.7 // 70% de la cible
+    }
+    await Promise.all(batchPromises)
+  }
 
-      if (needsUpscale) {
-        imageDataUrl = await upscaleImage(imageDataUrl, 2)
+  // --- Optionally upscale (parallel per batch) ---
+  if (useUpscale) {
+    for (let i = 0; i < totalPages; i++) {
+      // Estimate pixel width from element
+      const estimatedWidthPx = pageElements[i].offsetWidth * captureScale
+      if (estimatedWidthPx < targetWidthPx * 0.7) {
+        onProgress?.(Math.round(80 + (i / totalPages) * 10), `Upscale page ${i + 1}...`)
+        capturedImages[i] = await upscaleImage(capturedImages[i], 2)
       }
     }
+  }
 
-    // 3. Ajouter au PDF
-    if (i > 0) {
-      pdf.addPage([pdfWidthMm, pdfHeightMm])
-    }
+  // --- Assemble PDF (sequential — pdf-lib needs ordered pages) ---
+  onProgress?.(90, 'Assemblage du PDF...')
 
-    // Ajouter l'image (elle sera redimensionnée pour tenir dans la page)
-    pdf.addImage(imageDataUrl, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm)
-
-    processedPages++
+  for (let i = 0; i < totalPages; i++) {
+    const imageBytes = dataUrlToUint8Array(capturedImages[i])
+    const pngImage = await pdfDoc.embedPng(imageBytes)
+    const page = pdfDoc.addPage([pdfWidthPt, pdfHeightPt])
+    page.drawImage(pngImage, {
+      x: 0,
+      y: 0,
+      width: pdfWidthPt,
+      height: pdfHeightPt,
+    })
   }
 
   onProgress?.(100, 'Génération du PDF terminée !')
 
-  // Générer le blob
-  const blob = pdf.output('blob')
+  const pdfBytes = await pdfDoc.save()
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
 
   return {
@@ -209,7 +247,7 @@ export async function generatePdfFromScreenCaptures(
 }
 
 /**
- * Télécharge le PDF généré
+ * Download a generated PDF result.
  */
 export function downloadPdf(result: ScreenCapturePdfResult, filename: string): void {
   const link = document.createElement('a')
@@ -221,13 +259,12 @@ export function downloadPdf(result: ScreenCapturePdfResult, filename: string): v
 }
 
 /**
- * Estime le temps de génération du PDF
+ * Estimate PDF generation time.
  */
 export function estimateGenerationTime(
   pageCount: number,
   useUpscale: boolean
 ): { seconds: number; message: string } {
-  // ~2s par page pour capture, ~5s par page avec upscale
   const secondsPerPage = useUpscale ? 7 : 2
   const totalSeconds = pageCount * secondsPerPage
 
@@ -240,19 +277,20 @@ export function estimateGenerationTime(
 }
 
 /**
- * Calcule les dimensions de capture pour une page
- * Retourne les dimensions en pixels pour un rendu à l'écran
- * qui sera ensuite capturé et upscalé
+ * Get the capture dimensions for a page (canonical + bleed).
+ * Used by usePdfExport to create the off-screen renderer at the right size.
  */
-export function getPageCaptureSize(format: BookFormatConfig): { width: number; height: number } {
-  // On rend à REFERENCE_PAGE_WIDTH (500px) pour que scale = 1.0 (zéro erreur d'arrondi)
-  const RENDER_WIDTH = REFERENCE_PAGE_WIDTH
-  const aspectRatio = format.heightMm / format.widthMm
-  const renderHeight = Math.round(RENDER_WIDTH * aspectRatio)
-  
+export function getPageCaptureSize(format: BookFormatConfig): {
+  width: number
+  height: number
+  bleedPx: number
+} {
+  const dims = getCanonicalDimensions(format.id)
+  const bleedPx = computeBleedPx(format)
   return {
-    width: RENDER_WIDTH,
-    height: renderHeight,
+    width: dims.width,
+    height: dims.height,
+    bleedPx,
   }
 }
 

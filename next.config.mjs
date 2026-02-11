@@ -33,7 +33,7 @@ const nextConfig = {
   // Activer le mode expérimental pour les Server Actions
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000'],
+      allowedOrigins: ['localhost:3000', 'localhost:3001'],
     },
     // Exclure les packages problématiques du bundle serveur
     serverComponentsExternalPackages: [

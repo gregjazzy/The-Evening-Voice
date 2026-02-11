@@ -30,6 +30,26 @@ export default function RootLayout({
         <link rel="alternate" hrefLang="x-default" href="https://lavoixdusoir.app" />
       </head>
       <body className="antialiased" suppressHydrationWarning>
+        {/* Suppress Supabase auth-js AbortError before Next.js dev overlay catches it */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.addEventListener('error', function(e) {
+            var err = e.error || e.message || '';
+            var s = err.toString ? err.toString() : String(err);
+            if (s.indexOf('AbortError') !== -1 || s.indexOf('signal is aborted') !== -1 || (err && err.name === 'AbortError')) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              return false;
+            }
+          }, true);
+          window.addEventListener('unhandledrejection', function(e) {
+            var err = e.reason || '';
+            var s = err.toString ? err.toString() : String(err);
+            if (s.indexOf('AbortError') !== -1 || s.indexOf('signal is aborted') !== -1 || (err && err.name === 'AbortError')) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+            }
+          }, true);
+        `}} />
         {children}
       </body>
     </html>
