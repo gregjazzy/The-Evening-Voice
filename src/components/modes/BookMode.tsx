@@ -1779,9 +1779,11 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
   const [isEditing, setIsEditing] = useState(false)
   const [showControls, setShowControls] = useState(false)
   const [showStyleMenu, setShowStyleMenu] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [resizeCorner, setResizeCorner] = useState<string | null>(null)
   const textBoxRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
+  const menuDragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
   const startPosRef = useRef({ x: 0, y: 0, posX: 0, posY: 0, width: 0, height: 0 })
 
   // Gérer le début du drag
@@ -1934,6 +1936,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
         <div
           ref={editorRef}
           contentEditable={isEditing}
+          suppressContentEditableWarning
           onBlur={handleBlur}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
@@ -1991,173 +1994,201 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
         </>
       )}
 
-      {/* Menu de style */}
-      {showStyleMenu && (
+      {/* Menu de style — rendu via portail pour éviter le décalage dû au scale() parent */}
+      {showStyleMenu && typeof document !== 'undefined' && createPortal(
         <>
-          <div 
-            className="fixed inset-0 z-40"
-            onClick={() => setShowStyleMenu(false)}
+          <div
+            className="fixed inset-0 z-[9998]"
+            onClick={() => { setShowStyleMenu(false); setMenuPos(null); }}
           />
-          <div 
-            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[280px] max-h-[90vh] overflow-y-auto"
-            style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+          <div
+            className="fixed z-[9999] w-[260px] max-h-[80vh] overflow-y-auto rounded-2xl bg-midnight-900/95 backdrop-blur-xl border border-midnight-700/50 shadow-2xl"
+            style={menuPos
+              ? { left: `${menuPos.x}px`, top: `${menuPos.y}px` }
+              : { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+            }
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-3">
-              📝 Style du texte
-            </div>
-            
-            {/* Police */}
-            <div className="mb-3">
-              <label className="text-xs text-gray-500 block mb-1.5">Police</label>
-              <div className="grid grid-cols-2 gap-1">
-                {FONTS.map((font) => (
-                  <button
-                    key={font.id}
-                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, fontFamily: font.family })}
-                    className={cn(
-                      "px-2 py-1.5 rounded text-left text-sm transition-all flex items-center gap-2 text-gray-700",
-                      textBox.style.fontFamily === font.family 
-                        ? "bg-aurora-100 text-aurora-700 ring-1 ring-aurora-300" 
-                        : "hover:bg-gray-100"
-                    )}
-                    style={{ fontFamily: font.family }}
-                  >
-                    <span className="text-base">{font.preview}</span>
-                    <span className="text-xs truncate">{font.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Gras / Italique */}
-            <div className="mb-3">
-              <label className="text-xs text-gray-500 block mb-1.5">Style</label>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => onStyleChange(textBox.id, { ...textBox.style, isBold: !textBox.style.isBold })}
-                  className={cn(
-                    "flex-1 p-2 rounded font-bold transition-colors",
-                    textBox.style.isBold ? "bg-aurora-100 text-aurora-700" : "hover:bg-gray-100"
-                  )}
-                >
-                  G
-                </button>
-                <button
-                  onClick={() => onStyleChange(textBox.id, { ...textBox.style, isItalic: !textBox.style.isItalic })}
-                  className={cn(
-                    "flex-1 p-2 rounded italic transition-colors",
-                    textBox.style.isItalic ? "bg-aurora-100 text-aurora-700" : "hover:bg-gray-100"
-                  )}
-                >
-                  I
-                </button>
-              </div>
-            </div>
-            
-            {/* Couleur du texte */}
-            <div className="mb-3">
-              <label className="text-xs text-gray-500 block mb-1.5">Couleur</label>
-              <div className="flex gap-1 flex-wrap">
-                {['#3d3426', '#000000', '#ffffff', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, color })}
-                    className={cn(
-                      "w-6 h-6 rounded border-2 transition-all",
-                      textBox.style.color === color ? "border-aurora-500 scale-110" : "border-gray-300"
-                    )}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
+            {/* Header — draggable */}
+            <div
+              className="sticky top-0 z-10 bg-midnight-900/95 backdrop-blur-xl px-4 pt-3 pb-2 border-b border-midnight-700/50 flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                const menuEl = e.currentTarget.parentElement!
+                const rect = menuEl.getBoundingClientRect()
+                const offsetX = e.clientX - rect.left
+                const offsetY = e.clientY - rect.top
+                const onMove = (ev: MouseEvent) => {
+                  setMenuPos({ x: ev.clientX - offsetX, y: ev.clientY - offsetY })
+                }
+                const onUp = () => {
+                  window.removeEventListener('mousemove', onMove)
+                  window.removeEventListener('mouseup', onUp)
+                }
+                window.addEventListener('mousemove', onMove)
+                window.addEventListener('mouseup', onUp)
+              }}
+            >
+              <span className="text-sm font-medium text-white/90">Style du texte</span>
+              <button onClick={() => { setShowStyleMenu(false); setMenuPos(null); }} className="text-midnight-400 hover:text-white transition-colors">
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Fond */}
-            <div className="mb-3">
-              <label className="text-xs text-gray-500 block mb-1.5">Fond</label>
-              <div className="flex gap-1 flex-wrap">
-                <button
-                  onClick={() => onStyleChange(textBox.id, { ...textBox.style, backgroundColor: undefined })}
-                  className={cn(
-                    "w-6 h-6 rounded border-2 transition-all flex items-center justify-center text-xs",
-                    !textBox.style.backgroundColor ? "border-aurora-500" : "border-gray-300"
-                  )}
-                >
-                  ∅
-                </button>
-                {['#ffffff', '#fef3c7', '#dbeafe', '#dcfce7', '#fce7f3', '#1e1e1e'].map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, backgroundColor: color, backgroundOpacity: 0.9 })}
-                    className={cn(
-                      "w-6 h-6 rounded border-2 transition-all",
-                      textBox.style.backgroundColor === color ? "border-aurora-500 scale-110" : "border-gray-300"
-                    )}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+            <div className="p-3 space-y-3">
+              {/* Police */}
+              <div>
+                <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Police</label>
+                <div className="grid grid-cols-2 gap-1">
+                  {FONTS.map((font) => (
+                    <button
+                      key={font.id}
+                      onClick={() => onStyleChange(textBox.id, { ...textBox.style, fontFamily: font.family })}
+                      className={cn(
+                        "px-2 py-1.5 rounded-lg text-left text-xs transition-all",
+                        textBox.style.fontFamily === font.family
+                          ? "bg-aurora-500/20 text-aurora-300 ring-1 ring-aurora-500/40"
+                          : "text-white/70 hover:bg-midnight-700/50"
+                      )}
+                      style={{ fontFamily: font.family }}
+                    >
+                      {font.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Taille */}
-            <div className="mb-3">
-              <label className="text-xs text-gray-500 block mb-1.5">Taille: {textBox.style.fontSize}px</label>
-              <input
-                type="range"
-                min="10"
-                max="48"
-                value={textBox.style.fontSize}
-                onChange={(e) => onStyleChange(textBox.id, { ...textBox.style, fontSize: parseInt(e.target.value) })}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-aurora-500"
-              />
-            </div>
-
-            {/* Interligne */}
-            <div className="mb-3">
-              <label className="text-xs text-gray-500 block mb-1.5">Interligne</label>
-              <div className="flex gap-1">
-                {Object.entries(LINE_SPACINGS).map(([key, { label, pixelHeight }]) => (
-                  <button
-                    key={key}
-                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, lineSpacing: key as 'tight' | 'normal' | 'relaxed' })}
-                    className={cn(
-                      "flex-1 px-2 py-1.5 rounded text-xs transition-colors text-center",
-                      (textBox.style.lineSpacing || 'normal') === key 
-                        ? "bg-aurora-100 text-aurora-700" 
-                        : "hover:bg-gray-100"
-                    )}
-                  >
-                    <div>{label}</div>
-                    <div className="text-[10px] text-gray-400">{pixelHeight}px</div>
-                  </button>
-                ))}
+              {/* Style + Alignement sur une ligne */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Style</label>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onStyleChange(textBox.id, { ...textBox.style, isBold: !textBox.style.isBold })}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-lg font-bold text-sm transition-colors",
+                        textBox.style.isBold ? "bg-aurora-500/20 text-aurora-300" : "text-white/60 hover:bg-midnight-700/50"
+                      )}
+                    >
+                      B
+                    </button>
+                    <button
+                      onClick={() => onStyleChange(textBox.id, { ...textBox.style, isItalic: !textBox.style.isItalic })}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-lg italic text-sm transition-colors",
+                        textBox.style.isItalic ? "bg-aurora-500/20 text-aurora-300" : "text-white/60 hover:bg-midnight-700/50"
+                      )}
+                    >
+                      I
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Align.</label>
+                  <div className="flex gap-1">
+                    {(['left', 'center', 'right'] as const).map((align) => (
+                      <button
+                        key={align}
+                        onClick={() => onStyleChange(textBox.id, { ...textBox.style, textAlign: align })}
+                        className={cn(
+                          "flex-1 py-1.5 rounded-lg transition-colors",
+                          textBox.style.textAlign === align ? "bg-aurora-500/20 text-aurora-300" : "text-white/60 hover:bg-midnight-700/50"
+                        )}
+                      >
+                        {align === 'left' && <AlignLeft className="w-3.5 h-3.5 mx-auto" />}
+                        {align === 'center' && <AlignCenter className="w-3.5 h-3.5 mx-auto" />}
+                        {align === 'right' && <AlignRight className="w-3.5 h-3.5 mx-auto" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Alignement */}
-            <div>
-              <label className="text-xs text-gray-500 block mb-1.5">Alignement</label>
-              <div className="flex gap-1">
-                {(['left', 'center', 'right'] as const).map((align) => (
-                  <button
-                    key={align}
-                    onClick={() => onStyleChange(textBox.id, { ...textBox.style, textAlign: align })}
-                    className={cn(
-                      "flex-1 p-2 rounded transition-colors",
-                      textBox.style.textAlign === align ? "bg-aurora-100 text-aurora-700" : "hover:bg-gray-100"
-                    )}
-                  >
-                    {align === 'left' && <AlignLeft className="w-4 h-4 mx-auto" />}
-                    {align === 'center' && <AlignCenter className="w-4 h-4 mx-auto" />}
-                    {align === 'right' && <AlignRight className="w-4 h-4 mx-auto" />}
-                  </button>
-                ))}
+              {/* Couleur + Fond sur une ligne */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Couleur</label>
+                  <div className="flex gap-1 flex-wrap">
+                    {['#3d3426', '#000000', '#ffffff', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => onStyleChange(textBox.id, { ...textBox.style, color })}
+                        className={cn(
+                          "w-5 h-5 rounded-full border-2 transition-all",
+                          textBox.style.color === color ? "border-aurora-400 scale-125" : "border-midnight-600 hover:border-midnight-400"
+                        )}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Fond</label>
+                  <div className="flex gap-1 flex-wrap">
+                    <button
+                      onClick={() => onStyleChange(textBox.id, { ...textBox.style, backgroundColor: undefined })}
+                      className={cn(
+                        "w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center",
+                        !textBox.style.backgroundColor ? "border-aurora-400" : "border-midnight-600 hover:border-midnight-400"
+                      )}
+                      style={{ background: 'repeating-conic-gradient(#555 0% 25%, transparent 0% 50%) 50%/8px 8px' }}
+                    />
+                    {['#ffffff', '#fef3c7', '#dbeafe', '#dcfce7', '#fce7f3', '#1e1e1e'].map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => onStyleChange(textBox.id, { ...textBox.style, backgroundColor: color, backgroundOpacity: 0.9 })}
+                        className={cn(
+                          "w-5 h-5 rounded-full border-2 transition-all",
+                          textBox.style.backgroundColor === color ? "border-aurora-400 scale-125" : "border-midnight-600 hover:border-midnight-400"
+                        )}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Taille */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400">Taille</label>
+                  <span className="text-[11px] text-aurora-400 font-medium">{textBox.style.fontSize}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="48"
+                  value={textBox.style.fontSize}
+                  onChange={(e) => onStyleChange(textBox.id, { ...textBox.style, fontSize: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-midnight-700 rounded-full appearance-none cursor-pointer accent-aurora-500"
+                />
+              </div>
+
+              {/* Interligne */}
+              <div>
+                <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Interligne</label>
+                <div className="flex gap-1">
+                  {Object.entries(LINE_SPACINGS).map(([key, { label, pixelHeight }]) => (
+                    <button
+                      key={key}
+                      onClick={() => onStyleChange(textBox.id, { ...textBox.style, lineSpacing: key as 'tight' | 'normal' | 'relaxed' })}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-lg text-xs transition-colors text-center",
+                        (textBox.style.lineSpacing || 'normal') === key
+                          ? "bg-aurora-500/20 text-aurora-300"
+                          : "text-white/60 hover:bg-midnight-700/50"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
 
       {/* Poignées de redimensionnement */}

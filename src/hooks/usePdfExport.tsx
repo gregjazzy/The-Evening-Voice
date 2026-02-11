@@ -507,6 +507,11 @@ export function usePdfExport() {
         result,
       })
 
+      // Auto-clear the message after 3 seconds
+      setTimeout(() => {
+        setState(s => ({ ...s, message: '', progress: 0 }))
+      }, 3000)
+
       return result
     } catch (error) {
       console.error('PDF export error:', error)
