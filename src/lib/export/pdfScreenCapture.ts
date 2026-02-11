@@ -14,7 +14,7 @@
  */
 
 import { PDFDocument } from 'pdf-lib'
-import html2canvas from 'html2canvas'
+import { toPng } from 'html-to-image'
 import type { Story } from '@/store/useAppStore'
 import { CANONICAL_PAGE_WIDTH, getCanonicalDimensions } from '@/lib/rendering/pageRendering'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
@@ -78,19 +78,17 @@ export function computeBleedPx(format: BookFormatConfig): number {
 }
 
 /**
- * Capture an HTML element to a canvas at the given scale.
+ * Capture an HTML element to a PNG data URL at the given scale.
+ * Uses html-to-image (SVG foreignObject) — faithful to browser text rendering.
  */
-async function captureElementToCanvas(
+async function captureElementToPng(
   element: HTMLElement,
   scale: number = 2
-): Promise<HTMLCanvasElement> {
-  return html2canvas(element, {
-    scale,
-    useCORS: true,
-    allowTaint: false,
-    logging: false,
-    backgroundColor: null,
-    imageTimeout: 30000,
+): Promise<string> {
+  return toPng(element, {
+    pixelRatio: scale,
+    cacheBust: true,
+    includeQueryParams: true,
   })
 }
 
@@ -180,47 +178,25 @@ export async function generatePdfFromScreenCaptures(
 
   const totalPages = pageElements.length
 
-  // --- Parallel capture: batch html2canvas calls (4 at a time to avoid OOM) ---
-  const BATCH_SIZE = 4
-  const capturedImages: string[] = new Array(totalPages)
-
-  for (let batchStart = 0; batchStart < totalPages; batchStart += BATCH_SIZE) {
-    const batchEnd = Math.min(batchStart + BATCH_SIZE, totalPages)
-
+  for (let i = 0; i < totalPages; i++) {
     onProgress?.(
-      Math.round((batchStart / totalPages) * 80),
-      `Capture pages ${batchStart + 1}-${batchEnd}/${totalPages}...`
+      Math.round((i / totalPages) * 90),
+      `Capture page ${i + 1}/${totalPages}...`
     )
 
-    const batchPromises = []
-    for (let i = batchStart; i < batchEnd; i++) {
-      batchPromises.push(
-        captureElementToCanvas(pageElements[i], captureScale).then(canvas => {
-          const dataUrl = canvas.toDataURL('image/png')
-          capturedImages[i] = dataUrl
-        })
-      )
-    }
-    await Promise.all(batchPromises)
-  }
+    // 1. Capture to PNG
+    let imageDataUrl = await captureElementToPng(pageElements[i], captureScale)
 
-  // --- Optionally upscale (parallel per batch) ---
-  if (useUpscale) {
-    for (let i = 0; i < totalPages; i++) {
-      // Estimate pixel width from element
+    // 2. Optionally upscale
+    if (useUpscale) {
       const estimatedWidthPx = pageElements[i].offsetWidth * captureScale
       if (estimatedWidthPx < targetWidthPx * 0.7) {
-        onProgress?.(Math.round(80 + (i / totalPages) * 10), `Upscale page ${i + 1}...`)
-        capturedImages[i] = await upscaleImage(capturedImages[i], 2)
+        imageDataUrl = await upscaleImage(imageDataUrl, 2)
       }
     }
-  }
 
-  // --- Assemble PDF (sequential — pdf-lib needs ordered pages) ---
-  onProgress?.(90, 'Assemblage du PDF...')
-
-  for (let i = 0; i < totalPages; i++) {
-    const imageBytes = dataUrlToUint8Array(capturedImages[i])
+    // 3. Embed in PDF
+    const imageBytes = dataUrlToUint8Array(imageDataUrl)
     const pngImage = await pdfDoc.embedPng(imageBytes)
     const page = pdfDoc.addPage([pdfWidthPt, pdfHeightPt])
     page.drawImage(pngImage, {

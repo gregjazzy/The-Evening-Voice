@@ -2,7 +2,7 @@
  * Hook pour l'export PDF par capture d'écran — Gelato print-ready
  *
  * Construit le DOM de chaque page de manière impérative (miroir exact de BookMode),
- * capture avec html2canvas, et assemble en PDF via jsPDF.
+ * capture avec html-to-image, et assemble en PDF via pdf-lib.
  *
  * Chaque page est rendue individuellement à position (0,0) sur <body>
  * pour éviter les bugs html2canvas liés au positionnement/stacking.
@@ -458,17 +458,24 @@ export function usePdfExport() {
       const { width, height } = getPageCaptureSize(format)
       const bleedPx = computeBleedPx(format)
 
-      // Render ALL pages in parallel (DOM construction + image loading)
-      setState(s => ({ ...s, progress: 5, message: `Rendu des ${story.pages.length} pages...` }))
+      // Render each page sequentially
+      const pageElements: HTMLElement[] = []
+      const cleanups: (() => void)[] = []
 
-      const renderPromises = story.pages.map((page, i) =>
-        renderSinglePage(page, i, story.pages.length, pageColor, showLines, width, height, format.id, bleedPx)
-      )
-      const rendered = await Promise.all(renderPromises)
+      for (let i = 0; i < story.pages.length; i++) {
+        setState(s => ({
+          ...s,
+          progress: Math.round((i / story.pages.length) * 20),
+          message: `Rendu page ${i + 1}/${story.pages.length}...`,
+        }))
 
-      // Keep order (Promise.all preserves order)
-      const pageElements = rendered.map(r => r.element)
-      const cleanups = rendered.map(r => r.cleanup)
+        const { element, cleanup } = await renderSinglePage(
+          story.pages[i], i, story.pages.length,
+          pageColor, showLines, width, height, format.id, bleedPx,
+        )
+        pageElements.push(element)
+        cleanups.push(cleanup)
+      }
 
       setState(s => ({ ...s, progress: 20, message: 'Capture des pages...' }))
 
