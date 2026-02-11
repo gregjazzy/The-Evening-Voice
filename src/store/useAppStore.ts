@@ -281,7 +281,6 @@ interface AppState {
   stories: Story[]
   currentStory: Story | null
   createStory: (title: string, structure: StoryStructure, bookFormat?: BookFormat) => Story
-  updateStoryPage: (storyId: string, pageIndex: number, content: string, image?: string) => void
   updateStoryPages: (storyId: string, pages: StoryPage[]) => void
   setCurrentStory: (story: Story | null) => void
   updateStoryFormat: (storyId: string, bookFormat: BookFormat) => void
@@ -481,34 +480,6 @@ export const useAppStore = create<AppState>()(
         // NOTE: La sauvegarde Supabase est gérée par useSupabaseSync
         
         return newStory
-      },
-      updateStoryPage: (storyId, pageIndex, content, image) => {
-        set((state) => {
-          const story = state.stories.find(s => s.id === storyId)
-          if (!story) return state
-          
-          const updatedPages = [...story.pages]
-          if (updatedPages[pageIndex]) {
-            updatedPages[pageIndex] = {
-              ...updatedPages[pageIndex],
-              content,
-              image: image || updatedPages[pageIndex].image,
-            }
-          }
-          
-          const updatedStory = {
-            ...story,
-            pages: updatedPages,
-            updatedAt: new Date(),
-          }
-          
-          // NOTE: La sauvegarde Supabase est gérée par useSupabaseSync
-          
-          return {
-            stories: state.stories.map(s => s.id === storyId ? updatedStory : s),
-            currentStory: state.currentStory?.id === storyId ? updatedStory : state.currentStory,
-          }
-        })
       },
       setCurrentStory: (story) => set({ currentStory: story }),
       updateStoryFormat: (storyId, bookFormat) => {

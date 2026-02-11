@@ -32,6 +32,67 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   // Synchroniser les préférences utilisateur avec Supabase
   useSyncUserPreferences()
 
+  // Intercepteur global pour les erreurs non gérées (notamment AbortError de Supabase)
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      const error = event.error || event.message
+      const errorString = error?.toString() || String(error || '')
+      const stack = error?.stack || ''
+      
+      // Détecter AbortError de plusieurs façons (Supabase auth-js utilise Web Locks API)
+      const isAbortError = 
+        error?.name === 'AbortError' ||
+        errorString.includes('AbortError') ||
+        errorString.includes('aborted') ||
+        errorString.includes('signal is aborted') ||
+        stack.includes('locks.js') || // Stack trace de Supabase locks.js
+        (typeof error === 'string' && error.includes('AbortError'))
+      
+      if (isAbortError) {
+        // Ignorer silencieusement les AbortError (problème connu Supabase auth-js avec Web Locks)
+        console.warn('⚠️ AbortError interceptée (ignorée):', error?.message || errorString)
+        event.preventDefault() // Empêcher l'affichage de l'overlay d'erreur Next.js
+        event.stopPropagation() // Empêcher la propagation
+        return false
+      }
+    }
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason
+      const errorString = error?.toString() || String(error || '')
+      const stack = error?.stack || ''
+      
+      // Détecter AbortError dans les promesses rejetées
+      const isAbortError = 
+        error?.name === 'AbortError' ||
+        errorString.includes('AbortError') ||
+        errorString.includes('aborted') ||
+        errorString.includes('signal is aborted') ||
+        stack.includes('locks.js') || // Stack trace de Supabase locks.js
+        (error?.message && (
+          error.message.includes('AbortError') ||
+          error.message.includes('aborted') ||
+          error.message.includes('signal is aborted')
+        ))
+      
+      if (isAbortError) {
+        // Ignorer silencieusement les AbortError dans les promesses rejetées
+        console.warn('⚠️ AbortError (promise rejection) interceptée (ignorée):', error?.message || errorString)
+        event.preventDefault() // Empêcher l'affichage de l'overlay d'erreur Next.js
+        event.stopPropagation() // Empêcher la propagation
+      }
+    }
+
+    // S'abonner en premier (capture phase) pour intercepter avant Next.js
+    window.addEventListener('error', handleError, true)
+    window.addEventListener('unhandledrejection', handleUnhandledRejection, true)
+
+    return () => {
+      window.removeEventListener('error', handleError, true)
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
+    }
+  }, [])
+
   // Reset des refs quand l'utilisateur se déconnecte
   // (le composant ne remonte pas entre logout→login si pas de refresh)
   useEffect(() => {

@@ -15,11 +15,12 @@ const publicPaths = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Ne pas traiter les assets statiques et API
+  // Ne pas traiter les assets statiques, API et page de rendu PDF
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/auth') ||
+    pathname.startsWith('/render-page') || // Page de rendu pour Puppeteer (export PDF)
     pathname.includes('.') ||
     pathname.startsWith('/favicon')
   ) {

@@ -3,6 +3,10 @@
  *
  * Utilise les mêmes formules partagées que BookMode via pageRendering.ts.
  * Pas d'éléments interactifs, pas de translate(-50%, -50%) sur les images/textboxes.
+ *
+ * Supports optional bleed (fond perdu) for print-ready Gelato PDFs:
+ * when bleedPx > 0 the rendered area is enlarged so the background
+ * extends beyond the trim zone while content stays centred.
  */
 
 'use client'
@@ -12,11 +16,12 @@ import type { StoryPage, PageMedia, PageDecoration, PageTextBox } from '@/store/
 import { PREMIUM_DECORATIONS } from '@/data/decorations'
 import {
   getPageScale,
+  getPagePaddingPx,
   getScaledFontSize,
   getScaledLineHeightPx,
   DECORATION_BASE_SIZE,
-  PAGE_PADDING,
 } from '@/lib/rendering/pageRendering'
+import type { BookFormat } from '@/store/usePublishStore'
 import type { LineSpacing } from '@/lib/rendering/pageRendering'
 
 type PageColor = 'cream' | 'white' | 'aged' | 'parchment' | 'blue' | 'pink' | 'mint' | 'lavender' | 'peach' | 'sky'
@@ -50,8 +55,19 @@ interface ExactPageRendererProps {
   totalPages: number
   pageColor?: PageColor
   showLines?: boolean
+  /** Canonical width (typically CANONICAL_PAGE_WIDTH = 500). */
   width: number
+  /** Canonical height (from getCanonicalDimensions). */
   height: number
+  /** Book format – used to compute pixel-exact padding via getPagePaddingPx(). */
+  bookFormat?: BookFormat
+  /**
+   * Bleed in canonical pixels (same coordinate space as width/height).
+   * When > 0 the rendered element is (width + 2*bleedPx) × (height + 2*bleedPxV)
+   * so the background extends into the bleed zone while content stays centred.
+   * bleedPxV is computed proportionally from the format aspect ratio.
+   */
+  bleedPx?: number
 }
 
 export function ExactPageRenderer({
@@ -62,6 +78,8 @@ export function ExactPageRenderer({
   showLines = true,
   width,
   height,
+  bookFormat = 'portrait-a5',
+  bleedPx = 0,
 }: ExactPageRendererProps) {
   const style: TextStyle = page.style || {}
   const colorConfig = PAGE_COLORS.find(c => c.id === pageColor) || PAGE_COLORS[0]
@@ -69,268 +87,298 @@ export function ExactPageRenderer({
   const isFrontCover = pageIndex === 0
   const isBackCover = pageIndex === totalPages - 1 && totalPages > 1
 
-  // Shared scale from pageRendering.ts
+  // Shared scale from pageRendering.ts (width / CANONICAL_PAGE_WIDTH)
   const scale = getPageScale(width)
 
+  // Pixel-exact page padding from shared module (all ratios × width, matching CSS spec)
+  const pagePad = getPagePaddingPx(bookFormat)
+  const padLeft = pagePad.left
+  const padRight = pagePad.right
+  const padTop = pagePad.top
+  const padBottom = pagePad.bottom
+
   // Text styles — use shared formulas (same as BookMode)
+  // IMPORTANT: defaults MUST match BookMode's DEFAULT_STYLE to avoid text offset
   const fontSize = style.fontSize || 18
   const lineSpacing = (style.lineSpacing || 'normal') as LineSpacing
   const scaledFontSize = getScaledFontSize(fontSize, width)
   const scaledLineHeight = getScaledLineHeightPx(lineSpacing, width)
-  const fontFamily = style.fontFamily || 'Georgia, serif'
+  const fontFamily = style.fontFamily || "'Merriweather', serif"
+
+  // ---- Bleed support ----
+  // bleedPxV = bleedPx because the canonical coordinate system has uniform
+  // mm-to-px scaling: (canonicalWidth / widthMm) === (canonicalHeight / heightMm)
+  // So 3mm of bleed = the same number of canonical pixels in both directions.
+  const bleedPxV = bleedPx
+  const renderWidth = width + 2 * bleedPx
+  const renderHeight = height + 2 * bleedPxV
 
   return (
     <div
       className="printable-page"
       style={{
-        width: `${width}px`,
-        height: `${height}px`,
+        width: `${renderWidth}px`,
+        height: `${renderHeight}px`,
         background: colorConfig.gradient,
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Background media — use background-image for html2canvas compatibility */}
-      {page.backgroundMedia && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            overflow: 'hidden',
-            zIndex: 0,
-          }}
-        >
-          {page.backgroundMedia.type === 'video' ? (
-            <video
-              src={page.backgroundMedia.url}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                opacity: page.backgroundMedia.opacity,
-                transform: `translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1})`,
-                transformOrigin: 'center center',
-              }}
-              muted
-              playsInline
-            />
-          ) : (
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                backgroundImage: `url(${page.backgroundMedia.url})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                opacity: page.backgroundMedia.opacity,
-                transform: `translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1})`,
-                transformOrigin: 'center center',
-              }}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Paper texture removed for print — screen-only effect */}
-
-      {/* Notebook lines — paddings in % (aligned with BookMode) */}
-      {showLines && !isFrontCover && !isBackCover && (
-        <div
-          style={{
-            position: 'absolute',
-            left: PAGE_PADDING.left,
-            right: PAGE_PADDING.right,
-            top: PAGE_PADDING.top,
-            bottom: PAGE_PADDING.bottom,
-            backgroundImage: `repeating-linear-gradient(transparent, transparent ${scaledLineHeight - 1}px, rgba(139, 115, 85, 0.15) ${scaledLineHeight - 1}px, rgba(139, 115, 85, 0.15) ${scaledLineHeight}px)`,
-            backgroundSize: `100% ${scaledLineHeight}px`,
-            zIndex: 2,
-          }}
-        />
-      )}
-
-      {/* Red margin — paddings in % (aligned with BookMode) */}
-      {showLines && !isFrontCover && !isBackCover && (
-        <div
-          style={{
-            position: 'absolute',
-            right: PAGE_PADDING.right,
-            top: PAGE_PADDING.top,
-            bottom: PAGE_PADDING.bottom,
-            width: '1px',
-            backgroundColor: 'rgba(252, 165, 165, 0.4)',
-            zIndex: 2,
-          }}
-        />
-      )}
-
-      {/* Floating images — use background-image for html2canvas compatibility
-          (html2canvas does not support objectFit: 'cover' on <img> tags) */}
-      {page.images?.map((media: PageMedia) => {
-        const opacity = (media as PageMedia & { opacity?: number }).opacity ?? 1
-        return (
+      {/* Content area — offset by bleed so all content positions match the canonical coordinate space */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${bleedPx}px`,
+          top: `${bleedPxV}px`,
+          width: `${width}px`,
+          height: `${height}px`,
+        }}
+      >
+        {/* Background media — INSIDE content area (same coordinate space as editor).
+            Extends into bleed via negative inset so there's no white edge after trimming. */}
+        {page.backgroundMedia && (
           <div
-            key={media.id}
             style={{
               position: 'absolute',
-              left: `${media.position.x}%`,
-              top: `${media.position.y}%`,
-              width: `${media.position.width}%`,
-              height: `${media.position.height}%`,
-              transform: media.position.rotation ? `rotate(${media.position.rotation}deg)` : undefined,
-              zIndex: media.zIndex || 10,
-              backgroundImage: media.type !== 'video' ? `url(${media.url})` : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              opacity,
+              left: `${-bleedPx}px`,
+              top: `${-bleedPxV}px`,
+              right: `${-bleedPx}px`,
+              bottom: `${-bleedPxV}px`,
+              overflow: 'hidden',
+              zIndex: 0,
             }}
           >
-            {media.type === 'video' && (
+            {page.backgroundMedia.type === 'video' ? (
               <video
-                src={media.url}
+                src={page.backgroundMedia.url}
                 style={{
-                  width: '100%',
-                  height: '100%',
+                  position: 'absolute',
+                  left: `${bleedPx}px`,
+                  top: `${bleedPxV}px`,
+                  width: `${width}px`,
+                  height: `${height}px`,
                   objectFit: 'cover',
-                  opacity,
+                  opacity: page.backgroundMedia.opacity,
+                  transform: `translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1})`,
+                  transformOrigin: 'center center',
                 }}
                 muted
                 playsInline
               />
+            ) : (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: `${bleedPx}px`,
+                  top: `${bleedPxV}px`,
+                  width: `${width}px`,
+                  height: `${height}px`,
+                  backgroundImage: `url(${page.backgroundMedia.url})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  opacity: page.backgroundMedia.opacity,
+                  transform: `translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1})`,
+                  transformOrigin: 'center center',
+                }}
+              />
             )}
           </div>
-        )
-      })}
-
-      {/* Decorations — base size from shared constant, deco.scale in transform */}
-      {page.decorations?.map((deco: PageDecoration) => {
-        const decorationItem = PREMIUM_DECORATIONS.find(d => d.id === deco.decorationId)
-        if (!decorationItem) return null
-
-        const color = deco.color || decorationItem.defaultColor || '#D4AF37'
-        const coloredSvg = decorationItem.svg.replace(/currentColor/g, color)
-        const size = DECORATION_BASE_SIZE // 64px fixe, comme l'éditeur (DraggableDecoration)
-
-        return (
+        )}
+        {/* Notebook lines — pixel-exact padding (aligned with BookMode) */}
+        {showLines && !isFrontCover && !isBackCover && (
           <div
-            key={deco.id}
             style={{
               position: 'absolute',
-              left: `${deco.position.x}%`,
-              top: `${deco.position.y}%`,
-              width: `${size}px`,
-              height: `${size}px`,
-              transform: [
-                'translate(-50%, -50%)', // centrer sur le point, comme l'éditeur
-                `rotate(${deco.rotation || 0}deg)`,
-                deco.scale && deco.scale !== 1 ? `scale(${deco.scale})` : '',
-                deco.flipX ? 'scaleX(-1)' : '',
-                deco.flipY ? 'scaleY(-1)' : '',
-              ].filter(Boolean).join(' '),
-              opacity: deco.opacity || 1,
-              zIndex: 100,
-              filter: deco.glow ? 'drop-shadow(0 0 8px gold)' : undefined,
+              left: `${padLeft}px`,
+              right: `${padRight}px`,
+              top: `${padTop}px`,
+              bottom: `${padBottom}px`,
+              backgroundImage: `repeating-linear-gradient(transparent, transparent ${scaledLineHeight - 1}px, rgba(139, 115, 85, 0.15) ${scaledLineHeight - 1}px, rgba(139, 115, 85, 0.15) ${scaledLineHeight}px)`,
+              backgroundSize: `100% ${scaledLineHeight}px`,
+              zIndex: 2,
             }}
-            dangerouslySetInnerHTML={{ __html: coloredSvg }}
           />
-        )
-      })}
+        )}
 
-      {/* Floating text boxes — NO translate(-50%, -50%), height included */}
-      {page.textBoxes?.map((textBox: PageTextBox) => {
-        const tbLineHeight = getScaledLineHeightPx((textBox.style?.lineSpacing || 'normal') as LineSpacing, width)
-        return (
+        {/* Red margin — pixel-exact padding (aligned with BookMode) */}
+        {showLines && !isFrontCover && !isBackCover && (
           <div
-            key={textBox.id}
             style={{
               position: 'absolute',
-              left: `${textBox.position.x}%`,
-              top: `${textBox.position.y}%`,
-              width: `${textBox.position.width}%`,
-              height: `${textBox.position.height}%`,
-              transform: textBox.rotation ? `rotate(${textBox.rotation}deg)` : undefined,
-              padding: '8px',
-              backgroundColor: textBox.style?.backgroundColor || 'transparent',
-              borderRadius: '8px',
-              fontFamily: textBox.style?.fontFamily || 'Georgia, serif',
-              fontSize: `${getScaledFontSize(textBox.style?.fontSize || 14, width)}px`,
-              lineHeight: `${tbLineHeight}px`,
-              color: textBox.style?.color || '#3d3426',
-              textAlign: textBox.style?.textAlign || 'center',
-              fontWeight: textBox.style?.isBold ? 'bold' : 'normal',
-              fontStyle: textBox.style?.isItalic ? 'italic' : 'normal',
-              zIndex: textBox.zIndex || 50,
+              right: `${padRight}px`,
+              top: `${padTop}px`,
+              bottom: `${padBottom}px`,
+              width: '1px',
+              backgroundColor: 'rgba(252, 165, 165, 0.4)',
+              zIndex: 2,
             }}
-          >
-            {textBox.content}
-          </div>
-        )
-      })}
+          />
+        )}
 
-      {/* Main text zone — paddings in % (aligned with BookMode) */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          paddingLeft: PAGE_PADDING.left,
-          paddingRight: PAGE_PADDING.right,
-          paddingTop: PAGE_PADDING.top,
-          paddingBottom: PAGE_PADDING.bottom,
-          zIndex: 10,
-          overflow: 'hidden',
-        }}
-      >
+        {/* Floating images — use background-image for html2canvas compatibility
+            (html2canvas does not support objectFit: 'cover' on <img> tags) */}
+        {page.images?.map((media: PageMedia) => {
+          const opacity = (media as PageMedia & { opacity?: number }).opacity ?? 1
+          return (
+            <div
+              key={media.id}
+              style={{
+                position: 'absolute',
+                left: `${media.position.x}%`,
+                top: `${media.position.y}%`,
+                width: `${media.position.width}%`,
+                height: `${media.position.height}%`,
+                transform: media.position.rotation ? `rotate(${media.position.rotation}deg)` : undefined,
+                zIndex: media.zIndex || 10,
+                backgroundImage: media.type !== 'video' ? `url(${media.url})` : undefined,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                opacity,
+              }}
+            >
+              {media.type === 'video' && (
+                <video
+                  src={media.url}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    opacity,
+                  }}
+                  muted
+                  playsInline
+                />
+              )}
+            </div>
+          )
+        })}
+
+        {/* Decorations — base size from shared constant, deco.scale in transform */}
+        {page.decorations?.map((deco: PageDecoration) => {
+          const decorationItem = PREMIUM_DECORATIONS.find(d => d.id === deco.decorationId)
+          if (!decorationItem) return null
+
+          const color = deco.color || decorationItem.defaultColor || '#D4AF37'
+          const coloredSvg = decorationItem.svg.replace(/currentColor/g, color)
+          const size = DECORATION_BASE_SIZE // 64px fixe, comme l'éditeur (DraggableDecoration)
+
+          return (
+            <div
+              key={deco.id}
+              style={{
+                position: 'absolute',
+                left: `${deco.position.x}%`,
+                top: `${deco.position.y}%`,
+                width: `${size}px`,
+                height: `${size}px`,
+                transform: [
+                  'translate(-50%, -50%)', // centrer sur le point, comme l'éditeur
+                  `rotate(${deco.rotation || 0}deg)`,
+                  deco.scale && deco.scale !== 1 ? `scale(${deco.scale})` : '',
+                  deco.flipX ? 'scaleX(-1)' : '',
+                  deco.flipY ? 'scaleY(-1)' : '',
+                ].filter(Boolean).join(' '),
+                opacity: deco.opacity || 1,
+                zIndex: 100,
+                filter: deco.glow ? 'drop-shadow(0 0 8px gold)' : undefined,
+              }}
+              dangerouslySetInnerHTML={{ __html: coloredSvg }}
+            />
+          )
+        })}
+
+        {/* Floating text boxes — NO translate(-50%, -50%), height included */}
+        {page.textBoxes?.map((textBox: PageTextBox) => {
+          const tbLineHeight = getScaledLineHeightPx((textBox.style?.lineSpacing || 'normal') as LineSpacing, width)
+          return (
+            <div
+              key={textBox.id}
+              style={{
+                position: 'absolute',
+                left: `${textBox.position.x}%`,
+                top: `${textBox.position.y}%`,
+                width: `${textBox.position.width}%`,
+                height: `${textBox.position.height}%`,
+                transform: textBox.rotation ? `rotate(${textBox.rotation}deg)` : undefined,
+                padding: '8px',
+                backgroundColor: textBox.style?.backgroundColor || 'transparent',
+                borderRadius: '8px',
+                fontFamily: textBox.style?.fontFamily || 'Georgia, serif',
+                fontSize: `${getScaledFontSize(textBox.style?.fontSize || 14, width)}px`,
+                lineHeight: `${tbLineHeight}px`,
+                color: textBox.style?.color || '#3d3426',
+                textAlign: textBox.style?.textAlign || 'center',
+                fontWeight: textBox.style?.isBold ? 'bold' : 'normal',
+                fontStyle: textBox.style?.isItalic ? 'italic' : 'normal',
+                zIndex: textBox.zIndex || 50,
+              }}
+            >
+              {textBox.content}
+            </div>
+          )
+        })}
+
+        {/* Main text zone — uses explicit positioning instead of padding.
+            html2canvas miscalculates padding on absolute-positioned elements,
+            so we bake the padding into top/left/right/bottom directly. */}
         <div
           style={{
+            position: 'absolute',
+            left: `${padLeft}px`,
+            right: `${padRight}px`,
+            top: `${padTop}px`,
+            bottom: `${padBottom}px`,
+            zIndex: 10,
+            overflow: 'hidden',
             fontFamily,
             fontSize: `${scaledFontSize}px`,
             lineHeight: `${scaledLineHeight}px`,
             fontWeight: style.isBold ? 'bold' : 'normal',
             fontStyle: style.isItalic ? 'italic' : 'normal',
-            textAlign: style.textAlign || 'left',
+            textAlign: (style.textAlign || 'left') as React.CSSProperties['textAlign'],
             color: '#3d3426',
-            height: '100%',
           }}
           dangerouslySetInnerHTML={{ __html: page.content || '' }}
         />
+
+        {/* Page number */}
+        {!isFrontCover && !isBackCover && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: `${12 * scale}px`,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontFamily: 'Georgia, serif',
+              fontSize: `${12 * scale}px`,
+              color: 'rgba(139, 115, 85, 0.6)',
+              zIndex: 100,
+            }}
+          >
+            — {pageIndex + 1} —
+          </div>
+        )}
+
+        {/* Cover labels */}
+        {(isFrontCover || isBackCover) && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: `${12 * scale}px`,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontFamily: 'Georgia, serif',
+              fontSize: `${10 * scale}px`,
+              fontWeight: 'bold',
+              color: isFrontCover ? '#f59e0b' : '#10b981',
+              zIndex: 100,
+            }}
+          >
+            {isFrontCover ? 'COUVERTURE' : '4EME DE COUVERTURE'}
+          </div>
+        )}
+
       </div>
-
-      {/* Page number */}
-      {!isFrontCover && !isBackCover && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: `${12 * scale}px`,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontFamily: 'Georgia, serif',
-            fontSize: `${12 * scale}px`,
-            color: 'rgba(139, 115, 85, 0.6)',
-            zIndex: 100,
-          }}
-        >
-          — {pageIndex + 1} —
-        </div>
-      )}
-
-      {/* Cover labels */}
-      {(isFrontCover || isBackCover) && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: `${12 * scale}px`,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontFamily: 'Georgia, serif',
-            fontSize: `${10 * scale}px`,
-            fontWeight: 'bold',
-            color: isFrontCover ? '#f59e0b' : '#10b981',
-            zIndex: 100,
-          }}
-        >
-          {isFrontCover ? 'COUVERTURE' : '4EME DE COUVERTURE'}
-        </div>
-      )}
     </div>
   )
 }

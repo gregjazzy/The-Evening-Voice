@@ -13,6 +13,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useStudioStore } from '@/store/useStudioStore'
 
 // Types de médias supportés
 export type MediaType = 'image' | 'audio' | 'video'
@@ -228,6 +229,19 @@ export function useMediaUpload(): UseMediaUploadReturn {
     console.log('📹 [3/4] Upload R2 terminé !')
     setProgress(90)
 
+    // Ajouter l'asset au store local pour qu'il soit immédiatement disponible
+    useStudioStore.getState().addImportedAsset({
+      name: finalFileName,
+      url: publicUrl,
+      cloudUrl: publicUrl,
+      type: 'video',
+      file: null,
+      source: (source === 'dalle' ? 'upload' : source) as 'midjourney' | 'elevenlabs' | 'runway' | 'gemini' | 'upload',
+      promptUsed: undefined,
+      projectId: storyId || undefined, // Lier à l'histoire actuelle
+    })
+    console.log('📦 Vidéo ajoutée au store local avec projectId:', storyId || 'aucun')
+
     console.log('📹 [4/4] Vidéo sauvegardée avec succès')
     setProgress(100)
 
@@ -331,6 +345,20 @@ export function useMediaUpload(): UseMediaUploadReturn {
     // Cast nécessaire car les types Supabase peuvent être désynchronisés
     const asset = assetData as unknown as { id: string }
 
+    // Ajouter l'asset au store local pour qu'il soit immédiatement disponible
+    // (sans attendre le rechargement depuis Supabase)
+    useStudioStore.getState().addImportedAsset({
+      name: fileName,
+      url: publicUrl,
+      cloudUrl: publicUrl,
+      type: type as 'image' | 'audio' | 'video',
+      file: null,
+      source: (source === 'dalle' ? 'upload' : source) as 'midjourney' | 'elevenlabs' | 'runway' | 'gemini' | 'upload',
+      promptUsed: undefined,
+      projectId: storyId || undefined, // Lier à l'histoire actuelle
+    })
+    console.log('📦 Asset ajouté au store local avec projectId:', storyId || 'aucun')
+
     return {
       url: publicUrl,
       assetId: asset.id,
@@ -398,7 +426,7 @@ export function useMediaUpload(): UseMediaUploadReturn {
     } finally {
       setIsUploading(false)
     }
-  }, [user, uploadVideoToR2, uploadToSupabase])
+  }, [user, profile?.id, uploadVideoToR2, uploadToSupabase])
 
   /**
    * Upload depuis une URL (pour les médias générés par IA)

@@ -67,8 +67,8 @@ import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { CharacterImageCreator } from '@/components/studio/CharacterImageCreator'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
+import { usePdfExport } from '@/hooks/usePdfExport'
+import { downloadPdf as downloadPdfFile } from '@/lib/export/pdfScreenCapture'
 
 // ============================================================================
 // TYPES
@@ -950,13 +950,17 @@ function useSpeechRecognition(locale: string = 'fr'): UseSpeechRecognitionReturn
 
 import {
   LINE_SPACINGS,
+  CANONICAL_PAGE_WIDTH,
   REFERENCE_PAGE_WIDTH,
   DECORATION_BASE_SIZE,
-  PAGE_PADDING,
   getPageScale,
   getBaseLineHeightPx,
   getScaledLineHeightPx,
   getScaledFontSize,
+  getCanonicalDimensions,
+  getFitScale,
+  getPagePaddingPx,
+  SPINE_WIDTH as CANONICAL_SPINE_WIDTH,
 } from '@/lib/rendering/pageRendering'
 import type { LineSpacing } from '@/lib/rendering/pageRendering'
 
@@ -4975,76 +4979,51 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
 
 function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
   
-  // Calculer le ratio du format (largeur/hauteur)
-  const formatRatio = getFormatRatio(bookFormat)
+  // ========================================================================
+  // CANONICAL RENDERING
+  // Pages are always rendered at fixed canonical dimensions (500px width).
+  // A CSS transform: scale() wrapper fits them into the available viewport.
+  // ========================================================================
   const formatConfig = BOOK_FORMATS.find(f => f.id === bookFormat)
-  
-  // 📐 Calcul des dimensions du livre en JavaScript (compatible Safari)
-  const SPINE_WIDTH = 16 // Largeur de la reliure en px (w-4)
+  const canonicalDims = getCanonicalDimensions(bookFormat)
+  const pagePad = getPagePaddingPx(bookFormat)
+  const SPINE_WIDTH = CANONICAL_SPINE_WIDTH
+
+  // The canonical spread is 2 pages side by side + spine
+  const canonicalSpreadWidth = canonicalDims.width * 2 + SPINE_WIDTH
+  const canonicalSpreadHeight = canonicalDims.height
+
+  // Ref to the viewport container that we observe for sizing
   const bookContainerRef = useRef<HTMLDivElement>(null)
-  const [bookDimensions, setBookDimensions] = useState({ width: 0, height: 0 })
+  const [spreadScale, setSpreadScale] = useState(1)
 
   useEffect(() => {
-    const calculateBookDimensions = () => {
+    const calculateScale = () => {
       if (!bookContainerRef.current) return
-
-      const container = bookContainerRef.current
-      const containerRect = container.getBoundingClientRect()
-      const availableWidth = containerRect.width - 60 // Padding pour les flèches
-      const availableHeight = containerRect.height - 40
-
-      if (availableWidth <= 0 || availableHeight <= 0) return
-
-      // L'espace disponible pour les 2 pages (sans le spine)
-      const pageAreaWidth = availableWidth - SPINE_WIDTH
-
-      // Le spread fait 2 pages côte à côte, donc ratio = 2 * formatRatio
-      const spreadRatio = 2 * formatRatio
-
-      // Calculer la taille max qui "contient" le livre dans l'espace disponible
-      let bookWidth: number
-      let bookHeight: number
-
-      if (pageAreaWidth / availableHeight > spreadRatio) {
-        // L'espace est plus large que le ratio -> limité par la hauteur
-        bookHeight = availableHeight
-        bookWidth = bookHeight * spreadRatio
-      } else {
-        // L'espace est plus haut que le ratio -> limité par la largeur
-        bookWidth = pageAreaWidth
-        bookHeight = bookWidth / spreadRatio
-      }
-
-      // bookDimensions.width = largeur des 2 pages SANS spine
-      setBookDimensions({ width: Math.round(bookWidth), height: Math.round(bookHeight) })
+      const rect = bookContainerRef.current.getBoundingClientRect()
+      const availableWidth = rect.width - 16
+      const availableHeight = rect.height - 16
+      const scale = getFitScale(canonicalSpreadWidth, canonicalSpreadHeight, availableWidth, availableHeight)
+      setSpreadScale(scale)
     }
-    
-    // Utiliser ResizeObserver pour Safari (plus fiable que window.resize)
-    const resizeObserver = new ResizeObserver(() => {
-      calculateBookDimensions()
-    })
-    
-    if (bookContainerRef.current) {
-      resizeObserver.observe(bookContainerRef.current)
-    }
-    
-    // Calcul initial après un délai (pour que le layout soit prêt)
-    const timeout1 = setTimeout(calculateBookDimensions, 50)
-    const timeout2 = setTimeout(calculateBookDimensions, 200)
-    const timeout3 = setTimeout(calculateBookDimensions, 500)
-    
+
+    const resizeObserver = new ResizeObserver(calculateScale)
+    if (bookContainerRef.current) resizeObserver.observe(bookContainerRef.current)
+
+    // Initial calculations (layout may not be ready immediately)
+    const t1 = setTimeout(calculateScale, 50)
+    const t2 = setTimeout(calculateScale, 200)
+
     return () => {
       resizeObserver.disconnect()
-      clearTimeout(timeout1)
-      clearTimeout(timeout2)
-      clearTimeout(timeout3)
+      clearTimeout(t1)
+      clearTimeout(t2)
     }
-  }, [formatRatio])
+  }, [canonicalSpreadWidth, canonicalSpreadHeight])
 
-  // Scale factor: le livre fait 2 pages, chaque page = moitié de la largeur (sans spine)
-  const singlePageWidth = bookDimensions.width > 0 ? bookDimensions.width / 2 : 0
-  const pageWidth = singlePageWidth > 0 ? singlePageWidth : REFERENCE_PAGE_WIDTH
-  const pageScale = getPageScale(pageWidth)
+  // With canonical rendering, pageWidth is ALWAYS the canonical width
+  const pageWidth = CANONICAL_PAGE_WIDTH
+  const pageScale = 1 // getPageScale(pageWidth) === 1
 
   // Styles séparés pour chaque page
   const rightStyle = page?.style || DEFAULT_STYLE
@@ -5310,24 +5289,24 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
     ru: { start: 'Диктовать', stop: 'Стоп', listening: 'Слушаю...' },
   }
 
-  // Hauteur de ligne en pixels pour chaque page (scalées)
-  const rightLineHeightPx = getScaledLineHeightPx((rightStyle.lineSpacing || 'normal') as LineSpacing, pageWidth)
-  const leftLineHeightPx = getScaledLineHeightPx((leftStyle.lineSpacing || 'normal') as LineSpacing, pageWidth)
+  // Hauteur de ligne en pixels pour chaque page (canonical — scale = 1)
+  const rightLineHeightPx = getBaseLineHeightPx((rightStyle.lineSpacing || 'normal') as LineSpacing)
+  const leftLineHeightPx = getBaseLineHeightPx((leftStyle.lineSpacing || 'normal') as LineSpacing)
 
-  // Style du texte pour la page droite (scalé)
+  // Style du texte pour la page droite (canonical — valeurs directes, pas de scaling)
   const rightTextStyle: React.CSSProperties = {
     fontFamily: rightStyle.fontFamily,
-    fontSize: `${getScaledFontSize(rightStyle.fontSize, pageWidth)}px`,
+    fontSize: `${rightStyle.fontSize}px`,
     lineHeight: `${rightLineHeightPx}px`,
     fontWeight: rightStyle.isBold ? 'bold' : 'normal',
     fontStyle: rightStyle.isItalic ? 'italic' : 'normal',
     textAlign: rightStyle.textAlign,
   }
 
-  // Style du texte pour la page gauche (scalé)
+  // Style du texte pour la page gauche (canonical — valeurs directes, pas de scaling)
   const leftTextStyle: React.CSSProperties = {
     fontFamily: leftStyle.fontFamily,
-    fontSize: `${getScaledFontSize(leftStyle.fontSize, pageWidth)}px`,
+    fontSize: `${leftStyle.fontSize}px`,
     lineHeight: `${leftLineHeightPx}px`,
     fontWeight: leftStyle.isBold ? 'bold' : 'normal',
     fontStyle: leftStyle.isItalic ? 'italic' : 'normal',
@@ -5516,12 +5495,32 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
         
         if (!zPage) return null
         
+        // Compute zoom scale to fit the canonical page in the viewport
+        const zoomContainerRef = useRef<HTMLDivElement>(null)
+        const [zoomScale, setZoomScale] = useState(1)
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        useEffect(() => {
+          const calcZoomScale = () => {
+            if (!zoomContainerRef.current) return
+            const rect = zoomContainerRef.current.getBoundingClientRect()
+            const s = getFitScale(canonicalDims.width, canonicalDims.height, rect.width - 40, rect.height - 40)
+            setZoomScale(Math.min(s, 1.5)) // Allow up to 1.5x for zoom
+          }
+          const ro = new ResizeObserver(calcZoomScale)
+          if (zoomContainerRef.current) ro.observe(zoomContainerRef.current)
+          const t = setTimeout(calcZoomScale, 50)
+          return () => { ro.disconnect(); clearTimeout(t) }
+        }, [canonicalDims.width, canonicalDims.height])
+
         return (
         <div 
+          ref={zoomContainerRef}
           className="flex-1 flex items-center justify-center pt-2 cursor-pointer"
           onClick={exitZoom}
         >
-          {/* Page zoomée */}
+          {/* Scale wrapper for zoomed page */}
+          <div style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center', willChange: 'transform' }}>
+          {/* Page zoomée — canonical fixed dimensions */}
           <motion.div
             ref={zoomedPageContainerRef}
             onClick={(e) => e.stopPropagation()}
@@ -5530,11 +5529,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             exit={{ scale: 0.8, opacity: 0 }}
             className="relative flex flex-col shadow-2xl"
             style={{
-              // En mode zoom, une seule page qui respecte le ratio du format
-              aspectRatio: `${formatRatio} / 1`,
-              // Hauteur = min entre (hauteur dispo) et (largeur dispo / ratio)
-              height: `min(calc(100vh - 140px), calc((100vw - 250px) / ${formatRatio}))`,
-              width: 'auto',
+              width: `${canonicalDims.width}px`,
+              height: `${canonicalDims.height}px`,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '12px',
               overflow: 'visible',
@@ -5757,10 +5753,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <div 
                 className="absolute pointer-events-none"
                 style={{
-                  left: '10%',
-                  right: '10%',
-                  top: '8%',
-                  bottom: '12%',
+                  left: `${pagePad.left}px`,
+                  right: `${pagePad.right}px`,
+                  top: `${pagePad.top}px`,
+                  bottom: `${pagePad.bottom}px`,
                   backgroundImage: `repeating-linear-gradient(transparent, transparent ${zLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${zLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${zLineHeightPx}px)`,
                   backgroundSize: `100% ${zLineHeightPx}px`,
                 }}
@@ -5772,7 +5768,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <div 
                 data-pdf-hide="true"
                 className="absolute w-px bg-red-300/40 pointer-events-none" 
-                style={{ left: '10%', top: '8%', bottom: '12%' }}
+                style={{ left: `${pagePad.left}px`, top: `${pagePad.top}px`, bottom: `${pagePad.bottom}px` }}
               />
               )}
       
@@ -5789,10 +5785,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 style={{
                   ...zTextStyle,
                   color: '#3d3426',
-                  paddingLeft: '10%',
-                  paddingRight: '10%',
-                  paddingTop: '8%',
-                  paddingBottom: '12%',
+                  paddingLeft: `${pagePad.left}px`,
+                  paddingRight: `${pagePad.right}px`,
+                  paddingTop: `${pagePad.top}px`,
+                  paddingBottom: `${pagePad.bottom}px`,
                 }}
           className={cn(
                   'absolute inset-0 overflow-hidden',
@@ -5922,48 +5918,52 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   : `— Page ${zPageIndex + 1} —`}
             </div>
           </motion.div>
+          </div>{/* end zoom scale wrapper */}
           </div>
         )
       })() : (
       /* LIVRE OUVERT - TAILLE MAXIMISÉE calculée en JS */
-      <div 
-        className="flex-1 flex items-center justify-center gap-2 overflow-hidden"
-        style={{ padding: '8px' }}
+      <div
+        className="flex-1 relative overflow-hidden"
       >
-        {/* Flèche gauche */}
+        {/* Flèche gauche - overlaid */}
         {onPrevPage && (
           <button
             onClick={onPrevPage}
             disabled={!hasPrevPage}
             className={cn(
-              'p-1.5 rounded-full transition-all flex-shrink-0',
-              hasPrevPage 
-                ? 'text-midnight-400 hover:text-white hover:bg-midnight-800/50' 
+              'absolute left-2 top-1/2 -translate-y-1/2 z-30 p-1.5 rounded-full transition-all',
+              hasPrevPage
+                ? 'text-midnight-400 hover:text-white hover:bg-midnight-800/50'
                 : 'text-midnight-700 cursor-not-allowed'
             )}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
         )}
-        
+
         {/* Zone du livre - TOUT l'espace disponible */}
-        <div 
+        <div
           ref={bookContainerRef}
-          className="relative flex-1 h-full overflow-hidden flex items-center justify-center"
+          className="absolute inset-0 flex items-center justify-center"
         >
-          {/* LIVRE - Dimensions calculées en JS (compatible Safari) */}
+          {/* SCALE WRAPPER — applies viewport fitting via CSS transform */}
+          <div
+            data-scale-wrapper
+            style={{
+              transform: `scale(${spreadScale})`,
+              transformOrigin: 'center center',
+              // The wrapper itself takes the canonical spread size for layout purposes
+              // but doesn't clip — the parent centers it
+              willChange: 'transform',
+            }}
+          >
+          {/* LIVRE — Canonical fixed dimensions */}
           <div
             className="relative flex shadow-2xl"
             style={{
-              // Largeur totale = 2 pages + spine
-              width: bookDimensions.width > 0 ? `${bookDimensions.width + SPINE_WIDTH}px` : 'auto',
-              height: bookDimensions.height > 0 ? `${bookDimensions.height}px` : 'auto',
-              // Fallback CSS si JS n'a pas encore calculé
-              ...(bookDimensions.width === 0 && {
-                aspectRatio: `${2 * formatRatio} / 1`,
-                maxHeight: 'calc(100vh - 200px)',
-                maxWidth: 'calc(100vw - 450px)',
-              }),
+              width: `${canonicalSpreadWidth}px`,
+              height: `${canonicalSpreadHeight}px`,
               perspective: '2000px',
             }}
           >
@@ -5978,14 +5978,14 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {/* Ombre du livre */}
             <div className="absolute -bottom-4 left-4 right-4 h-8 bg-black/30 blur-xl rounded-full" />
           
-          {/* PAGE GAUCHE (page d'écriture) */}
+          {/* PAGE GAUCHE (page d'écriture) — canonical fixed width */}
           <div
             ref={leftPageContainerRef}
             data-page-side="left"
             className="relative group h-full"
             onClick={() => setActivePage('left')}
             style={{
-              width: singlePageWidth > 0 ? `${singlePageWidth}px` : '50%',
+              width: `${canonicalDims.width}px`,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
@@ -6204,10 +6204,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <div 
                 className="absolute"
                 style={{
-                  left: '10%',
-                  right: '10%',
-                  top: '8%',
-                  bottom: '12%',
+                  left: `${pagePad.left}px`,
+                  right: `${pagePad.right}px`,
+                  top: `${pagePad.top}px`,
+                  bottom: `${pagePad.bottom}px`,
                   backgroundImage: `repeating-linear-gradient(transparent, transparent ${leftLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${leftLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${leftLineHeightPx}px)`,
                   backgroundSize: `100% ${leftLineHeightPx}px`,
                 }} 
@@ -6219,7 +6219,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <div 
                 data-pdf-hide="true"
                 className="absolute w-px bg-red-300/40" 
-                style={{ right: '10%', top: '8%', bottom: '12%' }}
+                style={{ right: `${pagePad.right}px`, top: `${pagePad.top}px`, bottom: `${pagePad.bottom}px` }}
               />
             )}
             
@@ -6236,10 +6236,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 style={{
                   ...leftTextStyle,
                   color: '#3d3426',
-                  paddingLeft: '10%',
-                  paddingRight: '10%',
-                  paddingTop: '8%',
-                  paddingBottom: '12%',
+                  paddingLeft: `${pagePad.left}px`,
+                  paddingRight: `${pagePad.right}px`,
+                  paddingTop: `${pagePad.top}px`,
+                  paddingBottom: `${pagePad.bottom}px`,
                 }}
                 className={cn(
                   'absolute inset-0 overflow-hidden z-10',
@@ -6424,14 +6424,14 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             </div>
           </div>
           
-          {/* PAGE DROITE (page d'écriture) */}
+          {/* PAGE DROITE (page d'écriture) — canonical fixed width */}
           <div
             ref={rightPageContainerRef}
             data-page-side="right"
             className="relative group h-full"
             onClick={() => setActivePage('right')}
             style={{
-              width: singlePageWidth > 0 ? `${singlePageWidth}px` : '50%',
+              width: `${canonicalDims.width}px`,
               background: getPageColorStyles(bookColor).background,
               borderRadius: '0 8px 8px 0',
               boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
@@ -6650,10 +6650,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <div 
                 className="absolute"
                 style={{
-                  left: '10%',
-                  right: '10%',
-                  top: '8%',
-                  bottom: '12%',
+                  left: `${pagePad.left}px`,
+                  right: `${pagePad.right}px`,
+                  top: `${pagePad.top}px`,
+                  bottom: `${pagePad.bottom}px`,
                   backgroundImage: `repeating-linear-gradient(transparent, transparent ${rightLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${rightLineHeightPx - 1}px, rgba(139, 115, 85, 0.15) ${rightLineHeightPx}px)`,
                   backgroundSize: `100% ${rightLineHeightPx}px`,
                 }} 
@@ -6665,7 +6665,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <div 
                 data-pdf-hide="true"
                 className="absolute w-px bg-red-300/40" 
-                style={{ left: '10%', top: '8%', bottom: '12%' }}
+                style={{ left: `${pagePad.left}px`, top: `${pagePad.top}px`, bottom: `${pagePad.bottom}px` }}
               />
             )}
             
@@ -6682,10 +6682,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               style={{
                 ...rightTextStyle,
                 color: '#3d3426',
-                paddingLeft: '10%',
-                paddingRight: '10%',
-                paddingTop: '8%',
-                paddingBottom: '12%',
+                paddingLeft: `${pagePad.left}px`,
+                paddingRight: `${pagePad.right}px`,
+                paddingTop: `${pagePad.top}px`,
+                paddingBottom: `${pagePad.bottom}px`,
               }}
           className={cn(
                 'absolute inset-0 overflow-hidden z-10',
@@ -6830,17 +6830,18 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
 
           </div>
         </div>
-        </div>
+        </div>{/* end scale wrapper */}
+        </div>{/* end bookContainerRef */}
         
-        {/* Flèche droite */}
+        {/* Flèche droite - overlaid */}
         {onNextPage && (
           <button
             onClick={onNextPage}
             disabled={!hasNextPage}
             className={cn(
-              'p-1.5 rounded-full transition-all flex-shrink-0',
-              hasNextPage 
-                ? 'text-midnight-400 hover:text-white hover:bg-midnight-800/50' 
+              'absolute right-2 top-1/2 -translate-y-1/2 z-30 p-1.5 rounded-full transition-all',
+              hasNextPage
+                ? 'text-midnight-400 hover:text-white hover:bg-midnight-800/50'
                 : 'text-midnight-700 cursor-not-allowed'
             )}
           >
@@ -7825,176 +7826,47 @@ export function BookMode() {
   const [pageToDelete, setPageToDelete] = useState<number | null>(null)
   
   // ============================================================================
-  // EXPORT PDF - États
+  // EXPORT PDF — off-screen via usePdfExport (Gelato print-ready, ≥300 DPI)
   // ============================================================================
-  const [isExportingPdf, setIsExportingPdf] = useState(false)
-  const [exportStatus, setExportStatus] = useState('')
-  
-  // Ref pour savoir si on est en mode capture (pour éviter les overlays)
-  const isCapturingRef = useRef(false)
-  
-  // Fonction d'export PDF - capture directe des pages de l'éditeur
+  const {
+    isExporting: isExportingPdf,
+    message: exportStatus,
+    exportToPdf,
+  } = usePdfExport()
+
   const handleExportPdf = useCallback(async () => {
     if (!currentStory || pages.length === 0) return
-    
-    // Marquer qu'on est en mode capture AVANT de mettre isExportingPdf
-    isCapturingRef.current = true
-    setExportStatus('Préparation...')
-    
-    try {
-      // Récupérer le format du livre depuis l'histoire
-      const storyFormat = currentStory.bookFormat || 'portrait-a5'
-      const formatConfig = BOOK_FORMATS.find(f => f.id === storyFormat) || BOOK_FORMATS[0]
-      const pageWidthMm = formatConfig.widthMm
-      const pageHeightMm = formatConfig.heightMm
-      
-      // Créer le PDF avec les bonnes dimensions
-      const pdf = new jsPDF({
-        orientation: pageHeightMm > pageWidthMm ? 'portrait' : 'landscape',
-        unit: 'mm',
-        format: [pageWidthMm, pageHeightMm],
-      })
-      
-      const savedSpread = currentSpread
-      const totalPagesCount = pages.length
-      
-      // Pour chaque page
-      for (let pageIdx = 0; pageIdx < totalPagesCount; pageIdx++) {
-        setExportStatus(`Page ${pageIdx + 1}/${totalPagesCount}...`)
-        
-        // Calculer le spread et la position (gauche ou droite)
-        const spreadIdx = Math.floor(pageIdx / 2)
-        const isLeftPage = pageIdx % 2 === 0
-        
-        // Naviguer au bon spread
-        setCurrentSpread(spreadIdx)
-        
-        // Attendre le rendu
-        await new Promise(resolve => setTimeout(resolve, 400))
-        
-        // Trouver le conteneur de la page à capturer via sélecteur CSS
-        const pageSelector = isLeftPage ? '[data-page-side="left"]' : '[data-page-side="right"]'
-        const pageRef = document.querySelector(pageSelector) as HTMLElement
-        
-        if (pageRef) {
-          // === PRÉPARER LA PAGE POUR LA CAPTURE ===
-          // Sauvegarder le style original
-          const originalStyle = pageRef.getAttribute('style') || ''
-          
-          // Retirer l'ombre de reliure
-          pageRef.style.boxShadow = 'none'
-          
-          // Collecter et cacher les éléments UI
-          const elementsToHide: HTMLElement[] = []
-          
-          // Barres d'outils, indicateurs, etc.
-          pageRef.querySelectorAll('[data-pdf-hide="true"]').forEach((el) => {
-            elementsToHide.push(el as HTMLElement)
-          })
-          
-          // Sauvegarder les displays originaux et cacher
-          const originalDisplays = elementsToHide.map(el => {
-            const display = el.style.display
-            el.style.display = 'none'
-            return display
-          })
-          
-          // Simuler objectFit: cover manuellement pour html2canvas
-          // (html2canvas v1.4.1 ne supporte pas objectFit)
-          // On calcule les dimensions réelles pour couvrir le conteneur
-          // en gardant le ratio de l'image, puis le parent overflow:hidden fait le crop.
-          const imageFixups: { img: HTMLImageElement; origStyle: string }[] = []
-          pageRef.querySelectorAll('img').forEach((img) => {
-            const computed = window.getComputedStyle(img)
-            if (computed.objectFit === 'cover') {
-              const cW = img.clientWidth
-              const cH = img.clientHeight
-              const nW = img.naturalWidth
-              const nH = img.naturalHeight
-              if (nW > 0 && nH > 0 && cW > 0 && cH > 0) {
-                const scale = Math.max(cW / nW, cH / nH)
-                const sW = Math.ceil(nW * scale)
-                const sH = Math.ceil(nH * scale)
-                imageFixups.push({ img, origStyle: img.style.cssText })
-                img.style.objectFit = 'none'
-                img.style.width = `${sW}px`
-                img.style.height = `${sH}px`
-                img.style.maxWidth = 'none'
-                img.style.marginLeft = `${Math.round((cW - sW) / 2)}px`
-                img.style.marginTop = `${Math.round((cH - sH) / 2)}px`
-              }
-            }
-          })
 
-          // Attendre que le DOM se mette à jour
-          await new Promise(resolve => setTimeout(resolve, 50))
+    const storyFormat = currentStory.bookFormat || 'portrait-a5'
+    const formatConfig = BOOK_FORMATS.find(f => f.id === storyFormat) || BOOK_FORMATS[0]
 
-          // === CAPTURER ===
-          const canvas = await html2canvas(pageRef, {
-            scale: 3,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: null,
-            logging: false,
-          })
-
-          // === RESTAURER ===
-          imageFixups.forEach(({ img, origStyle }) => {
-            img.style.cssText = origStyle
-          })
-          pageRef.setAttribute('style', originalStyle)
-          elementsToHide.forEach((el, i) => {
-            el.style.display = originalDisplays[i]
-          })
-          
-          // Ajouter l'image au PDF
-          const imgData = canvas.toDataURL('image/jpeg', 0.95)
-          
-          if (pageIdx > 0) {
-            pdf.addPage([pageWidthMm, pageHeightMm])
-          }
-          
-          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, pageHeightMm)
-          
-          // Ajouter le numéro de page
-          // - Page 0 = Couverture → pas de numéro
-          // - Page 1 = Page de garde → pas de numéro
-          // - Pages 2 à N-2 → numéros de page (commençant à 1)
-          // - Page N-1 = 4ème de couverture → pas de numéro
-          const shouldHavePageNumber = pageIdx >= 2 && pageIdx < totalPagesCount - 1
-          if (shouldHavePageNumber) {
-            const pageNumber = pageIdx - 1 // Page 2 → 1, Page 3 → 2, etc.
-            pdf.setFontSize(10)
-            pdf.setTextColor(100, 80, 60) // Couleur ambrée/sépia
-            
-            // Centrer le numéro en bas de la page
-            const textWidth = pdf.getTextWidth(String(pageNumber))
-            const xPos = (pageWidthMm - textWidth) / 2
-            const yPos = pageHeightMm - 8 // 8mm du bas
-            
-            pdf.text(String(pageNumber), xPos, yPos)
-          }
-        }
-      }
-      
-      // Revenir au spread d'origine
-      setCurrentSpread(savedSpread)
-      
-      // Sauvegarder le PDF
-      const filename = `${currentStory.title.replace(/[^a-zA-Z0-9]/g, '_')}_${formatConfig.name}.pdf`
-      pdf.save(filename)
-      
-      setExportStatus('PDF créé avec succès !')
-      setTimeout(() => setExportStatus(''), 3000)
-      
-    } catch (error) {
-      console.error('Erreur export PDF:', error)
-      setExportStatus('Erreur lors de l\'export')
-    } finally {
-      isCapturingRef.current = false
-      setIsExportingPdf(false)
+    // Build a Story-shaped object from the local pages state
+    const storyForExport = {
+      ...currentStory,
+      pages: pages.map(p => ({
+        id: p.id,
+        title: p.title || '',
+        content: p.content || '',
+        pageType: p.pageType,
+        images: p.images,
+        backgroundMedia: p.backgroundMedia,
+        decorations: p.decorations,
+        textBoxes: p.textBoxes,
+        style: p.style,
+      })),
     }
-  }, [currentStory, pages, currentSpread])
+
+    const result = await exportToPdf(storyForExport as any, {
+      format: formatConfig,
+      pageColor: bookColor,
+      showLines,
+    })
+
+    if (result) {
+      const filename = `${currentStory.title.replace(/[^a-zA-Z0-9]/g, '_')}_${formatConfig.name}_Gelato`
+      downloadPdfFile(result, filename)
+    }
+  }, [currentStory, pages, bookColor, showLines, exportToPdf])
   
   // Calcul des indices de pages pour le spread courant
   const leftPageIndex = currentSpread * 2

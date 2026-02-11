@@ -257,8 +257,119 @@ async function withRetry<T>(
   throw lastError
 }
 
+/**
+ * Vérifie que la session Supabase est valide et tente un rafraîchissement si nécessaire.
+ * Retourne true si la session est OK, false sinon.
+ * Cela évite les sauvegardes silencieusement perdues quand le token a expiré
+ * (cause: AbortError lors du auto-refresh de GoTrueClient).
+ */
+async function ensureValidSession(): Promise<boolean> {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    // Ignorer les AbortError silencieusement (problème connu Supabase auth-js avec Web Locks)
+    if (error) {
+      const isAbortError = error.name === 'AbortError' || 
+                          error.message?.includes('aborted') ||
+                          error.message?.includes('signal is aborted')
+      if (isAbortError) {
+        console.warn('⚠️ Session check aborted (normal lors du rechargement/concurrence)')
+        return false // Retourner false pour éviter la sauvegarde avec session invalide
+      }
+    }
+    
+    if (error || !session) {
+      console.warn('⚠️ Session invalide ou expirée, tentative de refresh...')
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+        
+        // Ignorer les AbortError lors du refresh aussi
+        if (refreshError) {
+          const isAbortError = refreshError.name === 'AbortError' || 
+                              refreshError.message?.includes('aborted') ||
+                              refreshError.message?.includes('signal is aborted')
+          if (isAbortError) {
+            console.warn('⚠️ Refresh session aborted (normal lors du rechargement/concurrence)')
+            return false
+          }
+        }
+        
+        if (refreshError || !refreshData.session) {
+          console.error('❌ Impossible de rafraîchir la session:', refreshError?.message || 'pas de session')
+          notify.error('Session expirée', 'Impossible de sauvegarder. Recharge la page ou reconnecte-toi.')
+          return false
+        }
+        console.log('✅ Session rafraîchie avec succès')
+        return true
+      } catch (refreshErr: any) {
+        // Capturer les AbortError qui peuvent être lancées comme exceptions
+        const isAbortError = refreshErr?.name === 'AbortError' || 
+                            refreshErr?.message?.includes('aborted') ||
+                            refreshErr?.message?.includes('signal is aborted')
+        if (isAbortError) {
+          console.warn('⚠️ Refresh session aborted (exception)')
+          return false
+        }
+        throw refreshErr // Re-lancer les autres erreurs
+      }
+    }
+    // Vérifier si le token expire dans moins de 60 secondes
+    const expiresAt = session.expires_at ? session.expires_at * 1000 : 0
+    const now = Date.now()
+    if (expiresAt > 0 && expiresAt - now < 60_000) {
+      console.log('⏰ Token expire bientôt, refresh proactif...')
+      try {
+        const { error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError) {
+          // Ignorer les AbortError lors du refresh proactif aussi
+          const isAbortError = refreshError.name === 'AbortError' || 
+                              refreshError.message?.includes('aborted') ||
+                              refreshError.message?.includes('signal is aborted')
+          if (isAbortError) {
+            console.warn('⚠️ Refresh proactif aborted (normal)')
+          } else {
+            console.warn('⚠️ Refresh proactif échoué:', refreshError.message)
+          }
+          // On continue quand même — le token est encore valide pour quelques secondes
+        } else {
+          console.log('✅ Token rafraîchi proactivement')
+        }
+      } catch (refreshErr: any) {
+        // Ignorer les AbortError lors du refresh proactif
+        const isAbortError = refreshErr?.name === 'AbortError' || 
+                            refreshErr?.message?.includes('aborted') ||
+                            refreshErr?.message?.includes('signal is aborted')
+        if (!isAbortError) {
+          console.warn('⚠️ Refresh proactif exception:', refreshErr)
+        }
+      }
+    }
+    return true
+  } catch (err: any) {
+    // Filtrer les AbortError dans le catch global aussi
+    const isAbortError = err?.name === 'AbortError' || 
+                        err?.message?.includes('aborted') ||
+                        err?.message?.includes('signal is aborted')
+    if (isAbortError) {
+      console.warn('⚠️ Session check aborted (catch global)')
+      return false
+    }
+    console.error('❌ Erreur lors de la vérification de session:', err)
+    return false
+  }
+}
+
 // Fonction utilitaire pour sauvegarder une histoire (hors hook)
 async function saveStoryToSupabase(story: Story, profileId: string, userName: string) {
+  // Vérifier que la session est valide AVANT de commencer la sauvegarde
+  const sessionOk = await ensureValidSession()
+  if (!sessionOk) {
+    console.error(`❌ Sauvegarde annulée pour "${story.title}" : session invalide`)
+    // Mettre en pending pour retry lors du prochain changement
+    pendingSaves.set(story.id, { story, profileId, userName })
+    return false
+  }
+
   // Vérifier si une sauvegarde est déjà en cours pour cette histoire
   if (storySaveLocks.get(story.id)) {
     console.log(`⏳ Sauvegarde déjà en cours pour "${story.title}", mise en file d'attente`)

@@ -262,7 +262,7 @@ function generatePageHTML(
       <div style="
         position: absolute;
         inset: 0;
-        padding: 8% ${outerMargin} 8% ${innerMargin};
+        padding: 4% ${outerMargin} 8% ${innerMargin};
         z-index: 1;
       ">
         <div class="text-content" style="

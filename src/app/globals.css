@@ -826,3 +826,75 @@ textarea::placeholder, input[type="text"]::placeholder {
 .stagger-item:nth-child(9) { animation-delay: 0.45s; }
 .stagger-item:nth-child(10) { animation-delay: 0.5s; }
 
+/* ============================================================================
+   STYLES D'IMPRESSION - Pour exporter les pages en PDF via window.print()
+   ============================================================================ */
+
+@media print {
+  /* Reset complet pour l'impression */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  html, body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* Cacher TOUT sauf l'aperçu d'impression */
+  body > *:not(.print-preview),
+  nav,
+  aside,
+  header,
+  footer,
+  button,
+  .no-print,
+  [data-pdf-hide="true"] {
+    display: none !important;
+  }
+  
+  /* L'aperçu d'impression prend tout */
+  .print-preview {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
+    overflow: visible !important;
+    z-index: auto !important;
+  }
+  
+  .print-pages {
+    width: 100% !important;
+  }
+  
+  /* Chaque page du livre */
+  .print-page {
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background-size: cover !important;
+  }
+  
+  /* Pas de saut après la dernière page */
+  .print-page:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+  
+  /* Configuration de la page - le navigateur utilisera la taille du contenu */
+  @page {
+    margin: 0;
+    padding: 0;
+  }
+}
+

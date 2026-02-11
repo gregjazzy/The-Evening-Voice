@@ -112,9 +112,9 @@ export function Sidebar() {
   const isParent = userFamilyInfo?.user_role === 'parent'
   const canAccessAdmin = isSuperAdmin || isParent
   
-  // Modes qui nécessitent une histoire avec titre
-  // Note: Studio ne nécessite PAS d'histoire - on peut générer des images indépendamment
-  const modesRequiringStory: AppMode[] = ['layout']
+  // Modes qui nécessitent une histoire sélectionnée
+  // Studio nécessite une histoire pour associer les images générées
+  const modesRequiringStory: AppMode[] = ['studio', 'layout']
   const hasStoryWithTitle = !!currentStory?.title
   
   // Histoires triées par date (plus récentes en premier)
