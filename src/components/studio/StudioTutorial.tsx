@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  X, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Copy,
   Check,
@@ -14,132 +14,37 @@ import {
 } from 'lucide-react'
 import { type CreationType } from '@/store/useStudioProgressStore'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 
 interface TutorialStep {
   id: string
-  title: string
-  description: string
   image?: string // URL ou chemin vers une image/GIF
-  tip?: string
   action?: 'copy' | 'open' | 'click' | 'wait'
 }
 
 // Tutoriel fal.ai Images (Flux Pro)
 const IMAGE_TUTORIAL: TutorialStep[] = [
-  {
-    id: 'intro',
-    title: "Bienvenue sur fal.ai ! 🎨",
-    description: "fal.ai est un site magique qui transforme tes mots en images. C'est super simple à utiliser !",
-    tip: "C'est comme un peintre magique qui dessine ce que tu lui décris !",
-  },
-  {
-    id: 'open',
-    title: "Ouvre fal.ai 🚀",
-    description: "Clique sur le bouton pour ouvrir fal.ai dans Safari. La page s'ouvrira toute seule !",
-    action: 'open',
-    tip: "fal.ai, c'est un site internet tout simple.",
-  },
-  {
-    id: 'prompt',
-    title: "Trouve la zone de texte 📝",
-    description: "Tu vas voir un grand rectangle blanc où tu peux écrire. C'est là que tu vas coller ton prompt !",
-    tip: "Le prompt, c'est la description magique de ton image.",
-  },
-  {
-    id: 'paste',
-    title: "Colle ton prompt ✨",
-    description: "Appuie sur les touches Cmd + V en même temps pour coller ton texte magique.",
-    action: 'copy',
-    tip: "Le texte vient du bouton 'Copier' que tu as cliqué avant !",
-  },
-  {
-    id: 'run',
-    title: "Clique sur Run ! 🎯",
-    description: "Trouve le bouton 'Run' (souvent en bleu ou violet) et clique dessus. C'est parti !",
-    action: 'click',
-    tip: "Run veut dire 'Lancer' en anglais.",
-  },
-  {
-    id: 'wait',
-    title: "Attends la magie ⏳",
-    description: "fal.ai crée ton image... Ça prend juste quelques secondes ! Tu vas voir l'image apparaître.",
-    action: 'wait',
-    tip: "C'est super rapide !",
-  },
-  {
-    id: 'save',
-    title: "Télécharge ton image 💾",
-    description: "Clique sur ton image avec le bouton droit de la souris, puis choisis 'Enregistrer l'image'.",
-    tip: "Mets-la dans un endroit facile à retrouver !",
-  },
-  {
-    id: 'done',
-    title: "Bravo ! 🎉",
-    description: "Tu as créé ta première image avec fal.ai ! Maintenant, glisse-la dans l'app pour l'ajouter à ta galerie.",
-    tip: "Tu peux créer autant d'images que tu veux !",
-  },
+  { id: 'intro' },
+  { id: 'open', action: 'open' },
+  { id: 'prompt' },
+  { id: 'paste', action: 'copy' },
+  { id: 'run', action: 'click' },
+  { id: 'wait', action: 'wait' },
+  { id: 'save' },
+  { id: 'done' },
 ]
 
 // Tutoriel fal.ai Vidéos (Kling)
 const VIDEO_TUTORIAL: TutorialStep[] = [
-  {
-    id: 'intro',
-    title: "Bienvenue sur fal.ai ! 🎬",
-    description: "fal.ai peut aussi créer des vidéos magiques à partir de tes descriptions !",
-    tip: "C'est comme un réalisateur de films qui donne vie à ton imagination !",
-  },
-  {
-    id: 'open',
-    title: "Ouvre fal.ai 🚀",
-    description: "Clique sur le bouton pour ouvrir fal.ai Vidéos dans Safari.",
-    action: 'open',
-    tip: "C'est le même site, mais une page spéciale pour les vidéos.",
-  },
-  {
-    id: 'prompt',
-    title: "Trouve la zone de texte 📝",
-    description: "Tu vas voir un grand rectangle où écrire. C'est ici que tu décris ta vidéo !",
-    tip: "Pour les vidéos, pense à décrire ce qui BOUGE.",
-  },
-  {
-    id: 'paste',
-    title: "Colle ton prompt ✨",
-    description: "Appuie sur Cmd + V pour coller le texte magique qui décrit ta vidéo.",
-    action: 'copy',
-    tip: "Ton prompt décrit le mouvement : 'un chat qui saute', 'des étoiles qui brillent'...",
-  },
-  {
-    id: 'run',
-    title: "Clique sur Run ! 🎯",
-    description: "Trouve le bouton 'Run' et clique dessus pour lancer la création de ta vidéo !",
-    action: 'click',
-    tip: "Les vidéos prennent un peu plus de temps que les images.",
-  },
-  {
-    id: 'wait',
-    title: "Attends la magie ⏳",
-    description: "fal.ai crée ta vidéo... Ça prend environ 1-2 minutes. Patience, ça vaut le coup !",
-    action: 'wait',
-    tip: "C'est normal que ce soit plus long, il y a plein d'images à créer !",
-  },
-  {
-    id: 'preview',
-    title: "Regarde le résultat 👀",
-    description: "Quand c'est prêt, ta vidéo va se jouer toute seule. Regarde si elle te plaît !",
-    tip: "Si ça ne te plaît pas, tu peux recommencer avec un prompt différent.",
-  },
-  {
-    id: 'download',
-    title: "Télécharge ta vidéo 💾",
-    description: "Clique sur le bouton de téléchargement (une flèche vers le bas) pour sauvegarder ta vidéo.",
-    tip: "Choisis bien où tu la mets pour la retrouver facilement !",
-  },
-  {
-    id: 'done',
-    title: "Bravo ! 🎉",
-    description: "Tu as créé ta première vidéo avec fal.ai ! Glisse-la dans l'app pour l'ajouter à ta collection.",
-    tip: "Tu peux maintenant animer toutes tes histoires !",
-  },
+  { id: 'intro' },
+  { id: 'open', action: 'open' },
+  { id: 'prompt' },
+  { id: 'paste', action: 'copy' },
+  { id: 'run', action: 'click' },
+  { id: 'wait', action: 'wait' },
+  { id: 'preview' },
+  { id: 'download' },
+  { id: 'done' },
 ]
 
 interface StudioTutorialProps {
@@ -150,6 +55,7 @@ interface StudioTutorialProps {
 }
 
 export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: StudioTutorialProps) {
+  const t = useTranslations('studio')
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [copied, setCopied] = useState(false)
 
@@ -221,7 +127,7 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
             ))}
           </div>
           <p className="text-xs text-midnight-400 mt-2 text-center">
-            Étape {currentStepIndex + 1} sur {tutorial.length}
+            {t('studioTutorial.stepOf', { current: String(currentStepIndex + 1), total: String(tutorial.length) })}
           </p>
         </div>
 
@@ -236,12 +142,12 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
           >
             {/* Titre avec emoji */}
             <h2 className="text-2xl font-display text-white mb-4">
-              {currentStep.title}
+              {t(`studioTutorial.${type}.step${currentStepIndex + 1}.title`)}
             </h2>
 
             {/* Description */}
             <p className="text-lg text-midnight-200 mb-6">
-              {currentStep.description}
+              {t(`studioTutorial.${type}.step${currentStepIndex + 1}.description`)}
             </p>
 
             {/* Image/GIF si disponible */}
@@ -249,7 +155,7 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
               <div className="relative aspect-video rounded-2xl overflow-hidden bg-midnight-800 mb-6">
                 <img
                   src={currentStep.image}
-                  alt={currentStep.title}
+                  alt={t(`studioTutorial.${type}.step${currentStepIndex + 1}.title`)}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -259,7 +165,7 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
             {currentStep.action === 'copy' && promptToCopy && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-midnight-400">Ton prompt à copier :</span>
+                  <span className="text-sm text-midnight-400">{t('studioTutorial.promptToCopy')}</span>
                   <motion.button
                     onClick={handleCopy}
                     className={cn(
@@ -273,12 +179,12 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
                     {copied ? (
                       <>
                         <Check className="w-4 h-4" />
-                        Copié !
+                        {t('studioTutorial.copied')}
                       </>
                     ) : (
                       <>
                         <Copy className="w-4 h-4" />
-                        Copier
+                        {t('studioTutorial.copy')}
                       </>
                     )}
                   </motion.button>
@@ -299,7 +205,7 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
                 whileTap={{ scale: 0.98 }}
               >
                 <ExternalLink className="w-5 h-5" />
-                Ouvrir fal.ai dans Safari
+                {t('studioTutorial.openFalai')}
               </motion.button>
             )}
 
@@ -311,20 +217,18 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
                 >
                   <Sparkles className="w-5 h-5" />
                 </motion.div>
-                <span>La magie opère... Sois patient(e) ! ✨</span>
+                <span>{t('studioTutorial.magicHappening')}</span>
               </div>
             )}
 
             {/* Astuce */}
-            {currentStep.tip && (
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-dream-500/10 border border-dream-500/20">
-                <span className="text-xl">💡</span>
-                <p className="text-sm text-dream-200">
-                  <span className="font-medium text-dream-300">Astuce : </span>
-                  {currentStep.tip}
-                </p>
-              </div>
-            )}
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-dream-500/10 border border-dream-500/20">
+              <span className="text-xl">💡</span>
+              <p className="text-sm text-dream-200">
+                <span className="font-medium text-dream-300">{t('studioTutorial.tipLabel')}</span>
+                {t(`studioTutorial.${type}.step${currentStepIndex + 1}.tip`)}
+              </p>
+            </div>
           </motion.div>
         </AnimatePresence>
 
@@ -342,7 +246,7 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
             whileHover={!isFirstStep ? { x: -3 } : {}}
           >
             <ChevronLeft className="w-5 h-5" />
-            Précédent
+            {t('studioTutorial.previous')}
           </motion.button>
 
           <motion.button
@@ -358,12 +262,12 @@ export function StudioTutorial({ type, onClose, onOpenTool, promptToCopy }: Stud
           >
             {isLastStep ? (
               <>
-                Terminer
+                {t('studioTutorial.finish')}
                 <Play className="w-5 h-5" />
               </>
             ) : (
               <>
-                Suivant
+                {t('studioTutorial.next')}
                 <ChevronRight className="w-5 h-5" />
               </>
             )}
@@ -382,6 +286,7 @@ interface TutorialButtonProps {
 }
 
 export function TutorialButton({ type, onClick, compact = false }: TutorialButtonProps) {
+  const t = useTranslations('studio')
   return (
     <motion.button
       onClick={onClick}
@@ -395,7 +300,7 @@ export function TutorialButton({ type, onClick, compact = false }: TutorialButto
       whileTap={{ scale: 0.98 }}
     >
       <Play className={cn(compact ? 'w-3.5 h-3.5' : 'w-4 h-4')} />
-      {compact ? 'Tutoriel' : `Tutoriel fal.ai ${type === 'image' ? 'Images' : 'Vidéos'}`}
+      {compact ? t('studioTutorial.tutorial') : t(type === 'image' ? 'studioTutorial.tutorialFalaiImages' : 'studioTutorial.tutorialFalaiVideos')}
     </motion.button>
   )
 }

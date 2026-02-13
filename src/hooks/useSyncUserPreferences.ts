@@ -101,15 +101,9 @@ export function useSyncUserPreferences() {
   useEffect(() => {
     if (!hasLoadedFromSupabase.current || !profile || !aiName) return
 
-    // IMPORTANT: Ne PAS écraser Supabase si le profil est nouveau (ai_name null)
-    // Cela évite de synchroniser une valeur localStorage d'un ancien compte
-    // vers un nouveau compte, ce qui empêcherait l'onboarding de se déclencher
-    if (!profile.ai_name) {
-      console.log('⚠️ Nouveau profil détecté - pas de sync localStorage → Supabase pour ai_name')
-      return
-    }
-
     // Ne sauvegarder que si différent de ce qui est en base
+    // Note: !aiName ci-dessus empêche déjà la sync de valeurs vides (stale cache)
+    // et signOut() nettoie le localStorage pour éviter la pollution cross-comptes
     if (aiName !== profile.ai_name) {
       saveToSupabase({ ai_name: aiName })
     }

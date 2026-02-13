@@ -795,9 +795,15 @@ export function useSupabaseSync() {
         // SIMPLE : Supabase remplace tout, pas de fusion
         // Préserver currentStory si elle existe toujours après le rechargement
         const prevCurrentStory = useAppStore.getState().currentStory
+        // Fallback: restaurer depuis l'ID persisté en localStorage (survie au changement de locale)
+        const persistedStoryId = !prevCurrentStory
+          ? (JSON.parse(localStorage.getItem('lavoixdusoir-storage') || '{}')?.state?.currentStoryId ?? null)
+          : null
         const refreshedCurrentStory = prevCurrentStory
           ? cleanedStories.find(s => s.id === prevCurrentStory.id) || null
-          : null
+          : persistedStoryId
+            ? cleanedStories.find(s => s.id === persistedStoryId) || null
+            : null
         useAppStore.setState({
           stories: cleanedStories,
           currentStory: refreshedCurrentStory,

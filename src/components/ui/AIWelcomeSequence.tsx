@@ -10,6 +10,8 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Send, Heart, Volume2, VolumeX, Star, Check, Play } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
+import { useAuthStore } from '@/store/useAuthStore'
+import { useLocale } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 
 interface AIWelcomeSequenceProps {
@@ -27,21 +29,31 @@ interface VoiceInfo {
   gender: 'feminine' | 'masculine' | 'unknown'
 }
 
-// Voix premium connues (haute qualité)
-const PREMIUM_VOICES = ['Audrey', 'Amélie', 'Thomas', 'Samantha', 'Karen', 'Daniel', 'Milena', 'Google']
-
-// Voix recommandées par langue (Audrey Premium en premier pour le français)
-const RECOMMENDED_VOICES: Record<string, string[]> = {
-  fr: ['Audrey', 'Amélie', 'Thomas', 'Marie'],
+// Voix premium par langue (seules voix proposées à l'enfant)
+const PREMIUM_VOICES_BY_LANG: Record<string, string[]> = {
+  fr: ['Audrey', 'Amélie', 'Thomas'],
   en: ['Samantha', 'Karen', 'Daniel'],
   ru: ['Milena', 'Yuri'],
 }
 
-// Voix classées par genre (pour filtrer selon le prénom de l'IA)
-// Pour les filles : uniquement Audrey et Amélie (voix premium de qualité)
-const FEMININE_VOICES = ['Audrey', 'Amélie']
-// Pour les garçons : uniquement Thomas (voix premium française de qualité)
-const MASCULINE_VOICES = ['Thomas']
+// Toutes les voix premium (pour détection)
+const ALL_PREMIUM_VOICES = Object.values(PREMIUM_VOICES_BY_LANG).flat()
+
+// Voix classées par genre par langue (pour filtrer selon le prénom de l'IA)
+const FEMININE_VOICES_BY_LANG: Record<string, string[]> = {
+  fr: ['Audrey', 'Amélie'],
+  en: ['Samantha', 'Karen'],
+  ru: ['Milena'],
+}
+const MASCULINE_VOICES_BY_LANG: Record<string, string[]> = {
+  fr: ['Thomas'],
+  en: ['Daniel'],
+  ru: ['Yuri'],
+}
+
+// Toutes les voix par genre (pour détection du genre d'une voix)
+const ALL_FEMININE_VOICES = Object.values(FEMININE_VOICES_BY_LANG).flat()
+const ALL_MASCULINE_VOICES = Object.values(MASCULINE_VOICES_BY_LANG).flat()
 
 // Prénoms connus pour détecter le genre (liste non exhaustive mais couvre les plus courants)
 const FEMININE_NAMES = [
@@ -258,13 +270,18 @@ const VOICE_ONLY_STEPS: ConversationStep[] = [
 
 export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }: AIWelcomeSequenceProps) {
   const { setAiName, setAiVoice, aiName, userName, setUserName } = useAppStore()
+  const { profile } = useAuthStore()
+  const locale = useLocale()
+  const langCode = locale === 'ru' ? 'ru' : locale === 'en' ? 'en' : 'fr'
+  // Extraire le prénom depuis le profil (premier mot du nom complet)
+  const profileFirstName = profile?.name?.split(' ')[0] || ''
   const [currentStep, setCurrentStep] = useState(0)
   const [displayedMessages, setDisplayedMessages] = useState<Array<{ type: 'ai' | 'user'; text: string }>>([])
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [chosenName, setChosenName] = useState(voiceOnlyMode ? aiName : '')
-  const [chosenChildName, setChosenChildName] = useState(voiceOnlyMode ? userName : '')
+  const [chosenChildName, setChosenChildName] = useState(voiceOnlyMode ? userName : profileFirstName)
   const [currentInputType, setCurrentInputType] = useState<InputType | null>(null)
   const [showInput, setShowInput] = useState(false)
   const [showVoiceSelector, setShowVoiceSelector] = useState(false)
@@ -290,31 +307,34 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
     })), []
   )
 
-  const steps = voiceOnlyMode ? VOICE_ONLY_STEPS : CONVERSATION_STEPS
+  // Si le prénom est déjà connu (inscription), sauter les étapes de demande du prénom
+  const steps = useMemo(() => {
+    if (voiceOnlyMode) return VOICE_ONLY_STEPS
+    if (profileFirstName) {
+      return CONVERSATION_STEPS.filter(
+        s => s.id !== 'ask-child-name' && s.id !== 'child-name-input' && s.id !== 'child-name-response'
+      )
+    }
+    return CONVERSATION_STEPS
+  }, [voiceOnlyMode, profileFirstName])
   
   // Filtrer les voix selon le genre du prénom de l'IA
-  // Ne montrer QUE les voix premium correspondant au genre (Audrey/Amélie pour filles, Thomas pour garçons)
+  // Ne montrer QUE les voix premium correspondant au genre
   const filteredVoices = useMemo(() => {
+    // availableVoices contient déjà uniquement les voix premium de la langue
     if (aiNameGender === 'unknown') {
-      // Si le genre n'est pas détecté, montrer uniquement les voix premium (Audrey, Amélie, Thomas)
-      const premiumOnly = availableVoices.filter(v => 
-        v.name.includes('Audrey') || v.name.includes('Amélie') || v.name.includes('Thomas')
-      )
-      return premiumOnly.length > 0 ? premiumOnly : availableVoices
+      // Genre inconnu → montrer toutes les voix premium de la langue
+      return availableVoices
     }
-    
-    // Filtrer pour ne montrer QUE les voix du genre correspondant (pas de fallback sur 'unknown')
+
+    // Filtrer par genre
     const filtered = availableVoices.filter(v => v.gender === aiNameGender)
-    
-    // Si aucune voix après filtrage, montrer les voix premium du genre
+
+    // Si aucune voix du genre trouvée, montrer toutes les premium
     if (filtered.length === 0) {
-      // Fallback: toutes les voix premium
-      const premiumOnly = availableVoices.filter(v => 
-        v.name.includes('Audrey') || v.name.includes('Amélie') || v.name.includes('Thomas')
-      )
-      return premiumOnly.length > 0 ? premiumOnly : availableVoices
+      return availableVoices
     }
-    
+
     console.log('🎭 Voix filtrées pour', aiNameGender, ':', filtered.map(v => v.name).join(', '))
     return filtered
   }, [availableVoices, aiNameGender])
@@ -326,28 +346,19 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
       const voices = window.speechSynthesis.getVoices()
       console.log('🎤 handleStart: Voix FR disponibles:', voices.filter(v => v.lang.startsWith('fr')).map(v => v.name))
       
-      // Chercher Audrey avec plusieurs variations
-      const audreyVoice = voices.find(v => 
-        v.lang.startsWith('fr') && (
-          v.name.toLowerCase().includes('audrey') ||
-          v.name === 'Audrey' ||
-          v.name === 'Audrey (premium)' ||
-          v.name === 'Audrey (Premium)'
-        )
-      )
-      
-      if (audreyVoice) {
-        selectedVoiceRef.current = audreyVoice
-        console.log('🎤 handleStart: ✅ Voix Audrey stockée:', audreyVoice.name)
+      // Chercher la première voix premium de la langue
+      const premiumNames = PREMIUM_VOICES_BY_LANG[langCode] || PREMIUM_VOICES_BY_LANG.fr
+      let foundVoice: SpeechSynthesisVoice | null = null
+      for (const pName of premiumNames) {
+        const match = voices.find(v => v.lang.startsWith(langCode) && v.name.includes(pName))
+        if (match) { foundVoice = match; break }
+      }
+
+      if (foundVoice) {
+        selectedVoiceRef.current = foundVoice
+        console.log('🎤 handleStart: ✅ Voix premium stockée:', foundVoice.name)
       } else {
-        // Fallback: chercher Amélie (autre voix féminine premium)
-        const amelieVoice = voices.find(v => v.lang.startsWith('fr') && v.name.toLowerCase().includes('amélie'))
-        if (amelieVoice) {
-          selectedVoiceRef.current = amelieVoice
-          console.log('🎤 handleStart: ⚠️ Audrey non trouvée, utilisation Amélie:', amelieVoice.name)
-        } else {
-          console.log('🎤 handleStart: ❌ Ni Audrey ni Amélie trouvées')
-        }
+        console.log('🎤 handleStart: ❌ Aucune voix premium trouvée pour', langCode)
       }
       
       // Jouer un son silencieux pour débloquer l'audio sur Safari/Chrome
@@ -377,61 +388,58 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
           return
         }
         
-        // Chercher Audrey IMMÉDIATEMENT dans les voix brutes (plusieurs variations de nom)
-        const audreyVoiceRaw = voices.find(v => 
-          v.lang.startsWith('fr') && (
-            v.name.toLowerCase().includes('audrey') ||
-            v.name === 'Audrey' ||
-            v.name === 'Audrey (premium)' ||
-            v.name === 'Audrey (Premium)'
-          )
-        )
-        
-        const frenchVoiceNames = voices.filter(v => v.lang.startsWith('fr')).map(v => v.name)
-        console.log('🎤 Recherche Audrey parmi', frenchVoiceNames.length, 'voix FR:', frenchVoiceNames.join(', '))
-        
-        if (audreyVoiceRaw) {
-          // Stocker dans la ref IMMÉDIATEMENT (pas de délai React)
-          selectedVoiceRef.current = audreyVoiceRaw
-          console.log('🎤 ✅ Voix Audrey trouvée et stockée dans ref:', audreyVoiceRaw.name)
+        // Chercher la première voix premium de la langue IMMÉDIATEMENT
+        const langPremiumNames = PREMIUM_VOICES_BY_LANG[langCode] || PREMIUM_VOICES_BY_LANG.fr
+        const langVoiceNames = voices.filter(v => v.lang.startsWith(langCode)).map(v => v.name)
+        console.log('🎤 Recherche voix premium parmi', langVoiceNames.length, `voix ${langCode}:`, langVoiceNames.join(', '))
+
+        let bestVoiceRaw: SpeechSynthesisVoice | null = null
+        for (const pName of langPremiumNames) {
+          const match = voices.find(v => v.lang.startsWith(langCode) && v.name.includes(pName))
+          if (match) { bestVoiceRaw = match; break }
+        }
+
+        if (bestVoiceRaw) {
+          selectedVoiceRef.current = bestVoiceRaw
+          console.log('🎤 ✅ Voix premium trouvée et stockée dans ref:', bestVoiceRaw.name)
         } else {
-          console.log('🎤 ⚠️ Audrey NON trouvée, fallback sera utilisé')
+          console.log('🎤 ⚠️ Aucune voix premium trouvée pour', langCode)
         }
         
         // Fonction pour détecter le genre d'une voix
         const getVoiceGender = (voiceName: string): 'feminine' | 'masculine' | 'unknown' => {
-          if (FEMININE_VOICES.some(fv => voiceName.includes(fv))) return 'feminine'
-          if (MASCULINE_VOICES.some(mv => voiceName.includes(mv))) return 'masculine'
+          if (ALL_FEMININE_VOICES.some(fv => voiceName.includes(fv))) return 'feminine'
+          if (ALL_MASCULINE_VOICES.some(mv => voiceName.includes(mv))) return 'masculine'
           return 'unknown'
         }
-        
+
+        const premiumNames = PREMIUM_VOICES_BY_LANG[langCode] || PREMIUM_VOICES_BY_LANG.fr
         const frenchVoices = voices
-          .filter(v => v.lang.startsWith('fr'))
+          .filter(v => v.lang.startsWith(langCode))
           .map(v => ({
             name: v.name,
             lang: v.lang,
-            isPremium: PREMIUM_VOICES.some(p => v.name.includes(p)),
-            isRecommended: RECOMMENDED_VOICES.fr.some(r => v.name.includes(r)),
+            isPremium: ALL_PREMIUM_VOICES.some(p => v.name.includes(p)),
+            isRecommended: premiumNames.some(r => v.name.includes(r)),
             gender: getVoiceGender(v.name),
           }))
-          // Trier : Premium d'abord, puis recommandées
+          // Ne garder que les voix premium
+          .filter(v => v.isPremium)
+          // Trier : recommandées d'abord
           .sort((a, b) => {
-            if (a.isPremium !== b.isPremium) return a.isPremium ? -1 : 1
             if (a.isRecommended !== b.isRecommended) return a.isRecommended ? -1 : 1
             return 0
           })
         
         setAvailableVoices(frenchVoices)
         
-        // Sélectionner Audrey Premium par défaut, sinon Amélie, sinon la première voix
+        // Sélectionner la première voix premium par défaut (dans l'ordre de priorité)
         if (frenchVoices.length > 0) {
-          const audreyVoice = frenchVoices.find(v => v.name.toLowerCase().includes('audrey'))
-          const amelieVoice = frenchVoices.find(v => v.name.toLowerCase().includes('amélie'))
-          const voiceToSelect = audreyVoice?.name || amelieVoice?.name || frenchVoices[0].name
+          const voiceToSelect = frenchVoices[0].name // Déjà trié par priorité premium
           setSelectedVoice(voiceToSelect)
-          console.log('🎤 Voix sélectionnée:', voiceToSelect, '| Audrey trouvée:', !!audreyVoice, '| Amélie trouvée:', !!amelieVoice)
-          
-          // Si pas d'Audrey, stocker la première voix premium dans la ref
+          console.log('🎤 Voix sélectionnée:', voiceToSelect)
+
+          // Stocker dans la ref si pas encore fait
           if (!selectedVoiceRef.current) {
             const fallbackVoice = voices.find(v => v.name === voiceToSelect)
             if (fallbackVoice) {
@@ -439,7 +447,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
               console.log('🎤 Voix fallback stockée dans ref:', fallbackVoice.name)
             }
           }
-          
+
           setVoicesReady(true)
           console.log('🎤 Voix prête:', voiceToSelect, '| Ref:', selectedVoiceRef.current?.name)
         }

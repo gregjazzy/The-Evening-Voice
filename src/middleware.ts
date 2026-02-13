@@ -80,10 +80,8 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Utiliser getSession() au lieu de getUser() pour une vérification plus permissive
-  // getUser() fait une requête API qui peut échouer si les cookies ne sont pas bien transmis
-  const { data: { session } } = await supabase.auth.getSession()
-  const user = session?.user
+  // getUser() valide le token côté Supabase (détecte comptes supprimés, tokens expirés)
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Vérifier si c'est une route publique (login/register uniquement)
   const isPublicRoute = publicPaths.some(p => 

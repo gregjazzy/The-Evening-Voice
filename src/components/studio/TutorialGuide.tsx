@@ -40,6 +40,7 @@ import {
   HelpCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 
 // ============================================================================
 // TYPES
@@ -47,9 +48,6 @@ import { cn } from '@/lib/utils'
 
 interface TutorialStep {
   id: string
-  title: string
-  description: string
-  tip?: string            // Conseil pour l'enfant
   imageUrl: string        // URL de l'image/GIF
   imagePlaceholder: string // Description du screenshot à capturer
 }
@@ -77,41 +75,26 @@ const TUTORIALS: Tutorial[] = [
     steps: [
       {
         id: 'img-1',
-        title: 'Ouvre fal.ai',
-        description: 'Clique sur le lien pour ouvrir la page fal.ai. C\'est là que tu vas créer tes images !',
-        tip: '💡 fal.ai est un site magique qui transforme tes idées en images.',
         imageUrl: '/tutorials/falai-image-01-home.png',
         imagePlaceholder: 'Screenshot de la page fal.ai Flux Pro playground',
       },
       {
         id: 'img-2',
-        title: 'Trouve la zone de texte',
-        description: 'Tu vas voir un grand rectangle où tu peux écrire. C\'est là que tu colles ton prompt !',
-        tip: '💡 Le prompt, c\'est la description magique de ton image.',
         imageUrl: '/tutorials/falai-image-02-prompt.png',
         imagePlaceholder: 'Screenshot de la zone de prompt sur fal.ai',
       },
       {
         id: 'img-3',
-        title: 'Colle ton prompt',
-        description: 'Appuie sur Cmd+V (ou Ctrl+V sur PC) pour coller le texte magique que ton amie IA t\'a aidé à créer.',
-        tip: '💡 Le texte vient du bouton "Copier" que tu as cliqué avant !',
         imageUrl: '/tutorials/falai-image-03-paste.png',
         imagePlaceholder: 'Screenshot du prompt collé dans la zone de texte',
       },
       {
         id: 'img-4',
-        title: 'Clique sur Run !',
-        description: 'Trouve le bouton "Run" (souvent en bleu ou violet) et clique dessus. La magie commence !',
-        tip: '💡 Ça peut prendre quelques secondes, sois patient(e) !',
         imageUrl: '/tutorials/falai-image-04-run.png',
         imagePlaceholder: 'Screenshot avec le bouton Run mis en évidence',
       },
       {
         id: 'img-5',
-        title: 'Télécharge ton image !',
-        description: 'Ton image apparaît ! Clique dessus avec le bouton droit, puis "Enregistrer l\'image sous..." pour la télécharger.',
-        tip: '💡 Ensuite, glisse ton image dans La Voix du Soir pour l\'ajouter à ta galerie !',
         imageUrl: '/tutorials/falai-image-05-result.png',
         imagePlaceholder: 'Screenshot de l\'image générée avec menu contextuel',
       },
@@ -126,41 +109,26 @@ const TUTORIALS: Tutorial[] = [
     steps: [
       {
         id: 'vid-1',
-        title: 'Ouvre fal.ai',
-        description: 'Clique sur le lien pour ouvrir la page fal.ai Vidéos. C\'est parti pour créer des vidéos magiques !',
-        tip: '💡 Kling est le moteur qui anime tes idées en vidéo.',
         imageUrl: '/tutorials/falai-video-01-home.png',
         imagePlaceholder: 'Screenshot de la page fal.ai Kling playground',
       },
       {
         id: 'vid-2',
-        title: 'Trouve la zone de texte',
-        description: 'Cherche le grand rectangle pour écrire. C\'est ici que tu décris ta vidéo !',
-        tip: '💡 Pour une vidéo, décris ce qui BOUGE : "un chat qui saute", "des étoiles qui brillent"...',
         imageUrl: '/tutorials/falai-video-02-prompt.png',
         imagePlaceholder: 'Screenshot de la zone de prompt vidéo sur fal.ai',
       },
       {
         id: 'vid-3',
-        title: 'Colle ton prompt',
-        description: 'Appuie sur Cmd+V (ou Ctrl+V sur PC) pour coller ton texte magique.',
-        tip: '💡 Ton prompt décrit le mouvement et l\'ambiance de ta vidéo.',
         imageUrl: '/tutorials/falai-video-03-paste.png',
         imagePlaceholder: 'Screenshot du prompt vidéo collé',
       },
       {
         id: 'vid-4',
-        title: 'Clique sur Run !',
-        description: 'Trouve le bouton "Run" et clique dessus. La création d\'une vidéo prend un peu plus de temps !',
-        tip: '💡 Une vidéo peut mettre 1-2 minutes à se créer. C\'est normal !',
         imageUrl: '/tutorials/falai-video-04-run.png',
         imagePlaceholder: 'Screenshot avec le bouton Run mis en évidence',
       },
       {
         id: 'vid-5',
-        title: 'Télécharge ta vidéo !',
-        description: 'Ta vidéo est prête ! Clique sur le bouton de téléchargement (souvent une flèche vers le bas).',
-        tip: '💡 Glisse ta vidéo dans La Voix du Soir pour l\'ajouter à ta collection !',
         imageUrl: '/tutorials/falai-video-05-result.png',
         imagePlaceholder: 'Screenshot de la vidéo générée avec bouton download',
       },
@@ -183,9 +151,10 @@ interface TutorialGuideProps {
 }
 
 export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialGuideProps) {
+  const t = useTranslations('studio')
   const [currentStep, setCurrentStep] = useState(0)
   const [copied, setCopied] = useState(false)
-  
+
   // Mapper les anciens types vers les nouveaux
   const mappedType = type === 'midjourney' ? 'image' : type === 'runway' ? 'video' : type
   
@@ -243,10 +212,10 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
               <span className="text-3xl">{tutorial.emoji}</span>
               <div>
                 <h2 className="text-xl font-display text-white">
-                  Comment utiliser {tutorial.name}
+                  {t('tutorialGuide.howToUse', { name: tutorial.name })}
                 </h2>
                 <p className="text-sm text-white/70">
-                  Étape {currentStep + 1} sur {tutorial.steps.length}
+                  {t('tutorialGuide.stepOf', { current: String(currentStep + 1), total: String(tutorial.steps.length) })}
                 </p>
               </div>
             </div>
@@ -290,7 +259,7 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
                       )}
                     </div>
                     <p className="text-midnight-400 text-sm">
-                      📸 Screenshot à ajouter :
+                      {t('tutorialGuide.screenshotPlaceholder')}
                     </p>
                     <p className="text-midnight-300 text-xs mt-2 max-w-md">
                       {step.imagePlaceholder}
@@ -300,7 +269,7 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
                   {/* Image réelle (si disponible) */}
                   <img
                     src={step.imageUrl}
-                    alt={step.title}
+                    alt={t(`tutorialGuide.${mappedType}.step${currentStep + 1}.title`)}
                     className="absolute inset-0 w-full h-full object-contain"
                     onError={(e) => {
                       // Cacher l'image si elle n'existe pas
@@ -314,22 +283,20 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
                   <span className="w-8 h-8 rounded-full bg-aurora-500/20 flex items-center justify-center text-aurora-400 text-sm">
                     {currentStep + 1}
                   </span>
-                  {step.title}
+                  {t(`tutorialGuide.${mappedType}.step${currentStep + 1}.title`)}
                 </h3>
-                
+
                 <p className="text-lg text-midnight-200 mb-4">
-                  {step.description}
+                  {t(`tutorialGuide.${mappedType}.step${currentStep + 1}.description`)}
                 </p>
-                
+
                 {/* Conseil */}
-                {step.tip && (
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-dream-500/10 border border-dream-500/20">
-                    <Sparkles className="w-5 h-5 text-dream-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-dream-300 text-sm">
-                      {step.tip}
-                    </p>
-                  </div>
-                )}
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-dream-500/10 border border-dream-500/20">
+                  <Sparkles className="w-5 h-5 text-dream-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-dream-300 text-sm">
+                    {t(`tutorialGuide.${mappedType}.step${currentStep + 1}.tip`)}
+                  </p>
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -348,7 +315,7 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
               )}
             >
               <ChevronLeft className="w-4 h-4" />
-              Précédent
+              {t('tutorialGuide.previous')}
             </button>
             
             {/* Bouton central : Copier et ouvrir (sur étape 3) */}
@@ -367,12 +334,12 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
                 {copied ? (
                   <>
                     <Check className="w-4 h-4" />
-                    Copié ! Ouverture...
+                    {t('tutorialGuide.copiedOpening')}
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    Copier et ouvrir fal.ai
+                    {t('tutorialGuide.copyAndOpen')}
                     <ExternalLink className="w-4 h-4" />
                   </>
                 )}
@@ -387,7 +354,7 @@ export function TutorialGuide({ type, isOpen, onClose, onCopyPrompt }: TutorialG
                 'bg-aurora-600 hover:bg-aurora-500 text-white'
               )}
             >
-              {isLastStep ? 'Terminé !' : 'Suivant'}
+              {isLastStep ? t('tutorialGuide.done') : t('tutorialGuide.next')}
               {!isLastStep && <ChevronRight className="w-4 h-4" />}
             </button>
           </div>
@@ -408,11 +375,12 @@ interface TutorialButtonProps {
 }
 
 export function TutorialButton({ type, onOpen, className }: TutorialButtonProps) {
+  const t = useTranslations('studio')
   // Mapper les anciens types vers les nouveaux
   const mappedType = type === 'midjourney' ? 'image' : type === 'runway' ? 'video' : type
   const tutorial = TUTORIALS.find(t => t.id === mappedType)
   if (!tutorial) return null
-  
+
   return (
     <motion.button
       onClick={onOpen}
@@ -425,7 +393,7 @@ export function TutorialButton({ type, onOpen, className }: TutorialButtonProps)
       whileTap={{ scale: 0.98 }}
     >
       <HelpCircle className="w-4 h-4" />
-      Comment ça marche ?
+      {t('tutorialGuide.howItWorks')}
     </motion.button>
   )
 }

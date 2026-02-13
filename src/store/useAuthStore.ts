@@ -50,31 +50,43 @@ export const useAuthStore = create<AuthState>()(
         isInitializing = true
         
         try {
-          // Récupérer la session actuelle
-          const { data: { session }, error: sessionError } = await db.auth.getSession()
-          
-          // Ignorer les erreurs AbortError (problème connu de Supabase avec les locks navigateur)
-          if (sessionError) {
-            if (sessionError.message?.includes('AbortError') || sessionError.name === 'AbortError') {
-              console.warn('⚠️ Session check aborted (normal lors du rechargement)')
+          // getUser() vérifie le token côté serveur (contrairement à getSession qui lit le cookie local)
+          const { data: { user: authUser }, error: userError } = await db.auth.getUser()
+
+          if (userError) {
+            if (userError.message?.includes('AbortError') || userError.name === 'AbortError') {
+              console.warn('⚠️ Auth check aborted (normal lors du rechargement)')
             } else {
-              console.error('Erreur getSession:', sessionError)
+              console.error('Erreur getUser:', userError)
             }
-            set({ isLoading: false, isInitialized: true })
+            set({ user: null, session: null, profile: null, isLoading: false, isInitialized: true })
             isInitializing = false
             return
           }
-          
-          if (session?.user) {
+
+          if (authUser) {
+            // Récupérer la session (pour le token, refresh, etc.)
+            const { data: { session } } = await db.auth.getSession()
+
             // Récupérer le profil
-            const { data: profile } = await db
+            const { data: profiles } = await db
               .from('profiles')
               .select('*')
-              .eq('user_id', session.user.id)
-              .single()
-            
+              .eq('user_id', authUser.id)
+              .limit(1)
+            const profile = profiles?.[0] || null
+
+            if (!profile) {
+              // User authentifié mais sans profil → session orpheline, déconnecter
+              console.warn('⚠️ User authentifié sans profil, déconnexion:', authUser.id)
+              await db.auth.signOut()
+              set({ user: null, session: null, profile: null, isLoading: false, isInitialized: true })
+              isInitializing = false
+              return
+            }
+
             set({
-              user: session.user,
+              user: authUser,
               session,
               profile,
               isLoading: false,
@@ -95,17 +107,20 @@ export const useAuthStore = create<AuthState>()(
           // Écouter les changements d'auth (une seule fois)
           db.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
-              const { data: profile } = await db
+              const { data: profiles } = await db
                 .from('profiles')
                 .select('*')
                 .eq('user_id', session.user.id)
-                .single()
-              
+                .limit(1)
+
               set({
                 user: session.user,
                 session,
-                profile,
+                profile: profiles?.[0] || null,
               })
+            } else if (event === 'TOKEN_REFRESHED' && session) {
+              // Mettre à jour le token dans le store (utilisé par useMediaUpload)
+              set({ session })
             } else if (event === 'SIGNED_OUT') {
               set({
                 user: null,
@@ -161,26 +176,49 @@ export const useAuthStore = create<AuthState>()(
             return { error: 'Erreur lors de la création du compte' }
           }
 
-          // Créer le profil
-          const { error: profileError } = await db
-            .from('profiles')
-            .insert({
-              user_id: authData.user.id,
-              name,
-              role,
-            })
-
-          if (profileError) {
-            console.error('Erreur création profil:', profileError)
-            // Ne pas bloquer si le profil existe déjà
-          }
-
-          // Récupérer le profil créé
-          const { data: profile } = await db
+          // Vérifier si le trigger Supabase a déjà créé un profil
+          const { data: existingProfiles } = await db
             .from('profiles')
             .select('*')
             .eq('user_id', authData.user.id)
-            .single()
+            .limit(1)
+
+          let profile = existingProfiles?.[0] || null
+
+          if (profile) {
+            // Le trigger a créé le profil — forcer le bon nom via l'API serveur
+            // (le client peut échouer si la session n'est pas encore prête)
+            if (profile.name !== name) {
+              try {
+                await fetch('/api/auth/update-profile', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId: authData.user!.id, name, role }),
+                })
+              } catch (e) {
+                console.error('❌ Update profil échoué:', e)
+              }
+              profile = { ...profile, name, role }
+            }
+          } else {
+            // Pas de trigger — créer le profil via l'API serveur (plus fiable que le client)
+            try {
+              await fetch('/api/auth/update-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: authData.user!.id, name, role }),
+              })
+            } catch (e) {
+              console.error('❌ Création profil échouée, fallback client:', e)
+            }
+            // Relire le profil
+            const { data: refreshed } = await db
+              .from('profiles')
+              .select('*')
+              .eq('user_id', authData.user.id)
+              .limit(1)
+            profile = refreshed?.[0] || null
+          }
 
           set({
             user: authData.user,
@@ -211,26 +249,31 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (data.user) {
-            let { data: profile } = await db
+            // Récupérer le profil (limit 1 pour gérer les doublons éventuels)
+            const { data: profiles } = await db
               .from('profiles')
               .select('*')
               .eq('user_id', data.user.id)
-              .single()
+              .limit(1)
+            let profile = profiles?.[0] || null
 
-            // Créer le profil s'il n'existe pas
+            // Créer le profil seulement s'il n'existe vraiment pas
             if (!profile) {
               const userMeta = data.user.user_metadata
-              const { data: newProfile } = await db
+              const fullName = (userMeta?.first_name && userMeta?.last_name)
+                ? `${userMeta.first_name} ${userMeta.last_name}`
+                : userMeta?.name || data.user.email?.split('@')[0] || 'Utilisateur'
+              const { data: newProfiles } = await db
                 .from('profiles')
                 .insert({
                   user_id: data.user.id,
-                  name: userMeta?.name || data.user.email?.split('@')[0] || 'Utilisateur',
+                  name: fullName,
                   role: userMeta?.role || 'child',
                 })
                 .select()
-                .single()
-              
-              profile = newProfile
+                .limit(1)
+
+              profile = newProfiles?.[0] || null
             }
 
             set({
@@ -312,14 +355,14 @@ export const useAuthStore = create<AuthState>()(
         const { user } = get()
         if (!user) return
 
-        const { data: profile } = await db
+        const { data: profiles } = await db
           .from('profiles')
           .select('*')
           .eq('user_id', user.id)
-          .single()
+          .limit(1)
 
-        if (profile) {
-          set({ profile })
+        if (profiles?.[0]) {
+          set({ profile: profiles[0] })
         }
       },
     }),

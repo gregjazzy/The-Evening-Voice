@@ -1,31 +1,17 @@
 'use client'
 
-import { ReactNode, useState, useEffect, useRef } from 'react'
+import { ReactNode, useEffect } from 'react'
 import { MentorProvider } from './mentor/MentorProvider'
 import { ToastProvider } from './ui/Toast'
 import { GlobalNotifications } from './ui/GlobalNotifications'
-import { AIWelcomeSequence } from './ui/AIWelcomeSequence'
-import { useAppStore } from '@/store/useAppStore'
-import { useAuthStore } from '@/store/useAuthStore'
 import { useAppConfig } from '@/hooks/useAppConfig'
 import { useSyncUserPreferences } from '@/hooks/useSyncUserPreferences'
-import { findBestVoice } from '@/hooks/useTTS'
-import { useLocale } from '@/lib/i18n/context'
 
 interface ClientLayoutProps {
   children: ReactNode
 }
 
 export function ClientLayout({ children }: ClientLayoutProps) {
-  const { setAiVoice } = useAppStore()
-  const { isInitialized, user, profile } = useAuthStore()
-  const locale = useLocale()
-  const [showWelcomeSequence, setShowWelcomeSequence] = useState(false)
-  const [voiceOnlyMode, setVoiceOnlyMode] = useState(false)
-  const hasTriggeredRef = useRef(false)
-  const hasCheckedVoiceRef = useRef(false)
-  const welcomeOpenRef = useRef(false)
-
   // Charger la configuration (clés API, famille) au démarrage
   useAppConfig()
 
@@ -38,21 +24,19 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       const error = event.error || event.message
       const errorString = error?.toString() || String(error || '')
       const stack = error?.stack || ''
-      
-      // Détecter AbortError de plusieurs façons (Supabase auth-js utilise Web Locks API)
-      const isAbortError = 
+
+      const isAbortError =
         error?.name === 'AbortError' ||
         errorString.includes('AbortError') ||
         errorString.includes('aborted') ||
         errorString.includes('signal is aborted') ||
-        stack.includes('locks.js') || // Stack trace de Supabase locks.js
+        stack.includes('locks.js') ||
         (typeof error === 'string' && error.includes('AbortError'))
-      
+
       if (isAbortError) {
-        // Ignorer silencieusement les AbortError (problème connu Supabase auth-js avec Web Locks)
         console.warn('⚠️ AbortError interceptée (ignorée):', error?.message || errorString)
-        event.preventDefault() // Empêcher l'affichage de l'overlay d'erreur Next.js
-        event.stopPropagation() // Empêcher la propagation
+        event.preventDefault()
+        event.stopPropagation()
         return false
       }
     }
@@ -61,29 +45,26 @@ export function ClientLayout({ children }: ClientLayoutProps) {
       const error = event.reason
       const errorString = error?.toString() || String(error || '')
       const stack = error?.stack || ''
-      
-      // Détecter AbortError dans les promesses rejetées
-      const isAbortError = 
+
+      const isAbortError =
         error?.name === 'AbortError' ||
         errorString.includes('AbortError') ||
         errorString.includes('aborted') ||
         errorString.includes('signal is aborted') ||
-        stack.includes('locks.js') || // Stack trace de Supabase locks.js
+        stack.includes('locks.js') ||
         (error?.message && (
           error.message.includes('AbortError') ||
           error.message.includes('aborted') ||
           error.message.includes('signal is aborted')
         ))
-      
+
       if (isAbortError) {
-        // Ignorer silencieusement les AbortError dans les promesses rejetées
         console.warn('⚠️ AbortError (promise rejection) interceptée (ignorée):', error?.message || errorString)
-        event.preventDefault() // Empêcher l'affichage de l'overlay d'erreur Next.js
-        event.stopPropagation() // Empêcher la propagation
+        event.preventDefault()
+        event.stopPropagation()
       }
     }
 
-    // S'abonner en premier (capture phase) pour intercepter avant Next.js
     window.addEventListener('error', handleError, true)
     window.addEventListener('unhandledrejection', handleUnhandledRejection, true)
 
@@ -93,137 +74,10 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     }
   }, [])
 
-  // Reset des refs quand l'utilisateur se déconnecte
-  // (le composant ne remonte pas entre logout→login si pas de refresh)
-  useEffect(() => {
-    if (!user) {
-      hasTriggeredRef.current = false
-      hasCheckedVoiceRef.current = false
-      welcomeOpenRef.current = false
-    }
-  }, [user])
-
-  // Afficher la séquence d'accueil si pas de nom d'IA ET utilisateur connecté
-  // On vérifie profile.ai_name directement (source de vérité Supabase)
-  // au lieu de aiName du store Zustand (qui dépend du sync async et du localStorage
-  // vidé à la déconnexion — cause de race condition après logout→refresh→login)
-  useEffect(() => {
-    console.log('🎯 ClientLayout check:', {
-      hasTriggered: hasTriggeredRef.current,
-      isInitialized,
-      user: !!user,
-      profile: !!profile,
-      ai_name: profile?.ai_name
-    })
-
-    if (hasTriggeredRef.current) return
-    if (!isInitialized || !user || !profile) return
-    if (profile.ai_name) {
-      console.log('🎯 Skipping welcome sequence - ai_name exists:', profile.ai_name)
-      return
-    }
-
-    console.log('🎯 Triggering welcome sequence!')
-    hasTriggeredRef.current = true
-
-    const timer = setTimeout(() => {
-      welcomeOpenRef.current = true
-      setShowWelcomeSequence(true)
-      setVoiceOnlyMode(false)
-    }, 1500)
-
-    return () => clearTimeout(timer)
-  }, [isInitialized, user, profile])
-
-  // Vérifier si la voix sauvegardée est disponible dans ce navigateur
-  // On utilise profile.preferred_voice_id directement (source de vérité Supabase)
-  //
-  // IMPORTANT: speechSynthesis.getVoices() peut retourner une liste PARTIELLE
-  // au premier appel (voix système uniquement). Les voix premium/enhanced
-  // arrivent plus tard via l'event onvoiceschanged. On ne doit PAS décider
-  // que la voix est absente sur la liste partielle — sinon faux positif aléatoire.
-  //
-  // Stratégie : si la voix est trouvée immédiatement → OK, terminé.
-  // Si non trouvée → attendre onvoiceschanged (ou timeout 3s) avant de conclure.
-  useEffect(() => {
-    const voiceName = profile?.preferred_voice_id
-    if (!profile?.ai_name || !voiceName || hasCheckedVoiceRef.current || !isInitialized) {
-      return
-    }
-
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      return
-    }
-
-    let resolved = false
-
-    const resolve = (voiceFound: boolean) => {
-      if (resolved) return
-      resolved = true
-      hasCheckedVoiceRef.current = true
-
-      if (voiceFound) {
-        console.log('🎤 Voix trouvée:', voiceName)
-      } else {
-        // Voix non disponible → trouver la meilleure voix de remplacement
-        // pour la langue courante (FR/EN/RU), PAS d'onboarding
-        const fallbackVoice = findBestVoice(locale)
-        if (fallbackVoice) {
-          console.log('🎤 Voix', voiceName, 'non disponible → remplacement:', fallbackVoice.name)
-          setAiVoice(fallbackVoice.name)
-        } else {
-          console.log('🎤 Voix', voiceName, 'non disponible, aucun remplacement trouvé')
-          setAiVoice('')
-        }
-      }
-    }
-
-    const checkVoices = (isFinalCheck: boolean) => {
-      if (resolved) return
-      const voices = window.speechSynthesis.getVoices()
-      if (voices.length === 0) return
-
-      const voiceExists = voices.some(v => v.name === voiceName)
-      if (voiceExists) {
-        // Voix trouvée → résoudre immédiatement
-        resolve(true)
-      } else if (isFinalCheck) {
-        // Check final (après onvoiceschanged ou timeout) → voix absente
-        resolve(false)
-      }
-      // Si pas trouvée et pas final → on attend onvoiceschanged/timeout
-    }
-
-    // Check immédiat : résout seulement si la voix EST trouvée
-    checkVoices(false)
-
-    // onvoiceschanged : la liste complète est disponible → check final
-    window.speechSynthesis.onvoiceschanged = () => checkVoices(true)
-
-    // Fallback : si onvoiceschanged ne se déclenche jamais (certains navigateurs)
-    const fallback = setTimeout(() => checkVoices(true), 3000)
-
-    return () => {
-      clearTimeout(fallback)
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = null
-      }
-    }
-  }, [isInitialized, profile, setAiVoice, locale])
-
   return (
     <ToastProvider>
       <MentorProvider>
         {children}
-        
-        {/* Séquence d'accueil interactive avec l'IA */}
-        <AIWelcomeSequence
-          isOpen={showWelcomeSequence}
-          onComplete={() => { welcomeOpenRef.current = false; setShowWelcomeSequence(false) }}
-          voiceOnlyMode={voiceOnlyMode}
-        />
-        
-        {/* Notifications globales (erreurs de sync, etc.) */}
         <GlobalNotifications />
       </MentorProvider>
     </ToastProvider>

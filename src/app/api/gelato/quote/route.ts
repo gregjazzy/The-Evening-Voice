@@ -4,8 +4,8 @@
  */
 
 import { NextResponse } from 'next/server'
-import { GelatoClient } from '@/lib/gelato'
-import { GELATO_PRODUCT_MAPPING } from '@/lib/gelato'
+import { GelatoClient, buildGelatoProductUid } from '@/lib/gelato'
+import type { GelatoPaperType, GelatoLamination } from '@/lib/gelato'
 
 const GELATO_API_KEY = process.env.GELATO_API_KEY
 const IS_TEST_MODE = process.env.GELATO_TEST_MODE === 'true'
@@ -21,7 +21,15 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { format, coverType, pageCount, country = 'FR', currency = 'EUR' } = body
+    const {
+      format,
+      coverType,
+      paperType = '170-gsm-coated-silk' as GelatoPaperType,
+      lamination = 'matt-lamination' as GelatoLamination,
+      pageCount,
+      country = 'FR',
+      currency = 'EUR',
+    } = body
 
     // Valider les paramètres
     if (!format || !coverType || !pageCount) {
@@ -31,18 +39,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Obtenir le productUid Gelato
-    const formatMapping = GELATO_PRODUCT_MAPPING[format]
-    if (!formatMapping) {
-      return NextResponse.json(
-        { error: `Unknown format: ${format}` },
-        { status: 400 }
-      )
-    }
-
-    const productUid = coverType === 'hardcover' 
-      ? formatMapping.hardcover 
-      : formatMapping.softcover
+    // Construire le productUid dynamiquement
+    const productUid = buildGelatoProductUid(format, coverType, paperType, lamination)
 
     // Créer le client Gelato
     const client = new GelatoClient(GELATO_API_KEY, IS_TEST_MODE)

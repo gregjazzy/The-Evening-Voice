@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
+import { useTranslations, useLocale } from '@/lib/i18n/context'
 
 // ============================================================================
 // TYPES
@@ -312,7 +313,10 @@ export function ChallengeMode() {
   const [showHintIndex, setShowHintIndex] = useState(0)
   const [showSolution, setShowSolution] = useState(false)
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>(1)
-  
+
+  const t = useTranslations('challenge')
+  const locale = useLocale()
+
   // Ref pour éviter les doubles exécutions avec strict mode
   const isLoadingRef = useRef(false)
 
@@ -436,6 +440,7 @@ export function ChallengeMode() {
             originalPrompt: activeChallenge.targetPrompt,
             originalPromptFr: activeChallenge.targetPromptFr,
             difficulty: activeChallenge.difficulty,
+            locale,
           }),
         })
         
@@ -497,8 +502,8 @@ export function ChallengeMode() {
               <Target className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-display font-bold text-white">Défis Prompting</h1>
-              <p className="text-sm text-midnight-400">Entraîne-toi à parler aux IA</p>
+              <h1 className="text-xl font-display font-bold text-white">{t('title')}</h1>
+              <p className="text-sm text-midnight-400">{t('subtitle')}</p>
             </div>
           </div>
         </div>
@@ -522,20 +527,20 @@ export function ChallengeMode() {
                 </div>
                 
                 <h2 className="text-xl font-display font-semibold text-white mb-2">
-                  Reproduis l'image
+                  {t('reproduceTitle')}
                 </h2>
-                
+
                 <p className="text-midnight-300 text-sm leading-relaxed mb-4">
-                  On te montre une image générée par l'IA. À toi de trouver le prompt qui permet de créer quelque chose de similaire.
+                  {t('reproduceDesc')}
                 </p>
-                
+
                 <div className="flex items-center gap-2 text-midnight-400 text-xs">
                   <Zap className="w-3 h-3" />
-                  <span>5 niveaux de difficulté</span>
+                  <span>{t('reproduceBadge')}</span>
                 </div>
-                
+
                 <div className="mt-4 flex items-center text-aurora-400 text-sm font-medium">
-                  Commencer
+                  {t('start')}
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
@@ -556,20 +561,20 @@ export function ChallengeMode() {
                 </div>
                 
                 <h2 className="text-xl font-display font-semibold text-white mb-2">
-                  Variations
+                  {t('variationsTitle')}
                 </h2>
-                
+
                 <p className="text-midnight-300 text-sm leading-relaxed mb-4">
-                  On te donne une image et une consigne. Modifie ton prompt pour créer la variation demandée.
+                  {t('variationsDesc')}
                 </p>
-                
+
                 <div className="flex items-center gap-2 text-midnight-400 text-xs">
                   <Zap className="w-3 h-3" />
-                  <span>Maîtrise les modifications de prompts</span>
+                  <span>{t('variationsBadge')}</span>
                 </div>
-                
+
                 <div className="mt-4 flex items-center text-violet-400 text-sm font-medium">
-                  Commencer
+                  {t('start')}
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
@@ -601,9 +606,9 @@ export function ChallengeMode() {
             </button>
             <div>
               <h1 className="text-xl font-display font-bold text-white">
-                {isReproduce ? 'Reproduis l\'image' : 'Variations'}
+                {isReproduce ? t('reproduceTitle') : t('variationsTitle')}
               </h1>
-              <p className="text-sm text-midnight-400">Choisis ton niveau de difficulté</p>
+              <p className="text-sm text-midnight-400">{t('chooseDifficulty')}</p>
             </div>
           </div>
         </div>
@@ -614,11 +619,11 @@ export function ChallengeMode() {
             
             {[1, 2, 3, 4, 5].map((level) => {
               const config = {
-                1: { label: 'Découverte', desc: 'Objets simples et basiques', color: 'from-emerald-500 to-teal-500' },
-                2: { label: 'Facile', desc: 'Personnages et objets avec détails', color: 'from-cyan-500 to-blue-500' },
-                3: { label: 'Intermédiaire', desc: 'Scènes complètes avec contexte', color: 'from-blue-500 to-indigo-500' },
-                4: { label: 'Avancé', desc: 'Atmosphères et ambiances complexes', color: 'from-violet-500 to-purple-500' },
-                5: { label: 'Expert', desc: 'Images très détaillées et créatives', color: 'from-purple-500 to-pink-500' },
+                1: { label: t('difficulty1Label'), desc: t('difficulty1Desc'), color: 'from-emerald-500 to-teal-500' },
+                2: { label: t('difficulty2Label'), desc: t('difficulty2Desc'), color: 'from-cyan-500 to-blue-500' },
+                3: { label: t('difficulty3Label'), desc: t('difficulty3Desc'), color: 'from-blue-500 to-indigo-500' },
+                4: { label: t('difficulty4Label'), desc: t('difficulty4Desc'), color: 'from-violet-500 to-purple-500' },
+                5: { label: t('difficulty5Label'), desc: t('difficulty5Desc'), color: 'from-purple-500 to-pink-500' },
               }[level]!
               
               return (
@@ -679,14 +684,14 @@ export function ChallengeMode() {
             </button>
             <div>
               <h1 className="text-lg font-display font-bold text-white">
-                {isReproduce ? 'Reproduis l\'image' : 'Crée la variation'}
+                {isReproduce ? t('reproduceTitle') : t('createVariation')}
               </h1>
               <div className="flex items-center gap-2 text-sm text-midnight-400">
-                <span>Niveau {activeChallenge.difficulty}</span>
+                <span>{t('level')} {activeChallenge.difficulty}</span>
                 {hasAttempted && (
                   <>
                     <span>•</span>
-                    <span>{attempts.length} tentative{attempts.length > 1 ? 's' : ''}</span>
+                    <span>{attempts.length} {attempts.length > 1 ? t('attempts') : t('attempt')}</span>
                   </>
                 )}
               </div>
@@ -696,10 +701,10 @@ export function ChallengeMode() {
           <button
             onClick={handleNewChallenge}
             className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 text-midnight-400 hover:text-white transition-colors"
-            title="Nouveau défi"
+            title={t('newChallenge')}
           >
             <RefreshCw className="w-4 h-4" />
-            <span className="text-sm hidden sm:inline">Nouveau défi</span>
+            <span className="text-sm hidden sm:inline">{t('newChallenge')}</span>
           </button>
         </div>
       </div>
@@ -720,8 +725,8 @@ export function ChallengeMode() {
                   <Target className="w-5 h-5 text-violet-400" />
                 </div>
                 <div>
-                  <div className="text-sm text-violet-300 font-medium mb-1">Ta mission</div>
-                  <div className="text-white">{activeChallenge.variationInstruction}</div>
+                  <div className="text-sm text-violet-300 font-medium mb-1">{t('mission')}</div>
+                  <div className="text-white">{t(`challenges.${activeChallenge.id}.variationInstruction`)}</div>
                 </div>
               </div>
             </motion.div>
@@ -733,7 +738,7 @@ export function ChallengeMode() {
             {/* Image cible */}
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-midnight-300">
-                {isReproduce ? 'Image à reproduire' : 'Image de départ'}
+                {isReproduce ? t('targetImageLabel') : t('startImageLabel')}
               </h3>
               <div className="aspect-square rounded-2xl bg-midnight-800 border border-white/10 overflow-hidden relative">
                 <AnimatePresence mode="wait">
@@ -747,7 +752,7 @@ export function ChallengeMode() {
                     >
                       <div className="text-center">
                         <Loader2 className="w-10 h-10 text-aurora-500 animate-spin mx-auto mb-3" />
-                        <p className="text-midnight-400 text-sm">Génération du défi...</p>
+                        <p className="text-midnight-400 text-sm">{t('generatingChallenge')}</p>
                       </div>
                     </motion.div>
                   ) : activeChallenge.targetImage ? (
@@ -768,12 +773,12 @@ export function ChallengeMode() {
                     >
                       <div className="text-center p-4">
                         <ImageIcon className="w-10 h-10 text-midnight-600 mx-auto mb-2" />
-                        <p className="text-midnight-500 text-sm">Erreur de chargement</p>
-                        <button 
+                        <p className="text-midnight-500 text-sm">{t('loadError')}</p>
+                        <button
                           onClick={handleNewChallenge}
                           className="mt-2 text-aurora-400 text-sm hover:underline"
                         >
-                          Réessayer
+                          {t('retry')}
                         </button>
                       </div>
                     </motion.div>
@@ -785,7 +790,7 @@ export function ChallengeMode() {
             {/* Image générée par l'utilisateur */}
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-midnight-300">
-                Ton résultat
+                {t('yourResult')}
               </h3>
               <div className="aspect-square rounded-2xl bg-midnight-800 border border-white/10 overflow-hidden relative">
                 <AnimatePresence mode="wait">
@@ -799,7 +804,7 @@ export function ChallengeMode() {
                     >
                       <div className="text-center">
                         <Loader2 className="w-10 h-10 text-aurora-500 animate-spin mx-auto mb-3" />
-                        <p className="text-midnight-400 text-sm">Génération en cours...</p>
+                        <p className="text-midnight-400 text-sm">{t('generatingImage')}</p>
                       </div>
                     </motion.div>
                   ) : latestAttempt ? (
@@ -821,7 +826,7 @@ export function ChallengeMode() {
                       <div className="text-center p-4">
                         <Sparkles className="w-10 h-10 text-midnight-600 mx-auto mb-2" />
                         <p className="text-midnight-500 text-sm">
-                          Écris ton prompt ci-dessous
+                          {t('writePrompt')}
                         </p>
                       </div>
                     </motion.div>
@@ -840,7 +845,7 @@ export function ChallengeMode() {
                   >
                     <div className="flex items-center gap-2 text-midnight-400 text-sm">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Analyse en cours...
+                      {t('analyzing')}
                     </div>
                   </motion.div>
                 )}
@@ -897,7 +902,7 @@ export function ChallengeMode() {
                     {/* Conseils */}
                     {latestAttempt.analysis.promptTips && latestAttempt.analysis.promptTips.length > 0 && (
                       <div className="p-3 rounded-lg bg-aurora-500/10 border border-aurora-500/20">
-                        <div className="text-xs text-aurora-400 font-medium mb-1">Conseil</div>
+                        <div className="text-xs text-aurora-400 font-medium mb-1">{t('tip')}</div>
                         {latestAttempt.analysis.promptTips.map((tip, i) => (
                           <p key={i} className="text-aurora-200 text-sm">{tip}</p>
                         ))}
@@ -922,19 +927,19 @@ export function ChallengeMode() {
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-sm hover:bg-amber-500/20 transition-colors"
                 >
                   <Lightbulb className="w-4 h-4" />
-                  {showHintIndex === 0 ? 'Besoin d\'un indice ?' : 'Indice suivant'}
+                  {showHintIndex === 0 ? t('needHint') : t('nextHint')}
                 </button>
               )}
               
               {/* Indices affichés */}
               {showHintIndex > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {activeChallenge.hints.slice(0, showHintIndex).map((hint, i) => (
-                    <span 
+                  {Array.from({ length: Math.min(showHintIndex, activeChallenge.hints.length) }, (_, i) => (
+                    <span
                       key={i}
                       className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 text-sm"
                     >
-                      {hint}
+                      {t(`challenges.${activeChallenge.id}.hint${i}`)}
                     </span>
                   ))}
                 </div>
@@ -947,7 +952,7 @@ export function ChallengeMode() {
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-midnight-700 text-midnight-300 text-sm hover:bg-midnight-600 hover:text-white transition-colors ml-auto"
                 >
                   {showSolution ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  {showSolution ? 'Cacher' : 'Voir le prompt original'}
+                  {showSolution ? t('hide') : t('showOriginal')}
                 </button>
               )}
             </div>
@@ -965,8 +970,8 @@ export function ChallengeMode() {
                     <div className="flex items-start gap-3">
                       <Trophy className="w-5 h-5 text-emerald-400 mt-0.5" />
                       <div>
-                        <div className="text-sm text-emerald-300 font-medium mb-2">Prompt original utilisé</div>
-                        <p className="text-white text-sm">{activeChallenge.targetPromptFr}</p>
+                        <div className="text-sm text-emerald-300 font-medium mb-2">{t('originalUsed')}</div>
+                        <p className="text-white text-sm">{t(`challenges.${activeChallenge.id}.description`)}</p>
                         <p className="text-midnight-400 text-xs mt-2 font-mono">{activeChallenge.targetPrompt}</p>
                       </div>
                     </div>
@@ -980,11 +985,7 @@ export function ChallengeMode() {
               <textarea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder={
-                  isReproduce 
-                    ? "Décris ce que tu vois pour que l'IA puisse le recréer..." 
-                    : "Écris le prompt pour créer la variation demandée..."
-                }
+                placeholder={isReproduce ? t('placeholderReproduce') : t('placeholderVariation')}
                 className="w-full h-28 p-4 rounded-xl bg-midnight-800 border border-white/10 focus:border-aurora-500/50 focus:outline-none text-white placeholder:text-midnight-500 resize-none"
                 disabled={isGenerating || activeChallenge.isLoadingTarget}
                 onKeyDown={(e) => {
@@ -994,7 +995,7 @@ export function ChallengeMode() {
                 }}
               />
               <div className="absolute bottom-3 right-3 text-xs text-midnight-500">
-                ⌘ + Entrée pour générer
+                {t('shortcutHint')}
               </div>
             </div>
 
@@ -1007,7 +1008,7 @@ export function ChallengeMode() {
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-midnight-700 hover:bg-midnight-600 text-white text-sm transition-colors"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Nouvelle tentative
+                    {t('newAttempt')}
                   </button>
                 )}
               </div>
@@ -1024,12 +1025,12 @@ export function ChallengeMode() {
                 {isGenerating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Génération...
+                    {t('generating')}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    Générer
+                    {t('generate')}
                   </>
                 )}
               </button>
@@ -1038,7 +1039,7 @@ export function ChallengeMode() {
             {/* Historique des tentatives */}
             {attempts.length > 1 && (
               <div className="pt-4 border-t border-white/5">
-                <div className="text-sm text-midnight-400 mb-3">Tes tentatives précédentes</div>
+                <div className="text-sm text-midnight-400 mb-3">{t('previousAttempts')}</div>
                 <div className="flex gap-3 overflow-x-auto pb-2">
                   {attempts.slice(0, -1).map((attempt, i) => (
                     <div key={i} className="flex-shrink-0">

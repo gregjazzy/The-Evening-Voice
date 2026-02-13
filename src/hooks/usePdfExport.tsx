@@ -9,6 +9,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from '@/lib/i18n/context'
 import type { Story, PageMedia, PageDecoration, PageTextBox } from '@/store/useAppStore'
 import { PREMIUM_DECORATIONS } from '@/data/decorations'
 import {
@@ -30,6 +31,45 @@ import {
   type ScreenCapturePdfResult,
 } from '@/lib/export/pdfScreenCapture'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
+
+const isSafari =
+  typeof navigator !== 'undefined' &&
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+
+/**
+ * Pre-render an SVG string to a PNG data URL via canvas.
+ * Safari cannot render SVG data URLs inside foreignObject (used by
+ * modern-screenshot). By converting to PNG first, we bypass the issue.
+ */
+function svgToPngDataUrl(svgString: string, width: number, height: number): Promise<string> {
+  // Ensure valid SVG for Safari
+  let svg = svgString
+  if (!svg.includes('xmlns=')) {
+    svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"')
+  }
+  if (!svg.includes('width=')) {
+    svg = svg.replace('<svg', `<svg width="${width}" height="${height}"`)
+  }
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = width * 2
+      canvas.height = height * 2
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('SVG to PNG conversion failed'))
+    }
+    img.src = url
+  })
+}
 
 export interface PdfExportState {
   isExporting: boolean
@@ -84,6 +124,7 @@ function buildPageDOM(
   height: number,
   bookFormat: string,
   bleedPx: number,
+  coverLabels?: { front: string; back: string },
 ): HTMLElement {
   const style = page.style || {}
   const gradient = PAGE_GRADIENTS[(pageColor as PageColor) || 'cream'] || PAGE_GRADIENTS.cream
@@ -141,6 +182,8 @@ function buildPageDOM(
       z-index: 0;
     `
 
+    bgContainer.setAttribute('data-layer', 'objects')
+
     if (page.backgroundMedia.type === 'video') {
       const video = document.createElement('video')
       video.src = page.backgroundMedia.url
@@ -184,6 +227,7 @@ function buildPageDOM(
     for (const media of page.images) {
       const opacity = (media as PageMedia & { opacity?: number }).opacity ?? 1
       const imgDiv = document.createElement('div')
+      imgDiv.setAttribute('data-layer', 'objects')
       imgDiv.style.cssText = `
         position: absolute;
         left: ${media.position.x}%;
@@ -191,7 +235,7 @@ function buildPageDOM(
         width: ${media.position.width}%;
         height: ${media.position.height}%;
         ${media.position.rotation ? `transform: rotate(${media.position.rotation}deg);` : ''}
-        z-index: ${media.zIndex || 10};
+        z-index: ${media.zIndex || 5};
         ${media.type !== 'video' ? `background-image: url(${media.url}); background-size: cover; background-position: center;` : ''}
         opacity: ${opacity};
       `
@@ -208,16 +252,18 @@ function buildPageDOM(
   }
 
   // ---- 4. Decorations (SVG — same as ExactPageRenderer) ----
+  console.log('🔍 [PDF] page', pageIndex, 'decorations:', page.decorations?.length || 0, page.decorations?.map((d: any) => d.decorationId))
   if (page.decorations) {
     for (const deco of page.decorations) {
       const decorationItem = PREMIUM_DECORATIONS.find(d => d.id === deco.decorationId)
-      if (!decorationItem) continue
+      if (!decorationItem) { console.log('🔍 [PDF] decoration NOT FOUND in PREMIUM_DECORATIONS:', deco.decorationId); continue }
 
       const color = deco.color || decorationItem.defaultColor || '#D4AF37'
       const coloredSvg = decorationItem.svg.replace(/currentColor/g, color)
       const size = DECORATION_BASE_SIZE
 
       const decoDiv = document.createElement('div')
+      decoDiv.setAttribute('data-layer', 'objects')
       const transforms = [
         'translate(-50%, -50%)',
         `rotate(${deco.rotation || 0}deg)`,
@@ -226,6 +272,9 @@ function buildPageDOM(
         deco.flipY ? 'scaleY(-1)' : '',
       ].filter(Boolean).join(' ')
 
+      // Keep data attributes for Safari SVG→PNG post-processing
+      decoDiv.setAttribute('data-deco-svg', coloredSvg)
+      decoDiv.setAttribute('data-deco-size', String(size))
       decoDiv.style.cssText = `
         position: absolute;
         left: ${deco.position.x}%;
@@ -235,9 +284,11 @@ function buildPageDOM(
         transform: ${transforms};
         opacity: ${deco.opacity || 1};
         z-index: 100;
+        color: ${color};
         ${deco.glow ? 'filter: drop-shadow(0 0 8px gold);' : ''}
       `
-      decoDiv.innerHTML = coloredSvg
+      // Inline SVG — works with html-to-image (Chrome) and html2canvas (Safari)
+      decoDiv.innerHTML = coloredSvg.replace('<svg ', '<svg width="100%" height="100%" ')
       contentArea.appendChild(decoDiv)
     }
   }
@@ -247,6 +298,7 @@ function buildPageDOM(
     for (const textBox of page.textBoxes) {
       const tbLineHeight = getScaledLineHeightPx((textBox.style?.lineSpacing || 'normal') as LineSpacing, width)
       const tbDiv = document.createElement('div')
+      tbDiv.setAttribute('data-layer', 'text')
       tbDiv.style.cssText = `
         position: absolute;
         left: ${textBox.position.x}%;
@@ -279,6 +331,7 @@ function buildPageDOM(
   //   style={{ ...textStyle, color, paddingLeft, paddingRight, paddingTop, paddingBottom }}
   // This is the KEY fix: inset:0 + padding instead of explicit top/left/right/bottom
   const textDiv = document.createElement('div')
+  textDiv.setAttribute('data-layer', 'text')
   // Use top/right/bottom/left instead of `inset` — html2canvas doesn't support `inset`
   textDiv.style.cssText = `
     position: absolute;
@@ -303,6 +356,7 @@ function buildPageDOM(
   // ---- 8. Page number / cover label ----
   if (!isFrontCover && !isBackCover) {
     const pageNumDiv = document.createElement('div')
+    pageNumDiv.setAttribute('data-layer', 'text')
     pageNumDiv.style.cssText = `
       position: absolute;
       bottom: ${12 * scale}px;
@@ -315,21 +369,6 @@ function buildPageDOM(
     `
     pageNumDiv.textContent = `— ${pageIndex + 1} —`
     contentArea.appendChild(pageNumDiv)
-  } else {
-    const labelDiv = document.createElement('div')
-    labelDiv.style.cssText = `
-      position: absolute;
-      bottom: ${12 * scale}px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: Georgia, serif;
-      font-size: ${10 * scale}px;
-      font-weight: bold;
-      color: ${isFrontCover ? '#f59e0b' : '#10b981'};
-      z-index: 100;
-    `
-    labelDiv.textContent = isFrontCover ? 'COUVERTURE' : '4EME DE COUVERTURE'
-    contentArea.appendChild(labelDiv)
   }
 
   return pageDiv
@@ -353,6 +392,7 @@ async function renderSinglePage(
   height: number,
   formatId: string,
   bleedPx: number,
+  coverLabels?: { front: string; back: string },
 ): Promise<{ element: HTMLElement; cleanup: () => void }> {
   const renderWidth = width + 2 * bleedPx
   const renderHeight = height + 2 * bleedPx
@@ -372,7 +412,7 @@ async function renderSinglePage(
   // Build the page DOM imperatively (mirrors BookMode)
   const pageDiv = buildPageDOM(
     page, pageIndex, totalPages,
-    pageColor, showLines, width, height, formatId, bleedPx,
+    pageColor, showLines, width, height, formatId, bleedPx, coverLabels,
   )
   wrapper.appendChild(pageDiv)
 
@@ -405,6 +445,29 @@ async function renderSinglePage(
     await Promise.all(imagePromises)
   }
 
+  // Safari: convert SVG decoration data URLs to PNG data URLs
+  // html2canvas rejects SVGs without xmlns — PNG bypasses the issue entirely
+  if (isSafari) {
+    const decoElements = Array.from(wrapper.querySelectorAll<HTMLElement>('[data-deco-svg]'))
+    console.log('🔍 [PDF] Safari SVG→PNG: found', decoElements.length, 'decorations')
+    for (const el of decoElements) {
+      const svgStr = el.getAttribute('data-deco-svg')
+      const decoSize = parseInt(el.getAttribute('data-deco-size') || '80', 10)
+      if (svgStr) {
+        try {
+          console.log('🔍 [PDF] Converting SVG to PNG, size:', decoSize, 'svg length:', svgStr.length)
+          const pngDataUrl = await svgToPngDataUrl(svgStr, decoSize, decoSize)
+          console.log('🔍 [PDF] SVG→PNG OK, png length:', pngDataUrl.length)
+          el.style.backgroundImage = `url("${pngDataUrl}")`
+        } catch (e) {
+          console.warn('🔍 [PDF] SVG to PNG conversion FAILED:', e)
+        }
+      }
+    }
+  } else {
+    console.log('🔍 [PDF] Not Safari, skipping SVG→PNG conversion')
+  }
+
   // Get the .printable-page element
   const el = wrapper.querySelector('.printable-page') as HTMLElement
   if (!el) throw new Error(`Page ${pageIndex}: .printable-page not found`)
@@ -422,6 +485,7 @@ async function renderSinglePage(
 // ---------------------------------------------------------------------------
 
 export function usePdfExport() {
+  const t = useTranslations('writing')
   const [state, setState] = useState<PdfExportState>({
     isExporting: false,
     progress: 0,
@@ -447,7 +511,7 @@ export function usePdfExport() {
     setState({
       isExporting: true,
       progress: 0,
-      message: 'Préparation de l\'export PDF HD...',
+      message: t('preparingExport'),
       error: null,
       result: null,
     })
@@ -466,18 +530,19 @@ export function usePdfExport() {
         setState(s => ({
           ...s,
           progress: Math.round((i / story.pages.length) * 20),
-          message: `Rendu page ${i + 1}/${story.pages.length}...`,
+          message: t('renderingPage', { current: i + 1, total: story.pages.length }),
         }))
 
         const { element, cleanup } = await renderSinglePage(
           story.pages[i], i, story.pages.length,
           pageColor, showLines, width, height, format.id, bleedPx,
+          { front: t('frontCover').toUpperCase(), back: t('backCover').toUpperCase() },
         )
         pageElements.push(element)
         cleanups.push(cleanup)
       }
 
-      setState(s => ({ ...s, progress: 20, message: 'Capture des pages...' }))
+      setState(s => ({ ...s, progress: 20, message: t('capturingPages') }))
 
       // Generate PDF from the page elements
       const result = await generatePdfFromScreenCaptures(
@@ -489,9 +554,13 @@ export function usePdfExport() {
           showLines,
           includePageNumbers,
           useUpscale,
-          onProgress: (progress, message) => {
+          onProgress: (progress, _message) => {
             const adjustedProgress = 20 + Math.round(progress * 0.8)
-            setState(s => ({ ...s, progress: adjustedProgress, message }))
+            // Translate the capture progress message
+            const totalPages = story.pages.length
+            const currentPage = Math.round((progress / 90) * totalPages) + 1
+            const translatedMessage = t('capturePage', { current: Math.min(currentPage, totalPages), total: totalPages })
+            setState(s => ({ ...s, progress: adjustedProgress, message: translatedMessage }))
           },
         }
       )
@@ -502,7 +571,7 @@ export function usePdfExport() {
       setState({
         isExporting: false,
         progress: 100,
-        message: 'Export terminé !',
+        message: t('exportDone'),
         error: null,
         result,
       })
@@ -519,12 +588,12 @@ export function usePdfExport() {
         isExporting: false,
         progress: 0,
         message: '',
-        error: error instanceof Error ? error.message : 'Erreur lors de l\'export',
+        error: error instanceof Error ? error.message : t('exportError'),
         result: null,
       })
       return null
     }
-  }, [])
+  }, [t])
 
   const download = useCallback((filename: string) => {
     if (state.result) {

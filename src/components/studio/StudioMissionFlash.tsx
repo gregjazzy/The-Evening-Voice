@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStudioStore } from '@/store/useStudioStore'
 import { Lightbulb, X, Sparkles, GripHorizontal } from 'lucide-react'
+import { useTranslations } from '@/lib/i18n/context'
 
 export function StudioMissionFlash() {
+  const t = useTranslations('studio')
   const { showMissionFlash, currentMissionFlash, dismissMissionFlash } = useStudioStore()
   const [isDragging, setIsDragging] = useState(false)
 
@@ -40,7 +42,7 @@ export function StudioMissionFlash() {
                 </motion.div>
                 <div>
                   <p className="text-xs text-aurora-400 uppercase tracking-wider flex items-center gap-1">
-                    Mission Flash
+                    {t('missionFlash.title')}
                     <GripHorizontal className="w-3 h-3 text-midnight-500" />
                   </p>
                   <h3 className="font-semibold text-white">
@@ -70,7 +72,7 @@ export function StudioMissionFlash() {
               whileTap={{ scale: 0.98 }}
             >
               <Sparkles className="w-4 h-4" />
-              Compris !
+              {t('missionFlash.understood')}
             </motion.button>
           </div>
         </motion.div>

@@ -31,11 +31,13 @@ import { useMentorStore } from '@/store/useMentorStore'
 import { useHomeKit } from '@/hooks/useHomeKit'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 
 export function TheaterMode() {
   // Modale d'introduction (première visite)
   const { isFirstVisit, markAsSeen } = useFirstVisit('theater')
-  
+  const t = useTranslations('theater')
+
   // Pour le portal - s'assurer que le DOM est monté
   const [isMounted, setIsMounted] = useState(false)
   
@@ -364,7 +366,7 @@ export function TheaterMode() {
       }).filter(s => s.mediaUrl) // Filtrer les scènes sans média
       
       if (scenes.length === 0) {
-        throw new Error('Aucune scène avec média trouvée')
+        throw new Error('No scene with media found')
       }
       
       // Récupérer l'URL de narration (première scène avec narration)
@@ -388,7 +390,7 @@ export function TheaterMode() {
       
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Erreur export')
+        throw new Error(data.error || 'Export error')
       }
       
       const result = await response.json()
@@ -411,13 +413,13 @@ export function TheaterMode() {
             })
             setIsExporting(false)
           } else if (statusData.status === 'errored') {
-            throw new Error('Erreur lors de l\'encodage')
+            throw new Error('Encoding error')
           } else if (attempts < maxAttempts) {
             attempts++
             setExportProgress(80 + Math.min(attempts, 18))
             setTimeout(checkStatus, 5000)
           } else {
-            throw new Error('Timeout - la vidéo prend trop de temps')
+            throw new Error('Timeout - video taking too long')
           }
         }
         
@@ -433,7 +435,7 @@ export function TheaterMode() {
       
     } catch (error) {
       console.error('Erreur export vidéo:', error)
-      setExportError(error instanceof Error ? error.message : 'Erreur inconnue')
+      setExportError(error instanceof Error ? error.message : 'Unknown error')
       setIsExporting(false)
       setExportProgress(0)
     }
@@ -444,7 +446,7 @@ export function TheaterMode() {
     if (exportResult?.mp4Url) {
       const link = document.createElement('a')
       link.href = exportResult.mp4Url
-      link.download = 'mon-livre-disque.mp4'
+      link.download = t('export.defaultFilename')
       link.click()
     }
   }
@@ -462,10 +464,10 @@ export function TheaterMode() {
           <div>
             <h1 className="font-display text-3xl text-aurora-300 flex items-center gap-3">
               <Theater className="w-8 h-8" />
-              Le Théâtre des Merveilles
+              {t('title')}
             </h1>
             <p className="text-midnight-300 mt-1">
-              Tes livres-disques prêts pour le spectacle ✨
+              {t('subtitle')}
             </p>
           </div>
 
@@ -483,12 +485,12 @@ export function TheaterMode() {
               {homeKit.isConnected ? (
                 <>
                   <Lightbulb className="w-4 h-4" />
-                  Lumières connectées
+                  {t('homekit.connected')}
                 </>
               ) : (
                 <>
                   <WifiOff className="w-4 h-4" />
-                  Connecter HomeKit
+                  {t('homekit.connect')}
                 </>
               )}
             </button>
@@ -533,7 +535,7 @@ export function TheaterMode() {
                     {/* Badge "Complet" si terminé */}
                     {project.isComplete && (
                       <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-dream-500/80 text-white text-xs font-medium">
-                        ✓ Complet
+                        {t('project.complete')}
                       </div>
                     )}
 
@@ -547,7 +549,7 @@ export function TheaterMode() {
                         'opacity-0 group-hover:opacity-100',
                         isExporting && exportingProjectId === project.id && 'opacity-100 bg-aurora-500'
                       )}
-                      title="Exporter en vidéo HD"
+                      title={t('export.videoHD')}
                     >
                       {isExporting && exportingProjectId === project.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -562,7 +564,7 @@ export function TheaterMode() {
                         {project.title}
                       </h3>
                       <p className="text-sm text-midnight-300">
-                        {project.scenes.length} scène{project.scenes.length > 1 ? 's' : ''}
+                        {project.scenes.length > 1 ? t('project.sceneCountPlural', { count: project.scenes.length }) : t('project.sceneCount', { count: project.scenes.length })}
                       </p>
                     </div>
 
@@ -580,12 +582,9 @@ export function TheaterMode() {
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Book className="w-24 h-24 text-midnight-700 mb-6" />
               <h2 className="font-display text-2xl text-white mb-2">
-                La bibliothèque est vide
+                {t('library.empty')}
               </h2>
-              <p className="text-midnight-400 max-w-md">
-                Crée un projet dans le mode <strong>Montage</strong> pour le retrouver ici.
-                Chaque livre-disque terminé devient un spectacle magique ! ✨
-              </p>
+              <p className="text-midnight-400 max-w-md" dangerouslySetInnerHTML={{ __html: t('library.emptyDescription') }} />
             </div>
           )}
         </div>
@@ -619,10 +618,10 @@ export function TheaterMode() {
                       <Loader2 className="w-10 h-10 text-aurora-400 animate-spin" />
                     </div>
                     <h3 className="text-xl font-display text-white mb-2">
-                      Export en cours...
+                      {t('export.inProgress')}
                     </h3>
                     <p className="text-midnight-400 mb-6">
-                      Création de ta vidéo HD 🎬
+                      {t('export.creatingVideo')}
                     </p>
                     <div className="h-2 bg-midnight-800 rounded-full overflow-hidden mb-2">
                       <motion.div
@@ -643,10 +642,10 @@ export function TheaterMode() {
                       <CheckCircle2 className="w-10 h-10 text-emerald-400" />
                     </div>
                     <h3 className="text-xl font-display text-white mb-2">
-                      Vidéo prête ! 🎉
+                      {t('export.videoReady')}
                     </h3>
                     <p className="text-midnight-400 mb-6">
-                      Ta vidéo HD est prête à être téléchargée
+                      {t('export.readyToDownload')}
                     </p>
                     <div className="space-y-3">
                       <button
@@ -654,7 +653,7 @@ export function TheaterMode() {
                         className="w-full py-3 px-4 bg-aurora-600 hover:bg-aurora-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
                       >
                         <Download className="w-5 h-5" />
-                        Télécharger MP4
+                        {t('export.downloadMP4')}
                       </button>
                       <button
                         onClick={() => {
@@ -663,7 +662,7 @@ export function TheaterMode() {
                         }}
                         className="w-full py-3 px-4 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
                       >
-                        Fermer
+                        {t('export.close')}
                       </button>
                     </div>
                   </div>
@@ -676,10 +675,10 @@ export function TheaterMode() {
                       <X className="w-10 h-10 text-rose-400" />
                     </div>
                     <h3 className="text-xl font-display text-white mb-2">
-                      Oups ! 😕
+                      {t('export.oops')}
                     </h3>
                     <p className="text-midnight-400 mb-2">
-                      Une erreur s'est produite
+                      {t('export.errorOccurred')}
                     </p>
                     <p className="text-sm text-rose-400 mb-6">
                       {exportError}
@@ -691,7 +690,7 @@ export function TheaterMode() {
                       }}
                       className="w-full py-3 px-4 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
                     >
-                      Fermer
+                      {t('export.close')}
                     </button>
                   </div>
                 )}
@@ -734,7 +733,7 @@ export function TheaterMode() {
       <button
         onClick={handleExitShow}
         className="absolute top-4 right-4 z-[10000] w-12 h-12 rounded-full bg-black/60 hover:bg-red-600/80 text-white/80 hover:text-white flex items-center justify-center transition-all backdrop-blur-sm border border-white/20 hover:border-red-500/50 shadow-lg"
-        title="Réduire le spectacle"
+        title={t('show.minimize')}
       >
         <X className="w-6 h-6" />
       </button>
@@ -958,7 +957,7 @@ export function TheaterMode() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors"
               >
                 <Home className="w-5 h-5" />
-                Quitter
+                {t('controls.quit')}
               </button>
 
               {/* Centre - Navigation */}
@@ -1028,7 +1027,7 @@ export function TheaterMode() {
                 {homeKit.isConnected && (
                   <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-dream-500/30 text-dream-300 text-sm">
                     <Lightbulb className="w-4 h-4" />
-                    Lumières sync
+                    {t('controls.lightsSync')}
                   </div>
                 )}
 
@@ -1068,13 +1067,13 @@ export function TheaterMode() {
           >
             <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
               <Settings className="w-4 h-4" />
-              Paramètres du spectacle
+              {t('settings.title')}
             </h3>
 
             <div className="space-y-4">
               {/* Auto-avance */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-midnight-300">Avance automatique</span>
+                <span className="text-sm text-midnight-300">{t('settings.autoAdvance')}</span>
                 <button
                   onClick={() => setAutoAdvance(!autoAdvance)}
                   className={cn(
@@ -1093,7 +1092,7 @@ export function TheaterMode() {
               {homeKit.isConnected && currentScene && (
                 <div>
                   <label className="text-sm text-midnight-300 mb-2 block">
-                    Intensité lumineuse
+                    {t('settings.lightIntensity')}
                   </label>
                   <input
                     type="range"
@@ -1112,11 +1111,11 @@ export function TheaterMode() {
               {currentScene && (
                 <div className="pt-4 border-t border-white/10">
                   <p className="text-xs text-midnight-400">
-                    Scène {currentSceneIndex + 1} sur {selectedProject.scenes.length}
+                    {t('settings.sceneProgress', { current: currentSceneIndex + 1, total: selectedProject.scenes.length })}
                   </p>
                   {currentScene.narration?.isSynced && (
                     <p className="text-xs text-dream-300 mt-1">
-                      ✓ Karaoké synchronisé
+                      {t('settings.karaokeSynced')}
                     </p>
                   )}
                 </div>
@@ -1130,7 +1129,7 @@ export function TheaterMode() {
       {mentorConnected && controlActive && (
         <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-aurora-500/30 text-aurora-300 text-sm flex items-center gap-2">
           <Sparkles className="w-4 h-4" />
-          Mentor aux commandes
+          {t('mentor.inControl')}
         </div>
       )}
       

@@ -169,30 +169,15 @@ export function Sidebar() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            {/* Sur mobile: juste l'icône du livre */}
             <Book className={cn(
-              'w-4 h-4 flex-shrink-0 lg:hidden',
+              'w-4 h-4 flex-shrink-0',
               currentStory ? 'text-aurora-400' : 'text-midnight-500'
             )} />
-            
-            {/* Sur desktop: icône + texte + flèche */}
-            <div className="hidden lg:flex items-center gap-2 w-full min-w-0">
-              <Book className={cn(
-                'w-4 h-4 flex-shrink-0',
-                currentStory ? 'text-aurora-400' : 'text-midnight-500'
-              )} />
-              <span className={cn(
-                'flex-1 text-xs truncate text-left min-w-0',
-                currentStory ? 'text-white' : 'text-midnight-400'
-              )}>
-                {currentStory?.title || 'Choisir...'}
-              </span>
-              <ChevronDown className={cn(
-                'w-3 h-3 flex-shrink-0 transition-transform',
-                showStorySelector && 'rotate-180',
-                currentStory ? 'text-aurora-400' : 'text-midnight-500'
-              )} />
-            </div>
+            <ChevronDown className={cn(
+              'w-3 h-3 flex-shrink-0 transition-transform',
+              showStorySelector && 'rotate-180',
+              currentStory ? 'text-aurora-400' : 'text-midnight-500'
+            )} />
           </motion.button>
           
           {/* Dropdown - positionnement sur la droite sur mobile */}

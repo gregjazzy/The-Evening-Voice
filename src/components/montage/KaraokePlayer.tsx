@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMontageStore, type MontageScene, type PhraseTiming } from '@/store/useMontageStore'
+import { useTranslations } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 import { X, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Maximize2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
@@ -22,6 +23,7 @@ interface KaraokePlayerProps {
 // =============================================================================
 
 export function KaraokePlayer({ isOpen, onClose, scene }: KaraokePlayerProps) {
+  const t = useTranslations('layout')
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
@@ -282,7 +284,7 @@ export function KaraokePlayer({ isOpen, onClose, scene }: KaraokePlayerProps) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  Appuie sur Play pour commencer 🎬
+                  {t('karaoke.pressPlay')}
                 </motion.p>
               )}
             </AnimatePresence>

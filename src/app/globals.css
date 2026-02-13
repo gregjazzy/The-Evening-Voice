@@ -152,7 +152,7 @@ body {
 }
 
 /* Textarea et input stylisés */
-textarea, input[type="text"] {
+textarea, input[type="text"]:not(.input-field) {
   background: rgba(26, 24, 50, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -164,13 +164,13 @@ textarea, input[type="text"] {
   transition: all 0.3s ease;
 }
 
-textarea:focus, input[type="text"]:focus {
+textarea:focus, input[type="text"]:not(.input-field):focus {
   border-color: rgba(233, 121, 249, 0.5);
   box-shadow: 0 0 20px rgba(233, 121, 249, 0.2);
   outline: none;
 }
 
-textarea::placeholder, input[type="text"]::placeholder {
+textarea::placeholder, input[type="text"]:not(.input-field)::placeholder {
   color: rgba(240, 241, 248, 0.4);
 }
 
@@ -183,7 +183,7 @@ textarea::placeholder, input[type="text"]::placeholder {
   padding-top: 14px;
   padding-bottom: 14px;
   padding-right: 16px;
-  /* padding-left géré par Tailwind (pl-11) pour laisser place à l'icône */
+  padding-left: 2.75rem !important; /* Place pour l'icône (= pl-11) */
   color: #f0f1f8 !important;
   font-family: 'Nunito', sans-serif;
   font-size: 1rem;
@@ -214,6 +214,7 @@ textarea::placeholder, input[type="text"]::placeholder {
   -webkit-box-shadow: 0 0 0px 1000px rgba(26, 24, 50, 0.8) inset !important;
   box-shadow: 0 0 0px 1000px rgba(26, 24, 50, 0.8) inset !important;
   transition: background-color 5000s ease-in-out 0s;
+  padding-left: 2.75rem !important; /* = pl-11, force le padding derrière l'icône en autofill */
 }
 
 /* Boutons magiques */
@@ -423,7 +424,10 @@ textarea::placeholder, input[type="text"]::placeholder {
 
   /* Input fields plus compacts */
   .input-field {
-    padding: 10px 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-right: 12px;
+    padding-left: 2.75rem;
     min-height: 44px;
   }
 }

@@ -26,6 +26,8 @@ import {
   Book,
   Ruler,
   DollarSign,
+  Lock,
+  Info,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useStudioStore } from '@/store/useStudioStore'
@@ -34,7 +36,8 @@ import {
   usePublishStore,
   BOOK_FORMATS,
   COVER_TYPES,
-  PRINT_QUALITIES,
+  GELATO_PAPER_OPTIONS,
+  GELATO_LAMINATION_OPTIONS,
   type PublishStep,
   type BookFormat,
   type BookFormatConfig,
@@ -42,25 +45,27 @@ import {
 import { exportToPDF } from '@/lib/export/pdf'
 import { usePdfExport } from '@/hooks/usePdfExport'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
+import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
 // COMPOSANT : Étapes de navigation
 // ============================================================================
 
-const STEPS: { id: PublishStep; label: string; icon: React.ReactNode }[] = [
-  { id: 'select-story', label: 'Histoire', icon: <BookOpen className="w-4 h-4" /> },
-  { id: 'choose-format', label: 'Options', icon: <Ruler className="w-4 h-4" /> },
-  { id: 'quality-check', label: 'Qualité', icon: <CheckCircle2 className="w-4 h-4" /> },
-  { id: 'order', label: 'Commander', icon: <ShoppingCart className="w-4 h-4" /> },
+const STEP_IDS: { id: PublishStep; labelKey: string; icon: React.ReactNode }[] = [
+  { id: 'select-story', labelKey: 'steps.story', icon: <BookOpen className="w-4 h-4" /> },
+  { id: 'choose-format', labelKey: 'steps.options', icon: <Ruler className="w-4 h-4" /> },
+  { id: 'quality-check', labelKey: 'steps.quality', icon: <CheckCircle2 className="w-4 h-4" /> },
+  { id: 'order', labelKey: 'steps.order', icon: <ShoppingCart className="w-4 h-4" /> },
 ]
 
 function StepIndicator({ currentStep }: { currentStep: PublishStep }) {
-  const currentIndex = STEPS.findIndex(s => s.id === currentStep)
+  const t = useTranslations('publish')
+  const currentIndex = STEP_IDS.findIndex(s => s.id === currentStep)
   
   return (
     <div className="flex items-center justify-center gap-2 py-4">
-      {STEPS.map((step, index) => {
+      {STEP_IDS.map((step, index) => {
         const isActive = step.id === currentStep
         const isPast = index < currentIndex
         const isFuture = index > currentIndex
@@ -78,10 +83,10 @@ function StepIndicator({ currentStep }: { currentStep: PublishStep }) {
               transition={{ duration: 0.3 }}
             >
               {isPast ? <Check className="w-4 h-4" /> : step.icon}
-              <span className="text-sm font-medium hidden md:inline">{step.label}</span>
+              <span className="text-sm font-medium hidden md:inline">{t(step.labelKey)}</span>
             </motion.div>
             
-            {index < STEPS.length - 1 && (
+            {index < STEP_IDS.length - 1 && (
               <div className={cn(
                 'w-8 h-0.5 mx-1',
                 index < currentIndex ? 'bg-aurora-600' : 'bg-midnight-700'
@@ -99,6 +104,8 @@ function StepIndicator({ currentStep }: { currentStep: PublishStep }) {
 // ============================================================================
 
 function SelectStoryStep() {
+  const t = useTranslations('publish')
+  const locale = useLocale()
   const { stories } = useAppStore()
   const { selectedStory, setSelectedStory, setCurrentStep } = usePublishStore()
   
@@ -114,26 +121,26 @@ function SelectStoryStep() {
     >
       <div className="text-center mb-8">
         <h2 className="text-3xl font-display text-white mb-2">
-          📚 Quel livre veux-tu imprimer ?
+          📚 {t('selectStory.title')}
         </h2>
         <p className="text-midnight-300">
-          Choisis l'histoire que tu veux transformer en vrai livre
+          {t('selectStory.description')}
         </p>
       </div>
       
       {completedStories.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <BookOpen className="w-16 h-16 text-midnight-500 mx-auto mb-4" />
-          <h3 className="text-xl text-white mb-2">Pas encore d'histoire prête</h3>
+          <h3 className="text-xl text-white mb-2">{t('selectStory.emptyTitle')}</h3>
           <p className="text-midnight-400 mb-4">
-            Crée d'abord une histoire dans le mode Écriture
+            {t('selectStory.emptyDescription')}
           </p>
           <button
             onClick={() => useAppStore.getState().setCurrentMode('book')}
             className="btn-primary"
           >
             <Sparkles className="w-4 h-4 mr-2" />
-            Créer une histoire
+            {t('selectStory.createStory')}
           </button>
         </div>
       ) : (
@@ -155,18 +162,18 @@ function SelectStoryStep() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-medium text-white truncate">
-                    {story.title || 'Sans titre'}
+                    {story.title || t('selectStory.untitled')}
                   </h3>
                   <p className="text-sm text-midnight-400 mt-1">
-                    {story.pages.length} pages
+                    {t('selectStory.pages', { count: story.pages.length })}
                   </p>
                   <p className="text-xs text-midnight-500 mt-2">
-                    Créé le {new Date(story.createdAt).toLocaleDateString('fr-FR')}
+                    {t('selectStory.createdAt', { date: new Date(story.createdAt).toLocaleDateString(locale) })}
                   </p>
                   {selectedStory?.id === story.id && (
                     <div className="flex items-center gap-1 mt-2 text-aurora-400 text-sm">
                       <Check className="w-4 h-4" />
-                      Sélectionné
+                      {t('selectStory.selected')}
                     </div>
                   )}
                 </div>
@@ -185,7 +192,7 @@ function SelectStoryStep() {
           {selectedStory.bookFormat && (
             <p className="text-sm text-aurora-400 flex items-center gap-2">
               <Check className="w-4 h-4" />
-              Format : {BOOK_FORMATS.find(f => f.id === selectedStory.bookFormat)?.nameFr}
+              {t('selectStory.format', { format: (locale === 'fr' ? BOOK_FORMATS.find(f => f.id === selectedStory.bookFormat)?.nameFr : BOOK_FORMATS.find(f => f.id === selectedStory.bookFormat)?.name) || '' })}
             </p>
           )}
           <button
@@ -196,10 +203,10 @@ function SelectStoryStep() {
               }
               setCurrentStep('choose-format')
             }}
-            className="btn-primary text-lg px-8 py-3"
+            className="inline-flex items-center gap-2 text-lg px-8 py-3 rounded-xl bg-gradient-to-r from-aurora-500 to-aurora-700 text-white font-semibold hover:from-aurora-400 hover:to-aurora-600 transition-all shadow-lg shadow-aurora-500/25"
           >
-            Choisir les options
-            <ChevronRight className="w-5 h-5 ml-2" />
+            {t('selectStory.chooseOptions')}
+            <ChevronRight className="w-5 h-5" />
           </button>
         </motion.div>
       )}
@@ -208,36 +215,409 @@ function SelectStoryStep() {
 }
 
 // ============================================================================
-// ÉTAPE 2 : Choix du format
+// ÉTAPE 2 : Choix du format — Wizard en 4 sous-étapes
 // ============================================================================
 
-function ChooseFormatStep() {
-  const { 
-    selectedFormat, 
-    setSelectedFormat, 
-    coverType, 
-    setCoverType,
-    printQuality,
-    setPrintQuality,
-    setCurrentStep,
+const subStepVariants = {
+  enter: (direction: number) => ({ x: direction > 0 ? 200 : -200, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction: number) => ({ x: direction > 0 ? -200 : 200, opacity: 0 }),
+}
+
+function SubStepIndicator({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 mb-6">
+      {Array.from({ length: total }).map((_, i) => (
+        <div
+          key={i}
+          className={cn(
+            'w-2.5 h-2.5 rounded-full transition-all duration-300',
+            i === current
+              ? 'bg-aurora-500 scale-125'
+              : i < current
+                ? 'bg-aurora-500/50'
+                : 'bg-midnight-700'
+          )}
+        />
+      ))}
+    </div>
+  )
+}
+
+function ChoicePill({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: string
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-midnight-800/80 hover:bg-midnight-700/80 border border-midnight-600/50 transition-all group"
+    >
+      <span className="text-lg">{icon}</span>
+      <span className="text-white text-sm font-medium">{label}</span>
+      <span className="text-xs text-aurora-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1">✎</span>
+    </button>
+  )
+}
+
+function CoverTypeSubStep({
+  onSelect,
+  currentValue,
+}: {
+  onSelect: (type: 'hardcover' | 'softcover') => void
+  currentValue: string
+}) {
+  const t = useTranslations('publish')
+  const locale = useLocale()
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-display text-white mb-2">
+          📚 {t('chooseFormat.coverTypeTitle')}
+        </h2>
+        <p className="text-midnight-300">{t('chooseFormat.coverTypeSubtitle')}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {COVER_TYPES.map((cover) => (
+          <motion.button
+            key={cover.type}
+            onClick={() => onSelect(cover.type)}
+            className={cn(
+              'glass-card p-8 text-center transition-all relative cursor-pointer',
+              currentValue === cover.type
+                ? 'ring-2 ring-aurora-500 bg-aurora-500/10'
+                : 'hover:bg-midnight-800/80'
+            )}
+            whileHover={{ scale: 1.03, y: -4 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <div className="text-6xl mb-4">{cover.icon}</div>
+            <div className="text-lg font-semibold text-white">
+              {locale === 'fr' ? cover.nameFr : cover.nameEn}
+            </div>
+            {cover.type === 'hardcover' && (
+              <p className="text-sm text-midnight-400 mt-2">{t('chooseFormat.hardcoverDesc')}</p>
+            )}
+            {cover.type === 'softcover' && (
+              <p className="text-sm text-midnight-400 mt-2">{t('chooseFormat.softcoverDesc')}</p>
+            )}
+            {currentValue === cover.type && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute top-4 right-4 w-7 h-7 rounded-full bg-aurora-500 flex items-center justify-center"
+              >
+                <Check className="w-4 h-4 text-white" />
+              </motion.div>
+            )}
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PaperTypeSubStep({
+  onSelect,
+  currentValue,
+}: {
+  onSelect: (id: string) => void
+  currentValue: string
+}) {
+  const t = useTranslations('publish')
+  const locale = useLocale()
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-display text-white mb-2">
+          📄 {t('chooseFormat.paperTypeTitle')}
+        </h2>
+        <p className="text-midnight-300">{t('chooseFormat.paperTypeSubtitle')}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-6">
+        {GELATO_PAPER_OPTIONS.map((paper) => (
+          <motion.button
+            key={paper.id}
+            onClick={() => onSelect(paper.id)}
+            className={cn(
+              'glass-card p-8 text-center transition-all relative cursor-pointer',
+              currentValue === paper.id
+                ? 'ring-2 ring-aurora-500 bg-aurora-500/10'
+                : 'hover:bg-midnight-800/80'
+            )}
+            whileHover={{ scale: 1.03, y: -4 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <div className="text-6xl mb-4">{paper.icon}</div>
+            <div className="text-lg font-semibold text-white">
+              {locale === 'fr' ? paper.nameFr : paper.nameEn}
+            </div>
+            <div className="text-sm text-midnight-400 mt-1">{paper.weightGsm}g/m²</div>
+            <p className="text-xs text-midnight-500 mt-2">
+              {paper.description[locale as keyof typeof paper.description] || paper.description.en}
+            </p>
+            {paper.weightGsm >= 200 && (
+              <span className="inline-block mt-2 px-2 py-0.5 text-xs font-medium text-aurora-400 bg-aurora-500/10 rounded-full">
+                {t('chooseFormat.premium')}
+              </span>
+            )}
+            {currentValue === paper.id && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute top-4 right-4 w-7 h-7 rounded-full bg-aurora-500 flex items-center justify-center"
+              >
+                <Check className="w-4 h-4 text-white" />
+              </motion.div>
+            )}
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CoverFinishSubStep({
+  onSelect,
+  currentValue,
+}: {
+  onSelect: (id: string) => void
+  currentValue: string
+}) {
+  const t = useTranslations('publish')
+  const locale = useLocale()
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-display text-white mb-2">
+          ✨ {t('chooseFormat.coverFinishTitle')}
+        </h2>
+        <p className="text-midnight-300">{t('chooseFormat.coverFinishSubtitle')}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {GELATO_LAMINATION_OPTIONS.map((lam) => (
+          <motion.button
+            key={lam.id}
+            onClick={() => onSelect(lam.id)}
+            className={cn(
+              'glass-card p-8 text-center transition-all relative cursor-pointer',
+              currentValue === lam.id
+                ? 'ring-2 ring-aurora-500 bg-aurora-500/10'
+                : 'hover:bg-midnight-800/80'
+            )}
+            whileHover={{ scale: 1.03, y: -4 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <div className="text-6xl mb-4">{lam.icon}</div>
+            <div className="text-lg font-semibold text-white">
+              {locale === 'fr' ? lam.nameFr : lam.nameEn}
+            </div>
+            {currentValue === lam.id && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute top-4 right-4 w-7 h-7 rounded-full bg-aurora-500 flex items-center justify-center"
+              >
+                <Check className="w-4 h-4 text-white" />
+              </motion.div>
+            )}
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SummarySubStep({
+  onGoToSubStep,
+  onContinue,
+}: {
+  onGoToSubStep: (step: number) => void
+  onContinue: () => void
+}) {
+  const t = useTranslations('publish')
+  const locale = useLocale()
+  const {
+    selectedFormat,
+    coverType,
+    paperType,
+    lamination,
     selectedStory,
     estimatedPrice,
+  } = usePublishStore()
+
+  const currentFormat = BOOK_FORMATS.find(f => f.id === selectedFormat)
+  const currentCover = COVER_TYPES.find(c => c.type === coverType)
+  const currentPaper = GELATO_PAPER_OPTIONS.find(p => p.id === paperType)
+  const currentLamination = GELATO_LAMINATION_OPTIONS.find(l => l.id === lamination)
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-display text-white mb-2">
+          🎉 {t('chooseFormat.summaryTitle')}
+        </h2>
+        <p className="text-midnight-300">{t('chooseFormat.summarySubtitle')}</p>
+      </div>
+
+      <div className="space-y-4">
+        {/* Format (read-only) */}
+        {currentFormat && (
+          <div className="glass-card p-5 flex items-center gap-4">
+            <div className="text-3xl">{currentFormat.icon}</div>
+            <div className="flex-1">
+              <div className="text-xs text-midnight-500 uppercase tracking-wide">{t('chooseFormat.bookFormat')}</div>
+              <div className="text-white font-medium">
+                {locale === 'fr' ? currentFormat.nameFr : currentFormat.name}
+              </div>
+              <div className="text-xs text-midnight-400">{currentFormat.widthMm} x {currentFormat.heightMm} mm &middot; {selectedStory?.pages.length} pages</div>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-midnight-700/80 text-midnight-400 text-xs">
+              <Lock className="w-3 h-3" />
+              {t('chooseFormat.locked')}
+            </span>
+          </div>
+        )}
+
+        {/* Cover type */}
+        <div className="glass-card p-5 flex items-center gap-4">
+          <div className="text-3xl">{currentCover?.icon}</div>
+          <div className="flex-1">
+            <div className="text-xs text-midnight-500 uppercase tracking-wide">{t('chooseFormat.coverType')}</div>
+            <div className="text-white font-medium">
+              {locale === 'fr' ? currentCover?.nameFr : currentCover?.nameEn}
+            </div>
+          </div>
+          <ChoicePill
+            icon="✎"
+            label={t('chooseFormat.changeChoice')}
+            onClick={() => onGoToSubStep(0)}
+          />
+        </div>
+
+        {/* Paper type */}
+        <div className="glass-card p-5 flex items-center gap-4">
+          <div className="text-3xl">{currentPaper?.icon}</div>
+          <div className="flex-1">
+            <div className="text-xs text-midnight-500 uppercase tracking-wide">{t('chooseFormat.paperType')}</div>
+            <div className="text-white font-medium">
+              {locale === 'fr' ? currentPaper?.nameFr : currentPaper?.nameEn}
+            </div>
+            <div className="text-xs text-midnight-400">{currentPaper?.weightGsm}g/m²</div>
+          </div>
+          <ChoicePill
+            icon="✎"
+            label={t('chooseFormat.changeChoice')}
+            onClick={() => onGoToSubStep(1)}
+          />
+        </div>
+
+        {/* Cover finish */}
+        <div className="glass-card p-5 flex items-center gap-4">
+          <div className="text-3xl">{currentLamination?.icon}</div>
+          <div className="flex-1">
+            <div className="text-xs text-midnight-500 uppercase tracking-wide">{t('chooseFormat.coverFinish')}</div>
+            <div className="text-white font-medium">
+              {locale === 'fr' ? currentLamination?.nameFr : currentLamination?.nameEn}
+            </div>
+          </div>
+          <ChoicePill
+            icon="✎"
+            label={t('chooseFormat.changeChoice')}
+            onClick={() => onGoToSubStep(2)}
+          />
+        </div>
+
+        {/* Price */}
+        <div className="glass-card p-6">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-midnight-400">{t('chooseFormat.estimatedPrice')}</div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-aurora-400">
+                {estimatedPrice ? `${estimatedPrice.toFixed(2)}€` : '—'}
+              </div>
+              <div className="text-xs text-midnight-500">{t('chooseFormat.shipping')}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 flex justify-center">
+        <motion.button
+          onClick={onContinue}
+          className="inline-flex items-center gap-2 text-lg px-8 py-3 rounded-xl bg-gradient-to-r from-aurora-500 to-aurora-700 text-white font-semibold hover:from-aurora-400 hover:to-aurora-600 transition-all shadow-lg shadow-aurora-500/25"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          {t('chooseFormat.checkQuality')}
+          <ChevronRight className="w-5 h-5" />
+        </motion.button>
+      </div>
+    </div>
+  )
+}
+
+function ChooseFormatStep() {
+  const t = useTranslations('publish')
+  const {
+    selectedFormat,
+    coverType,
+    setCoverType,
+    paperType,
+    setPaperType,
+    lamination,
+    setLamination,
+    setCurrentStep,
     calculatePrice,
   } = usePublishStore()
-  
-  // Si le format est déjà défini dans l'histoire, l'utiliser automatiquement
-  useEffect(() => {
-    if (selectedStory?.bookFormat && !selectedFormat) {
-      setSelectedFormat(selectedStory.bookFormat as any)
-    }
-  }, [selectedStory?.bookFormat, selectedFormat, setSelectedFormat])
-  
+
+  const [subStep, setSubStep] = useState(0)
+  const [direction, setDirection] = useState(1)
+  const [returnToSummary, setReturnToSummary] = useState(false)
+
   useEffect(() => {
     calculatePrice()
-  }, [selectedFormat, coverType, printQuality, calculatePrice])
-  
-  const currentFormat = BOOK_FORMATS.find(f => f.id === selectedFormat)
-  
+  }, [selectedFormat, coverType, paperType, lamination, calculatePrice])
+
+  const goToSubStep = (target: number) => {
+    setDirection(target > subStep ? 1 : -1)
+    setSubStep(target)
+  }
+
+  const handleNext = () => {
+    if (returnToSummary) {
+      setReturnToSummary(false)
+      setDirection(1)
+      setSubStep(3)
+    } else if (subStep < 3) {
+      setDirection(1)
+      setSubStep(subStep + 1)
+    }
+  }
+
+  const handleBack = () => {
+    if (subStep === 0) {
+      setCurrentStep('select-story')
+    } else {
+      setDirection(-1)
+      setSubStep(subStep - 1)
+      setReturnToSummary(false)
+    }
+  }
+
+  const handleGoToSubStepFromSummary = (step: number) => {
+    setReturnToSummary(true)
+    goToSubStep(step)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -245,145 +625,98 @@ function ChooseFormatStep() {
       exit={{ opacity: 0, y: -20 }}
       className="max-w-5xl mx-auto"
     >
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-display text-white mb-2">
-          📐 Choisis le format de ton livre
-        </h2>
-        <p className="text-midnight-300">
-          Chaque format a ses avantages - le carré est parfait pour les livres d'enfants !
-        </p>
-        {/* Indicateur si le format a été défini lors de la création */}
-        {selectedStory?.bookFormat && (
-          <p className="text-sm text-aurora-400 mt-2 flex items-center justify-center gap-2">
-            <Check className="w-4 h-4" />
-            Format choisi lors de la création : {BOOK_FORMATS.find(f => f.id === selectedStory.bookFormat)?.nameFr}
-          </p>
-        )}
+      <SubStepIndicator current={subStep} total={4} />
+
+      <div className="relative overflow-hidden min-h-[400px]">
+        <AnimatePresence mode="wait" custom={direction}>
+          {subStep === 0 && (
+            <motion.div
+              key="cover-type"
+              custom={direction}
+              variants={subStepVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <CoverTypeSubStep
+                currentValue={coverType}
+                onSelect={(type) => setCoverType(type)}
+              />
+            </motion.div>
+          )}
+
+          {subStep === 1 && (
+            <motion.div
+              key="paper-type"
+              custom={direction}
+              variants={subStepVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <PaperTypeSubStep
+                currentValue={paperType}
+                onSelect={(id) => setPaperType(id as any)}
+              />
+            </motion.div>
+          )}
+
+          {subStep === 2 && (
+            <motion.div
+              key="cover-finish"
+              custom={direction}
+              variants={subStepVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <CoverFinishSubStep
+                currentValue={lamination}
+                onSelect={(id) => setLamination(id as any)}
+              />
+            </motion.div>
+          )}
+
+          {subStep === 3 && (
+            <motion.div
+              key="summary"
+              custom={direction}
+              variants={subStepVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+            >
+              <SummarySubStep
+                onGoToSubStep={handleGoToSubStepFromSummary}
+                onContinue={() => setCurrentStep('quality-check')}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      
-      {/* Formats de livre */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-8">
-        {BOOK_FORMATS.map((format) => (
-          <motion.button
-            key={format.id}
-            onClick={() => setSelectedFormat(format.id)}
-            className={cn(
-              'glass-card p-4 text-center transition-all relative',
-              selectedFormat === format.id && 'ring-2 ring-aurora-500 bg-aurora-500/10'
-            )}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+
+      {/* Navigation buttons */}
+      <div className="mt-6 flex justify-between items-center">
+        <button
+          onClick={handleBack}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          {t('nav.back')}
+        </button>
+        {subStep < 3 && (
+          <button
+            onClick={handleNext}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-aurora-500 to-aurora-700 text-white font-semibold hover:from-aurora-400 hover:to-aurora-600 transition-all shadow-lg shadow-aurora-500/25"
           >
-            {format.recommended && (
-              <div className="absolute -top-2 -right-2 bg-aurora-500 text-white text-xs px-2 py-0.5 rounded-full">
-                ⭐ Recommandé
-              </div>
-            )}
-            <div className="text-3xl mb-2">{format.icon}</div>
-            <h4 className="text-white font-medium">{format.nameFr}</h4>
-            <p className="text-xs text-midnight-400 mt-1">
-              {format.widthMm} × {format.heightMm} mm
-            </p>
-            <p className="text-xs text-aurora-400 mt-2">
-              {format.priceEstimate}
-            </p>
-          </motion.button>
-        ))}
-      </div>
-      
-      {/* Options supplémentaires */}
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        {/* Type de couverture */}
-        <div className="glass-card p-6">
-          <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-            <Book className="w-5 h-5 text-aurora-400" />
-            Type de couverture
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            {COVER_TYPES.map((cover) => (
-              <button
-                key={cover.type}
-                onClick={() => setCoverType(cover.type)}
-                className={cn(
-                  'p-4 rounded-xl text-center transition-all',
-                  coverType === cover.type 
-                    ? 'bg-aurora-600 text-white' 
-                    : 'bg-midnight-800/50 text-midnight-300 hover:bg-midnight-700/50'
-                )}
-              >
-                <div className="text-2xl mb-1">{cover.icon}</div>
-                <div className="text-sm font-medium">{cover.nameFr}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Qualité d'impression */}
-        <div className="glass-card p-6">
-          <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-            <Printer className="w-5 h-5 text-aurora-400" />
-            Qualité d'impression
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            {PRINT_QUALITIES.map((quality) => (
-              <button
-                key={quality.id}
-                onClick={() => setPrintQuality(quality.id)}
-                className={cn(
-                  'p-4 rounded-xl text-left transition-all',
-                  printQuality === quality.id 
-                    ? 'bg-aurora-600 text-white' 
-                    : 'bg-midnight-800/50 text-midnight-300 hover:bg-midnight-700/50'
-                )}
-              >
-                <div className="font-medium">{quality.nameFr}</div>
-                <div className="text-xs mt-1 opacity-75">{quality.paper}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      
-      {/* Résumé et prix */}
-      {currentFormat && (
-        <div className="glass-card p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-medium text-white">Récapitulatif</h3>
-              <p className="text-midnight-400 text-sm mt-1">
-                {currentFormat.nameFr} • {COVER_TYPES.find(c => c.type === coverType)?.nameFr} • {PRINT_QUALITIES.find(q => q.id === printQuality)?.nameFr}
-              </p>
-              <p className="text-midnight-500 text-xs mt-1">
-                {selectedStory?.pages.length} pages
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-midnight-400">Prix estimé</div>
-              <div className="text-3xl font-bold text-aurora-400">
-                {estimatedPrice ? `${estimatedPrice.toFixed(2)}€` : '—'}
-              </div>
-              <div className="text-xs text-midnight-500">+ livraison</div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <button
-          onClick={() => setCurrentStep('select-story')}
-          className="btn-secondary"
-        >
-          <ChevronLeft className="w-4 h-4 mr-2" />
-          Retour
-        </button>
-        <button
-          onClick={() => setCurrentStep('quality-check')}
-          className="btn-primary"
-        >
-          Vérifier la qualité
-          <ChevronRight className="w-4 h-4 ml-2" />
-        </button>
+            {t('nav.next')}
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </motion.div>
   )
@@ -394,6 +727,7 @@ function ChooseFormatStep() {
 // ============================================================================
 
 function DesignCoverStep() {
+  const t = useTranslations('publish')
   const { cover, updateCover, setCurrentStep, selectedStory } = usePublishStore()
   const { importedAssets } = useStudioStore()
   const [showImagePicker, setShowImagePicker] = useState(false)
@@ -461,17 +795,17 @@ function DesignCoverStep() {
     >
       <div className="text-center mb-8">
         <h2 className="text-3xl font-display text-white mb-2">
-          🎨 Crée ta couverture
+          🎨 {t('designCover.title')}
         </h2>
         <p className="text-midnight-300">
-          C'est la première chose qu'on voit - rends-la magique !
+          {t('designCover.description')}
         </p>
         {/* Indication si les couvertures existent dans l'histoire */}
         {(selectedStory?.pages?.some(p => p.pageType === 'front-cover') || 
           selectedStory?.pages?.some(p => p.pageType === 'back-cover')) && (
           <p className="text-sm text-aurora-400 mt-2 flex items-center justify-center gap-2">
             <span>✨</span>
-            Tes couvertures sont créées dans le mode <strong>Écriture</strong> (boutons 📕 et 📖)
+            <span dangerouslySetInnerHTML={{ __html: t('designCover.coversFromBook') }} />
           </p>
         )}
       </div>
@@ -482,13 +816,13 @@ function DesignCoverStep() {
           {/* Titre */}
           <div className="glass-card p-6">
             <label className="block text-sm font-medium text-midnight-300 mb-2">
-              Titre du livre
+              {t('designCover.bookTitle')}
             </label>
             <input
               type="text"
               value={cover.frontTitle}
               onChange={(e) => updateCover({ frontTitle: e.target.value })}
-              placeholder={selectedStory?.title || 'Mon super livre'}
+              placeholder={selectedStory?.title || t('designCover.bookTitlePlaceholder')}
               className="w-full px-4 py-3 bg-midnight-800/50 border border-midnight-700 rounded-xl text-white placeholder-midnight-500 focus:outline-none focus:ring-2 focus:ring-aurora-500"
             />
           </div>
@@ -496,13 +830,13 @@ function DesignCoverStep() {
           {/* Sous-titre */}
           <div className="glass-card p-6">
             <label className="block text-sm font-medium text-midnight-300 mb-2">
-              Sous-titre (optionnel)
+              {t('designCover.subtitle')}
             </label>
             <input
               type="text"
               value={cover.frontSubtitle || ''}
               onChange={(e) => updateCover({ frontSubtitle: e.target.value })}
-              placeholder="Une aventure extraordinaire..."
+              placeholder={t('designCover.subtitlePlaceholder')}
               className="w-full px-4 py-3 bg-midnight-800/50 border border-midnight-700 rounded-xl text-white placeholder-midnight-500 focus:outline-none focus:ring-2 focus:ring-aurora-500"
             />
           </div>
@@ -510,13 +844,13 @@ function DesignCoverStep() {
           {/* Auteur */}
           <div className="glass-card p-6">
             <label className="block text-sm font-medium text-midnight-300 mb-2">
-              Nom de l'auteur
+              {t('designCover.authorName')}
             </label>
             <input
               type="text"
               value={cover.authorName}
               onChange={(e) => updateCover({ authorName: e.target.value })}
-              placeholder="Ton nom ou pseudo"
+              placeholder={t('designCover.authorNamePlaceholder')}
               className="w-full px-4 py-3 bg-midnight-800/50 border border-midnight-700 rounded-xl text-white placeholder-midnight-500 focus:outline-none focus:ring-2 focus:ring-aurora-500"
             />
           </div>
@@ -524,13 +858,13 @@ function DesignCoverStep() {
           {/* Image de couverture */}
           <div className="glass-card p-6">
             <label className="block text-sm font-medium text-midnight-300 mb-2">
-              Image de couverture (optionnel)
+              {t('designCover.coverImage')}
             </label>
             {cover.frontImage ? (
               <div className="relative">
                 <img 
                   src={cover.frontImage} 
-                  alt="Couverture" 
+                  alt={t('designCover.coverImageAlt')}
                   className="w-full h-40 object-cover rounded-xl"
                 />
                 <button
@@ -543,7 +877,7 @@ function DesignCoverStep() {
                   onClick={() => { setImagePickerTarget('front'); setShowImagePicker(true); }}
                   className="absolute bottom-2 right-2 px-3 py-1.5 bg-midnight-800/80 text-white text-xs rounded-lg hover:bg-midnight-700 transition-colors"
                 >
-                  Changer
+                  {t('designCover.changeImage')}
                 </button>
               </div>
             ) : (
@@ -552,12 +886,12 @@ function DesignCoverStep() {
                 className="w-full h-32 border-2 border-dashed border-midnight-600 rounded-xl flex flex-col items-center justify-center gap-2 text-midnight-400 hover:text-aurora-400 hover:border-aurora-500/50 transition-all"
               >
                 <ImageIcon className="w-8 h-8" />
-                <span className="text-sm">Choisir une image</span>
+                <span className="text-sm">{t('designCover.chooseImage')}</span>
               </button>
             )}
             {availableImages.length === 0 && (
               <p className="text-xs text-midnight-500 mt-2">
-                💡 Génère des images dans le Studio pour les utiliser ici !
+                💡 {t('designCover.studioHint')}
               </p>
             )}
           </div>
@@ -565,7 +899,7 @@ function DesignCoverStep() {
           {/* Couleur de fond */}
           <div className="glass-card p-6">
             <label className="block text-sm font-medium text-midnight-300 mb-2">
-              Couleur de fond {cover.frontImage && '(visible derrière l\'image)'}
+              {cover.frontImage ? t('designCover.bgColorBehind') : t('designCover.bgColor')}
             </label>
             <div className="flex gap-3 flex-wrap">
               {[
@@ -592,12 +926,12 @@ function DesignCoverStep() {
           {/* Texte 4ème de couverture */}
           <div className="glass-card p-6">
             <label className="block text-sm font-medium text-midnight-300 mb-2">
-              Résumé (4ème de couverture)
+              {t('designCover.backCoverText')}
             </label>
             <textarea
               value={cover.backText || ''}
               onChange={(e) => updateCover({ backText: e.target.value })}
-              placeholder="Un court résumé de ton histoire..."
+              placeholder={t('designCover.backCoverPlaceholder')}
               rows={4}
               className="w-full px-4 py-3 bg-midnight-800/50 border border-midnight-700 rounded-xl text-white placeholder-midnight-500 focus:outline-none focus:ring-2 focus:ring-aurora-500 resize-none"
             />
@@ -606,7 +940,7 @@ function DesignCoverStep() {
         
         {/* Prévisualisation */}
         <div className="glass-card p-6">
-          <h3 className="text-lg font-medium text-white mb-4">Aperçu</h3>
+          <h3 className="text-lg font-medium text-white mb-4">{t('designCover.preview')}</h3>
           
           <div className="flex gap-4 justify-center">
             {/* Première de couverture */}
@@ -632,7 +966,7 @@ function DesignCoverStep() {
               {/* Titre et auteur */}
               <div className="relative z-10 flex flex-col items-center justify-center flex-1">
                 <h4 className="text-white font-display text-lg leading-tight drop-shadow-lg">
-                  {cover.frontTitle || 'Mon livre'}
+                  {cover.frontTitle || t('designCover.defaultTitle')}
                 </h4>
                 {cover.frontSubtitle && (
                   <p className="text-white/80 text-xs mt-2 drop-shadow">
@@ -641,7 +975,7 @@ function DesignCoverStep() {
                 )}
               </div>
               <p className="text-white/70 text-xs relative z-10 drop-shadow mb-1">
-                {cover.authorName || 'Auteur'}
+                {cover.authorName || t('designCover.defaultAuthor')}
               </p>
             </div>
             
@@ -666,13 +1000,13 @@ function DesignCoverStep() {
               )}
               <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent" />
               <p className="text-white/80 text-xs leading-relaxed relative z-10 flex-1">
-                {backCoverText || 'Résumé de l\'histoire...'}
+                {backCoverText || t('designCover.defaultSummary')}
               </p>
             </div>
           </div>
           
           <p className="text-center text-midnight-500 text-xs mt-4">
-            Première de couverture • Dos • 4ème de couverture
+            {t('designCover.previewLabels')}
           </p>
         </div>
       </div>
@@ -684,13 +1018,13 @@ function DesignCoverStep() {
           className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
-          Retour
+          {t('nav.back')}
         </button>
         <button
           onClick={() => setCurrentStep('preview')}
           className="btn-primary"
         >
-          Continuer
+          {t('designCover.continue')}
           <ChevronRight className="w-4 h-4 ml-2" />
         </button>
       </div>
@@ -714,7 +1048,7 @@ function DesignCoverStep() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-display text-white">
-                  🖼️ Choisir une image
+                  🖼️ {t('designCover.imagePickerTitle')}
                 </h3>
                 <button
                   onClick={() => setShowImagePicker(false)}
@@ -727,9 +1061,9 @@ function DesignCoverStep() {
               {availableImages.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-12 text-center">
                   <ImageIcon className="w-16 h-16 text-midnight-600 mb-4" />
-                  <p className="text-white mb-2">Aucune image disponible</p>
+                  <p className="text-white mb-2">{t('designCover.noImages')}</p>
                   <p className="text-sm text-midnight-400 mb-4">
-                    Génère des images dans le Studio ou ajoute-en à ton histoire
+                    {t('designCover.noImagesDesc')}
                   </p>
                   <button
                     onClick={() => {
@@ -739,7 +1073,7 @@ function DesignCoverStep() {
                     className="btn-primary"
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
-                    Aller au Studio
+                    {t('designCover.goToStudio')}
                   </button>
                 </div>
               ) : (
@@ -784,6 +1118,7 @@ function DesignCoverStep() {
 // ============================================================================
 
 function PreviewStep() {
+  const t = useTranslations('publish')
   const { selectedStory, selectedFormat, cover, setCurrentStep } = usePublishStore()
   const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
   
@@ -816,7 +1151,7 @@ function PreviewStep() {
     if (!page) {
       return (
         <div className="flex-1 flex items-center justify-center text-amber-400/50 text-sm">
-          {pageIndex >= pages.length ? 'Fin du livre' : 'Page vide'}
+          {pageIndex >= pages.length ? t('preview.endOfBook') : t('preview.emptyPage')}
         </div>
       )
     }
@@ -864,7 +1199,7 @@ function PreviewStep() {
             }}
           >
             <div className="absolute top-0 left-0 bg-red-500/20 text-red-500 text-[8px] px-1 rounded-br">
-              Zone sécurité
+              {t('preview.safeZoneLabel')}
             </div>
           </div>
         )}
@@ -922,10 +1257,10 @@ function PreviewStep() {
     >
       <div className="text-center mb-6">
         <h2 className="text-3xl font-display text-white mb-2">
-          👀 Aperçu réel de ton livre
+          👀 {t('preview.title')}
         </h2>
         <p className="text-midnight-300">
-          Voici exactement à quoi ressemblera ton livre une fois imprimé
+          {t('preview.description')}
         </p>
       </div>
       
@@ -940,13 +1275,13 @@ function PreviewStep() {
               : 'bg-midnight-800/50 text-midnight-400'
           )}
         >
-          📏 Zones de sécurité {showSafeZones ? 'ON' : 'OFF'}
+          📏 {t('preview.safeZones')} {showSafeZones ? 'ON' : 'OFF'}
         </button>
         <button
           onClick={() => setViewMode(viewMode === 'spread' ? 'single' : 'spread')}
           className="px-3 py-1.5 rounded-lg text-sm bg-midnight-800/50 text-midnight-400"
         >
-          {viewMode === 'spread' ? '📖 Double page' : '📄 Page simple'}
+          {viewMode === 'spread' ? `📖 ${t('preview.doublePage')}` : `📄 ${t('preview.singlePage')}`}
         </button>
       </div>
       
@@ -1065,21 +1400,21 @@ function PreviewStep() {
         </div>
         
         <div className="text-center text-midnight-400 text-sm mt-2">
-          {viewMode === 'spread' 
-            ? (currentPage === 0 ? 'Page de titre' : `Pages ${currentPage * 2} - ${currentPage * 2 + 1}`)
-            : `Page ${currentPage + 1}`
-          } / {pages.length} pages
+          {viewMode === 'spread'
+            ? (currentPage === 0 ? t('preview.titlePage') : t('preview.pagesRange', { start: currentPage * 2, end: currentPage * 2 + 1 }))
+            : t('preview.pageNumber', { number: currentPage + 1 })
+          } {t('preview.ofPages', { count: pages.length })}
         </div>
       </div>
       
       {/* Infos format */}
       <div className="glass-card p-4 mb-6">
         <div className="flex items-center justify-center gap-6 text-sm text-midnight-400 flex-wrap">
-          <span>📐 Format: {format.widthMm} × {format.heightMm} mm</span>
-          <span>📄 {pages.length} pages</span>
-          <span>📏 Marge sécurité: {format.safeZoneMm}mm</span>
-          <span>✂️ Fond perdu: {format.bleedMm}mm</span>
-          <span>📚 Marge reliure: {format.spineMarginMm}mm</span>
+          <span>📐 {t('preview.format', { width: format.widthMm, height: format.heightMm })}</span>
+          <span>📄 {t('preview.pagesCount', { count: pages.length })}</span>
+          <span>📏 {t('preview.safeMargin', { value: format.safeZoneMm })}</span>
+          <span>✂️ {t('preview.bleed', { value: format.bleedMm })}</span>
+          <span>📚 {t('preview.spineMargin', { value: format.spineMarginMm })}</span>
         </div>
       </div>
       
@@ -1090,13 +1425,13 @@ function PreviewStep() {
           className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
-          Retour
+          {t('nav.back')}
         </button>
         <button
           onClick={() => setCurrentStep('quality-check')}
           className="btn-primary"
         >
-          Vérifier la qualité
+          {t('preview.checkQuality')}
           <ChevronRight className="w-4 h-4 ml-2" />
         </button>
       </div>
@@ -1109,8 +1444,9 @@ function PreviewStep() {
 // ============================================================================
 
 function QualityCheckStep() {
-  const { 
-    selectedStory, 
+  const t = useTranslations('publish')
+  const {
+    selectedStory,
     selectedFormat,
     qualityChecks,
     imageQualityInfos,
@@ -1188,10 +1524,10 @@ function QualityCheckStep() {
     >
       <div className="text-center mb-8">
         <h2 className="text-3xl font-display text-white mb-2">
-          ✅ Vérification qualité
+          ✅ {t('quality.title')}
         </h2>
         <p className="text-midnight-300">
-          On vérifie que tout est parfait pour l'impression
+          {t('quality.description')}
         </p>
       </div>
       
@@ -1199,7 +1535,7 @@ function QualityCheckStep() {
         {isCheckingQuality ? (
           <div className="flex flex-col items-center py-8">
             <Loader2 className="w-12 h-12 text-aurora-500 animate-spin mb-4" />
-            <p className="text-white">Vérification en cours...</p>
+            <p className="text-white">{t('quality.checking')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1244,10 +1580,10 @@ function QualityCheckStep() {
             <div>
               <h3 className="text-lg font-medium text-amber-300 flex items-center gap-2">
                 <ImageIcon className="w-5 h-5" />
-                Images en basse résolution
+                {t('quality.lowResTitle')}
               </h3>
               <p className="text-sm text-midnight-400 mt-1">
-                Ces images pourraient être floues à l'impression
+                {t('quality.lowResDesc')}
               </p>
             </div>
             <button
@@ -1258,12 +1594,12 @@ function QualityCheckStep() {
               {isUpscaling ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Amélioration...
+                  {t('quality.upscaling')}
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Améliorer tout
+                  {t('quality.upscaleAll')}
                 </>
               )}
             </button>
@@ -1284,7 +1620,7 @@ function QualityCheckStep() {
                 <div className="absolute bottom-2 left-2 right-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-amber-400">
-                      {img.currentDpi ? `${img.currentDpi} DPI` : 'DPI inconnu'}
+                      {img.currentDpi ? `${img.currentDpi} DPI` : t('quality.dpiUnknown')}
                     </span>
                     <span className="text-midnight-400">
                       Page {img.pageIndex + 1}
@@ -1321,7 +1657,7 @@ function QualityCheckStep() {
           </div>
           
           <p className="text-xs text-midnight-500 mt-4 text-center">
-            💡 L'amélioration utilise l'IA pour augmenter la résolution (300 DPI recommandé)
+            💡 {t('quality.upscaleHint')}
           </p>
         </div>
       )}
@@ -1337,22 +1673,22 @@ function QualityCheckStep() {
           {!hasErrors && !hasWarnings && (
             <>
               <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto mb-4" />
-              <h3 className="text-xl text-green-300 font-medium">Tout est parfait ! 🎉</h3>
-              <p className="text-green-400/70 mt-2">Ton livre est prêt pour l'impression</p>
+              <h3 className="text-xl text-green-300 font-medium">{t('quality.allGoodTitle')} 🎉</h3>
+              <p className="text-green-400/70 mt-2">{t('quality.allGoodDesc')}</p>
             </>
           )}
           {hasWarnings && !hasErrors && (
             <>
               <AlertTriangle className="w-16 h-16 text-amber-400 mx-auto mb-4" />
-              <h3 className="text-xl text-amber-300 font-medium">Quelques avertissements</h3>
-              <p className="text-amber-400/70 mt-2">Tu peux continuer, mais vérifie les points ci-dessus</p>
+              <h3 className="text-xl text-amber-300 font-medium">{t('quality.warningsTitle')}</h3>
+              <p className="text-amber-400/70 mt-2">{t('quality.warningsDesc')}</p>
             </>
           )}
           {hasErrors && (
             <>
               <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-              <h3 className="text-xl text-red-300 font-medium">Des corrections sont nécessaires</h3>
-              <p className="text-red-400/70 mt-2">Corrige les erreurs avant de continuer</p>
+              <h3 className="text-xl text-red-300 font-medium">{t('quality.errorsTitle')}</h3>
+              <p className="text-red-400/70 mt-2">{t('quality.errorsDesc')}</p>
             </>
           )}
         </div>
@@ -1365,14 +1701,14 @@ function QualityCheckStep() {
           className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
-          Retour
+          {t('nav.back')}
         </button>
         <button
           onClick={() => setCurrentStep('order')}
           disabled={hasErrors}
           className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {hasErrors ? 'Corriger les erreurs' : 'Commander'}
+          {hasErrors ? t('quality.fixErrors') : t('quality.orderButton')}
           <ChevronRight className="w-4 h-4 ml-2" />
         </button>
       </div>
@@ -1385,11 +1721,14 @@ function QualityCheckStep() {
 // ============================================================================
 
 function OrderStep() {
-  const { 
+  const t = useTranslations('publish')
+  const locale = useLocale()
+  const {
     selectedStory,
     selectedFormat,
     coverType,
-    printQuality,
+    paperType,
+    lamination,
     cover,
     estimatedPrice,
     isExporting,
@@ -1543,21 +1882,21 @@ function OrderStep() {
           </motion.div>
           
           <h2 className="text-3xl font-display text-white mb-4">
-            🎉 Commande passée !
+            🎉 {t('order.successTitle')}
           </h2>
-          
+
           <p className="text-midnight-300 mb-6">
-            Ton livre est en cours de préparation. Tu recevras un email de confirmation.
+            {t('order.successDesc')}
           </p>
           
           <div className="bg-midnight-800/50 rounded-xl p-4 mb-6 text-left">
             <div className="text-sm space-y-2">
               <div className="flex justify-between">
-                <span className="text-midnight-400">N° de commande</span>
+                <span className="text-midnight-400">{t('order.orderNumber')}</span>
                 <span className="text-white font-mono">{orderResult.referenceId}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-midnight-400">Statut</span>
+                <span className="text-midnight-400">{t('order.status')}</span>
                 <span className="text-aurora-400">{orderResult.status}</span>
               </div>
             </div>
@@ -1570,7 +1909,7 @@ function OrderStep() {
             }}
             className="btn-primary"
           >
-            Retour à l'écriture
+            {t('order.backToWriting')}
           </button>
         </div>
       </motion.div>
@@ -1586,37 +1925,41 @@ function OrderStep() {
     >
       <div className="text-center mb-8">
         <h2 className="text-3xl font-display text-white mb-2">
-          🎉 Prêt à imprimer !
+          🎉 {t('order.title')}
         </h2>
         <p className="text-midnight-300">
-          Dernière étape - choisis comment obtenir ton livre
+          {t('order.description')}
         </p>
       </div>
       
       {/* Récapitulatif avec prix Gelato */}
       <div className="glass-card p-6 mb-8">
-        <h3 className="text-lg font-medium text-white mb-4">Récapitulatif de ta commande</h3>
+        <h3 className="text-lg font-medium text-white mb-4">{t('order.summary')}</h3>
         
         <div className="space-y-3 text-sm">
           <div className="flex justify-between">
-            <span className="text-midnight-400">Livre</span>
+            <span className="text-midnight-400">{t('order.book')}</span>
             <span className="text-white">{selectedStory?.title}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-midnight-400">Format</span>
-            <span className="text-white">{format.nameFr} ({format.widthMm}×{format.heightMm}mm)</span>
+            <span className="text-midnight-400">{t('order.format')}</span>
+            <span className="text-white">{locale === 'fr' ? format.nameFr : format.name} ({format.widthMm}×{format.heightMm}mm)</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-midnight-400">Pages</span>
-            <span className="text-white">{selectedStory?.pages.length} pages</span>
+            <span className="text-midnight-400">{t('order.pages')}</span>
+            <span className="text-white">{t('selectStory.pages', { count: selectedStory?.pages.length || 0 })}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-midnight-400">Couverture</span>
-            <span className="text-white">{COVER_TYPES.find(c => c.type === coverType)?.nameFr}</span>
+            <span className="text-midnight-400">{t('order.cover')}</span>
+            <span className="text-white">{locale === 'fr' ? COVER_TYPES.find(c => c.type === coverType)?.nameFr : COVER_TYPES.find(c => c.type === coverType)?.nameEn}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-midnight-400">Qualité</span>
-            <span className="text-white">{PRINT_QUALITIES.find(q => q.id === printQuality)?.nameFr}</span>
+            <span className="text-midnight-400">{t('order.paper')}</span>
+            <span className="text-white">{locale === 'fr' ? GELATO_PAPER_OPTIONS.find(p => p.id === paperType)?.nameFr : GELATO_PAPER_OPTIONS.find(p => p.id === paperType)?.nameEn}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-midnight-400">{t('order.finish')}</span>
+            <span className="text-white">{locale === 'fr' ? GELATO_LAMINATION_OPTIONS.find(l => l.id === lamination)?.nameFr : GELATO_LAMINATION_OPTIONS.find(l => l.id === lamination)?.nameEn}</span>
           </div>
           
           {/* Prix Gelato */}
@@ -1624,24 +1967,24 @@ function OrderStep() {
             {isLoadingQuote ? (
               <div className="flex items-center justify-center gap-2 py-2">
                 <Loader2 className="w-4 h-4 animate-spin text-aurora-400" />
-                <span className="text-midnight-400">Calcul du prix...</span>
+                <span className="text-midnight-400">{t('order.calculatingPrice')}</span>
               </div>
             ) : gelatoQuote ? (
               <>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-midnight-400">Impression</span>
+                  <span className="text-midnight-400">{t('order.printing')}</span>
                   <span className="text-white">{gelatoQuote.productPrice.toFixed(2)}€</span>
                 </div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-midnight-400">Livraison ({gelatoQuote.fulfillmentCountry})</span>
+                  <span className="text-midnight-400">{t('order.shippingCountry', { country: gelatoQuote.fulfillmentCountry })}</span>
                   <span className="text-white">{gelatoQuote.shippingPrice.toFixed(2)}€</span>
                 </div>
                 <div className="flex justify-between text-lg border-t border-midnight-700 pt-2">
-                  <span className="text-white font-medium">Total</span>
+                  <span className="text-white font-medium">{t('order.total')}</span>
                   <span className="text-aurora-400 font-bold">{gelatoQuote.totalPrice.toFixed(2)}€</span>
                 </div>
                 <p className="text-xs text-midnight-500 mt-1">
-                  🚚 Livraison estimée : {gelatoQuote.estimatedDelivery.min}-{gelatoQuote.estimatedDelivery.max} jours
+                  🚚 {t('order.estimatedDelivery', { min: gelatoQuote.estimatedDelivery.min, max: gelatoQuote.estimatedDelivery.max })}
                 </p>
               </>
             ) : quoteError ? (
@@ -1651,12 +1994,12 @@ function OrderStep() {
                   onClick={() => fetchGelatoQuote()}
                   className="text-xs text-aurora-400 hover:underline"
                 >
-                  Réessayer
+                  {t('order.retry')}
                 </button>
               </div>
             ) : (
               <div className="flex justify-between text-lg">
-                <span className="text-white font-medium">Prix estimé</span>
+                <span className="text-white font-medium">{t('order.estimatedPriceLabel')}</span>
                 <span className="text-aurora-400 font-bold">{estimatedPrice?.toFixed(2)}€</span>
               </div>
             )}
@@ -1673,8 +2016,8 @@ function OrderStep() {
               <Download className="w-6 h-6 text-aurora-400" />
             </div>
             <div>
-              <h4 className="text-white font-medium">Préparer le PDF</h4>
-              <p className="text-xs text-midnight-400">Génération + Upload pour impression</p>
+              <h4 className="text-white font-medium">{t('order.preparePdf')}</h4>
+              <p className="text-xs text-midnight-400">{t('order.preparePdfDesc')}</p>
             </div>
           </div>
           
@@ -1693,7 +2036,7 @@ function OrderStep() {
                   "text-midnight-400",
                   totalProgress < 50 && "text-aurora-400 font-medium"
                 )}>
-                  {totalProgress < 50 ? '📄 Génération PDF...' : '☁️ Upload vers le cloud...'}
+                  {totalProgress < 50 ? `📄 ${t('order.generatingPdf')}` : `☁️ ${t('order.uploadingPdf')}`}
                 </span>
                 <span className="text-midnight-400">{totalProgress}%</span>
               </div>
@@ -1702,7 +2045,7 @@ function OrderStep() {
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-green-400">
                 <CheckCircle2 className="w-5 h-5" />
-                <span>PDF prêt pour l'impression !</span>
+                <span>{t('order.pdfReady')}</span>
               </div>
               {pdfBlob && (
                 <button
@@ -1710,7 +2053,7 @@ function OrderStep() {
                   className="w-full py-2 px-4 bg-midnight-800/50 hover:bg-midnight-700/50 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <Download className="w-4 h-4" />
-                  Télécharger une copie
+                  {t('order.downloadCopy')}
                 </button>
               )}
             </div>
@@ -1721,13 +2064,13 @@ function OrderStep() {
               className="w-full py-3 px-4 bg-aurora-600 hover:bg-aurora-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <FileText className="w-4 h-4" />
-              Préparer le PDF
+              {t('order.preparePdf')}
             </button>
           )}
           
           {!user && (
             <p className="text-xs text-amber-400/70 text-center mt-2">
-              ⚠️ Connexion requise pour préparer le PDF
+              ⚠️ {t('order.loginRequired')}
             </p>
           )}
         </div>
@@ -1739,18 +2082,18 @@ function OrderStep() {
               <Package className="w-6 h-6 text-dream-400" />
             </div>
             <div>
-              <h4 className="text-white font-medium">Commander l'impression</h4>
-              <p className="text-xs text-midnight-400">Livre livré chez toi via Gelato</p>
+              <h4 className="text-white font-medium">{t('order.orderPrint')}</h4>
+              <p className="text-xs text-midnight-400">{t('order.orderPrintDesc')}</p>
             </div>
           </div>
           
           {!showExportSuccess ? (
             <div className="text-center py-3">
               <p className="text-midnight-400 text-sm mb-2">
-                👈 Prépare d'abord le PDF
+                👈 {t('order.preparePdfFirst')}
               </p>
               <p className="text-xs text-midnight-500">
-                Le PDF doit être généré avant de commander
+                {t('order.pdfRequiredDesc')}
               </p>
             </div>
           ) : (
@@ -1761,11 +2104,11 @@ function OrderStep() {
                 className="w-full py-3 px-4 bg-dream-600 hover:bg-dream-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart className="w-4 h-4" />
-                Commander {gelatoQuote ? `(${gelatoQuote.totalPrice.toFixed(2)}€)` : ''}
+                {t('order.orderButton')} {gelatoQuote ? `(${gelatoQuote.totalPrice.toFixed(2)}€)` : ''}
               </button>
               
               <p className="text-xs text-midnight-500 text-center mt-2">
-                🖨️ Imprimé et livré par Gelato
+                🖨️ {t('order.printedByGelato')}
               </p>
             </>
           )}
@@ -1779,13 +2122,13 @@ function OrderStep() {
           className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
-          Retour
+          {t('nav.back')}
         </button>
         <button
           onClick={() => useAppStore.getState().setCurrentMode('book')}
           className="btn-secondary"
         >
-          Retour à l'écriture
+          {t('order.backToWriting')}
         </button>
       </div>
       
@@ -1808,7 +2151,7 @@ function OrderStep() {
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-display text-white">
-                  📦 Adresse de livraison
+                  📦 {t('order.shippingAddress')}
                 </h3>
                 <button
                   onClick={() => setShowAddressForm(false)}
@@ -1822,7 +2165,7 @@ function OrderStep() {
                 {/* Prénom / Nom */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-midnight-400 mb-1">Prénom *</label>
+                    <label className="block text-xs text-midnight-400 mb-1">{t('order.firstName')}</label>
                     <input
                       type="text"
                       value={shippingAddress.firstName}
@@ -1831,7 +2174,7 @@ function OrderStep() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-midnight-400 mb-1">Nom *</label>
+                    <label className="block text-xs text-midnight-400 mb-1">{t('order.lastName')}</label>
                     <input
                       type="text"
                       value={shippingAddress.lastName}
@@ -1843,23 +2186,23 @@ function OrderStep() {
                 
                 {/* Adresse */}
                 <div>
-                  <label className="block text-xs text-midnight-400 mb-1">Adresse *</label>
+                  <label className="block text-xs text-midnight-400 mb-1">{t('order.address')}</label>
                   <input
                     type="text"
                     value={shippingAddress.addressLine1}
                     onChange={(e) => updateShippingAddress({ addressLine1: e.target.value })}
-                    placeholder="Numéro et rue"
+                    placeholder={t('order.addressPlaceholder')}
                     className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-xs text-midnight-400 mb-1">Complément</label>
+                  <label className="block text-xs text-midnight-400 mb-1">{t('order.addressComplement')}</label>
                   <input
                     type="text"
                     value={shippingAddress.addressLine2 || ''}
                     onChange={(e) => updateShippingAddress({ addressLine2: e.target.value })}
-                    placeholder="Appartement, étage..."
+                    placeholder={t('order.complementPlaceholder')}
                     className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
                   />
                 </div>
@@ -1867,7 +2210,7 @@ function OrderStep() {
                 {/* Ville / Code postal */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-midnight-400 mb-1">Code postal *</label>
+                    <label className="block text-xs text-midnight-400 mb-1">{t('order.postCode')}</label>
                     <input
                       type="text"
                       value={shippingAddress.postCode}
@@ -1876,7 +2219,7 @@ function OrderStep() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-midnight-400 mb-1">Ville *</label>
+                    <label className="block text-xs text-midnight-400 mb-1">{t('order.city')}</label>
                     <input
                       type="text"
                       value={shippingAddress.city}
@@ -1888,7 +2231,7 @@ function OrderStep() {
                 
                 {/* Pays */}
                 <div>
-                  <label className="block text-xs text-midnight-400 mb-1">Pays *</label>
+                  <label className="block text-xs text-midnight-400 mb-1">{t('order.country')}</label>
                   <select
                     value={shippingAddress.country}
                     onChange={(e) => {
@@ -1913,7 +2256,7 @@ function OrderStep() {
                 {/* Email / Téléphone */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-midnight-400 mb-1">Email *</label>
+                    <label className="block text-xs text-midnight-400 mb-1">{t('order.email')}</label>
                     <input
                       type="email"
                       value={shippingAddress.email}
@@ -1922,7 +2265,7 @@ function OrderStep() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-midnight-400 mb-1">Téléphone</label>
+                    <label className="block text-xs text-midnight-400 mb-1">{t('order.phone')}</label>
                     <input
                       type="tel"
                       value={shippingAddress.phone || ''}
@@ -1943,13 +2286,13 @@ function OrderStep() {
                 {gelatoQuote && (
                   <div className="p-4 bg-aurora-500/10 border border-aurora-500/20 rounded-lg">
                     <div className="flex justify-between items-center">
-                      <span className="text-white font-medium">Total à payer</span>
+                      <span className="text-white font-medium">{t('order.totalToPay')}</span>
                       <span className="text-2xl font-bold text-aurora-400">
                         {gelatoQuote.totalPrice.toFixed(2)}€
                       </span>
                     </div>
                     <p className="text-xs text-aurora-400/70 mt-1">
-                      Livraison en {gelatoQuote.estimatedDelivery.min}-{gelatoQuote.estimatedDelivery.max} jours
+                      {t('order.deliveryIn', { min: gelatoQuote.estimatedDelivery.min, max: gelatoQuote.estimatedDelivery.max })}
                     </p>
                   </div>
                 )}
@@ -1963,18 +2306,18 @@ function OrderStep() {
                   {isOrdering ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Commande en cours...
+                      {t('order.ordering')}
                     </>
                   ) : (
                     <>
                       <ShoppingCart className="w-5 h-5" />
-                      Confirmer la commande
+                      {t('order.confirmOrder')}
                     </>
                   )}
                 </button>
                 
                 <p className="text-xs text-midnight-500 text-center">
-                  🔒 Paiement sécurisé • Livraison par Gelato
+                  🔒 {t('order.securePayment')}
                 </p>
               </div>
             </motion.div>
@@ -1990,6 +2333,7 @@ function OrderStep() {
 // ============================================================================
 
 export function PublishMode() {
+  const t = useTranslations('publish')
   const { currentStep, reset } = usePublishStore()
   
   // Modale d'introduction (première visite)
@@ -2019,7 +2363,7 @@ export function PublishMode() {
             </button>
             <h1 className="text-2xl font-display text-white flex items-center gap-2">
               <Printer className="w-6 h-6 text-aurora-400" />
-              Publier mon livre
+              {t('mainTitle')}
             </h1>
           </div>
         </div>

@@ -15,6 +15,8 @@
 
 import { PDFDocument } from 'pdf-lib'
 import { toPng } from 'html-to-image'
+import { domToPng } from 'modern-screenshot'
+import html2canvas from 'html2canvas'
 import type { Story } from '@/store/useAppStore'
 import { CANONICAL_PAGE_WIDTH, getCanonicalDimensions } from '@/lib/rendering/pageRendering'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
@@ -77,14 +79,129 @@ export function computeBleedPx(format: BookFormatConfig): number {
   return Math.round((format.bleedMm / format.widthMm) * CANONICAL_PAGE_WIDTH)
 }
 
+// ---------------------------------------------------------------------------
+// Safari detection
+// ---------------------------------------------------------------------------
+
+const isSafari =
+  typeof navigator !== 'undefined' &&
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+
+console.log('🔍 [PDF] isSafari =', isSafari, '| UA =', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A')
+
+// ---------------------------------------------------------------------------
+// Safari hybrid capture: 2 layers composited on canvas
+// ---------------------------------------------------------------------------
+// Safari's foreignObject (used by domToPng/toPng) cannot render images.
+// html2canvas CAN render images but has text positioning bugs.
+// Solution: capture text with domToPng, objects with html2canvas, composite.
+
+/**
+ * Load a data URL into an HTMLImageElement.
+ */
+function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = dataUrl
+  })
+}
+
+/**
+ * Safari-only: capture element in two passes and composite.
+ * Pass 1 — text layer: hide [data-layer=objects], capture with domToPng
+ * Pass 2 — objects layer: hide [data-layer=text], capture with html2canvas
+ * Then composite both on a canvas (objects below, text on top).
+ */
+async function captureElementSafari(
+  element: HTMLElement,
+  scale: number
+): Promise<string> {
+  console.log('🔍 [PDF] captureElementSafari called')
+  const w = element.offsetWidth * scale
+  const h = element.offsetHeight * scale
+  console.log('🔍 [PDF] element size:', element.offsetWidth, 'x', element.offsetHeight, '→ canvas:', w, 'x', h)
+
+  // --- helpers to toggle layer visibility ---
+  const objectEls = Array.from(element.querySelectorAll<HTMLElement>('[data-layer="objects"]'))
+  const textEls = Array.from(element.querySelectorAll<HTMLElement>('[data-layer="text"]'))
+  console.log('🔍 [PDF] objectEls:', objectEls.length, '| textEls:', textEls.length)
+
+  function hideObjects() { objectEls.forEach(el => el.style.visibility = 'hidden') }
+  function showObjects() { objectEls.forEach(el => el.style.visibility = '') }
+  function hideText() { textEls.forEach(el => el.style.visibility = 'hidden') }
+  function showText() { textEls.forEach(el => el.style.visibility = '') }
+
+  // --- Pass 1: text layer (domToPng — foreignObject, good text, no images) ---
+  // Make background transparent so text layer doesn't cover objects layer
+  const origBackground = element.style.background
+  element.style.background = 'transparent'
+  hideObjects()
+  const textDataUrl = await domToPng(element, {
+    scale,
+    fetch: { requestInit: { mode: 'cors' } },
+  })
+  showObjects()
+  element.style.background = origBackground
+  console.log('🔍 [PDF] Pass 1 (text) done, dataUrl length:', textDataUrl?.length || 0)
+
+  // --- Pass 2: objects layer (html2canvas — good images, text hidden) ---
+  hideText()
+  const wrapper = element.parentElement
+  if (wrapper) {
+    wrapper.style.left = '0px'
+    wrapper.style.top = '0px'
+  }
+  const objectsCanvas = await html2canvas(element, {
+    scale,
+    useCORS: true,
+    allowTaint: false,
+    backgroundColor: null,
+    imageTimeout: 30000,
+    logging: false,
+    scrollX: 0,
+    scrollY: 0,
+  })
+  if (wrapper) {
+    wrapper.style.left = '-99999px'
+    wrapper.style.top = '-99999px'
+  }
+  showText()
+  console.log('🔍 [PDF] Pass 2 (objects) done, canvas:', objectsCanvas.width, 'x', objectsCanvas.height)
+
+  // --- Composite: objects below, text on top ---
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')!
+
+  // Draw objects layer
+  ctx.drawImage(objectsCanvas, 0, 0, w, h)
+
+  // Draw text layer on top
+  const textImg = await loadImage(textDataUrl)
+  ctx.drawImage(textImg, 0, 0, w, h)
+
+  return canvas.toDataURL('image/png')
+}
+
+// ---------------------------------------------------------------------------
+
 /**
  * Capture an HTML element to a PNG data URL at the given scale.
- * Uses html-to-image (SVG foreignObject) — faithful to browser text rendering.
+ *
+ * Chrome/Firefox: html-to-image (toPng) — single pass.
+ * Safari:         hybrid 2-layer composite (domToPng + html2canvas).
  */
 async function captureElementToPng(
   element: HTMLElement,
   scale: number = 2
 ): Promise<string> {
+  if (isSafari) {
+    return captureElementSafari(element, scale)
+  }
+
   return toPng(element, {
     pixelRatio: scale,
     cacheBust: true,

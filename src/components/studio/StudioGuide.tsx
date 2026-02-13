@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Circle, Lock, HelpCircle, Trophy } from 'lucide-react'
-import { 
+import {
   useStudioProgressStore,
   type CreationType,
   type GuideStep,
@@ -10,6 +10,7 @@ import {
   LEVEL_EMOJIS,
 } from '@/store/useStudioProgressStore'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 
 interface StudioGuideProps {
   type: CreationType
@@ -17,6 +18,7 @@ interface StudioGuideProps {
 }
 
 export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
+  const t = useTranslations('studio')
   const {
     currentStep,
     completedSteps,
@@ -64,10 +66,10 @@ export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
         <div className="text-2xl">{levelEmoji}</div>
         <div className="flex-1">
           <h3 className="font-semibold text-white text-sm">
-            {type === 'image' ? '🖼️ Images' : '🎬 Vidéos'}
+            {t(type === 'image' ? 'guide.imagesTitle' : 'guide.videosTitle')}
           </h3>
           <p className="text-xs text-aurora-300">
-            Niveau {level} : {levelName}
+            {t('guide.levelLabel', { level: String(level), name: t(`levelNames.${level}`) })}
           </p>
         </div>
       </div>
@@ -75,7 +77,7 @@ export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
       {/* Titre du guide */}
       <div className="flex items-center gap-2 mb-4">
         <span className="text-lg">✨</span>
-        <h4 className="font-medium text-white text-sm">Mon Guide</h4>
+        <h4 className="font-medium text-white text-sm">{t('guide.myGuide')}</h4>
       </div>
 
       {/* Liste des étapes */}
@@ -129,7 +131,7 @@ export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
                   status === 'current' && 'text-white font-medium',
                   status === 'pending' && 'text-midnight-400',
                 )}>
-                  {step.label}
+                  {t(`guideSteps.${type}.${step.id}`)}
                 </span>
               </div>
 
@@ -137,7 +139,7 @@ export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
               {!isChildStep && status !== 'completed' && (
                 <span 
                   className="text-xs text-aurora-400 bg-aurora-500/10 px-1.5 py-0.5 rounded"
-                  title="L'IA t'aide pour cette étape"
+                  title={t('guide.aiHelps')}
                 >
                   IA
                 </span>
@@ -150,7 +152,7 @@ export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
       {/* Barre de progression du niveau */}
       <div className="mb-4">
         <div className="flex items-center justify-between text-xs text-midnight-400 mb-1">
-          <span>Progression niveau {level}</span>
+          <span>{t('guide.progressLevel', { level: String(level) })}</span>
           <span>{creationsInLevel}/{creationsNeeded || '∞'}</span>
         </div>
         <div className="h-2 bg-midnight-800 rounded-full overflow-hidden">
@@ -163,13 +165,13 @@ export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
         </div>
         {creationsNeeded > 0 && (
           <p className="text-xs text-midnight-500 mt-1 text-center">
-            Encore {creationsNeeded - creationsInLevel} création{creationsNeeded - creationsInLevel > 1 ? 's' : ''} pour le niveau {level + 1}
+            {t('guide.creationsRemaining', { count: String(creationsNeeded - creationsInLevel), next: String(level + 1) })}
           </p>
         )}
         {creationsNeeded === 0 && (
           <p className="text-xs text-dream-400 mt-1 text-center flex items-center justify-center gap-1">
             <Trophy className="w-3 h-3" />
-            Niveau maximum atteint !
+            {t('guide.maxLevel')}
           </p>
         )}
       </div>
@@ -182,7 +184,7 @@ export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
         whileTap={{ scale: 0.98 }}
       >
         <HelpCircle className="w-4 h-4" />
-        J'ai besoin d'aide
+        {t('guide.needHelp')}
       </motion.button>
     </motion.div>
   )
@@ -190,6 +192,7 @@ export function StudioGuide({ type, onHelpRequest }: StudioGuideProps) {
 
 // Composant compact pour afficher juste le niveau actuel
 export function StudioLevelBadge({ type }: { type: CreationType }) {
+  const t = useTranslations('studio')
   const { getLevel, getLevelName, getLevelEmoji, getProgress } = useStudioProgressStore()
   
   const level = getLevel(type)
@@ -200,9 +203,9 @@ export function StudioLevelBadge({ type }: { type: CreationType }) {
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-midnight-800/50 text-sm">
       <span>{levelEmoji}</span>
-      <span className="text-white font-medium">Niveau {level}</span>
+      <span className="text-white font-medium">{t('guide.levelBadge', { level: String(level) })}</span>
       <span className="text-midnight-400">·</span>
-      <span className="text-aurora-300">{levelName}</span>
+      <span className="text-aurora-300">{t(`levelNames.${level}`)}</span>
       <div className="w-12 h-1.5 bg-midnight-700 rounded-full overflow-hidden">
         <div 
           className="h-full bg-aurora-500 rounded-full transition-all"

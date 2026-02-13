@@ -27,28 +27,29 @@ import { StudioAIChat } from '@/components/studio/StudioAIChat'
 import { TutorialGuide, TutorialButton } from '@/components/studio/TutorialGuide'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 
-// Types de création disponibles (sans Voix - intégré directement)
+// Types de creation disponibles (sans Voix - integre directement)
 const creationTypes: Array<{
   id: CreationType
-  name: string
-  description: string
+  nameKey: string
+  descriptionKey: string
   icon: typeof Image
   color: string
   tool: string
 }> = [
   {
     id: 'image',
-    name: 'Images',
-    description: 'Crée des illustrations magiques',
+    nameKey: 'mode.imageTypeName',
+    descriptionKey: 'mode.imageTypeDesc',
     icon: Image,
     color: 'from-aurora-500 to-aurora-700',
     tool: 'fal.ai',
   },
   {
     id: 'video',
-    name: 'Vidéos',
-    description: 'Anime tes scènes',
+    nameKey: 'mode.videoTypeName',
+    descriptionKey: 'mode.videoTypeDesc',
     icon: Video,
     color: 'from-stardust-500 to-stardust-700',
     tool: 'fal.ai',
@@ -58,7 +59,8 @@ const creationTypes: Array<{
 type ViewType = 'select' | 'create' | 'gallery'
 
 export function StudioMode() {
-  // Modale d'introduction (première visite)
+  const t = useTranslations('studio')
+  // Modale d'introduction (premiere visite)
   const { isFirstVisit, markAsSeen } = useFirstVisit('studio')
   
   const {
@@ -164,12 +166,12 @@ export function StudioMode() {
           <div>
             <h1 className="font-display text-xl text-aurora-300 flex items-center gap-2">
               <Palette className="w-5 h-5" />
-              Mon Studio de Création
+              {t('mode.title')}
             </h1>
             <p className="text-midnight-300 text-xs">
-              {view === 'select' && 'Apprends à créer des images et des vidéos avec l\'IA !'}
-              {view === 'create' && selectedType && `Création ${selectedType === 'image' ? "d'image" : 'de vidéo'}`}
-              {view === 'gallery' && 'Tes créations'}
+              {view === 'select' && t('mode.subtitleSelect')}
+              {view === 'create' && selectedType && t('mode.subtitleCreate', { type: t(selectedType === 'image' ? 'mode.imageCreation' : 'mode.videoCreation') })}
+              {view === 'gallery' && t('mode.subtitleGallery')}
             </p>
           </div>
         </div>
@@ -185,7 +187,7 @@ export function StudioMode() {
           {badges.length > 0 && (
             <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-dream-500/20 text-dream-300 text-sm">
               <Trophy className="w-4 h-4" />
-              {badges.length} badge{badges.length > 1 ? 's' : ''}
+              {t('mode.badgeCount', { count: String(badges.length) })}
             </div>
           )}
           
@@ -197,7 +199,7 @@ export function StudioMode() {
               whileHover={{ scale: 1.02 }}
             >
               <Sparkles className="w-4 h-4 text-aurora-400" />
-              {importedAssets.length} créations
+              {t('mode.creationCount', { count: String(importedAssets.length) })}
             </motion.button>
           )}
         </div>
@@ -252,22 +254,22 @@ export function StudioMode() {
                         {/* Badge niveau */}
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-midnight-800/50">
                           <span className="text-lg">{levelEmoji}</span>
-                          <span className="text-sm text-white">Niv. {level}</span>
+                          <span className="text-sm text-white">{t('mode.level', { level: String(level) })}</span>
                         </div>
                       </div>
                       
                       <h3 className="text-xl font-semibold text-white mb-1">
-                        {type.name}
+                        {t(type.nameKey)}
                       </h3>
                       <p className="text-sm text-midnight-300 mb-4">
-                        {type.description} avec {type.tool}
+                        {t('mode.withTool', { description: t(type.descriptionKey), tool: type.tool })}
                       </p>
 
                       {/* Barre de progression */}
                       <div className="mb-2">
                         <div className="flex justify-between text-xs text-midnight-400 mb-1">
-                          <span>{levelName}</span>
-                          <span>{totalCreations} création{totalCreations > 1 ? 's' : ''}</span>
+                          <span>{t(`levelNames.${level}`)}</span>
+                          <span>{t('mode.creationCount', { count: String(totalCreations) })}</span>
                         </div>
                         <div className="h-2 bg-midnight-800 rounded-full overflow-hidden">
                           <motion.div
@@ -283,17 +285,18 @@ export function StudioMode() {
                       <div className="flex items-center justify-between mt-4">
                         <div className="flex items-center gap-2 text-aurora-300 text-sm">
                           <BookOpen className="w-4 h-4" />
-                          <span>Commencer à apprendre</span>
+                          <span>{t('mode.startLearning')}</span>
                         </div>
-                        <button
+                        <span
+                          role="link"
                           onClick={(e) => {
                             e.stopPropagation()
                             openTutorial(type.id === 'image' ? 'midjourney' : 'runway')
                           }}
-                          className="text-xs text-midnight-400 hover:text-aurora-300 transition-colors"
+                          className="text-xs text-midnight-400 hover:text-aurora-300 transition-colors cursor-pointer"
                         >
-                          Comment utiliser {type.tool} ?
-                        </button>
+                          {t('mode.howToUse', { tool: type.tool })}
+                        </span>
                       </div>
                     </motion.button>
                   )
@@ -320,7 +323,7 @@ export function StudioMode() {
                 >
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-dream-400" />
-                    Mes Badges
+                    {t('mode.badges')}
                   </h3>
                   <div className="flex flex-wrap gap-3">
                     {badges.map((badge) => (
@@ -391,7 +394,7 @@ export function StudioMode() {
                   whileTap={{ scale: 0.98 }}
                 >
                   <BookOpen className="w-4 h-4" />
-                  Comment utiliser fal.ai ?
+                  {t('mode.howToUse', { tool: 'fal.ai' })}
                 </motion.button>
               </div>
             </motion.div>
@@ -409,7 +412,7 @@ export function StudioMode() {
               <div className="glass rounded-3xl p-8 h-full overflow-y-auto">
                 <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                   <Eye className="w-6 h-6 text-aurora-400" />
-                  Ma Galerie de Créations
+                  {t('mode.gallery')}
                 </h2>
 
                 {importedAssets.length > 0 ? (
@@ -457,8 +460,8 @@ export function StudioMode() {
                   <div className="flex flex-col items-center justify-center h-64 text-center">
                     <Sparkles className="w-16 h-16 text-midnight-700 mb-4" />
                     <p className="text-midnight-400">
-                      Ta galerie est vide pour l'instant.<br />
-                      Crée ta première image ou vidéo !
+                      {t('mode.emptyGallery')}<br />
+                      {t('mode.createFirst')}
                     </p>
                   </div>
                 )}

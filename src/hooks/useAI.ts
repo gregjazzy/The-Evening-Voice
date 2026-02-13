@@ -18,7 +18,7 @@ interface ChatMessage {
 
 interface UseAIReturn {
   // Chat avec l'IA-Amie (+ guidage visuel)
-  sendMessage: (message: string, context?: 'diary' | 'book' | 'studio' | 'general', currentMode?: string) => Promise<{ text: string; highlights?: HighlightConfig[] }>
+  sendMessage: (message: string, context?: 'diary' | 'book' | 'studio' | 'general', currentMode?: string, locale?: string) => Promise<{ text: string; highlights?: HighlightConfig[] }>
   isLoadingChat: boolean
   
   // Génération d'images
@@ -73,7 +73,8 @@ export function useAI(): UseAIReturn {
   const sendMessage = useCallback(async (
     message: string,
     context: 'diary' | 'book' | 'studio' | 'general' = 'general',
-    modeOverride?: string
+    modeOverride?: string,
+    locale: string = 'fr'
   ): Promise<{ text: string; highlights?: HighlightConfig[] }> => {
     setIsLoadingChat(true)
     
@@ -102,7 +103,7 @@ export function useAI(): UseAIReturn {
           message,
           context,
           currentMode: interfaceMode, // Pour le guidage visuel
-          locale: 'fr', // TODO: get from i18n context
+          locale,
           chatHistory: history,
           emotionalContext,
           promptingProgress,

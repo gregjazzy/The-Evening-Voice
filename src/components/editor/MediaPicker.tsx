@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
+import { useTranslations } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 
 type MediaType = 'image' | 'video' | 'audio' | 'all'
@@ -35,9 +36,11 @@ export function MediaPicker({
   onClose,
   onSelect,
   allowedTypes = 'all',
-  title = 'Ajouter un média',
+  title,
   storyId,
 }: MediaPickerProps) {
+  const t = useTranslations('mediaPicker')
+  const displayTitle = title || t('addMedia')
   const { importedAssets, getProjectAssets } = useStudioStore()
   
   // Si storyId est fourni, filtrer les assets par histoire
@@ -174,7 +177,7 @@ export function MediaPicker({
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-aurora-500 to-dream-500 flex items-center justify-center">
                 <ImageIcon className="w-5 h-5 text-white" />
               </div>
-              {title}
+              {displayTitle}
             </h2>
             <button
               onClick={onClose}
@@ -196,7 +199,7 @@ export function MediaPicker({
               )}
             >
               <Sparkles className="w-4 h-4" />
-              Mes créations Studio
+              {t('studioCreations')}
               {filteredAssets.length > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full bg-aurora-500/30 text-[10px]">
                   {filteredAssets.length}
@@ -213,7 +216,7 @@ export function MediaPicker({
               )}
             >
               <FolderOpen className="w-4 h-4" />
-              Depuis mon ordinateur
+              {t('fromComputer')}
             </button>
           </div>
 
@@ -234,12 +237,10 @@ export function MediaPicker({
                         <Sparkles className="w-10 h-10 text-midnight-600" />
                       </div>
                       <h3 className="text-lg font-semibold text-white mb-2">
-                        Pas encore de créations
+                        {t('noCreationsTitle')}
                       </h3>
                       <p className="text-midnight-400 text-sm max-w-sm mx-auto">
-                        Va dans le <span className="text-aurora-400">Studio</span> pour créer des
-                        images magiques avec fal.ai, des voix avec ElevenLabs ou des vidéos avec
-                        fal.ai !
+                        {t('noCreationsMessage')}
                       </p>
                     </div>
                   ) : (
@@ -250,7 +251,7 @@ export function MediaPicker({
                           <div>
                             <h3 className="text-sm text-midnight-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                               <ImageIcon className="w-4 h-4" />
-                              Images ({imageAssets.length})
+                              {t('images')} ({imageAssets.length})
                             </h3>
                             <div className="grid grid-cols-4 gap-3">
                               {imageAssets.map((asset) => (
@@ -271,7 +272,7 @@ export function MediaPicker({
                           <div>
                             <h3 className="text-sm text-midnight-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                               <Video className="w-4 h-4" />
-                              Vidéos ({videoAssets.length})
+                              {t('videos')} ({videoAssets.length})
                             </h3>
                             <div className="grid grid-cols-4 gap-3">
                               {videoAssets.map((asset) => (
@@ -292,7 +293,7 @@ export function MediaPicker({
                           <div>
                             <h3 className="text-sm text-midnight-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                               <Music className="w-4 h-4" />
-                              Sons ({audioAssets.length})
+                              {t('sounds')} ({audioAssets.length})
                             </h3>
                             <div className="grid grid-cols-2 gap-3">
                               {audioAssets.map((asset) => (
@@ -363,16 +364,16 @@ export function MediaPicker({
                     </div>
 
                     <h3 className="text-lg font-semibold text-white mb-2">
-                      {isUploading 
-                        ? `Upload en cours... ${progress}%` 
-                        : isDragging 
-                          ? 'Lâche ici !' 
-                          : 'Glisse un fichier ici'}
+                      {isUploading
+                        ? t('uploading', { progress })
+                        : isDragging
+                          ? t('dropHere')
+                          : t('dragFile')}
                     </h3>
                     <p className="text-midnight-400 text-sm">
-                      {isUploading 
-                        ? 'Ton fichier est envoyé vers le cloud ✨' 
-                        : 'ou clique pour parcourir ton ordinateur'}
+                      {isUploading
+                        ? `${t('uploadingCloud')} ✨`
+                        : t('orClickBrowse')}
                     </p>
 
                     {/* Barre de progression */}
@@ -392,19 +393,19 @@ export function MediaPicker({
                         {(allowedTypes === 'all' || allowedTypes === 'image') && (
                           <span className="flex items-center gap-1">
                             <ImageIcon className="w-3 h-3" />
-                            Images
+                            {t('images')}
                           </span>
                         )}
                         {(allowedTypes === 'all' || allowedTypes === 'video') && (
                           <span className="flex items-center gap-1">
                             <Video className="w-3 h-3" />
-                            Vidéos
+                            {t('videos')}
                           </span>
                         )}
                         {(allowedTypes === 'all' || allowedTypes === 'audio') && (
                           <span className="flex items-center gap-1">
                             <Music className="w-3 h-3" />
-                            Sons
+                            {t('sounds')}
                           </span>
                         )}
                       </div>
@@ -447,7 +448,7 @@ export function MediaPicker({
                     onClick={() => setSelectedAsset(null)}
                     className="px-4 py-2 rounded-xl text-midnight-400 hover:text-white hover:bg-midnight-800 transition-colors"
                   >
-                    Annuler
+                    {t('cancel')}
                   </button>
                   <motion.button
                     onClick={handleConfirmSelection}
@@ -456,7 +457,7 @@ export function MediaPicker({
                     whileTap={{ scale: 0.98 }}
                   >
                     <Check className="w-4 h-4" />
-                    Utiliser
+                    {t('use')}
                   </motion.button>
                 </div>
               </div>

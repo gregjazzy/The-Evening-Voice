@@ -18,13 +18,14 @@ import {
 import { useStudioStore, toolUrls } from '@/store/useStudioStore'
 import { useMentorStore } from '@/store/useMentorStore'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 
 // Définition des outils avec leurs infos
 const tools = [
   {
     id: 'gemini' as const,
     name: 'Gemini',
-    description: 'Demande de l\'aide à l\'IA de Google',
+    descriptionKey: 'safariBridge.geminiDesc',
     icon: Search,
     color: 'from-blue-500 to-cyan-500',
     emoji: '🔮',
@@ -33,7 +34,7 @@ const tools = [
   {
     id: 'midjourney' as const,
     name: 'fal.ai Images',
-    description: 'Crée des images incroyables',
+    descriptionKey: 'safariBridge.midjourneyDesc',
     icon: Image,
     color: 'from-aurora-500 to-purple-600',
     emoji: '🎨',
@@ -42,7 +43,7 @@ const tools = [
   {
     id: 'elevenlabs' as const,
     name: 'ElevenLabs',
-    description: 'Donne une voix à tes personnages',
+    descriptionKey: 'safariBridge.elevenlabsDesc',
     icon: Mic,
     color: 'from-dream-500 to-teal-600',
     emoji: '🎙️',
@@ -51,7 +52,7 @@ const tools = [
   {
     id: 'runway' as const,
     name: 'fal.ai Vidéos',
-    description: 'Transforme en vidéo animée',
+    descriptionKey: 'safariBridge.runwayDesc',
     icon: Video,
     color: 'from-stardust-500 to-orange-600',
     emoji: '🎬',
@@ -64,6 +65,7 @@ interface SafariBridgeProps {
 }
 
 export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
+  const t = useTranslations('studio')
   const {
     currentKit,
     checkKitCompleteness,
@@ -73,7 +75,7 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
   } = useStudioStore()
 
   const { isConnected, role, controlActive } = useMentorStore()
-  
+
   const [copiedTool, setCopiedTool] = useState<string | null>(null)
   const [pendingBridge, setPendingBridge] = useState<string | null>(null)
   const [showMentorValidation, setShowMentorValidation] = useState(false)
@@ -89,8 +91,8 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
     // Vérifier si le kit est complet
     if (!complete) {
       triggerMissionFlash(
-        '⚠️ Kit incomplet !',
-        `Il te manque encore : ${missing.join(', ')}. Complète ton kit avant de partir sur Safari !`
+        t('safariBridge.kitIncompleteTitle'),
+        t('safariBridge.kitIncompleteMessage', { missing: missing.join(', ') })
       )
       return
     }
@@ -130,8 +132,8 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
     } catch (err) {
       console.error('Erreur clipboard:', err)
       triggerMissionFlash(
-        '📋 Copie manuelle',
-        'Sélectionne le texte du prompt et copie-le avec Cmd+C avant de partir'
+        t('safariBridge.manualCopyTitle'),
+        t('safariBridge.manualCopyMessage')
       )
     }
   }
@@ -148,17 +150,17 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <Rocket className="w-5 h-5 text-aurora-400" />
-        <h3 className="font-semibold text-white">Passerelles Safari</h3>
+        <h3 className="font-semibold text-white">{t('safariBridge.title')}</h3>
         {isConnected && role === 'child' && (
           <span className="ml-auto text-xs text-dream-400 flex items-center gap-1">
             <Shield className="w-3 h-3" />
-            Supervision active
+            {t('safariBridge.supervisionActive')}
           </span>
         )}
       </div>
 
       <p className="text-sm text-midnight-300 mb-4">
-        Choisis un outil. Le prompt sera copié automatiquement et Safari s'ouvrira sur la bonne page.
+        {t('safariBridge.chooseToolInstructions')}
       </p>
 
       {/* Grille des outils */}
@@ -211,7 +213,7 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
                         className="flex items-center gap-1 text-dream-400 text-xs"
                       >
                         <Check className="w-4 h-4" />
-                        Copié !
+                        {t('safariBridge.copied')}
                       </motion.div>
                     ) : (
                       <motion.div
@@ -231,7 +233,7 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
                   <span>{tool.emoji}</span>
                   {tool.name}
                 </h4>
-                <p className="text-sm text-midnight-300">{tool.description}</p>
+                <p className="text-sm text-midnight-300">{t(tool.descriptionKey)}</p>
               </div>
             </motion.button>
           )
@@ -248,10 +250,10 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
           <AlertTriangle className="w-5 h-5 text-stardust-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm text-stardust-300 font-medium">
-              Complète ton kit d'abord !
+              {t('safariBridge.completeKitFirst')}
             </p>
             <p className="text-xs text-midnight-400 mt-1">
-              Il manque : {missing.join(', ')}
+              {t('safariBridge.missing', { missing: missing.join(', ') })}
             </p>
           </div>
         </motion.div>
@@ -266,7 +268,7 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-midnight-400 uppercase tracking-wider">
-              Prompt prêt
+              {t('safariBridge.promptReady')}
             </span>
             <button
               onClick={async () => {
@@ -281,7 +283,7 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
               ) : (
                 <Copy className="w-3 h-3" />
               )}
-              {copiedTool === 'manual' ? 'Copié !' : 'Copier'}
+              {copiedTool === 'manual' ? t('safariBridge.copied') : t('safariBridge.copy')}
             </button>
           </div>
           <p className="font-mono text-xs text-midnight-200 line-clamp-3">
@@ -315,11 +317,10 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
               </div>
               
               <h3 className="font-display text-xl text-white mb-2">
-                Attends ton mentor !
+                {t('safariBridge.waitForMentor')}
               </h3>
               <p className="text-midnight-300 mb-6">
-                Ton mentor doit valider ton Kit de Sortie avant que tu partes sur Safari. 
-                C'est pour s'assurer que tu es bien préparée ! 🎒
+                {t('safariBridge.mentorMustValidate')}
               </p>
 
               <div className="flex gap-3 justify-center">
@@ -329,7 +330,7 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  Attendre
+                  {t('safariBridge.wait')}
                 </motion.button>
                 
                 {/* En mode démo, permettre de continuer */}
@@ -340,7 +341,7 @@ export function SafariBridge({ onBridgeOpen }: SafariBridgeProps) {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    Continuer (démo)
+                    {t('safariBridge.continueDemo')}
                   </motion.button>
                 )}
               </div>

@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Sparkles, 
-  Rocket, 
-  Star, 
+import {
+  Sparkles,
+  Rocket,
+  Star,
   Wand2,
   BookOpen,
   Palette,
@@ -20,20 +20,17 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/useAppStore'
+import { useTranslations, useLocale } from '@/lib/i18n/context'
 
 export type ModeType = 'writing' | 'studio' | 'montage' | 'theater' | 'publish' | 'challenge'
 
 interface ModeIntroContent {
   icon: React.ReactNode
-  title: string
-  subtitle: string
-  description: string
   objectives: string[]
   levels: {
     title: string
     description: string
   }[]
-  reward: string
   gradient: string
   accentColor: string
 }
@@ -41,123 +38,75 @@ interface ModeIntroContent {
 const MODE_CONTENT: Record<ModeType, ModeIntroContent> = {
   writing: {
     icon: <BookOpen className="w-12 h-12" />,
-    title: "L'Atelier d'Écriture",
-    subtitle: "Deviens un conteur magique",
-    description: "Ici, tu vas apprendre à raconter des histoires incroyables avec l'aide de ton assistante magique. Elle t'apprendra les 5 Questions Magiques pour créer des récits qui captivent tout le monde !",
-    objectives: [
-      "Apprendre à poser les bonnes questions pour construire une histoire",
-      "Développer ton imagination avec des personnages et des mondes uniques",
-      "Maîtriser l'art de parler aux intelligences artificielles"
-    ],
+    objectives: ['objective0', 'objective1', 'objective2'],
     levels: [
-      { title: "Curieux", description: "Tu découvres les bases avec ton amie magique qui te guide" },
-      { title: "Apprenti", description: "Tu commences à utiliser les 5 Questions Magiques" },
-      { title: "Créateur", description: "Tu crées des histoires de plus en plus riches" },
-      { title: "Conteur", description: "Tu maîtrises l'art de raconter" },
-      { title: "Maître IA", description: "Tu peux créer des histoires avec n'importe quelle IA !" }
+      { title: 'level0Title', description: 'level0Desc' },
+      { title: 'level1Title', description: 'level1Desc' },
+      { title: 'level2Title', description: 'level2Desc' },
+      { title: 'level3Title', description: 'level3Desc' },
+      { title: 'level4Title', description: 'level4Desc' },
     ],
-    reward: "Tu pourras créer des histoires extraordinaires et parler à toutes les IA du monde avec tes nouvelles compétences !",
     gradient: "from-aurora-500 to-dream-500",
     accentColor: "aurora"
   },
   studio: {
     icon: <Palette className="w-12 h-12" />,
-    title: "Le Studio Créatif",
-    subtitle: "Transforme tes idées en images",
-    description: "Dans ce studio magique, tu vas apprendre à créer des images et des vidéos incroyables juste avec des mots ! Les 5 Clés Magiques t'aideront à devenir un vrai artiste numérique.",
-    objectives: [
-      "Apprendre à décrire précisément ce que tu imagines",
-      "Découvrir les secrets du style, de l'ambiance et de la lumière",
-      "Créer des images dignes d'un artiste professionnel"
-    ],
+    objectives: ['objective0', 'objective1', 'objective2'],
     levels: [
-      { title: "Explorateur", description: "Tu découvres comment l'IA comprend tes mots" },
-      { title: "Artiste", description: "Tu apprends les 5 Clés : Style, Héros, Ambiance..." },
-      { title: "Créateur", description: "Tu utilises de vrais outils d'IA comme fal.ai" },
-      { title: "Expert", description: "Tu crées des œuvres complexes et détaillées" },
-      { title: "Maître", description: "Tu peux créer n'importe quelle image imaginable !" }
+      { title: 'level0Title', description: 'level0Desc' },
+      { title: 'level1Title', description: 'level1Desc' },
+      { title: 'level2Title', description: 'level2Desc' },
+      { title: 'level3Title', description: 'level3Desc' },
+      { title: 'level4Title', description: 'level4Desc' },
     ],
-    reward: "Tu sauras créer des images et vidéos magnifiques avec n'importe quel outil d'IA, comme un vrai professionnel !",
     gradient: "from-stardust-500 to-aurora-500",
     accentColor: "stardust"
   },
   montage: {
     icon: <Film className="w-12 h-12" />,
-    title: "La Table de Montage",
-    subtitle: "Deviens réalisateur de films",
-    description: "Ici, tu vas assembler tes créations pour en faire de véritables films ! Ajoute de la musique, des effets sonores, des voix et des animations pour donner vie à tes histoires.",
-    objectives: [
-      "Apprendre à organiser des scènes comme un réalisateur",
-      "Synchroniser images, sons et musiques",
-      "Créer des émotions avec le rythme et les effets"
-    ],
+    objectives: ['objective0', 'objective1', 'objective2'],
     levels: [
-      { title: "Débutant", description: "Tu découvres comment créer ta première scène" },
-      { title: "Monteur", description: "Tu apprends à enchaîner les scènes" },
-      { title: "Réalisateur", description: "Tu maîtrises le son et la musique" },
-      { title: "Cinéaste", description: "Tu crées des montages complexes" },
-      { title: "Producteur", description: "Tu réalises des films complets !" }
+      { title: 'level0Title', description: 'level0Desc' },
+      { title: 'level1Title', description: 'level1Desc' },
+      { title: 'level2Title', description: 'level2Desc' },
+      { title: 'level3Title', description: 'level3Desc' },
+      { title: 'level4Title', description: 'level4Desc' },
     ],
-    reward: "Tu pourras créer des films entiers avec musique, voix et effets spéciaux, comme un vrai réalisateur !",
     gradient: "from-dream-500 to-midnight-400",
     accentColor: "dream"
   },
   theater: {
     icon: <Theater className="w-12 h-12" />,
-    title: "Le Théâtre",
-    subtitle: "Présente tes créations au monde",
-    description: "Le rideau se lève ! C'est ici que tu peux regarder tes films en grand écran et les montrer à ta famille et tes amis. Installe-toi confortablement, le spectacle va commencer !",
-    objectives: [
-      "Découvrir tes créations comme au cinéma",
-      "Partager tes histoires avec les gens que tu aimes",
-      "Voir le résultat final de tout ton travail"
-    ],
+    objectives: ['objective0', 'objective1', 'objective2'],
     levels: [
-      { title: "Spectateur", description: "Tu regardes tes premières créations" },
-      { title: "Présentateur", description: "Tu montres tes films à ta famille" },
-      { title: "Artiste", description: "Tu présentes avec fierté tes œuvres" }
+      { title: 'level0Title', description: 'level0Desc' },
+      { title: 'level1Title', description: 'level1Desc' },
+      { title: 'level2Title', description: 'level2Desc' },
     ],
-    reward: "Tu vivras la magie de voir tes histoires prendre vie sur grand écran !",
     gradient: "from-golden-500 to-aurora-500",
     accentColor: "golden"
   },
   publish: {
     icon: <Printer className="w-12 h-12" />,
-    title: "L'Imprimerie Magique",
-    subtitle: "Transforme tes histoires en vrais livres",
-    description: "Incroyable ! Ici, tu peux transformer ton histoire numérique en un vrai livre que tu pourras tenir dans tes mains, offrir ou garder précieusement dans ta bibliothèque.",
-    objectives: [
-      "Choisir le format parfait pour ton livre",
-      "Vérifier que tout est prêt pour l'impression",
-      "Commander un vrai livre imprimé"
-    ],
+    objectives: ['objective0', 'objective1', 'objective2'],
     levels: [
-      { title: "Éditeur", description: "Tu prépares ton livre pour l'impression" },
-      { title: "Auteur", description: "Tu reçois ton premier livre imprimé" },
-      { title: "Écrivain", description: "Tu as plusieurs livres à ton actif !" }
+      { title: 'level0Title', description: 'level0Desc' },
+      { title: 'level1Title', description: 'level1Desc' },
+      { title: 'level2Title', description: 'level2Desc' },
     ],
-    reward: "Tu auras un vrai livre avec ton nom dessus, comme un vrai auteur !",
     gradient: "from-emerald-500 to-teal-500",
     accentColor: "emerald"
   },
   challenge: {
     icon: <Target className="w-12 h-12" />,
-    title: "L'Arène des Défis",
-    subtitle: "Entraîne-toi à parler aux IA",
-    description: "Bienvenue dans l'arène ! Ici, tu vas t'entraîner à écrire des prompts comme un pro. Reproduis des images, crée des variations, et deviens un expert en communication avec les IA !",
-    objectives: [
-      "Apprendre à observer et décrire précisément une image",
-      "Comprendre quels mots l'IA comprend le mieux",
-      "Maîtriser l'art de modifier un prompt pour changer le résultat"
-    ],
+    objectives: ['objective0', 'objective1', 'objective2'],
     levels: [
-      { title: "Découverte", description: "Tu apprends à observer les détails" },
-      { title: "Facile", description: "Tu reproduis des images simples" },
-      { title: "Intermédiaire", description: "Tu crées des variations complexes" },
-      { title: "Avancé", description: "Tu maîtrises les atmosphères et styles" },
-      { title: "Expert", description: "Tu peux reproduire n'importe quelle image !" }
+      { title: 'level0Title', description: 'level0Desc' },
+      { title: 'level1Title', description: 'level1Desc' },
+      { title: 'level2Title', description: 'level2Desc' },
+      { title: 'level3Title', description: 'level3Desc' },
+      { title: 'level4Title', description: 'level4Desc' },
     ],
-    reward: "Tu sauras parler parfaitement aux IA et créer exactement ce que tu imagines !",
     gradient: "from-rose-500 to-orange-500",
     accentColor: "rose"
   }
@@ -176,38 +125,40 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
   const [isCurrentlySpeaking, setIsCurrentlySpeaking] = useState(false)
   const { aiVoice } = useAppStore()
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
-  
+  const t = useTranslations('modeIntro')
+  const locale = useLocale()
+
   // Fonction pour lire un texte avec la voix sélectionnée
   const speak = useCallback((text: string) => {
     if (!isSpeaking || typeof window === 'undefined' || !('speechSynthesis' in window)) return
-    
+
     // Arrêter toute lecture en cours
     window.speechSynthesis.cancel()
-    
+
     const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'fr-FR'
+    utterance.lang = locale === 'en' ? 'en-US' : locale === 'ru' ? 'ru-RU' : 'fr-FR'
     utterance.rate = 0.95
     utterance.pitch = 1.1
-    
+
     // Utiliser la voix sélectionnée
     const voices = window.speechSynthesis.getVoices()
-    const selectedVoice = voices.find(v => v.name === aiVoice) 
-      || voices.find(v => v.name.includes('Audrey'))
-      || voices.find(v => v.name.includes('Amélie'))
-      || voices.find(v => v.lang.startsWith('fr'))
-    
+    const selectedVoice = voices.find(v => v.name === aiVoice)
+      || (locale === 'en' ? voices.find(v => v.lang.startsWith('en')) :
+          locale === 'ru' ? voices.find(v => v.lang.startsWith('ru')) :
+          voices.find(v => v.name.includes('Audrey')) || voices.find(v => v.name.includes('Amélie')) || voices.find(v => v.lang.startsWith('fr')))
+
     if (selectedVoice) {
       utterance.voice = selectedVoice
     }
-    
+
     utterance.onstart = () => setIsCurrentlySpeaking(true)
     utterance.onend = () => setIsCurrentlySpeaking(false)
     utterance.onerror = () => setIsCurrentlySpeaking(false)
-    
+
     utteranceRef.current = utterance
     window.speechSynthesis.speak(utterance)
-  }, [isSpeaking, aiVoice])
-  
+  }, [isSpeaking, aiVoice, locale])
+
   // Arrêter la lecture
   const stopSpeaking = useCallback(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -215,7 +166,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
       setIsCurrentlySpeaking(false)
     }
   }, [])
-  
+
   // Toggle lecture
   const toggleSpeaking = () => {
     if (isCurrentlySpeaking) {
@@ -223,21 +174,21 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
     }
     setIsSpeaking(!isSpeaking)
   }
-  
+
   // Obtenir le texte à lire pour chaque étape
   const getTextForStep = useCallback((step: number): string => {
     switch (step) {
       case 0:
-        return `${content.title}. ${content.subtitle}. ${content.description}`
+        return `${t(`${mode}.title`)}. ${t(`${mode}.subtitle`)}. ${t(`${mode}.description`)}`
       case 1:
-        return `Ton parcours d'apprentissage. Voici les étapes que tu vas franchir : ${content.levels.map((l, i) => `Niveau ${i + 1}, ${l.title}: ${l.description}`).join('. ')}`
+        return `${t('learningPath')}. ${t('stepsToFollow')}: ${content.levels.map((_, i) => `${t('level')} ${i + 1}, ${t(`${mode}.level${i}Title`)}: ${t(`${mode}.level${i}Desc`)}`).join('. ')}`
       case 2:
-        return `Ce que tu vas accomplir : ${content.reward}`
+        return `${t('whatYouWillAccomplish')}: ${t(`${mode}.reward`)}`
       default:
         return ''
     }
-  }, [content])
-  
+  }, [content, t, mode])
+
   // Lire automatiquement quand on change d'étape
   useEffect(() => {
     if (isOpen && isSpeaking) {
@@ -248,14 +199,14 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
       return () => clearTimeout(timeout)
     }
   }, [isOpen, currentStep, isSpeaking, speak, getTextForStep])
-  
+
   // Arrêter la lecture quand on ferme le modal
   useEffect(() => {
     if (!isOpen) {
       stopSpeaking()
     }
   }, [isOpen, stopSpeaking])
-  
+
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(0)
@@ -317,7 +268,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                   ? "bg-aurora-500/20 text-aurora-400 hover:bg-aurora-500/30"
                   : "bg-midnight-700/50 text-midnight-400 hover:bg-midnight-700"
               )}
-              title={isSpeaking ? "Couper la voix" : "Activer la voix"}
+              title={isSpeaking ? t('muteVoice') : t('enableVoice')}
             >
               {isSpeaking ? (
                 <Volume2 className={cn("w-5 h-5", isCurrentlySpeaking && "animate-pulse")} />
@@ -359,7 +310,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                       transition={{ delay: 0.2 }}
                       className="text-3xl font-display font-bold text-white mb-2"
                     >
-                      {content.title}
+                      {t(`${mode}.title`)}
                     </motion.h2>
 
                     <motion.p
@@ -371,7 +322,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                         `text-${content.accentColor}-400`
                       )}
                     >
-                      {content.subtitle}
+                      {t(`${mode}.subtitle`)}
                     </motion.p>
 
                     <motion.p
@@ -380,7 +331,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                       transition={{ delay: 0.4 }}
                       className="text-midnight-300 text-lg leading-relaxed mb-8"
                     >
-                      {content.description}
+                      {t(`${mode}.description`)}
                     </motion.p>
 
                     {/* Objectives */}
@@ -390,7 +341,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                       transition={{ delay: 0.5 }}
                       className="space-y-3 text-left"
                     >
-                      {content.objectives.map((objective, index) => (
+                      {content.objectives.map((_, index) => (
                         <motion.div
                           key={index}
                           initial={{ opacity: 0, x: -10 }}
@@ -404,7 +355,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                           )}>
                             <Star className={cn("w-3.5 h-3.5", `text-${content.accentColor}-400`)} />
                           </div>
-                          <span className="text-midnight-200">{objective}</span>
+                          <span className="text-midnight-200">{t(`${mode}.objective${index}`)}</span>
                         </motion.div>
                       ))}
                     </motion.div>
@@ -422,16 +373,16 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                     <div className="text-center mb-8">
                       <Rocket className={cn("w-10 h-10 mx-auto mb-4", `text-${content.accentColor}-400`)} />
                       <h3 className="text-2xl font-display font-bold text-white mb-2">
-                        Ton parcours d'apprentissage
+                        {t('learningPath')}
                       </h3>
                       <p className="text-midnight-400">
-                        Voici les étapes que tu vas franchir
+                        {t('stepsToFollow')}
                       </p>
                     </div>
 
                     {/* Level progression */}
                     <div className="space-y-4">
-                      {content.levels.map((level, index) => (
+                      {content.levels.map((_, index) => (
                         <motion.div
                           key={index}
                           initial={{ opacity: 0, y: 10 }}
@@ -439,8 +390,8 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                           transition={{ delay: index * 0.1 }}
                           className={cn(
                             "flex items-center gap-4 p-4 rounded-xl border transition-all",
-                            index === 0 
-                              ? `bg-${content.accentColor}-500/10 border-${content.accentColor}-500/30` 
+                            index === 0
+                              ? `bg-${content.accentColor}-500/10 border-${content.accentColor}-500/30`
                               : "bg-midnight-800/50 border-midnight-700/50"
                           )}
                         >
@@ -457,10 +408,10 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                               "font-semibold",
                               index === 0 ? "text-white" : "text-midnight-300"
                             )}>
-                              {level.title}
+                              {t(`${mode}.level${index}Title`)}
                             </div>
                             <div className="text-sm text-midnight-400">
-                              {level.description}
+                              {t(`${mode}.level${index}Desc`)}
                             </div>
                           </div>
                           {index === 0 && (
@@ -468,7 +419,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                               "px-3 py-1 rounded-full text-xs font-medium",
                               `bg-${content.accentColor}-500/20 text-${content.accentColor}-400`
                             )}>
-                              Tu es ici
+                              {t('youAreHere')}
                             </div>
                           )}
                         </motion.div>
@@ -502,7 +453,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                       transition={{ delay: 0.2 }}
                       className="text-2xl font-display font-bold text-white mb-4"
                     >
-                      Ce que tu vas accomplir
+                      {t('whatYouWillAccomplish')}
                     </motion.h3>
 
                     <motion.div
@@ -512,7 +463,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                       className="bg-gradient-to-br from-golden-500/10 to-golden-600/5 border border-golden-500/20 rounded-2xl p-6 mb-8"
                     >
                       <p className="text-golden-200 text-lg leading-relaxed">
-                        {content.reward}
+                        {t(`${mode}.reward`)}
                       </p>
                     </motion.div>
 
@@ -523,7 +474,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                       className="flex items-center justify-center gap-2 text-midnight-400"
                     >
                       <Wand2 className="w-5 h-5" />
-                      <span>Prêt à commencer l'aventure ?</span>
+                      <span>{t('readyToStart')}</span>
                     </motion.div>
                   </motion.div>
                 )}
@@ -553,7 +504,7 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                     onClick={handleSkip}
                     className="px-4 py-2 text-midnight-400 hover:text-midnight-200 transition-colors"
                   >
-                    Passer
+                    {t('skip')}
                   </button>
                   <motion.button
                     onClick={handleNext}
@@ -566,12 +517,12 @@ export function ModeIntroModal({ mode, isOpen, onClose }: ModeIntroModalProps) {
                   >
                     {currentStep === 2 ? (
                       <>
-                        <span>C'est parti !</span>
+                        <span>{t('letsGo')}</span>
                         <Sparkles className="w-5 h-5" />
                       </>
                     ) : (
                       <>
-                        <span>Suivant</span>
+                        <span>{t('next')}</span>
                         <ArrowRight className="w-5 h-5" />
                       </>
                     )}

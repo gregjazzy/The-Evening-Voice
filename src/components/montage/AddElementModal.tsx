@@ -6,6 +6,7 @@ import { useMontageStore, type TimeRange } from '@/store/useMontageStore'
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 import {
   X,
   Video,
@@ -389,7 +390,8 @@ const LIGHT_PRESETS = [
 // =============================================================================
 
 export function AddElementModal({ isOpen, onClose, elementType }: AddElementModalProps) {
-  const { 
+  const t = useTranslations('layout')
+  const {
     getCurrentScene,
     getSceneDuration,
     addMediaTrack,
@@ -697,37 +699,37 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
   // Configuration par type
   const config = {
     media: {
-      title: 'Ajouter une image ou vidéo',
+      title: t('addElement.titles.media'),
       icon: <Video className="w-6 h-6" />,
       color: 'text-blue-400',
     },
     music: {
-      title: 'Ajouter une musique',
+      title: t('addElement.titles.music'),
       icon: <Music className="w-6 h-6" />,
       color: 'text-emerald-400',
     },
     sound: {
-      title: 'Ajouter un son',
+      title: t('addElement.titles.sound'),
       icon: <Volume2 className="w-6 h-6" />,
       color: 'text-pink-400',
     },
     light: {
-      title: 'Ajouter une lumière',
+      title: t('addElement.titles.light'),
       icon: <Lightbulb className="w-6 h-6" />,
       color: 'text-yellow-400',
     },
     decoration: {
-      title: 'Ajouter une décoration',
+      title: t('addElement.titles.decoration'),
       icon: <Sparkles className="w-6 h-6" />,
       color: 'text-orange-400',
     },
     animation: {
-      title: 'Ajouter une animation',
+      title: t('addElement.titles.animation'),
       icon: <Wind className="w-6 h-6" />,
       color: 'text-cyan-400',
     },
     effect: {
-      title: 'Ajouter un effet texte',
+      title: t('addElement.titles.effect'),
       icon: <Type className="w-6 h-6" />,
       color: 'text-purple-400',
     },
@@ -789,7 +791,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-aurora-400" />
                       <h3 className="text-sm font-medium text-aurora-300">
-                        Assets du Studio ({studioMediaAssets.length})
+                        {t('addElement.studioAssets', { count: studioMediaAssets.length })}
                       </h3>
                     </div>
                     <div className="grid grid-cols-3 gap-3 max-h-[200px] overflow-y-auto pr-2">
@@ -843,7 +845,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                       ))}
                     </div>
                     <p className="text-xs text-midnight-500 text-center">
-                      Clique sur un asset pour l'ajouter à la scène
+                      {t('addElement.clickAssetToAdd')}
                     </p>
                   </div>
                 )}
@@ -852,7 +854,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                 {studioMediaAssets.length > 0 && (
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-px bg-midnight-700" />
-                    <span className="text-xs text-midnight-500">ou</span>
+                    <span className="text-xs text-midnight-500">{t('addElement.or')}</span>
                     <div className="flex-1 h-px bg-midnight-700" />
                   </div>
                 )}
@@ -875,10 +877,10 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                       <>
                         <Upload className="w-12 h-12 mx-auto text-midnight-500 mb-3" />
                         <p className="text-midnight-400">
-                          Clique ou glisse une image/vidéo ici
+                          {t('addElement.dragMediaHere')}
                         </p>
                         <p className="text-xs text-midnight-600 mt-2">
-                          JPG, PNG, GIF, MP4, WEBM
+                          {t('addElement.supportedFormats')}
                         </p>
                       </>
                     )}
@@ -895,7 +897,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-500" />
                   <input
                     type="text"
-                    placeholder="Rechercher une musique..."
+                    placeholder={t('addElement.searchMusic')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white placeholder-midnight-500 focus:border-emerald-500/50 focus:outline-none"
@@ -904,13 +906,13 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
 
                 {/* Info */}
                 <p className="text-xs text-midnight-400 text-center">
-                  🎵 {MUSIC_SOUNDS.length} musiques disponibles • Clique sur ▶️ pour écouter
+                  🎵 {t('addElement.musicAvailable', { count: MUSIC_SOUNDS.length })} • {t('addElement.listenThenAdd')}
                 </p>
 
                 {/* Grille de musiques */}
                 <div className="grid grid-cols-1 gap-2 max-h-[50vh] overflow-y-auto pr-2">
                   {MUSIC_SOUNDS
-                    .filter(s => searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .filter(s => searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()) || t(`addElement.realMusic.${s.id}`).toLowerCase().includes(searchQuery.toLowerCase()))
                     .map((sound) => (
                     <motion.div
                       key={sound.id}
@@ -939,13 +941,13 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                       
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white truncate">{sound.name}</p>
+                        <p className="font-medium text-white truncate">{t(`addElement.realMusic.${sound.id}`)}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-lg">{sound.emoji}</span>
                           <div className="flex flex-wrap gap-1">
                             {(sound.moods || []).slice(0, 2).map(mood => (
                               <span key={mood} className="text-[10px] px-1.5 py-0.5 rounded bg-midnight-700 text-midnight-300">
-                                {MOOD_LABELS[mood]?.emoji} {MOOD_LABELS[mood]?.label}
+                                {MOOD_LABELS[mood]?.emoji} {t(`addElement.moods.${mood}`)}
                               </span>
                             ))}
                           </div>
@@ -958,7 +960,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                         className="px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2 flex-shrink-0"
                       >
                         <Plus className="w-4 h-4" />
-                        <span className="text-sm font-medium">Ajouter</span>
+                        <span className="text-sm font-medium">{t('addElement.add')}</span>
                       </button>
                     </motion.div>
                   ))}
@@ -981,7 +983,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                     )}
                   >
                     <span className="mr-2">🌧️</span>
-                    Ambiances
+                    {t('addElement.ambiances')}
                     <span className="text-xs ml-2 opacity-70">({AMBIANCE_SOUNDS.length})</span>
                   </button>
                   <button
@@ -994,7 +996,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                     )}
                   >
                     <span className="mr-2">💥</span>
-                    Effets Sonores
+                    {t('addElement.soundEffects')}
                     <span className="text-xs ml-2 opacity-70">({EFFECT_SOUNDS.length})</span>
                   </button>
                 </div>
@@ -1013,7 +1015,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                             : 'bg-midnight-700/50 text-midnight-300 hover:bg-midnight-600'
                         )}
                       >
-                        {filter.emoji} {filter.label}
+                        {filter.emoji} {t(`addElement.effectThemes.${filter.id || 'all'}`)}
                       </button>
                     ))}
                   </div>
@@ -1024,7 +1026,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-500" />
                   <input
                     type="text"
-                    placeholder={realSoundCategory === 'ambiance' ? "Rechercher une ambiance..." : "Rechercher un effet..."}
+                    placeholder={realSoundCategory === 'ambiance' ? t('addElement.searchAmbiance') : t('addElement.searchEffect')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white placeholder-midnight-500 focus:border-pink-500/50 focus:outline-none"
@@ -1033,13 +1035,13 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
 
                 {/* Info */}
                 <p className="text-xs text-midnight-400 text-center">
-                  {realSoundCategory === 'ambiance' ? '🌧️' : '💥'} Clique sur ▶️ pour écouter, puis "Ajouter" pour l'utiliser
+                  {realSoundCategory === 'ambiance' ? '🌧️' : '💥'} {t('addElement.listenThenAddSound')}
                 </p>
 
                 {/* Grille de sons */}
                 <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto pr-2">
                   {(realSoundCategory === 'ambiance' ? AMBIANCE_SOUNDS : EFFECT_SOUNDS)
-                    .filter(s => searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .filter(s => searchQuery === '' || s.name.toLowerCase().includes(searchQuery.toLowerCase()) || t(`addElement.${s.type === 'ambiance' ? 'realAmbiances' : 'realEffects'}.${s.id}`).toLowerCase().includes(searchQuery.toLowerCase()))
                     .filter(s => realSoundCategory !== 'effect' || !effectThemeFilter || (s.themes || []).includes(effectThemeFilter as any))
                     .map((sound) => (
                     <motion.div
@@ -1075,11 +1077,11 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                       {/* Emoji + Info */}
                       <span className="text-2xl">{sound.emoji}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white truncate">{sound.name}</p>
+                        <p className="font-medium text-white truncate">{t(`addElement.${sound.type === 'ambiance' ? 'realAmbiances' : 'realEffects'}.${sound.id}`)}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {(sound.themes || []).slice(0, 2).map(theme => (
                             <span key={theme} className="text-[10px] px-1.5 py-0.5 rounded bg-midnight-700 text-midnight-300">
-                              {THEME_LABELS[theme]?.emoji} {THEME_LABELS[theme]?.label}
+                              {THEME_LABELS[theme]?.emoji} {t(`addElement.themes.${theme}`)}
                             </span>
                           ))}
                         </div>
@@ -1087,8 +1089,8 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
 
                       {/* Bouton ajouter */}
                       <button
-                        onClick={() => realSoundCategory === 'ambiance' 
-                          ? handleAddRealAmbiance(sound) 
+                        onClick={() => realSoundCategory === 'ambiance'
+                          ? handleAddRealAmbiance(sound)
                           : handleAddRealEffect(sound)
                         }
                         className={cn(
@@ -1099,7 +1101,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                         )}
                       >
                         <Plus className="w-4 h-4" />
-                        <span className="text-sm font-medium">Ajouter</span>
+                        <span className="text-sm font-medium">{t('addElement.add')}</span>
                       </button>
                     </motion.div>
                   ))}
@@ -1127,8 +1129,8 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                         style={{ backgroundColor: preset.color }}
                       />
                       <div>
-                        <p className="font-medium text-white">{preset.name}</p>
-                        <p className="text-xs text-midnight-400">{preset.intensity}% intensité</p>
+                        <p className="font-medium text-white">{t(`addElement.lightPresets.${preset.id}`)}</p>
+                        <p className="text-xs text-midnight-400">{preset.intensity}% {t('addElement.intensity')}</p>
                       </div>
                     </div>
                   </motion.button>
@@ -1151,7 +1153,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                     whileTap={{ scale: 0.95 }}
                   >
                     <span className="text-4xl block mb-2">{deco.emoji}</span>
-                    <p className="text-xs text-midnight-400">{deco.name}</p>
+                    <p className="text-xs text-midnight-400">{t(`addElement.decorations.${deco.id}`)}</p>
                   </motion.button>
                 ))}
               </div>
@@ -1173,7 +1175,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                     )}
                   >
                     <span className="mr-2">🪄</span>
-                    Effets Magiques
+                    {t('addElement.magicEffects')}
                     <span className="text-xs ml-2 opacity-70">({LOCALIZED_ANIMATIONS.length})</span>
                   </button>
                   <button
@@ -1186,16 +1188,16 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                     )}
                   >
                     <span className="mr-2">🌌</span>
-                    Ambiance
+                    {t('addElement.ambianceFullscreen')}
                     <span className="text-xs ml-2 opacity-70">({FULLSCREEN_ANIMATIONS.length})</span>
                   </button>
                 </div>
                 
                 {/* Description de la catégorie */}
                 <p className="text-sm text-midnight-400 px-2">
-                  {animCategory === 'localized' 
-                    ? '✨ Ces effets apparaissent à un point précis (comme une baguette magique). Tu peux les déplacer sur l\'écran !'
-                    : '🌠 Ces effets couvrent tout l\'écran pour créer une ambiance magique.'
+                  {animCategory === 'localized'
+                    ? `✨ ${t('addElement.localizedDesc')}`
+                    : `🌠 ${t('addElement.fullscreenDesc')}`
                   }
                 </p>
                 
@@ -1224,8 +1226,8 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                       />
                       
                       <span className="text-3xl block mb-2 relative z-10">{anim.emoji}</span>
-                      <p className="text-sm font-medium text-white relative z-10">{anim.name}</p>
-                      <p className="text-[10px] text-midnight-400 mt-1 relative z-10">{anim.description}</p>
+                      <p className="text-sm font-medium text-white relative z-10">{t(`addElement.animations.${anim.id}`)}</p>
+                      <p className="text-[10px] text-midnight-400 mt-1 relative z-10">{t(`addElement.animationDescriptions.${anim.id}`)}</p>
                       <div 
                         className="w-4 h-4 rounded-full mx-auto mt-2 relative z-10 ring-2 ring-white/20"
                         style={{ backgroundColor: anim.color }}
@@ -1253,7 +1255,7 @@ export function AddElementModal({ isOpen, onClose, elementType }: AddElementModa
                     <div className="flex items-center gap-3">
                       <Type className="w-5 h-5 text-purple-400" />
                       <div>
-                        <p className="font-medium text-white">{effect.name}</p>
+                        <p className="font-medium text-white">{t(`addElement.textEffects.${effect.id}`)}</p>
                         <p className="text-xs text-midnight-400">{effect.type}</p>
                       </div>
                     </div>

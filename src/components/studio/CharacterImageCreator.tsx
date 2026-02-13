@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Sparkles, Camera, Loader2, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
+import { useTranslations } from '@/lib/i18n/context'
 
 interface CharacterImageCreatorProps {
   isOpen: boolean
@@ -32,6 +33,7 @@ export function CharacterImageCreator({
   referenceImageUrl,
   onImageCreated,
 }: CharacterImageCreatorProps) {
+  const t = useTranslations('studio')
   const [step, setStep] = useState<Step>('describe')
   const [description, setDescription] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -235,14 +237,14 @@ export function CharacterImageCreator({
               </div>
               <div>
                 <h2 className="text-xl font-display text-white">
-                  {step === 'describe' && '🎨 Nouvelle image'}
-                  {step === 'generating' && '✨ Création en cours...'}
-                  {step === 'preview' && '📸 Choisis ton image !'}
+                  {step === 'describe' && t('characterCreator.newImage')}
+                  {step === 'generating' && t('characterCreator.creationInProgress')}
+                  {step === 'preview' && t('characterCreator.chooseImage')}
                 </h2>
                 <p className="text-sm text-midnight-300">
-                  {step === 'describe' && 'Avec le même personnage'}
-                  {step === 'generating' && 'Un instant magique...'}
-                  {step === 'preview' && 'Fais défiler et capture'}
+                  {step === 'describe' && t('characterCreator.sameCharacter')}
+                  {step === 'generating' && t('characterCreator.magicMoment')}
+                  {step === 'preview' && t('characterCreator.scrollAndCapture')}
                 </p>
               </div>
             </div>
@@ -273,19 +275,19 @@ export function CharacterImageCreator({
                     className="w-16 h-16 rounded-lg object-cover"
                   />
                   <p className="text-sm text-midnight-300">
-                    Ton personnage de cette image va faire quelque chose de nouveau !
+                    {t('characterCreator.characterDoesNew')}
                   </p>
                 </div>
 
                 {/* Question */}
                 <div>
                   <label className="block text-lg font-medium text-white mb-3">
-                    Que fait ton personnage maintenant ?
+                    {t('characterCreator.whatDoesCharacterDo')}
                   </label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Ex: Il fait du vélo dans la forêt..."
+                    placeholder={t('characterCreator.placeholder')}
                     className="w-full h-24 px-4 py-3 rounded-xl bg-midnight-800 border border-midnight-600 text-white placeholder:text-midnight-400 focus:outline-none focus:ring-2 focus:ring-aurora-500/50 resize-none"
                     autoFocus
                   />
@@ -310,7 +312,7 @@ export function CharacterImageCreator({
                   )}
                 >
                   <Sparkles className="w-5 h-5" />
-                  Créer l'image
+                  {t('characterCreator.createImage')}
                 </button>
               </motion.div>
             )}
@@ -332,10 +334,10 @@ export function CharacterImageCreator({
                   </div>
                 </div>
                 <p className="text-white text-lg font-medium mb-2">
-                  Je crée ton image...
+                  {t('characterCreator.creatingImage')}
                 </p>
                 <p className="text-midnight-400 text-sm">
-                  Ça peut prendre quelques secondes ✨
+                  {t('characterCreator.fewSeconds')}
                 </p>
               </motion.div>
             )}
@@ -388,7 +390,7 @@ export function CharacterImageCreator({
                       <button
                         onClick={() => seekFrame('prev')}
                         className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                        title="Image précédente"
+                        title={t('characterCreator.prevFrame')}
                       >
                         <ChevronLeft className="w-5 h-5 text-white" />
                       </button>
@@ -405,7 +407,7 @@ export function CharacterImageCreator({
                       <button
                         onClick={() => seekFrame('next')}
                         className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                        title="Image suivante"
+                        title={t('characterCreator.nextFrame')}
                       >
                         <ChevronRight className="w-5 h-5 text-white" />
                       </button>
@@ -415,7 +417,7 @@ export function CharacterImageCreator({
 
                 {/* Instructions */}
                 <p className="text-center text-midnight-300 text-sm">
-                  Fais défiler jusqu'à trouver le moment parfait, puis capture !
+                  {t('characterCreator.scrollToFind')}
                 </p>
 
                 {/* Erreur */}
@@ -434,12 +436,12 @@ export function CharacterImageCreator({
                   {isCapturing ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Capture en cours...
+                      {t('characterCreator.capturing')}
                     </>
                   ) : (
                     <>
                       <Camera className="w-5 h-5" />
-                      📸 Garder cette image
+                      {t('characterCreator.keepImage')}
                     </>
                   )}
                 </button>

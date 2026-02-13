@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Volume2, Star, Check, ChevronDown, Sparkles } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useTTS, type VoiceOption } from '@/hooks/useTTS'
+import { useLocale, useTranslations } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 
 interface VoiceSelectorProps {
@@ -13,36 +14,36 @@ interface VoiceSelectorProps {
 }
 
 export function VoiceSelector({ className, compact = false }: VoiceSelectorProps) {
+  const locale = useLocale() as 'fr' | 'en' | 'ru'
+  const t = useTranslations('voiceSelector')
   const { aiVoice, setAiVoice, aiName } = useAppStore()
-  const tts = useTTS('fr', aiVoice || undefined)
+  const tts = useTTS(locale, aiVoice || undefined)
   const [isOpen, setIsOpen] = useState(false)
   const [testingVoice, setTestingVoice] = useState<string | null>(null)
 
-  const friendName = aiName || 'ton amie'
+  const friendName = aiName || t('defaultFriend')
 
   // Tester une voix
   const handleTestVoice = async (voice: VoiceOption) => {
     setTestingVoice(voice.name)
-    
-    // Temporairement utiliser cette voix pour le test
-    const testText = `Bonjour ! Je suis ${friendName}, et voici ma voix "${voice.name.split(' ')[0]}". Tu aimes ?`
-    
-    // Créer une utterance de test
+
+    const testText = t('testText', { name: friendName, voice: voice.name.split(' ')[0] })
+
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel()
-      
+
       const utterance = new SpeechSynthesisUtterance(testText)
       const voices = window.speechSynthesis.getVoices()
       const selectedVoice = voices.find(v => v.name === voice.name)
-      
+
       if (selectedVoice) {
         utterance.voice = selectedVoice
         utterance.rate = 1.1
         utterance.pitch = 1.1
-        
+
         utterance.onend = () => setTestingVoice(null)
         utterance.onerror = () => setTestingVoice(null)
-        
+
         window.speechSynthesis.speak(utterance)
       } else {
         setTestingVoice(null)
@@ -60,14 +61,14 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
   // Qualité badge
   const QualityBadge = ({ quality }: { quality: VoiceOption['quality'] }) => {
     const config = {
-      premium: { label: '⭐ Premium', className: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-      standard: { label: '✓ Standard', className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-      basic: { label: 'Basique', className: 'bg-midnight-700 text-midnight-400 border-midnight-600' },
+      premium: { label: 'Premium', className: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+      standard: { label: 'Standard', className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+      basic: { label: t('basic'), className: 'bg-midnight-700 text-midnight-400 border-midnight-600' },
     }
     const { label, className } = config[quality]
     return (
       <span className={cn('text-[10px] px-1.5 py-0.5 rounded border', className)}>
-        {label}
+        {quality === 'premium' ? '⭐ ' : quality === 'standard' ? '✓ ' : ''}{label}
       </span>
     )
   }
@@ -81,7 +82,7 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
         >
           <Volume2 className="w-4 h-4 text-aurora-400" />
           <span className="truncate max-w-[100px]">
-            {tts.currentVoice?.name.split(' ')[0] || 'Voix...'}
+            {tts.currentVoice?.name.split(' ')[0] || t('voicePlaceholder')}
           </span>
           <ChevronDown className={cn('w-4 h-4 transition-transform', isOpen && 'rotate-180')} />
         </button>
@@ -95,7 +96,7 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
               className="absolute top-full left-0 mt-2 w-64 bg-midnight-900 border border-midnight-700 rounded-xl shadow-xl z-50 overflow-hidden"
             >
               <div className="p-2 border-b border-midnight-700">
-                <p className="text-xs text-midnight-400">Voix de {friendName}</p>
+                <p className="text-xs text-midnight-400">{t('voiceOf', { name: friendName })}</p>
               </div>
               <div className="max-h-60 overflow-y-auto">
                 {tts.availableVoices.map((voice) => (
@@ -135,11 +136,11 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
           <Volume2 className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h3 className="font-semibold text-white">Voix de {friendName}</h3>
+          <h3 className="font-semibold text-white">{t('voiceOf', { name: friendName })}</h3>
           <p className="text-xs text-midnight-400">
-            {tts.currentVoice 
+            {tts.currentVoice
               ? `${tts.currentVoice.name} ${tts.currentVoice.isRecommended ? '⭐' : ''}`
-              : 'Aucune voix sélectionnée'
+              : t('noVoice')
             }
           </p>
         </div>
@@ -149,7 +150,7 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
       <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
         {tts.availableVoices.length === 0 ? (
           <p className="text-sm text-midnight-400 text-center py-4">
-            Chargement des voix...
+            {t('loading')}
           </p>
         ) : (
           tts.availableVoices.map((voice) => (
@@ -185,7 +186,7 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
                   </span>
                   {voice.isRecommended && (
                     <span className="flex items-center gap-1 text-[10px] text-amber-300">
-                      <Star className="w-3 h-3" /> Recommandée
+                      <Star className="w-3 h-3" /> {t('recommended')}
                     </span>
                   )}
                 </div>
@@ -208,7 +209,7 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
                     ? 'bg-aurora-500/30 text-aurora-300'
                     : 'bg-midnight-700/50 text-midnight-400 hover:text-white hover:bg-midnight-600/50'
                 )}
-                title="Écouter cette voix"
+                title={t('listenVoice')}
               >
                 {testingVoice === voice.name ? (
                   <Sparkles className="w-4 h-4 animate-pulse" />
@@ -224,7 +225,7 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
       {/* Message d'aide */}
       {tts.availableVoices.length > 0 && (
         <p className="text-[11px] text-midnight-500 mt-3 text-center">
-          💡 Les voix ⭐ Premium sont les plus naturelles
+          💡 {t('premiumTip')}
         </p>
       )}
     </div>

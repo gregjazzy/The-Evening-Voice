@@ -41,6 +41,7 @@ import {
 import { AddElementModal } from './AddElementModal'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { type HighlightableElement } from '@/store/useHighlightStore'
+import { useTranslations } from '@/lib/i18n/context'
 
 // =============================================================================
 // CONSTANTES
@@ -54,79 +55,60 @@ const BUFFER_DURATION = 10
 // UTILITAIRES
 // =============================================================================
 
-// Convertir un code hex en nom de couleur lisible
-const COLOR_NAMES: Record<string, string> = {
-  '#FFB347': 'Chaleureux',
-  '#87CEEB': 'Frais',
-  '#DA70D6': 'Magique',
-  '#FF6B6B': 'Coucher de soleil',
-  '#228B22': 'Forêt',
-  '#191970': 'Nuit',
-  '#FFD700': 'Doré',
-  '#FFEFD5': 'Doux',
-  '#FFFFFF': 'Blanc',
-  '#FF0000': 'Rouge',
-  '#00FF00': 'Vert',
-  '#0000FF': 'Bleu',
-  '#FFFF00': 'Jaune',
-  '#FF00FF': 'Rose',
-  '#00FFFF': 'Cyan',
-  '#FFA500': 'Orange',
-  '#800080': 'Violet',
-  '#FFC0CB': 'Rose pâle',
-  '#ADD8E6': 'Bleu clair',
-  '#90EE90': 'Vert clair',
-  '#F0E68C': 'Kaki',
-  '#E6E6FA': 'Lavande',
-  '#FFFACD': 'Citron',
-  '#D2691E': 'Chocolat',
-  '#4682B4': 'Acier',
-}
+// Known color hex codes (used for closest-match lookup)
+const COLOR_HEX_KEYS = [
+  '#FFB347', '#87CEEB', '#DA70D6', '#FF6B6B', '#228B22', '#191970',
+  '#FFD700', '#FFEFD5', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
+  '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080', '#FFC0CB',
+  '#ADD8E6', '#90EE90', '#F0E68C', '#E6E6FA', '#FFFACD', '#D2691E', '#4682B4',
+]
 
-function getColorName(hex: string): string {
+function getColorName(hex: string, t: (key: string) => string): string {
   // Normaliser le hex en majuscules
   const normalizedHex = hex.toUpperCase()
-  
-  // Chercher une correspondance exacte
-  if (COLOR_NAMES[normalizedHex]) {
-    return COLOR_NAMES[normalizedHex]
+
+  // Chercher une correspondance exacte via translations
+  const exactName = t(`timeline.colors.${normalizedHex}`)
+  if (exactName && exactName !== `timeline.colors.${normalizedHex}`) {
+    return exactName
   }
-  
+
   // Trouver la couleur la plus proche
   const r = parseInt(normalizedHex.slice(1, 3), 16)
   const g = parseInt(normalizedHex.slice(3, 5), 16)
   const b = parseInt(normalizedHex.slice(5, 7), 16)
-  
-  let closestName = hex
+
+  let closestKey = hex
   let closestDistance = Infinity
-  
-  for (const [colorHex, name] of Object.entries(COLOR_NAMES)) {
+
+  for (const colorHex of COLOR_HEX_KEYS) {
     const cr = parseInt(colorHex.slice(1, 3), 16)
     const cg = parseInt(colorHex.slice(3, 5), 16)
     const cb = parseInt(colorHex.slice(5, 7), 16)
-    
+
     const distance = Math.sqrt(
       Math.pow(r - cr, 2) + Math.pow(g - cg, 2) + Math.pow(b - cb, 2)
     )
-    
+
     if (distance < closestDistance) {
       closestDistance = distance
-      closestName = name
+      closestKey = colorHex
     }
   }
-  
+
   // Si la distance est trop grande, retourner une description basée sur la teinte
   if (closestDistance > 100) {
-    if (r > g && r > b) return 'Rougeâtre'
-    if (g > r && g > b) return 'Verdâtre'
-    if (b > r && b > g) return 'Bleuâtre'
-    if (r > 200 && g > 200 && b < 100) return 'Jaune'
-    if (r > 200 && g < 100 && b > 200) return 'Magenta'
-    if (r < 100 && g > 200 && b > 200) return 'Cyan'
-    return 'Personnalisé'
+    if (r > g && r > b) return t('timeline.colorDetection.reddish')
+    if (g > r && g > b) return t('timeline.colorDetection.greenish')
+    if (b > r && b > g) return t('timeline.colorDetection.bluish')
+    if (r > 200 && g > 200 && b < 100) return t('timeline.colorDetection.yellow')
+    if (r > 200 && g < 100 && b > 200) return t('timeline.colorDetection.magenta')
+    if (r < 100 && g > 200 && b > 200) return t('timeline.colorDetection.cyan')
+    return t('timeline.colorDetection.custom')
   }
-  
-  return closestName
+
+  const closestName = t(`timeline.colors.${closestKey}`)
+  return (closestName && closestName !== `timeline.colors.${closestKey}`) ? closestName : hex
 }
 
 // =============================================================================
@@ -169,6 +151,7 @@ function IntroOutroZone({
   startOffset,
   onDurationChange,
 }: IntroOutroZoneProps) {
+  const t = useTranslations('layout')
   const zoneRef = useRef<HTMLDivElement>(null)
   const [isResizing, setIsResizing] = useState(false)
   const resizeStartX = useRef(0)
@@ -243,7 +226,7 @@ function IntroOutroZone({
     >
       {/* Emoji et label */}
       <span className="truncate font-medium">
-        {type === 'intro' ? '🎬 Intro' : '🎬 Outro'}
+        {type === 'intro' ? t('timeline.intro') : t('timeline.outro')}
       </span>
       <span className="ml-1 text-[10px] opacity-70">
         {duration.toFixed(1)}s
@@ -265,7 +248,7 @@ function IntroOutroZone({
       <button
         onClick={() => onDurationChange(0)}
         className="absolute -top-1 -right-1 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-400"
-        title="Supprimer"
+        title={t('timeline.delete')}
       >
         <Trash2 className="w-2.5 h-2.5" />
       </button>
@@ -292,6 +275,7 @@ function NarrationZone({
   startOffset,
   onDurationChange,
 }: NarrationZoneProps) {
+  const t = useTranslations('layout')
   const zoneRef = useRef<HTMLDivElement>(null)
   const [isResizing, setIsResizing] = useState(false)
   const resizeStartX = useRef(0)
@@ -352,7 +336,7 @@ function NarrationZone({
     >
       {/* Emoji et label */}
       <span className="truncate font-medium">
-        📖 Narration
+        {t('timeline.narration')}
       </span>
       <span className="ml-1 text-[10px] opacity-70">
         {duration.toFixed(1)}s
@@ -365,7 +349,7 @@ function NarrationZone({
           'hover:bg-amber-400/30 flex items-center justify-center'
         )}
         onMouseDown={handleResizeStart}
-        title="Glisser pour étendre la zone de narration"
+        title={t('timeline.dragToExtend')}
       >
         <GripVertical className="w-2 h-2 text-amber-300/70 rotate-90" />
       </div>
@@ -375,7 +359,7 @@ function NarrationZone({
         <button
           onClick={() => onDurationChange(minDuration)}
           className="absolute -top-1 -right-1 p-0.5 rounded-full bg-amber-500 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-amber-400"
-          title="Réinitialiser à la durée de l'audio"
+          title={t('timeline.resetAudioDuration')}
         >
           <RotateCcw className="w-2.5 h-2.5" />
         </button>
@@ -633,6 +617,7 @@ interface TrackRowScrollableProps {
 }
 
 function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, laneCount = 1, onAdd, highlightId, children }: TrackRowScrollableProps) {
+  const t = useTranslations('layout')
   const totalHeight = Math.max(1, laneCount) * LANE_HEIGHT + (Math.max(0, laneCount - 1) * LANE_GAP)
   
   const addButton = onAdd ? (
@@ -645,7 +630,7 @@ function TrackRowScrollable({ label, icon, color, buttonColor, timelineWidth, la
         'p-1 rounded-md transition-all hover:scale-110 shrink-0',
         buttonColor
       )}
-      title={`Ajouter ${label.toLowerCase()}`}
+      title={t('timeline.addTrack', { label })}
     >
       <Plus className="w-3 h-3" />
     </button>
@@ -701,6 +686,7 @@ interface TimeRulerScrollableProps {
 }
 
 function TimeRulerScrollable({ duration, totalDuration, currentTime, pixelsPerSecond, rulerScrollRef, playheadRef, isPlaying, onScroll, onSeek }: TimeRulerScrollableProps) {
+  const t = useTranslations('layout')
   // Handler pour cliquer sur la règle et repositionner la tête de lecture
   const handleRulerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -721,8 +707,8 @@ function TimeRulerScrollable({ duration, totalDuration, currentTime, pixelsPerSe
   const markInterval = getMarkInterval()
   const marks: number[] = []
   // Afficher les marques jusqu'à totalDuration (inclut le buffer)
-  for (let t = 0; t <= totalDuration; t += markInterval) {
-    marks.push(t)
+  for (let m = 0; m <= totalDuration; m += markInterval) {
+    marks.push(m)
   }
 
   const formatTime = (seconds: number) => {
@@ -750,7 +736,7 @@ function TimeRulerScrollable({ duration, totalDuration, currentTime, pixelsPerSe
           className="relative h-full cursor-pointer hover:bg-midnight-700/20 transition-colors" 
           style={{ width: timelineWidth }}
           onClick={handleRulerClick}
-          title="Clique pour repositionner la tête de lecture"
+          title={t('timeline.seekTooltip')}
         >
           {/* Zone de buffer (grisée, après la durée actuelle) */}
           <div 
@@ -759,24 +745,24 @@ function TimeRulerScrollable({ duration, totalDuration, currentTime, pixelsPerSe
               left: bufferStartPx,
               width: timelineWidth - bufferStartPx,
             }}
-            title="Zone d'extension - Déplace un élément ici pour allonger la scène"
+            title={t('timeline.bufferZoneTooltip')}
           />
           
           {/* Marques de temps */}
-          {marks.map((t) => (
+          {marks.map((m) => (
             <div
-              key={t}
+              key={m}
               className="absolute top-0 bottom-0 flex flex-col items-center"
-              style={{ left: t * pixelsPerSecond }}
+              style={{ left: m * pixelsPerSecond }}
             >
               <div className={cn(
                 "w-px h-2",
-                t > duration ? "bg-midnight-600/50" : "bg-midnight-600"
+                m > duration ? "bg-midnight-600/50" : "bg-midnight-600"
               )} />
               <span className={cn(
                 "text-[10px] whitespace-nowrap",
-                t > duration ? "text-midnight-600" : "text-midnight-500"
-              )}>{formatTime(t)}</span>
+                m > duration ? "text-midnight-600" : "text-midnight-500"
+              )}>{formatTime(m)}</span>
             </div>
           ))}
 
@@ -1041,6 +1027,7 @@ type ModalElementType = 'media' | 'music' | 'sound' | 'light' | 'decoration' | '
 // =============================================================================
 
 export function TimelineRubans() {
+  const t = useTranslations('layout')
   const {
     currentProject,
     currentSceneIndex,
@@ -1766,7 +1753,7 @@ export function TimelineRubans() {
   if (!scene) {
     return (
       <div className="glass rounded-xl p-6 text-center">
-        <p className="text-midnight-400">Sélectionne une scène pour voir la timeline</p>
+        <p className="text-midnight-400">{t('timeline.selectScene')}</p>
       </div>
     )
   }
@@ -1780,8 +1767,8 @@ export function TimelineRubans() {
       <div className="p-3 border-b border-midnight-700/50 flex items-center justify-between shrink-0">
         <h3 className="text-sm font-medium flex items-center gap-2">
           <GripVertical className="w-4 h-4 text-midnight-500" />
-          Timeline - Scène {currentSceneIndex + 1}
-          {isFullscreen && <span className="text-xs text-midnight-500 ml-2">(Plein écran)</span>}
+          {t('timeline.sceneHeader', { index: currentSceneIndex + 1 })}
+          {isFullscreen && <span className="text-xs text-midnight-500 ml-2">({t('timeline.fullscreenLabel')})</span>}
         </h3>
 
         <div className="flex items-center gap-4">
@@ -1790,21 +1777,21 @@ export function TimelineRubans() {
             <button
               onClick={zoomOut}
               className="p-1.5 rounded hover:bg-midnight-700/50 text-midnight-400 hover:text-white transition-colors"
-              title="Zoom arrière"
+              title={t('timeline.zoom.out')}
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={zoomFit}
               className="p-1.5 rounded hover:bg-midnight-700/50 text-midnight-400 hover:text-white transition-colors"
-              title="Ajuster à l'écran"
+              title={t('timeline.zoom.fit')}
             >
               <Maximize2 className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={zoomIn}
               className="p-1.5 rounded hover:bg-midnight-700/50 text-midnight-400 hover:text-white transition-colors"
-              title="Zoom avant"
+              title={t('timeline.zoom.in')}
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
@@ -1819,7 +1806,7 @@ export function TimelineRubans() {
                 ? 'bg-aurora-500/30 text-aurora-300 hover:bg-aurora-500/40' 
                 : 'bg-midnight-800/50 text-midnight-400 hover:text-white hover:bg-midnight-700/50'
             )}
-            title={isFullscreen ? "Quitter le plein écran (Échap)" : "Timeline plein écran"}
+            title={isFullscreen ? t('timeline.exitFullscreen') : t('timeline.fullscreen')}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Fullscreen className="w-4 h-4" />}
           </button>
@@ -1899,14 +1886,14 @@ export function TimelineRubans() {
             style={{ width: LABEL_WIDTH - 8 }}
           >
             <Play className="w-3 h-3 text-emerald-300" />
-            <span className="truncate flex-1">Structure</span>
+            <span className="truncate flex-1">{t('timeline.tracks.structure')}</span>
             {/* Boutons d'ajout intro/outro */}
             <div className="flex gap-0.5">
               {introDuration === 0 && (
                 <button
                   onClick={() => setIntroDuration(3)}
                   className="p-0.5 rounded bg-emerald-500/50 hover:bg-emerald-500 text-white transition-colors"
-                  title="Ajouter intro (3s)"
+                  title={t('timeline.addIntro')}
                 >
                   <Plus className="w-2.5 h-2.5" />
                 </button>
@@ -1915,7 +1902,7 @@ export function TimelineRubans() {
                 <button
                   onClick={() => setOutroDuration(3)}
                   className="p-0.5 rounded bg-violet-500/50 hover:bg-violet-500 text-white transition-colors"
-                  title="Ajouter outro (3s)"
+                  title={t('timeline.addOutro')}
                 >
                   <Plus className="w-2.5 h-2.5" />
                 </button>
@@ -1979,7 +1966,7 @@ export function TimelineRubans() {
           const laneCount = countLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
           return (
             <TrackRowScrollable
-              label="Médias"
+              label={t('timeline.tracks.medias')}
               icon={<Video className="w-3.5 h-3.5" />}
               color="bg-blue-500/30 text-blue-300"
               buttonColor="bg-blue-500/50 hover:bg-blue-500 text-blue-200"
@@ -2018,7 +2005,7 @@ export function TimelineRubans() {
           const laneCount = countLanes(tracks.map((t: MusicTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
           return (
             <TrackRowScrollable
-              label="Musique"
+              label={t('timeline.tracks.musique')}
               icon={<Music className="w-3.5 h-3.5" />}
               color="bg-emerald-500/30 text-emerald-300"
               buttonColor="bg-emerald-500/50 hover:bg-emerald-500 text-emerald-200"
@@ -2058,7 +2045,7 @@ export function TimelineRubans() {
           const laneCount = countLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
           return (
             <TrackRowScrollable
-              label="Sons"
+              label={t('timeline.tracks.sons')}
               icon={<Volume2 className="w-3.5 h-3.5" />}
               color="bg-pink-500/30 text-pink-300"
               buttonColor="bg-pink-500/50 hover:bg-pink-500 text-pink-200"
@@ -2097,7 +2084,7 @@ export function TimelineRubans() {
           const laneCount = countLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
           return (
             <TrackRowScrollable
-              label="Lumières"
+              label={t('timeline.tracks.lumieres')}
               icon={<Lightbulb className="w-3.5 h-3.5" />}
               color="bg-yellow-500/30 text-yellow-300"
               buttonColor="bg-yellow-500/50 hover:bg-yellow-500 text-yellow-200"
@@ -2110,7 +2097,7 @@ export function TimelineRubans() {
                 <Ruban
                   key={track.id}
                   id={track.id}
-                  label={`${getColorName(track.color)} ${track.intensity}%`}
+                  label={`${getColorName(track.color, t)} ${track.intensity}%`}
                   icon={<Lightbulb className="w-3 h-3" />}
                   color="bg-yellow-500"
                   timeRange={track.timeRange}
@@ -2136,7 +2123,7 @@ export function TimelineRubans() {
           const laneCount = countLanes(tracks.map((t: DecorationTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
           return (
             <TrackRowScrollable
-              label="Déco"
+              label={t('timeline.tracks.deco')}
               icon={<Sparkles className="w-3.5 h-3.5" />}
               color="bg-orange-500/30 text-orange-300"
               buttonColor="bg-orange-500/50 hover:bg-orange-500 text-orange-200"
@@ -2175,7 +2162,7 @@ export function TimelineRubans() {
           const laneCount = countLanes(tracks.map((t: AnimationTrack) => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
           return (
             <TrackRowScrollable
-              label="Anim"
+              label={t('timeline.tracks.anim')}
               icon={<Wind className="w-3.5 h-3.5" />}
               color="bg-cyan-500/30 text-cyan-300"
               buttonColor="bg-cyan-500/50 hover:bg-cyan-500 text-cyan-200"
@@ -2214,7 +2201,7 @@ export function TimelineRubans() {
           const laneCount = countLanes(tracks.map(t => ({ id: t.id, startTime: t.timeRange.startTime, endTime: t.timeRange.endTime })))
           return (
             <TrackRowScrollable
-              label="Effets"
+              label={t('timeline.tracks.effets')}
               icon={<Type className="w-3.5 h-3.5" />}
               color="bg-purple-500/30 text-purple-300"
               buttonColor="bg-purple-500/50 hover:bg-purple-500 text-purple-200"
@@ -2249,7 +2236,7 @@ export function TimelineRubans() {
       {/* Info */}
       <div className="px-3 pb-3">
         <p className="text-xs text-midnight-500 text-center">
-          👆 Glisse les rubans pour ajuster le timing • Tire les bords pour redimensionner
+          {t('timeline.dragHint')}
         </p>
       </div>
       

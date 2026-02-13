@@ -61,9 +61,9 @@ export function getFitScale(
 // ---------------------------------------------------------------------------
 
 export const LINE_SPACINGS = {
-  tight:   { label: 'Serré',  pixelHeight: 24 },
-  normal:  { label: 'Normal', pixelHeight: 32 },
-  relaxed: { label: 'Aéré',   pixelHeight: 40 },
+  tight:   { label: 'Serré',  nameKey: 'lineSpacings.tight',   pixelHeight: 24 },
+  normal:  { label: 'Normal', nameKey: 'lineSpacings.normal',  pixelHeight: 32 },
+  relaxed: { label: 'Aéré',   nameKey: 'lineSpacings.relaxed', pixelHeight: 40 },
 } as const
 
 export type LineSpacing = keyof typeof LINE_SPACINGS

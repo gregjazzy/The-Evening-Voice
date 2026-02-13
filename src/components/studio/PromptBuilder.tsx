@@ -35,51 +35,52 @@ import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { useToast } from '@/components/ui/Toast'
+import { useTranslations } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 
 // Options de style avec icônes et couleurs
-const styleOptions: { id: StyleType; label: string; emoji: string; color: string }[] = [
-  { id: 'dessin', label: 'Dessin', emoji: '✏️', color: 'from-amber-500 to-orange-600' },
-  { id: 'photo', label: 'Photo', emoji: '📷', color: 'from-slate-500 to-slate-700' },
-  { id: 'magique', label: 'Magique', emoji: '✨', color: 'from-aurora-500 to-aurora-700' },
-  { id: 'anime', label: 'Anime', emoji: '🌸', color: 'from-pink-500 to-rose-600' },
-  { id: 'aquarelle', label: 'Aquarelle', emoji: '🎨', color: 'from-cyan-500 to-blue-600' },
-  { id: 'pixel', label: 'Pixel Art', emoji: '👾', color: 'from-green-500 to-emerald-600' },
+const styleOptions: { id: StyleType; labelKey: string; emoji: string; color: string }[] = [
+  { id: 'dessin', labelKey: 'styles.drawing', emoji: '✏️', color: 'from-amber-500 to-orange-600' },
+  { id: 'photo', labelKey: 'styles.photo', emoji: '📷', color: 'from-slate-500 to-slate-700' },
+  { id: 'magique', labelKey: 'styles.magic', emoji: '✨', color: 'from-aurora-500 to-aurora-700' },
+  { id: 'anime', labelKey: 'styles.anime', emoji: '🌸', color: 'from-pink-500 to-rose-600' },
+  { id: 'aquarelle', labelKey: 'styles.watercolor', emoji: '🎨', color: 'from-cyan-500 to-blue-600' },
+  { id: 'pixel', labelKey: 'styles.pixelart', emoji: '👾', color: 'from-green-500 to-emerald-600' },
 ]
 
 // Options d'ambiance
-const ambianceOptions: { id: AmbianceType; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'jour', label: 'Jour', icon: <CloudSun className="w-5 h-5" />, color: 'from-sky-400 to-blue-500' },
-  { id: 'nuit', label: 'Nuit', icon: <Moon className="w-5 h-5" />, color: 'from-indigo-600 to-purple-800' },
-  { id: 'orage', label: 'Orage', icon: <Zap className="w-5 h-5" />, color: 'from-gray-600 to-slate-800' },
-  { id: 'brume', label: 'Brume', icon: <CloudRain className="w-5 h-5" />, color: 'from-gray-400 to-slate-500' },
-  { id: 'feerique', label: 'Féérique', icon: <Stars className="w-5 h-5" />, color: 'from-fuchsia-500 to-purple-600' },
-  { id: 'mystere', label: 'Mystère', icon: <Eye className="w-5 h-5" />, color: 'from-violet-700 to-purple-900' },
+const ambianceOptions: { id: AmbianceType; labelKey: string; icon: React.ReactNode; color: string }[] = [
+  { id: 'jour', labelKey: 'ambiances.day', icon: <CloudSun className="w-5 h-5" />, color: 'from-sky-400 to-blue-500' },
+  { id: 'nuit', labelKey: 'ambiances.night', icon: <Moon className="w-5 h-5" />, color: 'from-indigo-600 to-purple-800' },
+  { id: 'orage', labelKey: 'ambiances.storm', icon: <Zap className="w-5 h-5" />, color: 'from-gray-600 to-slate-800' },
+  { id: 'brume', labelKey: 'ambiances.mist', icon: <CloudRain className="w-5 h-5" />, color: 'from-gray-400 to-slate-500' },
+  { id: 'feerique', labelKey: 'ambiances.fairy', icon: <Stars className="w-5 h-5" />, color: 'from-fuchsia-500 to-purple-600' },
+  { id: 'mystere', labelKey: 'ambiances.mystery', icon: <Eye className="w-5 h-5" />, color: 'from-violet-700 to-purple-900' },
 ]
 
 // Options de lumière
-const lightOptions: { id: LightType; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'soleil', label: 'Soleil', icon: <Sun className="w-5 h-5" />, color: 'from-yellow-400 to-orange-500' },
-  { id: 'lune', label: 'Lune', icon: <Moon className="w-5 h-5" />, color: 'from-slate-300 to-slate-500' },
-  { id: 'bougie', label: 'Bougie', icon: <Flame className="w-5 h-5" />, color: 'from-orange-500 to-red-600' },
-  { id: 'neon', label: 'Néon', icon: <Zap className="w-5 h-5" />, color: 'from-pink-500 to-cyan-500' },
-  { id: 'aurore', label: 'Aurore', icon: <Stars className="w-5 h-5" />, color: 'from-green-400 to-purple-500' },
+const lightOptions: { id: LightType; labelKey: string; icon: React.ReactNode; color: string }[] = [
+  { id: 'soleil', labelKey: 'lights.sun', icon: <Sun className="w-5 h-5" />, color: 'from-yellow-400 to-orange-500' },
+  { id: 'lune', labelKey: 'lights.moon', icon: <Moon className="w-5 h-5" />, color: 'from-slate-300 to-slate-500' },
+  { id: 'bougie', labelKey: 'lights.candle', icon: <Flame className="w-5 h-5" />, color: 'from-orange-500 to-red-600' },
+  { id: 'neon', labelKey: 'lights.neon', icon: <Zap className="w-5 h-5" />, color: 'from-pink-500 to-cyan-500' },
+  { id: 'aurore', labelKey: 'lights.aurora', icon: <Stars className="w-5 h-5" />, color: 'from-green-400 to-purple-500' },
 ]
 
 // Options de format d'image
-const formatOptions: { id: FormatType; label: string; emoji: string; description: string; color: string }[] = [
-  { id: 'portrait', label: 'Portrait', emoji: '📐', description: 'Vertical', color: 'from-amber-500 to-orange-600' },
-  { id: 'paysage', label: 'Paysage', emoji: '🖼️', description: 'Horizontal', color: 'from-blue-500 to-cyan-600' },
-  { id: 'carre', label: 'Carré', emoji: '⬜', description: 'Carré', color: 'from-pink-500 to-rose-600' },
+const formatOptions: { id: FormatType; emoji: string; color: string }[] = [
+  { id: 'portrait', emoji: '📐', color: 'from-amber-500 to-orange-600' },
+  { id: 'paysage', emoji: '🖼️', color: 'from-blue-500 to-cyan-600' },
+  { id: 'carre', emoji: '⬜', color: 'from-pink-500 to-rose-600' },
 ]
 
 // Options de mouvement pour vidéos
-const movementOptions: { id: MovementType; label: string; emoji: string; description: string; color: string }[] = [
-  { id: 'lent', label: 'Lent', emoji: '🐢', description: 'Doux et calme', color: 'from-blue-400 to-cyan-500' },
-  { id: 'rapide', label: 'Rapide', emoji: '⚡', description: 'Dynamique', color: 'from-orange-500 to-red-500' },
-  { id: 'doux', label: 'Doux', emoji: '🌸', description: 'Fluide', color: 'from-pink-400 to-rose-500' },
-  { id: 'dynamique', label: 'Dynamique', emoji: '🎬', description: 'Énergique', color: 'from-purple-500 to-indigo-500' },
-  { id: 'immobile', label: 'Presque fixe', emoji: '🖼️', description: 'Peu de mouvement', color: 'from-slate-400 to-gray-500' },
+const movementOptions: { id: MovementType; emoji: string; color: string }[] = [
+  { id: 'lent', emoji: '🐢', color: 'from-blue-400 to-cyan-500' },
+  { id: 'rapide', emoji: '⚡', color: 'from-orange-500 to-red-500' },
+  { id: 'doux', emoji: '🌸', color: 'from-pink-400 to-rose-500' },
+  { id: 'dynamique', emoji: '🎬', color: 'from-purple-500 to-indigo-500' },
+  { id: 'immobile', emoji: '🖼️', color: 'from-slate-400 to-gray-500' },
 ]
 
 
@@ -219,6 +220,7 @@ interface PromptBuilderProps {
 }
 
 export function PromptBuilder({ onComplete }: PromptBuilderProps) {
+  const t = useTranslations('studio')
   const { currentStory } = useAppStore()
   
   const {
@@ -954,42 +956,21 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       
       console.log('✅ Asset généré:', assetUrl)
       setGeneratedAsset({ url: assetUrl, type: isVideo ? 'video' : 'image' })
-      
-      // Auto-upload vers Supabase Storage pour URL permanente
+
+      // Sauvegarder localement (URL temporaire) — l'upload Supabase se fait manuellement
       const assetName = isVideo
         ? (currentKit.action?.substring(0, 30) || 'Vidéo') + '...'
         : (currentKit.subject?.substring(0, 30) || 'Image') + '...'
 
-      const uploadResult = await uploadFromUrl(assetUrl, {
+      addImportedAsset({
+        name: assetName,
+        url: assetUrl,
         type: isVideo ? 'video' : 'image',
+        file: null,
         source: isVideo ? 'runway' : 'midjourney',
-        storyId: currentStory?.id,
+        promptUsed: currentKit.generatedPrompt,
+        projectId: currentStory?.id,
       })
-
-      if (uploadResult) {
-        // Upload réussi - mettre à jour l'asset avec promptUsed et nom lisible
-        const assets = useStudioStore.getState().importedAssets
-        const uploaded = assets.find(a => a.cloudUrl === uploadResult.url)
-        if (uploaded) {
-          useStudioStore.getState().updateAsset(uploaded.id, {
-            name: assetName,
-            promptUsed: currentKit.generatedPrompt,
-            projectId: currentStory?.id,
-          })
-        }
-      } else {
-        // Fallback : URL temporaire si l'upload échoue
-        console.warn('⚠️ Auto-upload échoué, URL temporaire utilisée')
-        addImportedAsset({
-          name: assetName,
-          url: assetUrl,
-          type: isVideo ? 'video' : 'image',
-          file: null,
-          source: isVideo ? 'runway' : 'midjourney',
-          promptUsed: currentKit.generatedPrompt,
-          projectId: currentStory?.id,
-        })
-      }
       
       // Marquer les étapes comme complétées
       completeStep('review_prompt')
@@ -1051,13 +1032,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     if (!isAdvancedLevel) return baseCompleteness.missing
     
     const missingItems: string[] = []
-    if (!advancedDetection.hasEnoughText) missingItems.push('description plus détaillée')
-    if (!advancedDetection.hasStyle) missingItems.push('style visuel (dessin, photo, magique...)')
-    if (!advancedDetection.hasAmbiance) missingItems.push('ambiance (jour, nuit, orage...)')
-    if (isExpertLevel && !advancedDetection.hasDetails) missingItems.push('détails (couleurs, lumière, textures...)')
+    if (!advancedDetection.hasEnoughText) missingItems.push(t('promptBuilderUI.missingDescription'))
+    if (!advancedDetection.hasStyle) missingItems.push(t('promptBuilderUI.missingStyle'))
+    if (!advancedDetection.hasAmbiance) missingItems.push(t('promptBuilderUI.missingMood'))
+    if (isExpertLevel && !advancedDetection.hasDetails) missingItems.push(t('promptBuilderUI.missingDetails'))
     // Format requis pour toutes les images (tous niveaux)
     if (isImageCreation && !currentKit?.format && !(isExpertLevel && advancedDetection.hasFormat)) {
-      missingItems.push('format d\'image (portrait, paysage ou carré)')
+      missingItems.push(t('promptBuilderUI.missingFormat'))
     }
     return missingItems
   }, [isAdvancedLevel, isExpertLevel, baseCompleteness.missing, advancedDetection, isImageCreation, currentKit?.format])
@@ -1361,7 +1342,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 "font-semibold",
                 !currentKit.sourceImageUrl ? "text-stardust-300" : "text-white"
               )}>
-                {!currentKit.sourceImageUrl ? "🖼️ Choisis une image à animer" : "🖼️ Image sélectionnée"}
+                {!currentKit.sourceImageUrl ? `🖼️ ${t('promptBuilderUI.chooseImageToAnimate')}` : `🖼️ ${t('promptBuilderUI.imageSelected')}`}
               </h3>
               {currentKit.sourceImageUrl && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
@@ -1404,10 +1385,10 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               <div className="text-center py-8 px-4 rounded-xl bg-midnight-900/50 border-2 border-dashed border-stardust-500/30">
                 <ImageIcon className="w-12 h-12 text-stardust-400 mx-auto mb-3" />
                 <p className="text-stardust-300 font-medium mb-2">
-                  Tu n'as pas encore d'images ! 🎨
+                  {t('promptBuilderUI.noImagesYet')}
                 </p>
                 <p className="text-sm text-midnight-400">
-                  Crée d'abord des images dans le mode Images, puis reviens ici pour les animer !
+                  {t('promptBuilderUI.createImagesFirst')}
                 </p>
               </div>
             )}
@@ -1421,7 +1402,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               >
                 <p className="text-sm text-dream-300 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  Super ! Cette image va devenir une vidéo magique ! ✨
+                  {t('promptBuilderUI.imageWillBecomeVideo')}
                 </p>
               </motion.div>
             )}
@@ -1453,7 +1434,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             "font-semibold",
             !currentKit.subject ? "text-aurora-300" : "text-white"
           )}>
-            {!currentKit.subject ? "✨ Qu'est-ce que tu veux créer ?" : "Qu'est-ce que tu veux créer ?"}
+            {!currentKit.subject ? t('promptBuilderUI.whatDoYouWantToCreateHighlight') : t('promptBuilderUI.whatDoYouWantToCreate')}
           </h3>
             {validatedFields.subject && (
             <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
@@ -1470,7 +1451,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   setValidatedFields(prev => ({ ...prev, subject: false }))
                 }
               }}
-          placeholder="Décris ce que tu imagines... Par exemple : Un château sur un nuage avec des licornes 🏰✨"
+          placeholder={t('promptBuilderUI.describePlaceholder')}
           className={cn(
                 "flex-1 h-24 resize-none rounded-xl p-4 text-white placeholder:text-midnight-400 focus:ring-2 focus:outline-none transition-all",
                 validatedFields.subject
@@ -1491,8 +1472,8 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               animate={{ opacity: 1 }}
             >
               <div className="flex items-center justify-between mb-1">
-                <span>📝 Continue ta description...</span>
-                <span className="text-xs">{currentKit.subject.length}/15 caractères</span>
+                <span>📝 {t('promptBuilderUI.continueDescription')}</span>
+                <span className="text-xs">{currentKit.subject.length}/15 {t('promptBuilderUI.characters')}</span>
               </div>
               <div className="h-1 bg-midnight-800 rounded-full overflow-hidden">
                 <motion.div 
@@ -1515,7 +1496,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               whileTap={{ scale: 0.98 }}
             >
               <CheckCircle className="w-5 h-5" />
-              Valider ma description ✓
+              {t('promptBuilderUI.validateDescription')}
             </motion.button>
           )}
           
@@ -1527,7 +1508,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               animate={{ opacity: 1 }}
             >
               <CheckCircle className="w-4 h-4" />
-              Super ! Ton idée est validée ! 🌟
+              {t('promptBuilderUI.ideaValidated')}
             </motion.div>
           )}
           
@@ -1561,7 +1542,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 "font-semibold",
                 !currentKit.action ? "text-stardust-300" : "text-white"
               )}>
-                {!currentKit.action ? "🎬 Qu'est-ce qui se passe ?" : "🎬 Scénario"}
+                {!currentKit.action ? `🎬 ${t('promptBuilderUI.whatHappens')}` : `🎬 ${t('promptBuilderUI.scenario')}`}
               </h3>
               {validatedFields.action && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
@@ -1576,7 +1557,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   setValidatedFields(prev => ({ ...prev, action: false }))
                 }
               }}
-              placeholder="Décris ce qui se passe dans ta vidéo... Par exemple : Le dragon ouvre ses ailes et s'envole vers le ciel 🐉✨"
+              placeholder={t('promptBuilderUI.videoActionPlaceholder')}
               className={cn(
                 "w-full h-20 resize-none rounded-xl p-4 text-white placeholder:text-midnight-400 focus:ring-2 focus:outline-none transition-all",
                 validatedFields.action
@@ -1589,13 +1570,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             
             {/* Suggestions d'actions */}
             <div className="mt-3 flex flex-wrap gap-2">
-              <p className="text-xs text-midnight-400 w-full mb-1">💡 Exemples :</p>
+              <p className="text-xs text-midnight-400 w-full mb-1">💡 {t('promptBuilderUI.examples')}</p>
               {[
-                "s'envole doucement",
-                "tourne la tête",
-                "les yeux brillent",
-                "le vent souffle",
-                "les étoiles scintillent",
+                t('promptBuilderUI.videoSuggestions.0'),
+                t('promptBuilderUI.videoSuggestions.1'),
+                t('promptBuilderUI.videoSuggestions.2'),
+                t('promptBuilderUI.videoSuggestions.3'),
+                t('promptBuilderUI.videoSuggestions.4'),
               ].map((suggestion) => (
                 <button
                   key={suggestion}
@@ -1623,7 +1604,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 whileTap={{ scale: 0.98 }}
               >
                 <CheckCircle className="w-5 h-5" />
-                Valider mon scénario ✓
+                {t('promptBuilderUI.validateScenario')}
               </motion.button>
             )}
             
@@ -1635,7 +1616,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 animate={{ opacity: 1 }}
               >
                 <CheckCircle className="w-4 h-4" />
-                Parfait ! Ton scénario est validé ! 🎬
+                {t('promptBuilderUI.scenarioValidated')}
               </motion.div>
             )}
           </motion.section>
@@ -1666,7 +1647,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 "font-semibold",
                 !currentKit.style ? "text-aurora-300" : "text-white"
               )}>
-                {!currentKit.style ? "👆 Choisis un style !" : "Quel style ?"}
+                {!currentKit.style ? `👆 ${t('promptBuilderUI.chooseStylePrompt')}` : t('promptBuilderUI.whatStyle')}
               </h3>
               {currentKit.style && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
@@ -1689,7 +1670,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   data-mentor-target={`studio-style-${style.id}`}
                 >
                   <span className="text-2xl block mb-1">{style.emoji}</span>
-                  <span className="text-sm font-medium">{style.label}</span>
+                  <span className="text-sm font-medium">{t(style.labelKey)}</span>
                   
                   {currentKit.style === style.id && (
                     <motion.div
@@ -1717,8 +1698,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             <p className="text-sm text-dream-300 flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               <span>
-                <strong>Niveau {currentLevel}</strong> : Tu sais déjà tout décrire dans ton texte ! 
-                Décris le style, l'ambiance, les couleurs... directement dans ta phrase.
+                {t('promptBuilderUI.levelAdvanced', { level: String(currentLevel) })}
               </span>
             </p>
           </motion.div>
@@ -1749,7 +1729,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 "font-semibold",
                 !currentKit.ambiance ? "text-sky-300" : "text-white"
               )}>
-                {!currentKit.ambiance ? "👆 Choisis une ambiance !" : "Quelle ambiance ?"}
+                {!currentKit.ambiance ? `👆 ${t('promptBuilderUI.chooseMoodPrompt')}` : t('promptBuilderUI.whatMood')}
               </h3>
               {currentKit.ambiance && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
@@ -1772,7 +1752,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   data-mentor-target={`studio-ambiance-${ambiance.id}`}
                 >
                   {ambiance.icon}
-                  <span className="text-sm font-medium">{ambiance.label}</span>
+                  <span className="text-sm font-medium">{t(ambiance.labelKey)}</span>
                 </motion.button>
               ))}
             </div>
@@ -1792,13 +1772,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           >
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-dream-400" />
-              <h3 className="font-semibold text-white">✨ Ajouter des détails</h3>
+              <h3 className="font-semibold text-white">✨ {t('promptBuilderUI.addDetails')}</h3>
               {completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
             
-            <p className="text-sm text-midnight-300 mb-3">Ajoute des couleurs, formes, personnages...</p>
+            <p className="text-sm text-midnight-300 mb-3">{t('promptBuilderUI.addColorsEtc')}</p>
             <input
               type="text"
               value={currentKit.subjectDetails}
@@ -1808,7 +1788,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   setValidatedFields(prev => ({ ...prev, details: false }))
                 }
               }}
-              placeholder="Ex: avec des ailes dorées, des fleurs violettes, un ciel rose..."
+              placeholder={t('promptBuilderUI.detailsPlaceholder')}
               className={cn(
                 "w-full rounded-xl px-4 py-3 text-white placeholder:text-midnight-400",
                 completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10
@@ -1829,18 +1809,18 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 whileTap={{ scale: 0.99 }}
               >
                 <CheckCircle className="w-4 h-4" />
-                Valider ✓
+                {t('promptBuilderUI.validate')}
               </motion.button>
             )}
             {/* Message d'aide si texte trop court */}
             {currentKit.subjectDetails && currentKit.subjectDetails.length > 0 && currentKit.subjectDetails.length < 10 && !completedSteps.includes('choose_extra') && (
               <p className="mt-2 text-xs text-midnight-400">
-                💡 Ajoute plus de détails (encore {10 - currentKit.subjectDetails.length} caractères)
+                💡 {t('promptBuilderUI.addMoreDetails', { count: String(10 - currentKit.subjectDetails.length) })}
               </p>
             )}
             {completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && (
               <p className="mt-2 text-xs text-dream-400 flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" /> Validé !
+                <CheckCircle className="w-3 h-3" /> {t('promptBuilderUI.validated')}
               </p>
             )}
           </motion.section>
@@ -1859,7 +1839,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           >
             <div className="flex items-center gap-2 mb-4">
               <Sun className="w-5 h-5 text-stardust-400" />
-              <h3 className="font-semibold text-white">☀️ Quelle lumière ?</h3>
+              <h3 className="font-semibold text-white">☀️ {t('promptBuilderUI.whatLight')}</h3>
               {currentKit.light && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
@@ -1882,7 +1862,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   whileTap={{ scale: 0.98 }}
                 >
                   {light.icon}
-                  <span className="text-sm font-medium">{light.label}</span>
+                  <span className="text-sm font-medium">{t(light.labelKey)}</span>
                 </motion.button>
               ))}
             </div>
@@ -1902,14 +1882,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           >
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">📐</span>
-              <h3 className="font-semibold text-white">C&apos;est pour quoi ?</h3>
+              <h3 className="font-semibold text-white">{t('promptBuilderUI.whatShape')}</h3>
               {currentKit.format && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
             
             <p className="text-sm text-midnight-300 mb-4">
-              Quelle forme pour ton image ?
+              {t('promptBuilderUI.whatShapeSubtitle')}
             </p>
             
             <div className="grid grid-cols-3 gap-3">
@@ -1929,8 +1909,8 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   whileTap={{ scale: 0.98 }}
                 >
                   <span className="text-3xl">{format.emoji}</span>
-                  <span className="text-sm font-medium">{format.label}</span>
-                  <span className="text-xs opacity-70">{format.description}</span>
+                  <span className="text-sm font-medium">{t(`promptBuilderUI.formats.${format.id}.label`)}</span>
+                  <span className="text-xs opacity-70">{t(`promptBuilderUI.formats.${format.id}.description`)}</span>
                 </motion.button>
               ))}
             </div>
@@ -1951,14 +1931,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           >
             <div className="flex items-center gap-2 mb-4">
               <Film className="w-5 h-5 text-purple-400" />
-              <h3 className="font-semibold text-white">💫 Choisir le mouvement</h3>
+              <h3 className="font-semibold text-white">💫 {t('promptBuilderUI.chooseMovement')}</h3>
               {currentKit.movement && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
             
             <p className="text-sm text-midnight-300 mb-4">
-              Comment ta vidéo va bouger ?
+              {t('promptBuilderUI.howVideoMoves')}
             </p>
             
             <div className="grid grid-cols-3 gap-3 md:grid-cols-5">
@@ -1978,8 +1958,8 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   whileTap={{ scale: 0.98 }}
                 >
                   <span className="text-2xl">{movement.emoji}</span>
-                  <span className="text-sm font-medium">{movement.label}</span>
-                  <span className="text-xs opacity-70">{movement.description}</span>
+                  <span className="text-sm font-medium">{t(`promptBuilderUI.movements.${movement.id}.label`)}</span>
+                  <span className="text-xs opacity-70">{t(`promptBuilderUI.movements.${movement.id}.description`)}</span>
                 </motion.button>
               ))}
             </div>
@@ -2000,25 +1980,25 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           >
             <div className="flex items-center gap-2 mb-4">
               <Video className="w-5 h-5 text-blue-400" />
-              <h3 className="font-semibold text-white">🎥 Mouvement de caméra (optionnel)</h3>
+              <h3 className="font-semibold text-white">🎥 {t('promptBuilderUI.cameraMovement')}</h3>
               {currentKit.camera && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
             
             <p className="text-sm text-midnight-300 mb-4">
-              Comment la caméra bouge pendant la vidéo ?
+              {t('promptBuilderUI.howCameraMoves')}
             </p>
             
             <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
-              {[
-                { id: 'fixe' as const, label: 'Fixe', emoji: '🎯', description: 'Ne bouge pas' },
-                { id: 'zoom_in' as const, label: 'Zoom +', emoji: '🔍', description: 'Se rapproche' },
-                { id: 'zoom_out' as const, label: 'Zoom -', emoji: '🔭', description: 'S\'éloigne' },
-                { id: 'pan_gauche' as const, label: 'Gauche', emoji: '⬅️', description: 'Glisse gauche' },
-                { id: 'pan_droite' as const, label: 'Droite', emoji: '➡️', description: 'Glisse droite' },
-                { id: 'travelling' as const, label: 'Travelling', emoji: '🎬', description: 'Suit le sujet' },
-              ].map((cam) => (
+              {([
+                { id: 'fixe' as const, emoji: '🎯' },
+                { id: 'zoom_in' as const, emoji: '🔍' },
+                { id: 'zoom_out' as const, emoji: '🔭' },
+                { id: 'pan_gauche' as const, emoji: '⬅️' },
+                { id: 'pan_droite' as const, emoji: '➡️' },
+                { id: 'travelling' as const, emoji: '🎬' },
+              ] as const).map((cam) => (
                 <motion.button
                   key={cam.id}
                   onClick={() => updateKit({ 
@@ -2034,7 +2014,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   whileTap={{ scale: 0.98 }}
                 >
                   <span className="text-xl">{cam.emoji}</span>
-                  <span className="text-xs font-medium">{cam.label}</span>
+                  <span className="text-xs font-medium">{t(`promptBuilderUI.cameras.${cam.id}.label`)}</span>
                 </motion.button>
               ))}
             </div>
@@ -2054,26 +2034,26 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           >
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-amber-400" />
-              <h3 className="font-semibold text-white">✨ Effets spéciaux (optionnel)</h3>
+              <h3 className="font-semibold text-white">✨ {t('promptBuilderUI.specialEffects')}</h3>
               {currentKit.effects && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
             
             <p className="text-sm text-midnight-300 mb-4">
-              Ajoute de la magie à ta vidéo !
+              {t('promptBuilderUI.addMagic')}
             </p>
             
             <div className="grid grid-cols-4 gap-2 md:grid-cols-8">
               {[
-                { id: '', label: 'Aucun', emoji: '➖' },
-                { id: 'sparkles', label: 'Étincelles', emoji: '✨' },
-                { id: 'glow', label: 'Halo', emoji: '🌈' },
-                { id: 'smoke', label: 'Fumée', emoji: '💨' },
-                { id: 'stars', label: 'Étoiles', emoji: '⭐' },
-                { id: 'fire', label: 'Flammes', emoji: '🔥' },
-                { id: 'snow', label: 'Flocons', emoji: '❄️' },
-                { id: 'magic', label: 'Magie', emoji: '🪄' },
+                { id: '', labelKey: 'promptBuilderUI.effects.none', emoji: '➖' },
+                { id: 'sparkles', labelKey: 'promptBuilderUI.effects.sparkles', emoji: '✨' },
+                { id: 'glow', labelKey: 'promptBuilderUI.effects.glow', emoji: '🌈' },
+                { id: 'smoke', labelKey: 'promptBuilderUI.effects.smoke', emoji: '💨' },
+                { id: 'stars', labelKey: 'promptBuilderUI.effects.stars', emoji: '⭐' },
+                { id: 'fire', labelKey: 'promptBuilderUI.effects.fire', emoji: '🔥' },
+                { id: 'snow', labelKey: 'promptBuilderUI.effects.snow', emoji: '❄️' },
+                { id: 'magic', labelKey: 'promptBuilderUI.effects.magic', emoji: '🪄' },
               ].map((effect) => (
                 <motion.button
                   key={effect.id || 'none'}
@@ -2090,7 +2070,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   whileTap={{ scale: 0.98 }}
                 >
                   <span className="text-xl">{effect.emoji}</span>
-                  <span className="text-[10px] font-medium">{effect.label}</span>
+                  <span className="text-[10px] font-medium">{t(effect.labelKey)}</span>
                 </motion.button>
               ))}
             </div>
@@ -2117,13 +2097,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 {complete ? (
                   <>
                     <CheckCircle className="w-5 h-5 text-dream-400" />
-                    <h3 className="font-semibold text-dream-300">Kit prêt !</h3>
+                    <h3 className="font-semibold text-dream-300">{t('promptBuilderUI.kitReady')}</h3>
                   </>
                 ) : (
                   <>
                     <AlertCircle className="w-5 h-5 text-stardust-400" />
                     <h3 className="font-semibold text-stardust-300">
-                      Il manque : {missing.join(', ')}
+                      {t('promptBuilderUI.missing', { fields: missing.join(', ') })}
                     </h3>
                   </>
                 )}
@@ -2139,7 +2119,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                 }}
                 className="text-sm text-aurora-300 hover:text-aurora-200"
               >
-                {showPreview ? 'Cacher' : 'Voir le prompt'}
+                {showPreview ? t('promptBuilderUI.hidePrompt') : t('promptBuilderUI.showPrompt')}
               </button>
             </div>
 
@@ -2159,8 +2139,8 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   >
                     <div className="flex items-center gap-2 mb-4">
                       <FileText className="w-6 h-6 text-aurora-400" />
-                      <h4 className="font-bold text-lg text-white">✨ Voici ton prompt magique :</h4>
-                      <span className="text-xs text-aurora-300/70 ml-auto">C'est ce que l'IA va lire !</span>
+                      <h4 className="font-bold text-lg text-white">✨ {t('promptBuilderUI.magicPrompt')}</h4>
+                      <span className="text-xs text-aurora-300/70 ml-auto">{t('promptBuilderUI.aiWillRead')}</span>
                     </div>
                     
                     {/* 📚 Prompt avec tooltips interactifs sur les termes techniques */}
@@ -2168,13 +2148,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                       <div className="font-mono text-xl leading-relaxed text-white bg-gradient-to-br from-midnight-800/80 to-midnight-900/80 p-5 rounded-xl mb-2 whitespace-pre-wrap border border-aurora-500/30 shadow-lg shadow-aurora-500/10">
                         {currentKit.generatedPrompt 
                           ? renderPromptWithTooltips(currentKit.generatedPrompt)
-                          : 'Le prompt apparaîtra ici...'}
+                          : t('promptBuilderUI.promptAppearHere')}
                       </div>
                       
                       {/* Légende des mots soulignés */}
                       <p className="text-xs text-aurora-400/70 mb-4 flex items-center gap-2">
                         <Lightbulb className="w-3 h-3" />
-                        <span>💡 Les mots <span className="border-b border-dashed border-aurora-400">soulignés</span> sont des termes techniques — survole-les ou clique pour comprendre !</span>
+                        <span>{t('promptBuilderUI.tooltipHint')}</span>
                       </p>
                     </div>
                     
@@ -2200,7 +2180,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                         "text-sm transition-colors",
                         hasReadPrompt ? "text-dream-300" : "text-midnight-300 group-hover:text-white"
                       )}>
-                        ✅ J'ai bien lu le prompt et je suis prêt à créer !
+                        {t('promptBuilderUI.readPromptCheckbox')}
                       </span>
                     </label>
                   </motion.div>
@@ -2227,17 +2207,17 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                       {isGenerating ? (
                         <>
                           <Loader2 className="w-6 h-6 animate-spin" />
-                          Création en cours... ✨
+                          {t('promptBuilderUI.creatingInProgress')}
                         </>
                       ) : !hasReadPrompt ? (
                         <>
                           <FileText className="w-6 h-6" />
-                          Lis d'abord le prompt ☝️
+                          {t('promptBuilderUI.readPromptFirst')}
                         </>
                       ) : (
                         <>
                           <Wand2 className="w-6 h-6" />
-                          🪄 Créer {currentCreationType === 'video' ? 'ma vidéo' : 'mon image'} !
+                          🪄 {currentCreationType === 'video' ? t('promptBuilderUI.createMyVideo') : t('promptBuilderUI.createMyImage')}
                         </>
                       )}
                     </motion.button>
@@ -2254,7 +2234,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                           onClick={handleDirectGenerate}
                           className="ml-2 underline hover:no-underline"
                         >
-                          Réessayer
+                          {t('promptBuilderUI.retry')}
                         </button>
                       </motion.div>
                     )}
@@ -2288,7 +2268,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                         
                         <div className="p-4 bg-dream-500/10 space-y-3">
                           <p className="text-dream-300 font-medium text-center">
-                            🎉 Tadaa ! Qu'est-ce que tu en penses ?
+                            🎉 {t('promptBuilderUI.result')}
                           </p>
                           
                           {/* 3 boutons d'action */}
@@ -2352,7 +2332,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                                 <CheckCircle className="w-6 h-6" />
                               )}
                               <span className="text-sm font-medium">
-                                {(isSavingToCloud || isUploadingToCloud) ? 'Sauvegarde...' : 'Garder !'}
+                                {(isSavingToCloud || isUploadingToCloud) ? t('promptBuilderUI.saving') : t('promptBuilderUI.keep')}
                               </span>
                             </motion.button>
                             
@@ -2374,7 +2354,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                               whileTap={{ scale: 0.98 }}
                             >
                               <AlertCircle className="w-6 h-6" />
-                              <span className="text-sm font-medium">Supprimer</span>
+                              <span className="text-sm font-medium">{t('promptBuilderUI.delete')}</span>
                             </motion.button>
                             
                             {/* 🔄 Nouvelle création */}
@@ -2397,7 +2377,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                               whileTap={{ scale: 0.98 }}
                             >
                               <RefreshCw className="w-6 h-6" />
-                              <span className="text-sm font-medium">Refaire</span>
+                              <span className="text-sm font-medium">{t('promptBuilderUI.redo')}</span>
                             </motion.button>
                           </div>
                         </div>
@@ -2405,7 +2385,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                     )}
                     
                     <p className="text-center text-xs text-midnight-400 mt-2">
-                      L'IA va créer {currentCreationType === 'video' ? 'ta vidéo' : 'ton image'} en quelques secondes ! ✨
+                      {t('promptBuilderUI.aiWillCreate', { type: currentCreationType === 'video' ? t('promptBuilderUI.yourVideo') : t('promptBuilderUI.yourImage') })}
                     </p>
                   </>
                 ) : (
@@ -2426,12 +2406,12 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   {copied ? (
                     <>
                       <CheckCircle className="w-6 h-6" />
-                      Copié ! ✨
+                      {t('promptBuilderUI.copied')}
                     </>
                   ) : (
                     <>
                       <Copy className="w-6 h-6" />
-                      1. Copier mon prompt
+                      {t('promptBuilderUI.copyPrompt')}
                     </>
                   )}
                 </motion.button>
@@ -2444,12 +2424,12 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   whileTap={{ scale: 0.98 }}
                 >
                   <Rocket className="w-6 h-6" />
-                      2. Aller sur fal.ai
+                      {t('promptBuilderUI.goToFal')}
                   <ExternalLink className="w-5 h-5" />
                 </motion.button>
 
                 <p className="text-center text-xs text-midnight-400 mt-2">
-                  Colle ton prompt avec <kbd className="px-1.5 py-0.5 rounded bg-midnight-800 text-midnight-300">Cmd+V</kbd> puis lance la création !
+                  {t('promptBuilderUI.pasteHint')}
                 </p>
 
                 {/* Bouton de confirmation après avoir ouvert l'outil */}
@@ -2468,7 +2448,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                     whileTap={{ scale: 0.98 }}
                   >
                     <Sparkles className="w-5 h-5" />
-                    3. J'ai lancé la création ! ✨
+                    {t('promptBuilderUI.launchedCreation')}
                   </motion.button>
                 )}
 
@@ -2480,7 +2460,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                     animate={{ opacity: 1, scale: 1 }}
                   >
                     <p className="text-dream-300 font-medium">
-                      🎉 Super ! Quand c'est prêt, utilise la zone <strong>"Importer tes créations"</strong> juste en dessous ⬇️
+                      🎉 {t('promptBuilderUI.importHint')}
                     </p>
                   </motion.div>
                     )}

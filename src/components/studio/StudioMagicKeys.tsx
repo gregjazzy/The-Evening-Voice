@@ -2,115 +2,116 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
+import {
   ChevronDown,
   ChevronUp,
   Sparkles,
   Info,
 } from 'lucide-react'
-import { 
+import {
   type CreationType,
   type MagicKey,
   IMAGE_MAGIC_KEYS,
   VIDEO_MAGIC_KEYS,
 } from '@/store/useStudioProgressStore'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 
 // Options prédéfinies pour chaque clé
-const KEY_OPTIONS: Record<string, Array<{ value: string; label: string; emoji?: string }>> = {
+const KEY_OPTIONS: Record<string, Array<{ value: string; labelKey: string; emoji?: string }>> = {
   // IMAGES
   'image-style': [
-    { value: 'digital art', label: 'Dessin digital', emoji: '🖼️' },
-    { value: 'watercolor painting', label: 'Aquarelle', emoji: '🎨' },
-    { value: 'anime style', label: 'Anime/Manga', emoji: '✨' },
-    { value: '3D render', label: '3D réaliste', emoji: '🎮' },
-    { value: 'pencil sketch', label: 'Croquis crayon', emoji: '✏️' },
-    { value: 'oil painting', label: 'Peinture à l\'huile', emoji: '🖌️' },
-    { value: 'pixel art', label: 'Pixel art', emoji: '👾' },
-    { value: 'photograph', label: 'Photo réaliste', emoji: '📷' },
-    { value: 'fairy tale illustration', label: 'Conte de fées', emoji: '🧚' },
-    { value: 'storybook illustration', label: 'Livre d\'enfant', emoji: '📚' },
+    { value: 'digital art', labelKey: 'magicKeys.options.imageStyle.digitalArt', emoji: '🖼️' },
+    { value: 'watercolor painting', labelKey: 'magicKeys.options.imageStyle.watercolor', emoji: '🎨' },
+    { value: 'anime style', labelKey: 'magicKeys.options.imageStyle.anime', emoji: '✨' },
+    { value: '3D render', labelKey: 'magicKeys.options.imageStyle.3d', emoji: '🎮' },
+    { value: 'pencil sketch', labelKey: 'magicKeys.options.imageStyle.pencil', emoji: '✏️' },
+    { value: 'oil painting', labelKey: 'magicKeys.options.imageStyle.oil', emoji: '🖌️' },
+    { value: 'pixel art', labelKey: 'magicKeys.options.imageStyle.pixel', emoji: '👾' },
+    { value: 'photograph', labelKey: 'magicKeys.options.imageStyle.photo', emoji: '📷' },
+    { value: 'fairy tale illustration', labelKey: 'magicKeys.options.imageStyle.fairyTale', emoji: '🧚' },
+    { value: 'storybook illustration', labelKey: 'magicKeys.options.imageStyle.storybook', emoji: '📚' },
   ],
   'image-hero': [
-    { value: 'a brave princess', label: 'Une princesse courageuse', emoji: '👸' },
-    { value: 'a friendly dragon', label: 'Un dragon amical', emoji: '🐉' },
-    { value: 'a magical unicorn', label: 'Une licorne magique', emoji: '🦄' },
-    { value: 'a clever fox', label: 'Un renard malin', emoji: '🦊' },
-    { value: 'a little fairy', label: 'Une petite fée', emoji: '🧚' },
-    { value: 'a young adventurer girl', label: 'Une aventurière', emoji: '🗺️' },
-    { value: 'a wise owl', label: 'Un hibou sage', emoji: '🦉' },
-    { value: 'a playful cat', label: 'Un chat joueur', emoji: '🐱' },
+    { value: 'a brave princess', labelKey: 'magicKeys.options.imageHero.princess', emoji: '👸' },
+    { value: 'a friendly dragon', labelKey: 'magicKeys.options.imageHero.dragon', emoji: '🐉' },
+    { value: 'a magical unicorn', labelKey: 'magicKeys.options.imageHero.unicorn', emoji: '🦄' },
+    { value: 'a clever fox', labelKey: 'magicKeys.options.imageHero.fox', emoji: '🦊' },
+    { value: 'a little fairy', labelKey: 'magicKeys.options.imageHero.fairy', emoji: '🧚' },
+    { value: 'a young adventurer girl', labelKey: 'magicKeys.options.imageHero.adventurer', emoji: '🗺️' },
+    { value: 'a wise owl', labelKey: 'magicKeys.options.imageHero.owl', emoji: '🦉' },
+    { value: 'a playful cat', labelKey: 'magicKeys.options.imageHero.cat', emoji: '🐱' },
   ],
   'image-mood': [
-    { value: 'magical and dreamy', label: 'Magique et rêveur', emoji: '✨' },
-    { value: 'warm and cozy', label: 'Chaleureux', emoji: '🌅' },
-    { value: 'mysterious and enchanting', label: 'Mystérieux', emoji: '🌙' },
-    { value: 'bright and cheerful', label: 'Joyeux et lumineux', emoji: '☀️' },
-    { value: 'soft and peaceful', label: 'Doux et paisible', emoji: '🌸' },
-    { value: 'adventurous and exciting', label: 'Aventureux', emoji: '⚡' },
-    { value: 'whimsical and playful', label: 'Fantaisiste', emoji: '🎪' },
+    { value: 'magical and dreamy', labelKey: 'magicKeys.options.imageMood.magical', emoji: '✨' },
+    { value: 'warm and cozy', labelKey: 'magicKeys.options.imageMood.warm', emoji: '🌅' },
+    { value: 'mysterious and enchanting', labelKey: 'magicKeys.options.imageMood.mysterious', emoji: '🌙' },
+    { value: 'bright and cheerful', labelKey: 'magicKeys.options.imageMood.bright', emoji: '☀️' },
+    { value: 'soft and peaceful', labelKey: 'magicKeys.options.imageMood.soft', emoji: '🌸' },
+    { value: 'adventurous and exciting', labelKey: 'magicKeys.options.imageMood.adventurous', emoji: '⚡' },
+    { value: 'whimsical and playful', labelKey: 'magicKeys.options.imageMood.whimsical', emoji: '🎪' },
   ],
   'image-world': [
-    { value: 'enchanted forest', label: 'Forêt enchantée', emoji: '🌲' },
-    { value: 'floating castle in the clouds', label: 'Château dans les nuages', emoji: '🏰' },
-    { value: 'underwater kingdom', label: 'Royaume sous-marin', emoji: '🌊' },
-    { value: 'magical garden', label: 'Jardin magique', emoji: '🌺' },
-    { value: 'starry night sky', label: 'Ciel étoilé', emoji: '🌌' },
-    { value: 'cozy treehouse', label: 'Cabane dans l\'arbre', emoji: '🏠' },
-    { value: 'crystal cave', label: 'Grotte de cristal', emoji: '💎' },
-    { value: 'rainbow meadow', label: 'Prairie arc-en-ciel', emoji: '🌈' },
+    { value: 'enchanted forest', labelKey: 'magicKeys.options.imageWorld.forest', emoji: '🌲' },
+    { value: 'floating castle in the clouds', labelKey: 'magicKeys.options.imageWorld.castle', emoji: '🏰' },
+    { value: 'underwater kingdom', labelKey: 'magicKeys.options.imageWorld.underwater', emoji: '🌊' },
+    { value: 'magical garden', labelKey: 'magicKeys.options.imageWorld.garden', emoji: '🌺' },
+    { value: 'starry night sky', labelKey: 'magicKeys.options.imageWorld.stars', emoji: '🌌' },
+    { value: 'cozy treehouse', labelKey: 'magicKeys.options.imageWorld.treehouse', emoji: '🏠' },
+    { value: 'crystal cave', labelKey: 'magicKeys.options.imageWorld.cave', emoji: '💎' },
+    { value: 'rainbow meadow', labelKey: 'magicKeys.options.imageWorld.meadow', emoji: '🌈' },
   ],
   'image-magic': [
-    { value: 'glowing sparkles everywhere', label: 'Étincelles partout', emoji: '✨' },
-    { value: 'rainbow colors', label: 'Couleurs arc-en-ciel', emoji: '🌈' },
-    { value: 'floating petals', label: 'Pétales volants', emoji: '🌸' },
-    { value: 'golden light beams', label: 'Rayons dorés', emoji: '💫' },
-    { value: 'magical aurora', label: 'Aurore magique', emoji: '🌌' },
-    { value: 'butterflies dancing', label: 'Papillons dansants', emoji: '🦋' },
-    { value: 'glitter dust', label: 'Poussière de fée', emoji: '⭐' },
+    { value: 'glowing sparkles everywhere', labelKey: 'magicKeys.options.imageMagic.sparkles', emoji: '✨' },
+    { value: 'rainbow colors', labelKey: 'magicKeys.options.imageMagic.rainbow', emoji: '🌈' },
+    { value: 'floating petals', labelKey: 'magicKeys.options.imageMagic.petals', emoji: '🌸' },
+    { value: 'golden light beams', labelKey: 'magicKeys.options.imageMagic.golden', emoji: '💫' },
+    { value: 'magical aurora', labelKey: 'magicKeys.options.imageMagic.aurora', emoji: '🌌' },
+    { value: 'butterflies dancing', labelKey: 'magicKeys.options.imageMagic.butterflies', emoji: '🦋' },
+    { value: 'glitter dust', labelKey: 'magicKeys.options.imageMagic.glitter', emoji: '⭐' },
   ],
 
   // VIDÉOS
   'video-style': [
-    { value: 'cinematic', label: 'Cinématique', emoji: '🎬' },
-    { value: 'anime animation', label: 'Anime', emoji: '✨' },
-    { value: 'dreamy and soft', label: 'Rêveur et doux', emoji: '☁️' },
-    { value: '3D animated', label: '3D animé', emoji: '🎮' },
-    { value: 'painterly', label: 'Peint', emoji: '🎨' },
-    { value: 'stop motion', label: 'Stop motion', emoji: '🎯' },
+    { value: 'cinematic', labelKey: 'magicKeys.options.videoStyle.cinematic', emoji: '🎬' },
+    { value: 'anime animation', labelKey: 'magicKeys.options.videoStyle.anime', emoji: '✨' },
+    { value: 'dreamy and soft', labelKey: 'magicKeys.options.videoStyle.dreamy', emoji: '☁️' },
+    { value: '3D animated', labelKey: 'magicKeys.options.videoStyle.3d', emoji: '🎮' },
+    { value: 'painterly', labelKey: 'magicKeys.options.videoStyle.painterly', emoji: '🎨' },
+    { value: 'stop motion', labelKey: 'magicKeys.options.videoStyle.stopMotion', emoji: '🎯' },
   ],
   'video-action': [
-    { value: 'flying through the sky', label: 'Vole dans le ciel', emoji: '🦅' },
-    { value: 'dancing gracefully', label: 'Danse avec grâce', emoji: '💃' },
-    { value: 'walking slowly', label: 'Marche doucement', emoji: '🚶' },
-    { value: 'running through a field', label: 'Court dans un champ', emoji: '🏃' },
-    { value: 'swimming underwater', label: 'Nage sous l\'eau', emoji: '🏊' },
-    { value: 'spinning around', label: 'Tourne sur soi', emoji: '🌀' },
-    { value: 'floating gently', label: 'Flotte doucement', emoji: '🎈' },
-    { value: 'jumping happily', label: 'Saute joyeusement', emoji: '⬆️' },
+    { value: 'flying through the sky', labelKey: 'magicKeys.options.videoAction.flying', emoji: '🦅' },
+    { value: 'dancing gracefully', labelKey: 'magicKeys.options.videoAction.dancing', emoji: '💃' },
+    { value: 'walking slowly', labelKey: 'magicKeys.options.videoAction.walking', emoji: '🚶' },
+    { value: 'running through a field', labelKey: 'magicKeys.options.videoAction.running', emoji: '🏃' },
+    { value: 'swimming underwater', labelKey: 'magicKeys.options.videoAction.swimming', emoji: '🏊' },
+    { value: 'spinning around', labelKey: 'magicKeys.options.videoAction.spinning', emoji: '🌀' },
+    { value: 'floating gently', labelKey: 'magicKeys.options.videoAction.floating', emoji: '🎈' },
+    { value: 'jumping happily', labelKey: 'magicKeys.options.videoAction.jumping', emoji: '⬆️' },
   ],
   'video-mood': [
-    { value: 'magical and dreamy', label: 'Magique et rêveur', emoji: '✨' },
-    { value: 'peaceful and calm', label: 'Paisible et calme', emoji: '🌅' },
-    { value: 'exciting and dynamic', label: 'Excitant et dynamique', emoji: '⚡' },
-    { value: 'mysterious', label: 'Mystérieux', emoji: '🌙' },
-    { value: 'joyful and bright', label: 'Joyeux et lumineux', emoji: '☀️' },
-    { value: 'romantic', label: 'Romantique', emoji: '💖' },
+    { value: 'magical and dreamy', labelKey: 'magicKeys.options.videoMood.magical', emoji: '✨' },
+    { value: 'peaceful and calm', labelKey: 'magicKeys.options.videoMood.peaceful', emoji: '🌅' },
+    { value: 'exciting and dynamic', labelKey: 'magicKeys.options.videoMood.exciting', emoji: '⚡' },
+    { value: 'mysterious', labelKey: 'magicKeys.options.videoMood.mysterious', emoji: '🌙' },
+    { value: 'joyful and bright', labelKey: 'magicKeys.options.videoMood.joyful', emoji: '☀️' },
+    { value: 'romantic', labelKey: 'magicKeys.options.videoMood.romantic', emoji: '💖' },
   ],
   'video-rhythm': [
-    { value: 'slow and gentle', label: 'Lent et doux', emoji: '🐢' },
-    { value: 'medium speed', label: 'Vitesse normale', emoji: '🚶' },
-    { value: 'fast and energetic', label: 'Rapide et énergique', emoji: '🚀' },
-    { value: 'gradually accelerating', label: 'Qui accélère', emoji: '📈' },
-    { value: 'slow motion', label: 'Ralenti', emoji: '🎬' },
+    { value: 'slow and gentle', labelKey: 'magicKeys.options.videoRhythm.slow', emoji: '🐢' },
+    { value: 'medium speed', labelKey: 'magicKeys.options.videoRhythm.medium', emoji: '🚶' },
+    { value: 'fast and energetic', labelKey: 'magicKeys.options.videoRhythm.fast', emoji: '🚀' },
+    { value: 'gradually accelerating', labelKey: 'magicKeys.options.videoRhythm.accelerating', emoji: '📈' },
+    { value: 'slow motion', labelKey: 'magicKeys.options.videoRhythm.slowMotion', emoji: '🎬' },
   ],
   'video-effect': [
-    { value: 'sparkles and particles', label: 'Étincelles et particules', emoji: '✨' },
-    { value: 'soft lens flare', label: 'Reflets lumineux', emoji: '💫' },
-    { value: 'camera zoom in', label: 'Zoom avant', emoji: '🔍' },
-    { value: 'camera pan', label: 'Panoramique', emoji: '📹' },
-    { value: 'blur to sharp', label: 'Flou vers net', emoji: '🎯' },
-    { value: 'color fade', label: 'Transition de couleur', emoji: '🌈' },
+    { value: 'sparkles and particles', labelKey: 'magicKeys.options.videoEffect.sparkles', emoji: '✨' },
+    { value: 'soft lens flare', labelKey: 'magicKeys.options.videoEffect.lensFlare', emoji: '💫' },
+    { value: 'camera zoom in', labelKey: 'magicKeys.options.videoEffect.zoomIn', emoji: '🔍' },
+    { value: 'camera pan', labelKey: 'magicKeys.options.videoEffect.pan', emoji: '📹' },
+    { value: 'blur to sharp', labelKey: 'magicKeys.options.videoEffect.blurToSharp', emoji: '🎯' },
+    { value: 'color fade', labelKey: 'magicKeys.options.videoEffect.colorFade', emoji: '🌈' },
   ],
 }
 
@@ -124,15 +125,16 @@ interface MagicKeyCardProps {
   onToggle: () => void
 }
 
-function MagicKeyCard({ 
-  magicKey, 
-  type, 
-  value, 
-  onChange, 
-  unlocked, 
+function MagicKeyCard({
+  magicKey,
+  type,
+  value,
+  onChange,
+  unlocked,
   expanded,
   onToggle,
 }: MagicKeyCardProps) {
+  const t = useTranslations('studio')
   const optionsKey = `${type}-${magicKey.id}`
   const options = KEY_OPTIONS[optionsKey] || []
 
@@ -158,10 +160,10 @@ function MagicKeyCard({
         <span className="text-2xl">{magicKey.emoji}</span>
         <div className="flex-1">
           <h4 className="font-medium text-white text-sm flex items-center gap-2">
-            {magicKey.name}
-            {!unlocked && <span className="text-xs text-midnight-500">(bientôt !)</span>}
+            {t(`magicKeyLabels.${type}.${magicKey.id}.name`)}
+            {!unlocked && <span className="text-xs text-midnight-500">{t('magicKeys.comingSoon')}</span>}
           </h4>
-          <p className="text-xs text-midnight-400">{magicKey.question}</p>
+          <p className="text-xs text-midnight-400">{t(`magicKeyLabels.${type}.${magicKey.id}.question`)}</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Indicateur d'impact */}
@@ -211,7 +213,7 @@ function MagicKeyCard({
                     whileTap={{ scale: 0.98 }}
                   >
                     {option.emoji && <span className="mr-1">{option.emoji}</span>}
-                    {option.label}
+                    {t(option.labelKey)}
                   </motion.button>
                 ))}
               </div>
@@ -222,7 +224,7 @@ function MagicKeyCard({
                   type="text"
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
-                  placeholder="Ou écris ta propre idée..."
+                  placeholder={t('magicKeys.customPlaceholder')}
                   className="w-full px-4 py-2 rounded-xl bg-midnight-900/50 border border-midnight-700 text-white placeholder:text-midnight-500 text-sm focus:outline-none focus:border-aurora-500/50"
                 />
               </div>
@@ -242,13 +244,14 @@ interface StudioMagicKeysProps {
   className?: string
 }
 
-export function StudioMagicKeys({ 
-  type, 
-  level, 
-  values, 
+export function StudioMagicKeys({
+  type,
+  level,
+  values,
   onChange,
   className,
 }: StudioMagicKeysProps) {
+  const t = useTranslations('studio')
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
   
   const magicKeys = type === 'image' ? IMAGE_MAGIC_KEYS : VIDEO_MAGIC_KEYS
@@ -275,11 +278,11 @@ export function StudioMagicKeys({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-aurora-400" />
-          <h3 className="font-semibold text-white">Les 5 Clés Magiques</h3>
+          <h3 className="font-semibold text-white">{t('magicKeys.title')}</h3>
         </div>
         <div className="flex items-center gap-1 text-xs text-midnight-400">
           <Info className="w-3.5 h-3.5" />
-          {unlockedKeys.length}/{magicKeys.length} débloquées
+          {t('magicKeys.unlockedCount', { unlocked: String(unlockedKeys.length), total: String(magicKeys.length) })}
         </div>
       </div>
 
@@ -307,7 +310,7 @@ export function StudioMagicKeys({
           animate={{ opacity: 1, y: 0 }}
         >
           <span>🔓</span>
-          <span>Continue à créer pour débloquer plus de clés !</span>
+          <span>{t('magicKeys.unlockMore')}</span>
         </motion.div>
       )}
     </div>

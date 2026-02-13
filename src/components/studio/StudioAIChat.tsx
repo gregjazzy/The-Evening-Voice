@@ -21,7 +21,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
-import { useLocale } from '@/lib/i18n/context'
+import { useLocale, useTranslations } from '@/lib/i18n/context'
 import { VoiceSelector } from '@/components/ui/VoiceSelector'
 import { useStudioStore } from '@/store/useStudioStore'
 import { 
@@ -35,13 +35,13 @@ import { useTTS } from '@/hooks/useTTS'
 import { cn } from '@/lib/utils'
 import { LevelUpModal, type LevelUpContent } from '@/components/ui/LevelUpModal'
 
-// Mots-clés pour détection (copie de PromptBuilder pour cohérence)
-const STYLE_KEYWORDS = ['dessin', 'photo', 'magique', 'anime', 'aquarelle', 'pixel', 'réaliste', 'cartoon', '3d']
-const AMBIANCE_KEYWORDS = ['jour', 'nuit', 'orage', 'brume', 'féérique', 'mystère', 'sombre', 'lumineux', 'matin', 'soir']
-const DETAIL_KEYWORDS = ['rouge', 'bleu', 'vert', 'doré', 'brillant', 'grand', 'petit', 'géant']
-// Mots-clés spécifiques aux vidéos
-const VIDEO_MOVEMENT_KEYWORDS = ['bouge', 'anime', 'danse', 'court', 'vole', 'tombe', 'saute', 'marche', 'tourne']
-const VIDEO_RHYTHM_KEYWORDS = ['lent', 'rapide', 'doucement', 'vite', 'dynamique', 'calme', 'fluide']
+// Mots-clés pour détection multi-langue (FR + EN + RU)
+const STYLE_KEYWORDS = ['dessin', 'photo', 'magique', 'anime', 'aquarelle', 'pixel', 'réaliste', 'cartoon', '3d', 'drawing', 'magical', 'watercolor', 'realistic', 'рисунок', 'фото', 'волшебный', 'аниме', 'акварель', 'пиксель']
+const AMBIANCE_KEYWORDS = ['jour', 'nuit', 'orage', 'brume', 'féérique', 'mystère', 'sombre', 'lumineux', 'matin', 'soir', 'day', 'night', 'storm', 'mist', 'fairy', 'mystery', 'dark', 'bright', 'morning', 'evening', 'день', 'ночь', 'гроза', 'туман', 'сказочный', 'тайна', 'тёмный', 'светлый']
+const DETAIL_KEYWORDS = ['rouge', 'bleu', 'vert', 'doré', 'brillant', 'grand', 'petit', 'géant', 'red', 'blue', 'green', 'golden', 'shiny', 'big', 'small', 'giant', 'красный', 'синий', 'зелёный', 'золотой', 'блестящий', 'большой', 'маленький']
+// Mots-clés spécifiques aux vidéos (multi-langue)
+const VIDEO_MOVEMENT_KEYWORDS = ['bouge', 'anime', 'danse', 'court', 'vole', 'tombe', 'saute', 'marche', 'tourne', 'moves', 'dances', 'runs', 'flies', 'falls', 'jumps', 'walks', 'spins', 'двигается', 'танцует', 'бежит', 'летит', 'падает', 'прыгает']
+const VIDEO_RHYTHM_KEYWORDS = ['lent', 'rapide', 'doucement', 'vite', 'dynamique', 'calme', 'fluide', 'slow', 'fast', 'gently', 'dynamic', 'calm', 'fluid', 'медленно', 'быстро', 'плавно', 'динамично', 'спокойно']
 
 function detectMissingElements(
   text: string, 
@@ -92,276 +92,164 @@ interface StudioAIChatProps {
   className?: string
 }
 
-// Messages de l'IA selon l'étape et le niveau
+// Messages de l'IA selon l'étape et le niveau (internationalisé via t())
 const getAIMessage = (
   step: GuideStep | null,
   type: CreationType,
   level: number,
-  aiName: string
+  aiName: string,
+  t: (key: string, params?: Record<string, string>) => string
 ): { content: string; type: Message['type'] } => {
   const magicKeys = type === 'image' ? IMAGE_MAGIC_KEYS : VIDEO_MAGIC_KEYS
-  
+  const typeLabel = type === 'image' ? 'image' : 'video'
+
   if (!step) {
     return {
-      content: `Bonjour ! Je suis ${aiName}.\n\nQu'est-ce que tu veux créer aujourd'hui ?`,
+      content: t('chat.greeting', { name: aiName }),
       type: 'question',
     }
   }
 
   switch (step) {
-    // === ÉTAPE VIDÉO : Sélectionner une image ===
     case 'choose_image':
-      return {
-        content: `Pour créer ta vidéo, il faut d'abord choisir une image.\n\nRegarde dans ta galerie et choisis celle que tu veux animer.`,
-        type: 'question',
-      }
+      return { content: t('chat.steps.chooseImage'), type: 'question' }
 
     case 'describe':
-      // Pour les vidéos, c'est l'action qu'on décrit
       if (type === 'video') {
-        return {
-          content: `Bonne image.\n\nMaintenant, qu'est-ce qui se passe ? Décris l'action.\n\nExemple : "Le dragon ouvre ses ailes" ou "Les étoiles tournent lentement"`,
-          type: 'question',
-        }
+        return { content: t('chat.steps.describeVideo'), type: 'question' }
       }
-      // Pour les images
       if (level === 1) {
-        return {
-          content: `Raconte-moi ce que tu imagines.\n\nExemple : "Un dragon qui vole au-dessus d'un château" ou "Une fée dans une forêt"`,
-          type: 'question',
-        }
+        return { content: t('chat.steps.describeBeginner'), type: 'question' }
       }
-      return {
-        content: `Qu'est-ce que tu veux créer ? Décris-moi ton idée.`,
-        type: 'question',
-      }
+      return { content: t('chat.steps.describeAdvanced'), type: 'question' }
 
     case 'choose_style':
       const styleKey = magicKeys.find(k => k.id === 'style')
       return {
-        content: `Bien.\n\nMaintenant, ${styleKey?.question}\n\nChoisis un style.`,
+        content: t('chat.steps.chooseStyle', { question: styleKey?.question || '' }),
         type: 'question',
       }
 
     case 'choose_mood':
       const moodKey = magicKeys.find(k => k.id === 'mood')
       return {
-        content: `${moodKey?.question}\n\nL'ambiance, c'est l'émotion qu'on ressent en regardant.`,
+        content: t('chat.steps.chooseMood', { question: moodKey?.question || '' }),
         type: 'question',
       }
 
     case 'choose_light':
-      return {
-        content: `Quelle lumière pour ton ${type === 'image' ? 'image' : 'vidéo'} ?\n\nSoleil, lune, bougie... La lumière change tout.`,
-        type: 'question',
-      }
+      return { content: t('chat.steps.chooseLight', { type: typeLabel }), type: 'question' }
 
     case 'choose_format':
-      return {
-        content: `Quelle forme ?\n\n• Portrait — vertical, pour un personnage\n• Paysage — horizontal, pour un décor\n• Carré — polyvalent`,
-        type: 'question',
-      }
+      return { content: t('chat.steps.chooseFormat'), type: 'question' }
 
     case 'choose_movement':
-      return {
-        content: `Comment ta vidéo va bouger ?\n\n• Lent et doux\n• Rapide et dynamique\n• Presque fixe\n\nLe mouvement donne vie à l'image.`,
-        type: 'question',
-      }
+      return { content: t('chat.steps.chooseMovement'), type: 'question' }
 
     case 'choose_camera':
-      return {
-        content: `Comment la caméra bouge ?\n\n• Zoom avant — on se rapproche\n• Zoom arrière — on s'éloigne\n• Travelling — on suit le mouvement\n• Fixe`,
-        type: 'question',
-      }
+      return { content: t('chat.steps.chooseCamera'), type: 'question' }
 
     case 'choose_extra':
-      if (type === 'image') {
-        return {
-          content: `Si tu veux, tu peux ajouter des détails : couleurs, textures... C'est optionnel.`,
-          type: 'question',
-        }
-      }
       return {
-        content: `Si tu veux, tu peux préciser le type de mouvement. C'est optionnel.`,
+        content: type === 'image' ? t('chat.steps.chooseExtraImage') : t('chat.steps.chooseExtraVideo'),
         type: 'question',
       }
 
     case 'review_prompt':
       if (level >= 4) {
-        return {
-          content: `Voici ton prompt.\n\nC'est toi qui l'as écrit. Tu sais parler aux IA.`,
-          type: 'encouragement',
-        }
+        return { content: t('chat.steps.reviewLevel4'), type: 'encouragement' }
       }
       if (level >= 2) {
-        return {
-          content: `Voici le prompt.\n\nC'est exactement ce qu'on envoie à l'IA pour créer ta ${type === 'image' ? 'image' : 'vidéo'}. Tu vois comment c'est structuré ? Style, description, ambiance — c'est comme ça qu'on parle aux IA.`,
-          type: 'help',
-        }
+        return { content: t('chat.steps.reviewLevel2', { type: typeLabel }), type: 'help' }
       }
-      return {
-        content: `Voici le prompt que j'ai préparé.\n\nC'est ce qu'on va envoyer pour créer ta ${type === 'image' ? 'image' : 'vidéo'}. Tu peux le modifier si tu veux.`,
-        type: 'help',
-      }
+      return { content: t('chat.steps.reviewDefault', { type: typeLabel }), type: 'help' }
 
     case 'open_safari':
-      if (level >= 5) {
-        return {
-          content: `Tu connais le chemin. Fal.ai t'attend.`,
-          type: 'encouragement',
-        }
-      }
-      if (level >= 4) {
-        return {
-          content: `Tu es prête. Clique pour aller sur fal.ai — tu sais comment faire.`,
-          type: 'encouragement',
-        }
-      }
-      if (level === 3) {
-        return {
-          content: `On passe aux choses sérieuses.\n\nFal.ai, c'est l'outil que les vrais créateurs utilisent. Et ce que tu as appris avec moi fonctionne exactement pareil là-bas.`,
-          type: 'help',
-        }
-      }
-      return {
-        content: `Maintenant, direction Safari.\n\nRegarde bien, je vais te montrer.`,
-        type: 'help',
-      }
+      if (level >= 5) return { content: t('chat.steps.safariLevel5'), type: 'encouragement' }
+      if (level >= 4) return { content: t('chat.steps.safariLevel4'), type: 'encouragement' }
+      if (level === 3) return { content: t('chat.steps.safariLevel3'), type: 'help' }
+      return { content: t('chat.steps.safariDefault'), type: 'help' }
 
     case 'paste_prompt':
-      if (level >= 3) {
-        return {
-          content: `Colle ton prompt avec Cmd+V.`,
-          type: 'help',
-        }
-      }
-      return {
-        content: `Je colle le prompt pour toi. Regarde bien où je le mets.`,
-        type: 'help',
-      }
+      if (level >= 3) return { content: t('chat.steps.pasteLevel3'), type: 'help' }
+      return { content: t('chat.steps.pasteDefault'), type: 'help' }
 
     case 'generate':
-      return {
-        content: `C'est parti. On attend le résultat.`,
-        type: 'encouragement',
-      }
+      return { content: t('chat.steps.generate'), type: 'encouragement' }
 
     case 'import':
-      if (level >= 5) {
-        return {
-          content: `Très beau travail. Tu as fait ça toute seule. Importe ta création.`,
-          type: 'celebration',
-        }
-      }
-      if (level >= 3) {
-        return {
-          content: `C'est réussi. Tu viens d'utiliser un vrai outil de création — ce que tu as appris ici, tu pourras le refaire ailleurs.\n\nImporte ta création pour la garder.`,
-          type: 'celebration',
-        }
-      }
-      return {
-        content: `C'est réussi. Importe ta création pour la garder.`,
-        type: 'celebration',
-      }
+      if (level >= 5) return { content: t('chat.steps.importLevel5'), type: 'celebration' }
+      if (level >= 3) return { content: t('chat.steps.importLevel3'), type: 'celebration' }
+      return { content: t('chat.steps.importDefault'), type: 'celebration' }
 
     default:
-      return {
-        content: `Je suis là si tu as besoin.`,
-        type: 'help',
-      }
+      return { content: t('chat.steps.fallback'), type: 'help' }
   }
 }
 
-// Messages d'encouragement aléatoires
-const ENCOURAGEMENTS = [
-  "Tu fais du super travail ! 🌟",
-  "J'adore ton idée ! 💜",
-  "Tu deviens vraiment forte ! 💪",
-  "Continue comme ça ! ✨",
-  "Tu es très créative ! 🎨",
-  "Waouh, quelle imagination ! 🌈",
-]
-
-// Messages d'aide
-const HELP_MESSAGES = [
-  "Pas de souci, je suis là pour t'aider ! 💜",
-  "C'est normal de ne pas savoir du premier coup ! 🌟",
-  "On apprend ensemble, c'est ça qui est chouette ! ✨",
-  "Prends ton temps, il n'y a pas de pression ! 🌈",
-]
-
-// ============================================
-// FALLBACKS HORS-LIGNE / ERREUR IA
-// ============================================
-
-// Messages de fallback variés quand l'IA ne répond pas
-const FALLBACK_MESSAGES = [
-  (msg: string) => `Oh, j'ai eu un petit bug ! 😅 Mais "${msg}" ça sonne super bien ! Continue ! ✨`,
-  (msg: string) => `Hmm, ma magie a fait une pause ! 🔮 Mais ton idée "${msg}" est géniale, je suis sûre ! 🌟`,
-  (msg: string) => `Oups, petite déconnexion magique ! ✨ Mais je vois que tu parles de "${msg}", c'est super créatif ! 💜`,
-  (msg: string) => `Ma baguette magique a glitché ! 🪄 Pas grave, ton idée est sûrement super ! Continue d'imaginer ! 🌈`,
-  (msg: string) => `Attends, je me reconnecte... Ah zut ! 😊 En attendant, fais-moi confiance : "${msg}" c'est une chouette idée !`,
-  (msg: string) => `Les étoiles sont un peu fatiguées ! ⭐ Mais je suis sûre que ce que tu imagines est magnifique ! 💫`,
-  (msg: string) => `Oh là là, j'ai perdu le fil une seconde ! 🧵 Mais continue, tu fais du super travail avec "${msg}" ! 🎨`,
-  (msg: string) => `Petit moment de rêverie de ma part ! 💭 Mais ton idée m'a l'air géniale, continue ! ✨`,
-  (msg: string) => `Hop, petit souci technique ! 🔧 Mais ça ne m'empêche pas de t'encourager : tu as de super idées ! 🌟`,
-  (msg: string) => `Ma connexion magique fait des siennes ! 🌙 Mais je sens que "${msg}" va donner quelque chose de beau ! 💜`,
-]
-
-// Messages spécifiques pour le mode hors-ligne
-const OFFLINE_MESSAGES = {
-  greeting: `Je suis en mode hors-ligne ! 🌙 Mais pas de souci, tu peux continuer à créer, je t'aide avec ce que je sais ! ✨`,
-  help: `Même sans internet, je peux te guider ! Utilise les boutons magiques en dessous pour avancer. 🪄`,
-  encouragement: [
-    "Tu te débrouilles super bien même hors-ligne ! 🌟",
-    "Pas besoin d'internet pour avoir de bonnes idées ! 💡",
-    "Ta créativité n'a pas besoin de wifi ! 🎨",
-    "Continue d'imaginer, c'est ça le plus important ! ✨",
-  ],
+// Helper functions that use t() — called from within the component
+function getEncouragements(t: (key: string) => string): string[] {
+  return [
+    t('chat.encouragement1'), t('chat.encouragement2'), t('chat.encouragement3'),
+    t('chat.encouragement4'), t('chat.encouragement5'), t('chat.encouragement6'),
+  ]
 }
 
-// Aide prédéfinie pour le mode hors-ligne (boutons rapides)
-const OFFLINE_QUICK_HELP = {
-  image: [
-    { id: 'subject', label: 'Quoi dessiner ?', icon: Wand2, response: "Commence par décrire CE QUE tu veux voir : un personnage, un animal, un lieu... Par exemple : 'Un dragon', 'Une princesse', 'Une forêt magique' 🎨" },
-    { id: 'style', label: 'Quel style ?', icon: Palette, response: "Le style, c'est comment ça va ressembler ! Tu peux choisir : dessin animé, photo réaliste, aquarelle, pixel art, ou magique/féérique ✨" },
-    { id: 'mood', label: "Quelle ambiance ?", icon: Sun, response: "L'ambiance donne l'émotion ! Est-ce que c'est : le jour/la nuit, joyeux/mystérieux, lumineux/sombre ? 🌈" },
-    { id: 'details', label: 'Des détails ?', icon: Zap, response: "Les détails rendent tout unique ! Pense aux couleurs (doré, bleu), à la taille (géant, minuscule), à des éléments spéciaux (brillant, arc-en-ciel) 💎" },
-  ],
-  video: [
-    { id: 'subject', label: 'Quoi animer ?', icon: Wand2, response: "Décris ce qui va bouger ! Un personnage qui danse, un objet qui vole, un paysage qui change... 🎬" },
-    { id: 'style', label: 'Quel style ?', icon: Palette, response: "Pour une vidéo, le style peut être : réaliste, dessin animé, magique, ou même abstrait ! ✨" },
-    { id: 'movement', label: 'Comment ça bouge ?', icon: Zap, response: "Décris le mouvement : est-ce que ça court, ça vole, ça tourne ? Est-ce lent et doux ou rapide et dynamique ? 🏃‍♀️" },
-    { id: 'mood', label: 'Quelle ambiance ?', icon: Sun, response: "L'ambiance de ta vidéo : joyeuse, mystérieuse, épique, calme... Ça change tout ! 🌟" },
-  ],
+function getHelpMessages(t: (key: string) => string): string[] {
+  return [t('chat.help1'), t('chat.help2'), t('chat.help3'), t('chat.help4')]
 }
 
-// Fonction pour obtenir un message de fallback aléatoire
-function getRandomFallbackMessage(userMessage: string): string {
-  const index = Math.floor(Math.random() * FALLBACK_MESSAGES.length)
-  return FALLBACK_MESSAGES[index](userMessage.slice(0, 30))
+function getRandomFallbackMessageI18n(userMessage: string, t: (key: string, params?: Record<string, string>) => string): string {
+  const msg = userMessage.slice(0, 30)
+  const fallbacks = [
+    t('chat.fallback1', { msg }), t('chat.fallback2', { msg }), t('chat.fallback3', { msg }),
+    t('chat.fallback4', { msg }), t('chat.fallback5', { msg }), t('chat.fallback6', { msg }),
+    t('chat.fallback7', { msg }), t('chat.fallback8', { msg }), t('chat.fallback9', { msg }),
+    t('chat.fallback10', { msg }),
+  ]
+  return fallbacks[Math.floor(Math.random() * fallbacks.length)]
 }
 
-// Fonction pour obtenir un encouragement offline aléatoire  
-function getOfflineEncouragement(): string {
-  const index = Math.floor(Math.random() * OFFLINE_MESSAGES.encouragement.length)
-  return OFFLINE_MESSAGES.encouragement[index]
+function getOfflineEncouragementI18n(t: (key: string) => string): string {
+  const encouragements = [
+    t('chat.offlineEncouragement1'), t('chat.offlineEncouragement2'),
+    t('chat.offlineEncouragement3'), t('chat.offlineEncouragement4'),
+  ]
+  return encouragements[Math.floor(Math.random() * encouragements.length)]
+}
+
+function getQuickHelp(type: 'image' | 'video', t: (key: string) => string) {
+  if (type === 'image') {
+    return [
+      { id: 'subject', label: t('chat.quickHelp.image.subject.label'), icon: Wand2, response: t('chat.quickHelp.image.subject.response') },
+      { id: 'style', label: t('chat.quickHelp.image.style.label'), icon: Palette, response: t('chat.quickHelp.image.style.response') },
+      { id: 'mood', label: t('chat.quickHelp.image.mood.label'), icon: Sun, response: t('chat.quickHelp.image.mood.response') },
+      { id: 'details', label: t('chat.quickHelp.image.details.label'), icon: Zap, response: t('chat.quickHelp.image.details.response') },
+    ]
+  }
+  return [
+    { id: 'subject', label: t('chat.quickHelp.video.subject.label'), icon: Wand2, response: t('chat.quickHelp.video.subject.response') },
+    { id: 'style', label: t('chat.quickHelp.video.style.label'), icon: Palette, response: t('chat.quickHelp.video.style.response') },
+    { id: 'movement', label: t('chat.quickHelp.video.movement.label'), icon: Zap, response: t('chat.quickHelp.video.movement.response') },
+    { id: 'mood', label: t('chat.quickHelp.video.mood.label'), icon: Sun, response: t('chat.quickHelp.video.mood.response') },
+  ]
 }
 
 export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProps) {
   const { aiName } = useAppStore()
   const { currentKit } = useStudioStore()
-  const { 
-    currentStep, 
-    getLevel, 
+  const {
+    currentStep,
+    getLevel,
     needsHelp,
     requestHelp,
     completedSteps,
   } = useStudioProgressStore()
-  
+
   const level = getLevel(type)
   const { aiVoice } = useAppStore()
-  const locale = useLocale() // Récupérer la locale actuelle
+  const locale = useLocale()
+  const t = useTranslations('studio')
   const tts = useTTS(locale, aiVoice || undefined)
   
   // Tracker le niveau précédent pour détecter les transitions
@@ -397,8 +285,8 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const lastStepRef = useRef<string | null>(null)
   const justValidatedFieldRef = useRef(false) // Pour éviter le double message après validation
 
-  // Nom de l'IA (ou défaut)
-  const friendName = aiName || 'Mon amie'
+  // Nom de l'IA (ou défaut internationalisé)
+  const friendName = aiName || t('chat.defaultName')
 
   // ============================================
   // DÉTECTION DU MODE HORS-LIGNE
@@ -413,7 +301,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       const onlineMessage: Message = {
         id: Date.now().toString(),
         role: 'ai',
-        content: `Je suis de retour ! 🎉 La connexion est revenue, on peut continuer ensemble ! ✨`,
+        content: t('chat.backOnline'),
         timestamp: new Date(),
         type: 'celebration',
       }
@@ -429,7 +317,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       const offlineMessage: Message = {
         id: Date.now().toString(),
         role: 'ai',
-        content: OFFLINE_MESSAGES.greeting,
+        content: t('chat.offlineGreeting'),
         timestamp: new Date(),
         type: 'help',
       }
@@ -453,7 +341,8 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   // AIDE RAPIDE HORS-LIGNE
   // ============================================
   const handleQuickHelp = useCallback((helpId: string) => {
-    const quickHelp = OFFLINE_QUICK_HELP[type].find(h => h.id === helpId)
+    const quickHelpItems = getQuickHelp(type, t)
+    const quickHelp = quickHelpItems.find(h => h.id === helpId)
     if (!quickHelp) return
 
     // Message de l'utilisateur (la question)
@@ -480,50 +369,53 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
         tts.speak(quickHelp.response)
       }
     }, 500)
-  }, [type, voiceEnabled, tts])
-
-  // Réinitialiser les messages quand le type change
-  useEffect(() => {
-    setMessages([])
-    lastStepRef.current = null
-  }, [type])
+  }, [type, voiceEnabled, tts, t])
 
   // Ajouter un message de l'IA quand l'étape change
   // Premier message = immédiat, les suivants = avec délai de 3 secondes
+  // IMPORTANT: type-reset et step-message dans UN SEUL effect pour éviter
+  // que React Strict Mode double-fire le speak (reset lastStepRef + re-send)
   const stepMessageTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isFirstMessage = useRef(true)
-  
+  const prevTypeRef = useRef<string | null>(null)
+
   useEffect(() => {
-    // Reset le flag quand le type change
-    isFirstMessage.current = true
-  }, [type])
-  
-  useEffect(() => {
+    // Détecter un vrai changement de type (image ↔ video)
+    if (prevTypeRef.current !== null && prevTypeRef.current !== type) {
+      setMessages([])
+      isFirstMessage.current = true
+      lastStepRef.current = null
+    }
+    prevTypeRef.current = type
+
+    // Pas de message automatique si toutes les étapes sont terminées (currentStep = null)
+    if (!currentStep) return
+
     // Créer une clé unique pour éviter les doublons
     const stepKey = `${type}-${currentStep}-${level}`
-    
+
     // Éviter de réajouter le même message
-    if (lastStepRef.current === stepKey) {
-      return
-    }
-    
+    if (lastStepRef.current === stepKey) return
+
     // Si on vient de valider un champ, l'IA a déjà répondu - pas de message automatique
     if (justValidatedFieldRef.current) {
       justValidatedFieldRef.current = false
       lastStepRef.current = stepKey // Marquer comme traité
       return
     }
-    
+
     // Annuler le message précédent si l'étape change vite
     if (stepMessageTimeoutRef.current) {
       clearTimeout(stepMessageTimeoutRef.current)
     }
-    
+
     const sendMessage = () => {
+      // Double-check pour éviter les doublons
+      if (lastStepRef.current === stepKey) return
       lastStepRef.current = stepKey
-      
-      const aiMessage = getAIMessage(currentStep, type, level, friendName)
-      
+
+      const aiMessage = getAIMessage(currentStep, type, level, friendName, t)
+
       const newMessage: Message = {
         id: Date.now().toString(),
         role: 'ai',
@@ -531,15 +423,15 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
         timestamp: new Date(),
         type: aiMessage.type,
       }
-      
+
       setMessages(prev => [...prev, newMessage])
-      
+
       // Lire à voix haute si activé
       if (voiceEnabled && tts.isAvailable) {
         tts.speak(aiMessage.content)
       }
     }
-    
+
     // Premier message = immédiat, les suivants = délai de 3 secondes
     if (isFirstMessage.current) {
       isFirstMessage.current = false
@@ -549,7 +441,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       // Ça laisse le temps à l'enfant de finir ce qu'il fait
       stepMessageTimeoutRef.current = setTimeout(sendMessage, 3000)
     }
-    
+
     return () => {
       if (stepMessageTimeoutRef.current) {
         clearTimeout(stepMessageTimeoutRef.current)
@@ -565,11 +457,12 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   // Gérer l'aide demandée
   useEffect(() => {
     if (needsHelp) {
-      const helpMessage = HELP_MESSAGES[Math.floor(Math.random() * HELP_MESSAGES.length)]
+      const helpMessages = getHelpMessages(t)
+      const helpMessage = helpMessages[Math.floor(Math.random() * helpMessages.length)]
       const newMessage: Message = {
         id: Date.now().toString(),
         role: 'ai',
-        content: helpMessage + "\n\nQu'est-ce qui te bloque ? Je peux t'expliquer ou te montrer !",
+        content: helpMessage + "\n\n" + t('chat.helpSuffix'),
         timestamp: new Date(),
         type: 'help',
       }
@@ -595,60 +488,41 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       
       // Contenu de la modale selon le niveau
       let content: LevelUpContent | null = null
-      const creationType = type === 'image' ? 'images' : 'vidéos'
-      
+      const creationType = type === 'image' ? 'images' : 'videos'
+
       if (level === 2) {
         content = {
           level: 2,
-          title: 'Nouveau palier',
-          subtitle: 'Tu progresses !',
-          message: `Tu vas maintenant pouvoir voir le prompt — c'est le texte qu'on envoie à l'IA pour créer tes ${creationType}.`,
-          highlight: 'Observer comment c\'est écrit t\'aidera à comprendre comment parler aux IA.',
+          title: t('chat.levelUp.level2.title'),
+          subtitle: t('chat.levelUp.level2.subtitle'),
+          message: t('chat.levelUp.level2.message', { type: creationType }),
+          highlight: t('chat.levelUp.level2.highlight'),
         }
       } else if (level === 3) {
-        // Messages différents pour images et vidéos
-        if (type === 'image') {
-          content = {
-            level: 3,
-            title: 'Plus de liberté',
-            subtitle: 'Tu grandis !',
-            message: 'Les boutons de style et d\'ambiance disparaissent ! Maintenant, c\'est toi qui les décris dans ton texte.',
-            highlight: 'Écris des mots comme "style dessin animé", "la nuit", "couleurs vives"... L\'IA comprend tout !',
-          }
-        } else {
-          content = {
-            level: 3,
-            title: 'Plus de liberté',
-            subtitle: 'Tu grandis !',
-            message: 'Tu continues à progresser ! Bientôt tu pourras décrire le mouvement toi-même, sans bouton.',
-            highlight: 'Continue comme ça, tu apprends très vite !',
-          }
+        const key = type === 'image' ? 'level3image' : 'level3video'
+        content = {
+          level: 3,
+          title: t(`chat.levelUp.${key}.title`),
+          subtitle: t(`chat.levelUp.${key}.subtitle`),
+          message: t(`chat.levelUp.${key}.message`),
+          highlight: t(`chat.levelUp.${key}.highlight`),
         }
       } else if (level === 4) {
-        if (type === 'image') {
-          content = {
-            level: 4,
-            title: 'Autonomie',
-            subtitle: 'Tu sais tout décrire !',
-            message: 'Tu n\'as presque plus besoin de boutons ! Décris tout dans ton texte : le style, l\'ambiance, les couleurs, la lumière...',
-            highlight: 'L\'IA comprend tout ce que tu écris. C\'est exactement comme ça qu\'on parle aux IA professionnelles !',
-          }
-        } else {
-          content = {
-            level: 4,
-            title: 'Autonomie',
-            subtitle: 'Tu sais tout décrire !',
-            message: 'Le bouton de mouvement disparaît ! Maintenant, décris comment ça bouge dans ton texte : "lentement", "avec énergie", "doucement"...',
-            highlight: 'Tu décris l\'action ET le mouvement. C\'est comme ça que font les pros !',
-          }
+        const key = type === 'image' ? 'level4image' : 'level4video'
+        content = {
+          level: 4,
+          title: t(`chat.levelUp.${key}.title`),
+          subtitle: t(`chat.levelUp.${key}.subtitle`),
+          message: t(`chat.levelUp.${key}.message`),
+          highlight: t(`chat.levelUp.${key}.highlight`),
         }
       } else if (level === 5) {
         content = {
           level: 5,
-          title: 'Experte',
-          subtitle: 'Tu maîtrises l\'art du prompting !',
-          message: `Tu sais maintenant créer des ${creationType} en décrivant tout toi-même. Tu peux parler à n'importe quelle IA !`,
-          highlight: 'Tu peux explorer d\'autres outils : Midjourney, DALL-E, ChatGPT... Ce que tu as appris ici fonctionne partout !',
+          title: t('chat.levelUp.level5.title'),
+          subtitle: t('chat.levelUp.level5.subtitle'),
+          message: t('chat.levelUp.level5.message', { type: creationType }),
+          highlight: t('chat.levelUp.level5.highlight'),
         }
       }
       
@@ -697,17 +571,17 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
           
           // Déterminer l'étape suivante pour que l'IA l'annonce
           const nextStepMessages: Record<string, string> = {
-            subject: 'choisir un style (dessin, photo, magique...)',
-            action: 'choisir comment ça bouge',
-            details: 'continuer la création',
-            notes: 'continuer la création',
+            subject: t('chat.nextStep.subject'),
+            action: t('chat.nextStep.action'),
+            details: t('chat.nextStep.details'),
+            notes: t('chat.nextStep.notes'),
           }
           
           const response = await fetch('/api/ai/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              message: `[VALIDATION] L'enfant propose pour son ${type === 'image' ? 'image' : 'vidéo'}: "${aiReaction.userMessage}". Si c'est approprié, valide son idée avec enthousiasme et dis-lui qu'on passe à l'étape suivante: ${nextStepMessages[fieldName] || 'continuer'}. Ne pose pas de questions, juste valide et annonce la suite !`,
+              message: t('chat.validation.prompt', { type: type === 'image' ? 'image' : 'video', text: aiReaction.userMessage || '', nextStep: nextStepMessages[fieldName] || t('chat.nextStep.details') }),
               context: 'studio',
               locale, // Langue de l'interface
               chatHistory,
@@ -731,7 +605,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
           const aiResponse: Message = {
             id: `ai-response-${aiReaction.id}`,
             role: 'ai',
-            content: data.text || data.response || "Super ! Continue ! ✨",
+            content: data.text || data.response || t('chat.validation.approved'),
             timestamp: new Date(),
             type: data.isAppropriate === false ? 'help' : 'question',
           }
@@ -758,7 +632,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
           const fallbackMessage: Message = {
             id: `fallback-${aiReaction.id}`,
             role: 'ai',
-            content: "J'ai bien noté ! Continue ! ✨",
+            content: t('chat.noted'),
             timestamp: new Date(),
             type: 'encouragement',
           }
@@ -911,7 +785,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'ai',
-        content: data.text || data.response || "Je n'ai pas compris, tu peux répéter ? 💜",
+        content: data.text || data.response || t('chat.notUnderstood'),
         timestamp: new Date(),
         type: 'question',
       }
@@ -924,9 +798,9 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       console.error('Erreur chat IA:', error)
       
       // Utiliser des messages de fallback VARIÉS pour que l'enfant ne remarque pas
-      const fallbackContent = isOffline 
-        ? getOfflineEncouragement()
-        : getRandomFallbackMessage(userMessage)
+      const fallbackContent = isOffline
+        ? getOfflineEncouragementI18n(t)
+        : getRandomFallbackMessageI18n(userMessage, t)
       
       const fallbackMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -994,7 +868,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             "text-xs truncate",
             isOffline ? "text-amber-300" : "text-aurora-300"
           )}>
-            {isOffline ? "Mode hors-ligne 🌙" : "Ton amie créative ✨"}
+            {isOffline ? t('chat.offlineMode') : t('chat.creativeCompanion')}
           </p>
         </div>
         {/* Bouton paramètres voix */}
@@ -1006,7 +880,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
               ? 'bg-aurora-500/20 text-aurora-300'
               : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
           )}
-          title="Changer la voix"
+          title={t('chat.changeVoice')}
         >
           <Settings className="w-3.5 h-3.5" />
         </button>
@@ -1020,7 +894,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
               ? 'bg-aurora-500/20 text-aurora-300' 
               : 'bg-midnight-800/50 text-midnight-400'
           )}
-          title={voiceEnabled ? 'Désactiver la voix' : 'Activer la voix'}
+          title={voiceEnabled ? t('chat.disableVoice') : t('chat.enableVoice')}
         >
           {voiceEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
         </button>
@@ -1050,7 +924,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-b border-amber-500/30 px-4 py-2"
           >
             <p className="text-xs text-amber-200 text-center">
-              📡 Pas de connexion internet • Utilise les boutons d'aide magique ci-dessous !
+              {t('chat.offlineBanner')}
             </p>
           </motion.div>
         )}
@@ -1107,7 +981,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
                 <Loader2 className="w-4 h-4 text-aurora-400 animate-spin" />
               </div>
               <div className="bg-midnight-800/70 rounded-2xl px-4 py-3">
-                <p className="text-sm text-midnight-300">Je réfléchis... ✨</p>
+                <p className="text-sm text-midnight-300">{t('chat.thinking')}</p>
               </div>
             </motion.div>
           )}
@@ -1127,17 +1001,17 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             <div className="p-3">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs text-aurora-300 font-medium">
-                  ✨ Aide magique
+                  {t('chat.magicHelp')}
                 </p>
                 <button
                   onClick={() => setShowQuickHelp(false)}
                   className="text-xs text-midnight-500 hover:text-midnight-300"
                 >
-                  Masquer
+                  {t('chat.hide')}
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {OFFLINE_QUICK_HELP[type].map((help) => {
+                {getQuickHelp(type, t).map((help) => {
                   const IconComponent = help.icon
                   return (
                     <motion.button
@@ -1166,7 +1040,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             onClick={() => setShowQuickHelp(true)}
             className="w-full mb-2 py-1.5 text-xs text-aurora-400 hover:text-aurora-300 transition-colors"
           >
-            ✨ Afficher l'aide magique
+            {t('chat.showMagicHelp')}
           </button>
         )}
         
@@ -1179,7 +1053,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
                 ? 'bg-red-500/20 text-red-400 animate-pulse'
                 : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
             )}
-            title={isListening ? 'Arrêter' : 'Parler'}
+            title={isListening ? t('chat.stop') : t('chat.speak')}
           >
             {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -1190,7 +1064,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={isOffline ? "Écris ou utilise l'aide magique..." : "Écris ta réponse..."}
+            placeholder={isOffline ? t('chat.placeholderOffline') : t('chat.placeholder')}
             className="flex-1 bg-midnight-800/50 rounded-xl px-4 py-3 text-white placeholder:text-midnight-500 text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500/30"
           />
           

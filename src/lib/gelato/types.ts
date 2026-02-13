@@ -23,7 +23,7 @@ export interface GelatoProductPrice {
 }
 
 // Formats de livres photo Gelato
-export type GelatoPhotoBookSize = 
+export type GelatoPhotoBookSize =
   | 'photobook-hardcover-a4-portrait'
   | 'photobook-hardcover-a4-landscape'
   | 'photobook-hardcover-a5-portrait'
@@ -37,7 +37,97 @@ export type GelatoPhotoBookSize =
   | 'photobook-softcover-square-210x210'
   | 'photobook-softcover-square-180x180'
 
-// Mapping de nos formats vers Gelato
+// ============================================================================
+// OPTIONS GELATO CONFIGURABLES
+// ============================================================================
+
+export type GelatoPaperType = '170-gsm-coated-silk' | '200-gsm-coated-silk' | '170-gsm-uncoated' | '200-gsm-uncoated'
+export type GelatoLamination = 'matt-lamination' | 'glossy-lamination'
+export type GelatoCoverType = 'softcover' | 'hardcover'
+
+export interface GelatoPaperOption {
+  id: GelatoPaperType
+  nameFr: string
+  nameEn: string
+  weightGsm: number
+  finish: 'silk' | 'uncoated'
+  icon: string
+  description: { fr: string; en: string; ru: string }
+}
+
+export interface GelatoLaminationOption {
+  id: GelatoLamination
+  nameFr: string
+  nameEn: string
+  icon: string
+}
+
+export const GELATO_PAPER_OPTIONS: GelatoPaperOption[] = [
+  {
+    id: '170-gsm-coated-silk',
+    nameFr: 'Satiné 170g',
+    nameEn: 'Silk 170gsm',
+    weightGsm: 170,
+    finish: 'silk',
+    icon: '✨',
+    description: { fr: 'Papier satiné classique, belles couleurs', en: 'Classic silk paper, beautiful colors', ru: 'Классическая шёлковая бумага' },
+  },
+  {
+    id: '200-gsm-coated-silk',
+    nameFr: 'Satiné 200g Premium',
+    nameEn: 'Silk 200gsm Premium',
+    weightGsm: 200,
+    finish: 'silk',
+    icon: '💎',
+    description: { fr: 'Papier satiné épais, toucher premium', en: 'Thick silk paper, premium feel', ru: 'Толстая шёлковая бумага, премиум' },
+  },
+  {
+    id: '170-gsm-uncoated',
+    nameFr: 'Mat 170g',
+    nameEn: 'Matte 170gsm',
+    weightGsm: 170,
+    finish: 'uncoated',
+    icon: '📄',
+    description: { fr: 'Papier mat naturel, aspect livre', en: 'Natural matte paper, book feel', ru: 'Натуральная матовая бумага' },
+  },
+  {
+    id: '200-gsm-uncoated',
+    nameFr: 'Mat 200g Premium',
+    nameEn: 'Matte 200gsm Premium',
+    weightGsm: 200,
+    finish: 'uncoated',
+    icon: '📜',
+    description: { fr: 'Papier mat épais, toucher noble', en: 'Thick matte paper, noble feel', ru: 'Толстая матовая бумага, благородная' },
+  },
+]
+
+export const GELATO_LAMINATION_OPTIONS: GelatoLaminationOption[] = [
+  { id: 'matt-lamination', nameFr: 'Pelliculage mat', nameEn: 'Matte lamination', icon: '🌙' },
+  { id: 'glossy-lamination', nameFr: 'Pelliculage brillant', nameEn: 'Glossy lamination', icon: '✨' },
+]
+
+// Mapping taille → segment pf Gelato
+const FORMAT_PF_SEGMENT: Record<string, string> = {
+  'square-21': '210x210-mm-8x8',
+  'square-18': '180x180-mm-7x7',
+  'portrait-a5': 'a5',
+  'portrait-a4': 'a4',
+  'landscape-a5': 'a5-landscape',
+}
+
+// Construire dynamiquement le product UID Gelato
+export function buildGelatoProductUid(
+  format: string,
+  cover: GelatoCoverType,
+  paper: GelatoPaperType,
+  lamination: GelatoLamination,
+): string {
+  const pf = FORMAT_PF_SEGMENT[format] || '210x210-mm-8x8'
+  const bt = cover === 'hardcover' ? 'perfect-hardcover' : 'glued-softcover'
+  return `photobook_pf_${pf}_pt_${paper}_cl_4-4_ccl_4-0_bt_${bt}_ct_${lamination}_prt_1-0`
+}
+
+// @deprecated Use buildGelatoProductUid() instead
 export const GELATO_PRODUCT_MAPPING: Record<string, { softcover: string; hardcover: string }> = {
   'square-21': {
     softcover: 'photobook_pf_210x210-mm-8x8_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',

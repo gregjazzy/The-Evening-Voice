@@ -29,6 +29,7 @@ import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { useToast } from '@/components/ui/Toast'
 import { removeBackground, isBackgroundRemovalSupported } from '@/lib/background-removal'
 import { cn } from '@/lib/utils'
+import { useTranslations } from '@/lib/i18n/context'
 
 // Résolution minimale pour impression A5 à 300 DPI
 // A5 = 14.8 × 21 cm = 5.83 × 8.27 pouces
@@ -44,6 +45,7 @@ interface AssetDropzoneProps {
 }
 
 export function AssetDropzone({ onAssetImported, showDropzone = true, showGallery = true, title }: AssetDropzoneProps) {
+  const t = useTranslations('studio')
   const { importedAssets, addImportedAsset, updateAsset, removeImportedAsset, currentKit, updateKit } = useStudioStore()
   const { completeStep, completedSteps, currentCreationType } = useStudioProgressStore()
   const { currentStory } = useAppStore()
@@ -352,7 +354,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <Download className="w-5 h-5 text-dream-400" />
-        <h3 className="font-semibold text-white">{title || (showDropzone ? 'Importer tes créations' : 'Mes créations')}</h3>
+        <h3 className="font-semibold text-white">{title || (showDropzone ? t('assetDropzone.importTitle') : t('assetDropzone.myCreations'))}</h3>
       </div>
 
       {/* Input file caché pour l'import depuis l'ordinateur */}
@@ -388,7 +390,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                 >
                   <Sparkles className="w-5 h-5 text-aurora-400" />
                 </motion.div>
-                <p className="text-aurora-300 text-sm">Import en cours...</p>
+                <p className="text-aurora-300 text-sm">{t('assetDropzone.importing')}</p>
               </div>
             ) : (
               <>
@@ -398,10 +400,10 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                   </div>
                 </div>
                 <p className="text-aurora-300 font-semibold text-sm">
-                  📥 Importer depuis mon ordinateur
+                  {t('assetDropzone.importFromComputer')}
                 </p>
                 <p className="text-xs text-aurora-400/60 mt-1">
-                  Clique ici pour choisir un fichier
+                  {t('assetDropzone.clickToChoose')}
                 </p>
               </>
             )}
@@ -417,7 +419,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
             >
               <FolderOpen className="w-4 h-4 text-stardust-400" />
               <span className="text-stardust-300 text-sm">
-                Voir mes {projectAssets.length} créations existantes
+                {t('assetDropzone.viewExisting', { count: String(projectAssets.length) })}
               </span>
             </motion.button>
           )}
@@ -454,8 +456,8 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                   <Upload className="w-5 h-5 text-aurora-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">Importer une création</h2>
-                  <p className="text-xs text-midnight-400">Choisis une image existante ou importe-en une nouvelle</p>
+                  <h2 className="text-lg font-bold text-white">{t('assetDropzone.importCreation')}</h2>
+                  <p className="text-xs text-midnight-400">{t('assetDropzone.chooseOrImport')}</p>
                 </div>
               </div>
               <button
@@ -474,10 +476,10 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                 <div>
                   <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                     <Image className="w-4 h-4 text-aurora-400" />
-                    🖼️ Sélectionner une image existante ({availableImagesForModal.length})
+                    {t('assetDropzone.selectExisting', { count: String(availableImagesForModal.length) })}
                   </h3>
                   <p className="text-xs text-midnight-400 mb-3">
-                    Clique sur une image pour l'utiliser
+                    {t('assetDropzone.clickToUse')}
                   </p>
                   <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-64 overflow-y-auto pr-1">
                     {availableImagesForModal.map((asset) => (
@@ -542,7 +544,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
               <div>
                 <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                   <FolderOpen className="w-4 h-4 text-stardust-400" />
-                  📥 Importer depuis mon ordinateur
+                  {t('assetDropzone.importFromComputer')}
                 </h3>
                 <motion.button
                   onClick={() => {
@@ -569,10 +571,10 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                 <div className="text-center py-6 px-4 rounded-xl bg-midnight-800/30 border border-midnight-700">
                   <Image className="w-10 h-10 text-midnight-500 mx-auto mb-2" />
                   <p className="text-midnight-400 text-sm">
-                    Aucune image dans ta galerie
+                    {t('assetDropzone.noImages')}
                   </p>
                   <p className="text-midnight-500 text-xs mt-1">
-                    Importe ta première création avec le bouton ci-dessus ! 🎨
+                    {t('assetDropzone.importFirst')}
                   </p>
                 </div>
               )}
@@ -584,7 +586,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                 onClick={() => setShowImportModal(false)}
                 className="w-full py-2.5 rounded-xl bg-midnight-700 hover:bg-midnight-600 text-white text-sm font-medium transition-colors"
               >
-                Fermer
+                {t('assetDropzone.close')}
               </button>
             </div>
           </motion.div>
@@ -596,7 +598,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
       {showGallery && projectAssets.length > 0 && (
         <div className="space-y-3">
           <h4 className="text-sm text-midnight-400 uppercase tracking-wider">
-            Fichiers importés ({projectAssets.length})
+            {t('assetDropzone.importedFiles', { count: String(projectAssets.length) })}
           </h4>
           
           {/* Grille de miniatures - scrollable si beaucoup d'images */}
@@ -682,7 +684,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                           className="p-2 rounded-lg bg-aurora-500/30 text-aurora-300 hover:bg-aurora-500/50 transition-colors"
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          title="Enlever le fond"
+                          title={t('assetDropzone.removeBg')}
                         >
                           {removingBgId === asset.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -701,7 +703,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                         className="p-2 rounded-lg bg-rose-500/30 text-rose-300 hover:bg-rose-500/50 transition-colors"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        title="Supprimer"
+                        title={t('assetDropzone.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </motion.button>

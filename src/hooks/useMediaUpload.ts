@@ -13,7 +13,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/useAuthStore'
-import { useStudioStore } from '@/store/useStudioStore'
+import type { Session } from '@supabase/supabase-js'
 
 // Types de médias supportés
 export type MediaType = 'image' | 'audio' | 'video'
@@ -166,10 +166,46 @@ async function compressImage(file: File, quality: number = 0.8): Promise<Blob> {
 }
 
 /**
+ * Vérifie que le token est frais avant un upload.
+ * Si le token expire dans < 5 minutes, le rafraîchit proactivement via Supabase Auth.
+ * Cela couvre le cas où l'onglet était en arrière-plan (TOKEN_REFRESHED non reçu).
+ */
+async function ensureFreshToken(session: Session | null): Promise<string> {
+  if (!session?.access_token) {
+    throw new Error('Session expirée — reconnecte-toi')
+  }
+
+  const expiresAt = session.expires_at // Unix timestamp en secondes
+  const now = Math.floor(Date.now() / 1000)
+  const timeLeft = (expiresAt || 0) - now
+
+  if (timeLeft > 300) {
+    // Token encore valide pour > 5 min
+    return session.access_token
+  }
+
+  // Token expiré ou expire bientôt → rafraîchir
+  console.log(`🔄 Token expire dans ${timeLeft}s, rafraîchissement...`)
+
+  const { data, error } = await supabase.auth.refreshSession()
+  if (error || !data.session) {
+    throw new Error('Session expirée — reconnecte-toi')
+  }
+
+  // Mettre à jour le store Zustand avec le nouveau token
+  useAuthStore.setState({ session: data.session })
+
+  const newTimeLeft = (data.session.expires_at || 0) - Math.floor(Date.now() / 1000)
+  console.log(`🔄 Token rafraîchi, expire dans ${newTimeLeft}s`)
+
+  return data.session.access_token
+}
+
+/**
  * Hook principal pour l'upload de médias
  */
 export function useMediaUpload(): UseMediaUploadReturn {
-  const { user, profile } = useAuthStore()
+  const { user, profile, session } = useAuthStore()
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -229,19 +265,6 @@ export function useMediaUpload(): UseMediaUploadReturn {
     console.log('📹 [3/4] Upload R2 terminé !')
     setProgress(90)
 
-    // Ajouter l'asset au store local pour qu'il soit immédiatement disponible
-    useStudioStore.getState().addImportedAsset({
-      name: finalFileName,
-      url: publicUrl,
-      cloudUrl: publicUrl,
-      type: 'video',
-      file: null,
-      source: (source === 'dalle' ? 'upload' : source) as 'midjourney' | 'elevenlabs' | 'runway' | 'gemini' | 'upload',
-      promptUsed: undefined,
-      projectId: storyId || undefined, // Lier à l'histoire actuelle
-    })
-    console.log('📦 Vidéo ajoutée au store local avec projectId:', storyId || 'aucun')
-
     console.log('📹 [4/4] Vidéo sauvegardée avec succès')
     setProgress(100)
 
@@ -282,18 +305,48 @@ export function useMediaUpload(): UseMediaUploadReturn {
     console.log('📤 [2/5] Fichier préparé:', fileName, `(${(fileToUpload.size / 1024).toFixed(1)} KB)`)
     setProgress(40)
 
-    // Upload vers Supabase Storage avec timeout
-    console.log('📤 [3/5] Upload vers Supabase Storage...')
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, fileToUpload, {
-        cacheControl: '3600',
-        upsert: false,
-      })
+    // Upload via fetch direct (contourne les problèmes de createBrowserClient + cookies)
+    // ensureFreshToken vérifie l'expiration et rafraîchit si nécessaire (< 5 min restantes)
+    const token = await ensureFreshToken(session)
+    console.log('📤 [3/5] Token auth: OK')
 
-    if (uploadError) {
-      console.error('❌ [3/5] Erreur upload storage:', uploadError.message)
-      throw new Error(`Erreur upload: ${uploadError.message}`)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucket}/${filePath}`
+    const contentType = fileToUpload.type || 'image/png'
+
+    console.log('📤 [3/5] Upload vers Supabase Storage...', { uploadUrl: uploadUrl.slice(0, 80), size: fileToUpload.size, contentType })
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 45000)
+
+    try {
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token || anonKey}`,
+          'apikey': anonKey,
+          'Content-Type': contentType,
+          'Cache-Control': 'max-age=3600',
+          'x-upsert': 'false',
+        },
+        body: fileToUpload,
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (!uploadResponse.ok) {
+        const errBody = await uploadResponse.text().catch(() => '')
+        console.error('❌ [3/5] Erreur upload storage:', uploadResponse.status, errBody)
+        throw new Error(`Erreur upload: ${uploadResponse.status} ${errBody}`)
+      }
+    } catch (err: any) {
+      clearTimeout(timeoutId)
+      if (err.name === 'AbortError') {
+        console.error('❌ [3/5] Upload timeout (45s)')
+        throw new Error('Upload timeout (45s) — vérifie ta connexion')
+      }
+      throw err
     }
 
     console.log('📤 [3/5] Upload storage OK')
@@ -345,20 +398,6 @@ export function useMediaUpload(): UseMediaUploadReturn {
     // Cast nécessaire car les types Supabase peuvent être désynchronisés
     const asset = assetData as unknown as { id: string }
 
-    // Ajouter l'asset au store local pour qu'il soit immédiatement disponible
-    // (sans attendre le rechargement depuis Supabase)
-    useStudioStore.getState().addImportedAsset({
-      name: fileName,
-      url: publicUrl,
-      cloudUrl: publicUrl,
-      type: type as 'image' | 'audio' | 'video',
-      file: null,
-      source: (source === 'dalle' ? 'upload' : source) as 'midjourney' | 'elevenlabs' | 'runway' | 'gemini' | 'upload',
-      promptUsed: undefined,
-      projectId: storyId || undefined, // Lier à l'histoire actuelle
-    })
-    console.log('📦 Asset ajouté au store local avec projectId:', storyId || 'aucun')
-
     return {
       url: publicUrl,
       assetId: asset.id,
@@ -367,7 +406,7 @@ export function useMediaUpload(): UseMediaUploadReturn {
       mimeType,
     }
 
-  }, [user, profile])
+  }, [user, profile, session])
 
   /**
    * Upload un fichier (routage automatique selon le type)

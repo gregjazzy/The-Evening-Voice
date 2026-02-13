@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { Story } from './useAppStore'
 import { exportToPDF, checkImageQuality, type ImageQualityResult } from '@/lib/export/pdf'
+import type { GelatoPaperType, GelatoLamination } from '@/lib/gelato'
+import { GELATO_PAPER_OPTIONS, GELATO_LAMINATION_OPTIONS } from '@/lib/gelato'
 
 // ============================================================================
 // FORMATS DE LIVRE DISPONIBLES
@@ -116,6 +118,7 @@ export type CoverType = 'hardcover' | 'softcover'
 export interface CoverConfig {
   type: CoverType
   nameFr: string
+  nameEn: string
   priceMultiplier: number
   icon: string
 }
@@ -124,45 +127,22 @@ export const COVER_TYPES: CoverConfig[] = [
   {
     type: 'hardcover',
     nameFr: 'Couverture rigide',
+    nameEn: 'Hardcover',
     priceMultiplier: 1.5,
     icon: '📚',
   },
   {
     type: 'softcover',
     nameFr: 'Couverture souple',
+    nameEn: 'Softcover',
     priceMultiplier: 1,
     icon: '📖',
   },
 ]
 
-// ============================================================================
-// QUALITÉ D'IMPRESSION
-// ============================================================================
-
-export interface PrintQuality {
-  id: 'standard' | 'premium'
-  nameFr: string
-  dpi: number
-  paper: string
-  priceMultiplier: number
-}
-
-export const PRINT_QUALITIES: PrintQuality[] = [
-  {
-    id: 'standard',
-    nameFr: 'Standard',
-    dpi: 300,
-    paper: 'Papier mat 150g',
-    priceMultiplier: 1,
-  },
-  {
-    id: 'premium',
-    nameFr: 'Premium',
-    dpi: 300,
-    paper: 'Papier satiné 200g',
-    priceMultiplier: 1.3,
-  },
-]
+// Re-export Gelato options for convenience
+export { GELATO_PAPER_OPTIONS, GELATO_LAMINATION_OPTIONS } from '@/lib/gelato'
+export type { GelatoPaperType, GelatoLamination } from '@/lib/gelato'
 
 // ============================================================================
 // ÉTAT DE VÉRIFICATION QUALITÉ
@@ -269,9 +249,11 @@ interface PublishState {
   coverType: CoverType
   setCoverType: (type: CoverType) => void
   
-  // Qualité d'impression
-  printQuality: 'standard' | 'premium'
-  setPrintQuality: (quality: 'standard' | 'premium') => void
+  // Options papier & finition (Gelato)
+  paperType: GelatoPaperType
+  setPaperType: (paper: GelatoPaperType) => void
+  lamination: GelatoLamination
+  setLamination: (lamination: GelatoLamination) => void
   
   // Design de couverture
   cover: BookCover
@@ -349,7 +331,8 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   selectedStory: null,
   selectedFormat: 'square-21',
   coverType: 'softcover',
-  printQuality: 'standard',
+  paperType: '170-gsm-coated-silk' as GelatoPaperType,
+  lamination: 'matt-lamination' as GelatoLamination,
   cover: DEFAULT_COVER,
   qualityChecks: [],
   imageQualityInfos: [],
@@ -392,8 +375,13 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     get().calculatePrice()
   },
   
-  setPrintQuality: (quality) => {
-    set({ printQuality: quality })
+  setPaperType: (paper) => {
+    set({ paperType: paper })
+    get().calculatePrice()
+  },
+
+  setLamination: (lam) => {
+    set({ lamination: lam })
     get().calculatePrice()
   },
   
@@ -642,48 +630,51 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   },
   
   calculatePrice: () => {
-    const { selectedStory, selectedFormat, coverType, printQuality } = get()
-    
+    const { selectedStory, selectedFormat, coverType, paperType } = get()
+
     if (!selectedStory) {
       set({ estimatedPrice: null })
       return
     }
-    
+
     const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
     const coverConfig = COVER_TYPES.find(c => c.type === coverType)
-    const qualityConfig = PRINT_QUALITIES.find(q => q.id === printQuality)
-    
-    if (!format || !coverConfig || !qualityConfig) {
+    const paperOption = GELATO_PAPER_OPTIONS.find(p => p.id === paperType)
+
+    if (!format || !coverConfig || !paperOption) {
       set({ estimatedPrice: null })
       return
     }
-    
+
+    // Multiplicateur papier basé sur le grammage
+    const paperMultiplier = paperOption.weightGsm >= 200 ? 1.3 : 1
+
     // Base price calculation (simplified)
     const pageCount = selectedStory.pages.length
     const basePricePerPage = 0.5 // €0.50 par page
     const basePrice = 5 // Prix de base
-    
+
     const price = (
       basePrice +
       (pageCount * basePricePerPage) *
       coverConfig.priceMultiplier *
-      qualityConfig.priceMultiplier
+      paperMultiplier
     )
-    
+
     set({ estimatedPrice: Math.round(price * 100) / 100 })
   },
   
   // Gelato Quote
   fetchGelatoQuote: async () => {
-    const { selectedStory, selectedFormat, coverType } = get()
-    
+    const { selectedStory, selectedFormat, coverType, paperType, lamination } = get()
+
     if (!selectedStory) {
       set({ quoteError: 'Aucune histoire sélectionnée' })
       return
     }
-    
+
     set({ isLoadingQuote: true, quoteError: null })
-    
+
     try {
       const response = await fetch('/api/gelato/quote', {
         method: 'POST',
@@ -691,6 +682,8 @@ export const usePublishStore = create<PublishState>((set, get) => ({
         body: JSON.stringify({
           format: selectedFormat,
           coverType,
+          paperType,
+          lamination,
           pageCount: selectedStory.pages.length,
           country: get().shippingAddress.country || 'FR',
           currency: 'EUR',
@@ -725,7 +718,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   
   // Gelato Order
   placeGelatoOrder: async () => {
-    const { selectedStory, selectedFormat, coverType, shippingAddress, pdfUrl } = get()
+    const { selectedStory, selectedFormat, coverType, paperType, lamination, shippingAddress, pdfUrl } = get()
     
     if (!selectedStory || !pdfUrl) {
       set({ orderError: 'PDF requis pour commander' })
@@ -749,6 +742,8 @@ export const usePublishStore = create<PublishState>((set, get) => ({
         body: JSON.stringify({
           format: selectedFormat,
           coverType,
+          paperType,
+          lamination,
           pageCount: selectedStory.pages.length,
           pdfUrl,
           shippingAddress,
@@ -785,7 +780,8 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     selectedStory: null,
     selectedFormat: 'square-21',
     coverType: 'softcover',
-    printQuality: 'standard',
+    paperType: '170-gsm-coated-silk' as GelatoPaperType,
+    lamination: 'matt-lamination' as GelatoLamination,
     cover: DEFAULT_COVER,
     qualityChecks: [],
     imageQualityInfos: [],

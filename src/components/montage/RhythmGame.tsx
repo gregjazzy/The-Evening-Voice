@@ -6,6 +6,7 @@ import { useMontageStore, type PhraseTiming } from '@/store/useMontageStore'
 import { cn } from '@/lib/utils'
 import { X, Play, Pause, RotateCcw, Check, Music, Volume2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import { useTranslations } from '@/lib/i18n/context'
 
 // =============================================================================
 // TYPES
@@ -22,6 +23,7 @@ interface RhythmGameProps {
 // =============================================================================
 
 export function RhythmGame({ isOpen, onClose, onComplete }: RhythmGameProps) {
+  const t = useTranslations('layout')
   const { getCurrentScene, currentSceneIndex } = useMontageStore()
   const scene = getCurrentScene()
 
@@ -286,10 +288,10 @@ export function RhythmGame({ isOpen, onClose, onComplete }: RhythmGameProps) {
               <div>
                 <h2 className="text-xl font-display text-aurora-300 flex items-center gap-2">
                   <Music className="w-6 h-6" />
-                  Jeu de Rythme
+                  {t('rhythmGame.title')}
                 </h2>
                 <p className="text-sm text-midnight-400 mt-1">
-                  Tape ESPACE à la fin de chaque phrase !
+                  {t('rhythmGame.instructions')}
                 </p>
               </div>
               <button
@@ -312,12 +314,12 @@ export function RhythmGame({ isOpen, onClose, onComplete }: RhythmGameProps) {
 
                 <div>
                   <p className="text-lg text-white mb-2">
-                    {phrases.length} phrases à synchroniser
+                    {phrases.length} {t('rhythmGame.phrasesToSync')}
                   </p>
                   <p className="text-sm text-midnight-400">
-                    L'audio va jouer. Tape ESPACE quand tu entends la <strong>fin</strong> de chaque phrase.
+                    {t('rhythmGame.description')}
                     <br />
-                    <span className="text-aurora-400">La première phrase démarre automatiquement !</span>
+                    <span className="text-aurora-400">{t('rhythmGame.autoStart')}</span>
                   </p>
                 </div>
 
@@ -328,7 +330,7 @@ export function RhythmGame({ isOpen, onClose, onComplete }: RhythmGameProps) {
                   whileTap={{ scale: 0.95 }}
                 >
                   <Play className="w-6 h-6 inline mr-2" />
-                  C'est parti !
+                  {t('rhythmGame.letsGo')}
                 </motion.button>
               </div>
             )}
@@ -417,7 +419,7 @@ export function RhythmGame({ isOpen, onClose, onComplete }: RhythmGameProps) {
                   className="w-full py-8 rounded-xl bg-aurora-500/20 text-aurora-300 text-xl font-bold hover:bg-aurora-500/30 transition-colors"
                   whileTap={{ scale: 0.95, backgroundColor: 'rgba(0, 255, 127, 0.3)' }}
                 >
-                  👆 TAPE À LA FIN DE LA PHRASE
+                  {t('rhythmGame.tapAtEnd')}
                 </motion.button>
               </div>
             )}
@@ -435,10 +437,10 @@ export function RhythmGame({ isOpen, onClose, onComplete }: RhythmGameProps) {
 
                 <div>
                   <h3 className="text-xl font-bold text-emerald-300">
-                    🎉 Bravo !
+                    {t('rhythmGame.bravo')}
                   </h3>
                   <p className="text-midnight-400 mt-2">
-                    {phrases.length} phrases synchronisées
+                    {phrases.length} {t('rhythmGame.phrasesSynced')}
                   </p>
                 </div>
 
@@ -460,7 +462,7 @@ export function RhythmGame({ isOpen, onClose, onComplete }: RhythmGameProps) {
                     className="px-6 py-3 rounded-xl bg-midnight-800 text-white hover:bg-midnight-700 transition-colors flex items-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Recommencer
+                    {t('rhythmGame.restart')}
                   </button>
                   <motion.button
                     onClick={handleComplete}
@@ -469,7 +471,7 @@ export function RhythmGame({ isOpen, onClose, onComplete }: RhythmGameProps) {
                     whileTap={{ scale: 0.95 }}
                   >
                     <Check className="w-4 h-4" />
-                    Valider
+                    {t('rhythmGame.validate')}
                   </motion.button>
                 </div>
               </div>

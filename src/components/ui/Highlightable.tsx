@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useHighlightStore, type HighlightableElement } from '@/store/useHighlightStore'
+import { useTranslations } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 
 interface HighlightableProps {
@@ -17,32 +18,41 @@ interface HighlightableProps {
 
 /**
  * Wrapper qui permet à un élément d'être mis en surbrillance par l'IA
- * 
+ *
  * @example
  * <Highlightable id="montage-add-music">
  *   <Button>Ajouter musique</Button>
  * </Highlightable>
  */
-export function Highlightable({ 
-  id, 
-  children, 
+export function Highlightable({
+  id,
+  children,
   className,
   fill = false,
   onHighlightClick,
 }: HighlightableProps) {
+  const t = useTranslations('common')
   // Sélection RÉACTIVE - le composant se re-render quand activeHighlights change
   const activeHighlights = useHighlightStore(state => state.activeHighlights)
   const stopHighlight = useHighlightStore(state => state.stopHighlight)
-  
+
   // Calculer highlighted et config à partir de l'objet réactif
   const highlighted = id in activeHighlights
   const config = activeHighlights[id]
-  
+
   const [showPulse, setShowPulse] = useState(false)
-  
+  const [labelBelow, setLabelBelow] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (highlighted) {
       setShowPulse(true)
+      // Detect if element is too close to top of screen
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        // If less than 80px from top, show label below instead
+        setLabelBelow(rect.top < 80)
+      }
     } else {
       setShowPulse(false)
     }
@@ -61,12 +71,13 @@ export function Highlightable({
     medium: { scale: [1, 1.05, 1], opacity: [0.4, 0.7, 0.4] },
     strong: { scale: [1, 1.08, 1], opacity: [0.5, 0.9, 0.5] },
   }
-  
+
   const intensity = config?.intensity || 'medium'
   const color = config?.color || '#FFD700'
 
   return (
-    <div 
+    <div
+      ref={containerRef}
       className={cn(
         'relative overflow-visible',
         fill && 'w-full h-full',
@@ -79,8 +90,8 @@ export function Highlightable({
       <div className={cn('relative z-10', fill && 'w-full h-full')}>
         {children}
       </div>
-      
-      {/* Effet de surbrillance - rendu conditionnel simple (pas d'AnimatePresence pour éviter les bugs avec repeat: Infinity) */}
+
+      {/* Effet de surbrillance */}
       {showPulse ? (
         <>
           {/* Glow externe pulsant */}
@@ -88,7 +99,7 @@ export function Highlightable({
             key={`glow-${id}`}
             className="absolute inset-[-4px] rounded-xl pointer-events-none z-[9998]"
             initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ 
+            animate={{
               opacity: intensityConfig[intensity].opacity,
               scale: intensityConfig[intensity].scale,
             }}
@@ -102,7 +113,7 @@ export function Highlightable({
               background: `radial-gradient(circle at center, ${color}10 0%, transparent 70%)`,
             }}
           />
-          
+
           {/* Bordure lumineuse */}
           <motion.div
             key={`border-${id}`}
@@ -119,20 +130,23 @@ export function Highlightable({
               boxShadow: `inset 0 0 10px ${color}40, 0 0 15px ${color}`,
             }}
           />
-          
+
           {/* Particules brillantes */}
           <SparkleParticles color={color} />
-          
-          {/* Indicateur "Clique ici !" */}
+
+          {/* Indicateur label - positioned above or below depending on space */}
           <motion.div
             key={`label-${id}`}
-            className="absolute -top-10 left-1/2 -translate-x-1/2 z-[10000] whitespace-nowrap"
-            initial={{ opacity: 0, y: 10 }}
+            className={cn(
+              "absolute left-1/2 -translate-x-1/2 z-[10000] whitespace-nowrap",
+              labelBelow ? "-bottom-10" : "-top-10"
+            )}
+            initial={{ opacity: 0, y: labelBelow ? -10 : 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
             <motion.div
               className="px-3 py-1.5 rounded-full text-xs font-bold shadow-xl"
-              animate={{ y: [0, -4, 0] }}
+              animate={{ y: labelBelow ? [0, 4, 0] : [0, -4, 0] }}
               transition={{ duration: 1.5, repeat: Infinity }}
               style={{
                 background: color,
@@ -140,7 +154,7 @@ export function Highlightable({
                 boxShadow: `0 4px 20px ${color}80`,
               }}
             >
-              ✨ Ici !
+              ✨ {t('here')}
             </motion.div>
           </motion.div>
         </>
@@ -154,7 +168,7 @@ export function Highlightable({
  */
 function SparkleParticles({ color }: { color: string }) {
   const particles = Array.from({ length: 6 }, (_, i) => i)
-  
+
   return (
     <div className="absolute inset-[-10px] pointer-events-none overflow-visible z-[9997]">
       {particles.map((i) => (
@@ -191,7 +205,7 @@ function SparkleParticles({ color }: { color: string }) {
  */
 export function useHighlight() {
   const { highlight, highlightMultiple, stopHighlight, stopAllHighlights } = useHighlightStore()
-  
+
   return {
     highlight,
     highlightMultiple,

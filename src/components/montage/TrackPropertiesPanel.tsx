@@ -17,13 +17,13 @@ import {
   type PhraseFontSize,
 } from '@/store/useMontageStore'
 import { cn } from '@/lib/utils'
-import { 
-  X, 
-  Image, 
-  Video, 
-  Music, 
-  Volume2, 
-  Lightbulb, 
+import {
+  X,
+  Image,
+  Video,
+  Music,
+  Volume2,
+  Lightbulb,
   Sparkles,
   Star,
   Type,
@@ -35,6 +35,7 @@ import {
   GripVertical,
   Mic,
 } from 'lucide-react'
+import { useTranslations } from '@/lib/i18n/context'
 
 // =============================================================================
 // SLIDER COMPONENT
@@ -112,15 +113,16 @@ function Section({ title, icon, children, color = 'text-aurora-400' }: SectionPr
 // MEDIA PROPERTIES
 // =============================================================================
 function MediaProperties({ track }: { track: MediaTrack }) {
+  const t = useTranslations('layout')
   const { updateMediaTrack } = useMontageStore()
-  
+
   return (
     <div className="space-y-4">
       {/* Position et taille */}
-      <Section title="Position & Taille" icon={<Move className="w-3.5 h-3.5" />} color="text-blue-400">
+      <Section title={t('trackProperties.positionSize')} icon={<Move className="w-3.5 h-3.5" />} color="text-blue-400">
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Position X"
+            label={t('trackProperties.posX')}
             value={track.position.x}
             min={0}
             max={100}
@@ -128,7 +130,7 @@ function MediaProperties({ track }: { track: MediaTrack }) {
             onChange={(x) => updateMediaTrack(track.id, { position: { ...track.position, x } })}
           />
           <Slider
-            label="Position Y"
+            label={t('trackProperties.posY')}
             value={track.position.y}
             min={0}
             max={100}
@@ -138,7 +140,7 @@ function MediaProperties({ track }: { track: MediaTrack }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Largeur"
+            label={t('trackProperties.width')}
             value={track.position.width}
             min={5}
             max={100}
@@ -147,7 +149,7 @@ function MediaProperties({ track }: { track: MediaTrack }) {
             onChange={(width) => updateMediaTrack(track.id, { position: { ...track.position, width } })}
           />
           <Slider
-            label="Hauteur"
+            label={t('trackProperties.height')}
             value={track.position.height}
             min={5}
             max={100}
@@ -158,9 +160,9 @@ function MediaProperties({ track }: { track: MediaTrack }) {
       </Section>
 
       {/* Opacité et fondus */}
-      <Section title="Opacité & Fondus" icon={<Eye className="w-3.5 h-3.5" />} color="text-purple-400">
+      <Section title={t('trackProperties.opacityFades')} icon={<Eye className="w-3.5 h-3.5" />} color="text-purple-400">
         <Slider
-          label="Opacité"
+          label={t('trackProperties.opacity')}
           value={(track.opacity ?? 1) * 100}
           min={0}
           max={100}
@@ -169,7 +171,7 @@ function MediaProperties({ track }: { track: MediaTrack }) {
         />
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Fade In"
+            label={t('trackProperties.fadeIn')}
             value={track.fadeIn ?? 0}
             min={0}
             max={3}
@@ -179,7 +181,7 @@ function MediaProperties({ track }: { track: MediaTrack }) {
             onChange={(fadeIn) => updateMediaTrack(track.id, { fadeIn })}
           />
           <Slider
-            label="Fade Out"
+            label={t('trackProperties.fadeOut')}
             value={track.fadeOut ?? 0}
             min={0}
             max={3}
@@ -191,9 +193,9 @@ function MediaProperties({ track }: { track: MediaTrack }) {
       </Section>
 
       {/* Z-Index */}
-      <Section title="Superposition" icon={<Sliders className="w-3.5 h-3.5" />} color="text-green-400">
+      <Section title={t('trackProperties.layering')} icon={<Sliders className="w-3.5 h-3.5" />} color="text-green-400">
         <Slider
-          label="Couche (z-index)"
+          label={t('trackProperties.layer')}
           value={track.zIndex}
           min={1}
           max={10}
@@ -208,16 +210,17 @@ function MediaProperties({ track }: { track: MediaTrack }) {
 // NARRATION PROPERTIES (VOLUME DE LA VOIX)
 // =============================================================================
 function NarrationProperties() {
+  const t = useTranslations('layout')
   const { getCurrentScene, updateNarrationVolume } = useMontageStore()
   const scene = getCurrentScene()
   const volume = scene?.narration?.volume ?? 1
-  
+
   return (
     <div className="space-y-4">
       {/* Volume de la voix */}
-      <Section title="Volume de la voix" icon={<Volume2 className="w-3.5 h-3.5" />} color="text-amber-400">
+      <Section title={t('trackProperties.voiceVolume')} icon={<Volume2 className="w-3.5 h-3.5" />} color="text-amber-400">
         <Slider
-          label="Volume"
+          label={t('trackProperties.volume')}
           value={volume * 100}
           min={0}
           max={100}
@@ -225,13 +228,13 @@ function NarrationProperties() {
           onChange={(v) => updateNarrationVolume(v / 100)}
         />
       </Section>
-      
+
       {/* Infos */}
-      <Section title="Informations" icon={<Mic className="w-3.5 h-3.5" />} color="text-blue-400">
+      <Section title={t('trackProperties.info')} icon={<Mic className="w-3.5 h-3.5" />} color="text-blue-400">
         <div className="text-xs text-midnight-400 space-y-1">
-          <p>Source: {scene?.narration?.source === 'recorded' ? '🎤 Enregistrée' : '🤖 TTS'}</p>
-          <p>Durée: {scene?.narration?.duration?.toFixed(1)}s</p>
-          <p>Phrases: {scene?.narration?.phrases?.length || 0}</p>
+          <p>{t('trackProperties.source')} {scene?.narration?.source === 'recorded' ? `🎤 ${t('trackProperties.recorded')}` : '🤖 TTS'}</p>
+          <p>{t('trackProperties.duration')} {scene?.narration?.duration?.toFixed(1)}s</p>
+          <p>{t('trackProperties.phrases')} {scene?.narration?.phrases?.length || 0}</p>
         </div>
       </Section>
     </div>
@@ -242,11 +245,12 @@ function NarrationProperties() {
 // PHRASE PROPERTIES (STYLE DE LA PHRASE)
 // =============================================================================
 function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
+  const t = useTranslations('layout')
   const { updatePhraseStyle, updatePhraseTiming } = useMontageStore()
-  
+
   // Volume de la phrase (défaut: 1)
   const volume = phrase.volume ?? 1
-  
+
   // Style par défaut
   const style: PhraseStyle = {
     position: phrase.style?.position || 'bottom',
@@ -256,26 +260,26 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
     animation: phrase.style?.animation || 'fade',
     customPosition: phrase.style?.customPosition,
   }
-  
+
   const positions: { value: PhrasePosition; label: string; icon: string }[] = [
-    { value: 'top', label: 'Haut', icon: '⬆️' },
-    { value: 'center', label: 'Centre', icon: '⏺️' },
-    { value: 'bottom', label: 'Bas', icon: '⬇️' },
-    { value: 'custom', label: 'Libre', icon: '✋' },
+    { value: 'top', label: t('trackProperties.top'), icon: '⬆️' },
+    { value: 'center', label: t('trackProperties.center'), icon: '⏺️' },
+    { value: 'bottom', label: t('trackProperties.bottom'), icon: '⬇️' },
+    { value: 'custom', label: t('trackProperties.free'), icon: '✋' },
   ]
-  
+
   const fontSizes: { value: PhraseFontSize; label: string; size: string }[] = [
-    { value: 'small', label: 'Petit', size: '16px' },
-    { value: 'medium', label: 'Moyen', size: '20px' },
-    { value: 'large', label: 'Grand', size: '28px' },
-    { value: 'xlarge', label: 'Très grand', size: '36px' },
+    { value: 'small', label: t('trackProperties.small'), size: '16px' },
+    { value: 'medium', label: t('trackProperties.medium'), size: '20px' },
+    { value: 'large', label: t('trackProperties.large'), size: '28px' },
+    { value: 'xlarge', label: t('trackProperties.xlarge'), size: '36px' },
   ]
-  
+
   const animations: { value: string; label: string }[] = [
-    { value: 'fade', label: '✨ Fondu' },
-    { value: 'slide', label: '➡️ Glissement' },
-    { value: 'zoom', label: '🔍 Zoom' },
-    { value: 'typewriter', label: '⌨️ Machine à écrire' },
+    { value: 'fade', label: t('trackProperties.fade') },
+    { value: 'slide', label: t('trackProperties.slide') },
+    { value: 'zoom', label: t('trackProperties.zoom') },
+    { value: 'typewriter', label: t('trackProperties.typewriter') },
   ]
   
   const presetColors = [
@@ -292,7 +296,7 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
   return (
     <div className="space-y-4">
       {/* Aperçu de la phrase */}
-      <Section title="Aperçu" icon={<Type className="w-3.5 h-3.5" />} color="text-purple-400">
+      <Section title={t('trackProperties.preview')} icon={<Type className="w-3.5 h-3.5" />} color="text-purple-400">
         <div 
           className="p-3 rounded-lg bg-midnight-900 text-center"
           style={{
@@ -306,7 +310,7 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
       </Section>
       
       {/* Position à l'écran */}
-      <Section title="Position" icon={<Move className="w-3.5 h-3.5" />} color="text-blue-400">
+      <Section title={t('trackProperties.position')} icon={<Move className="w-3.5 h-3.5" />} color="text-blue-400">
         <div className="grid grid-cols-4 gap-1">
           {positions.map((pos) => (
             <button
@@ -353,7 +357,7 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
       </Section>
       
       {/* Taille de police */}
-      <Section title="Taille" icon={<Maximize2 className="w-3.5 h-3.5" />} color="text-green-400">
+      <Section title={t('trackProperties.size')} icon={<Maximize2 className="w-3.5 h-3.5" />} color="text-green-400">
         <div className="grid grid-cols-4 gap-1">
           {fontSizes.map((size) => (
             <button
@@ -373,7 +377,7 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
       </Section>
       
       {/* Couleur du texte */}
-      <Section title="Couleur du texte" icon={<Eye className="w-3.5 h-3.5" />} color="text-pink-400">
+      <Section title={t('trackProperties.textColor')} icon={<Eye className="w-3.5 h-3.5" />} color="text-pink-400">
         <div className="flex flex-wrap gap-2">
           {presetColors.map((color) => (
             <button
@@ -393,13 +397,13 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
             value={style.color}
             onChange={(e) => updatePhraseStyle(phrase.id, { color: e.target.value })}
             className="w-7 h-7 rounded cursor-pointer"
-            title="Couleur personnalisée"
+            title={t('trackProperties.customColor')}
           />
         </div>
       </Section>
       
       {/* Couleur de fond (optionnel) */}
-      <Section title="Fond (optionnel)" icon={<Sliders className="w-3.5 h-3.5" />} color="text-orange-400">
+      <Section title={t('trackProperties.backgroundOptional')} icon={<Sliders className="w-3.5 h-3.5" />} color="text-orange-400">
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -409,7 +413,7 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
             })}
             className="rounded"
           />
-          <span className="text-xs text-midnight-400">Activer le fond</span>
+          <span className="text-xs text-midnight-400">{t('trackProperties.enableBackground')}</span>
           {style.backgroundColor && (
             <input
               type="color"
@@ -422,7 +426,7 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
       </Section>
       
       {/* Animation d'entrée */}
-      <Section title="Animation" icon={<Sparkles className="w-3.5 h-3.5" />} color="text-yellow-400">
+      <Section title={t('trackProperties.animation')} icon={<Sparkles className="w-3.5 h-3.5" />} color="text-yellow-400">
         <div className="grid grid-cols-2 gap-1">
           {animations.map((anim) => (
             <button
@@ -442,9 +446,9 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
       </Section>
       
       {/* Volume audio de la phrase */}
-      <Section title="Volume Audio" icon={<Volume2 className="w-3.5 h-3.5" />} color="text-amber-400">
+      <Section title={t('trackProperties.audioVolume')} icon={<Volume2 className="w-3.5 h-3.5" />} color="text-amber-400">
         <Slider
-          label="Volume"
+          label={t('trackProperties.volume')}
           value={volume * 100}
           min={0}
           max={150}
@@ -452,7 +456,7 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
           onChange={(v) => updatePhraseTiming(phrase.id, { volume: v / 100 })}
         />
         <p className="text-[10px] text-midnight-500 mt-1">
-          💡 100% = volume normal, 150% = amplifié
+          {t('trackProperties.volumeHint')}
         </p>
       </Section>
     </div>
@@ -463,6 +467,7 @@ function PhraseProperties({ phrase }: { phrase: PhraseTiming }) {
 // SOUND/MUSIC PROPERTIES
 // =============================================================================
 function SoundProperties({ track, type }: { track: SoundTrack | MusicTrack; type: 'sound' | 'music' }) {
+  const t = useTranslations('layout')
   const { updateSoundTrack, updateMusicTrack } = useMontageStore()
   const update = type === 'sound' ? updateSoundTrack : updateMusicTrack
   
@@ -472,9 +477,9 @@ function SoundProperties({ track, type }: { track: SoundTrack | MusicTrack; type
   return (
     <div className="space-y-4">
       {/* Volume */}
-      <Section title="Volume" icon={<Volume2 className="w-3.5 h-3.5" />} color="text-pink-400">
+      <Section title={t('trackProperties.volume')} icon={<Volume2 className="w-3.5 h-3.5" />} color="text-pink-400">
         <Slider
-          label="Volume"
+          label={t('trackProperties.volume')}
           value={track.volume * 100}
           min={0}
           max={100}
@@ -487,10 +492,10 @@ function SoundProperties({ track, type }: { track: SoundTrack | MusicTrack; type
       </Section>
 
       {/* Fondus audio */}
-      <Section title="Fondus Audio" icon={<Clock className="w-3.5 h-3.5" />} color="text-orange-400">
+      <Section title={t('trackProperties.audioFades')} icon={<Clock className="w-3.5 h-3.5" />} color="text-orange-400">
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Fade In"
+            label={t('trackProperties.fadeIn')}
             value={track.timeRange.fadeIn ?? 0}
             min={0}
             max={5}
@@ -499,7 +504,7 @@ function SoundProperties({ track, type }: { track: SoundTrack | MusicTrack; type
             onChange={(fadeIn) => update(track.id, { timeRange: { ...track.timeRange, fadeIn } })}
           />
           <Slider
-            label="Fade Out"
+            label={t('trackProperties.fadeOut')}
             value={track.timeRange.fadeOut ?? 0}
             min={0}
             max={5}
@@ -511,16 +516,16 @@ function SoundProperties({ track, type }: { track: SoundTrack | MusicTrack; type
       </Section>
 
       {/* Loop */}
-      <Section title="Options" icon={<Sliders className="w-3.5 h-3.5" />} color="text-cyan-400">
+      <Section title={t('trackProperties.options')} icon={<Sliders className="w-3.5 h-3.5" />} color="text-cyan-400">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={track.loop}
             onChange={(e) => update(track.id, { loop: e.target.checked })}
-            className="w-4 h-4 rounded bg-midnight-700 border-midnight-600 text-aurora-400 
+            className="w-4 h-4 rounded bg-midnight-700 border-midnight-600 text-aurora-400
                        focus:ring-aurora-400 focus:ring-offset-midnight-800"
           />
-          <span className="text-sm text-midnight-300">Boucle (répéter)</span>
+          <span className="text-sm text-midnight-300">{t('trackProperties.loopRepeat')}</span>
         </label>
       </Section>
     </div>
@@ -531,15 +536,16 @@ function SoundProperties({ track, type }: { track: SoundTrack | MusicTrack; type
 // DECORATION PROPERTIES
 // =============================================================================
 function DecorationProperties({ track }: { track: DecorationTrack }) {
+  const t = useTranslations('layout')
   const { updateDecorationTrack } = useMontageStore()
-  
+
   return (
     <div className="space-y-4">
       {/* Position et taille */}
-      <Section title="Position & Taille" icon={<Move className="w-3.5 h-3.5" />} color="text-yellow-400">
+      <Section title={t('trackProperties.positionSize')} icon={<Move className="w-3.5 h-3.5" />} color="text-yellow-400">
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Position X"
+            label={t('trackProperties.posX')}
             value={track.position.x}
             min={0}
             max={100}
@@ -547,7 +553,7 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
             onChange={(x) => updateDecorationTrack(track.id, { position: { ...track.position, x } })}
           />
           <Slider
-            label="Position Y"
+            label={t('trackProperties.posY')}
             value={track.position.y}
             min={0}
             max={100}
@@ -557,7 +563,7 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Largeur"
+            label={t('trackProperties.width')}
             value={track.position.width}
             min={5}
             max={100}
@@ -565,7 +571,7 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
             onChange={(width) => updateDecorationTrack(track.id, { position: { ...track.position, width } })}
           />
           <Slider
-            label="Hauteur"
+            label={t('trackProperties.height')}
             value={track.position.height}
             min={5}
             max={100}
@@ -574,7 +580,7 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
           />
         </div>
         <Slider
-          label="Rotation"
+          label={t('trackProperties.rotation')}
           value={track.position.rotation ?? 0}
           min={-180}
           max={180}
@@ -584,9 +590,9 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
       </Section>
 
       {/* Opacité et fondus */}
-      <Section title="Opacité & Fondus" icon={<Eye className="w-3.5 h-3.5" />} color="text-purple-400">
+      <Section title={t('trackProperties.opacityFades')} icon={<Eye className="w-3.5 h-3.5" />} color="text-purple-400">
         <Slider
-          label="Opacité"
+          label={t('trackProperties.opacity')}
           value={(track.opacity ?? 1) * 100}
           min={0}
           max={100}
@@ -594,7 +600,7 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
           onChange={(v) => updateDecorationTrack(track.id, { opacity: v / 100 })}
         />
         <Slider
-          label="Échelle"
+          label={t('trackProperties.scale')}
           value={(track.scale ?? 1) * 100}
           min={10}
           max={300}
@@ -603,7 +609,7 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
         />
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Fade In"
+            label={t('trackProperties.fadeIn')}
             value={track.fadeIn ?? 0}
             min={0}
             max={3}
@@ -612,7 +618,7 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
             onChange={(fadeIn) => updateDecorationTrack(track.id, { fadeIn })}
           />
           <Slider
-            label="Fade Out"
+            label={t('trackProperties.fadeOut')}
             value={track.fadeOut ?? 0}
             min={0}
             max={3}
@@ -624,26 +630,26 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
       </Section>
 
       {/* Effet de lueur */}
-      <Section title="Effet de lueur" icon={<Sparkles className="w-3.5 h-3.5" />} color="text-amber-400">
+      <Section title={t('trackProperties.glowEffect')} icon={<Sparkles className="w-3.5 h-3.5" />} color="text-amber-400">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={track.glow?.enabled ?? false}
-            onChange={(e) => updateDecorationTrack(track.id, { 
-              glow: { 
-                enabled: e.target.checked, 
+            onChange={(e) => updateDecorationTrack(track.id, {
+              glow: {
+                enabled: e.target.checked,
                 color: track.glow?.color || '#FFD700',
-                intensity: track.glow?.intensity || 50 
-              } 
+                intensity: track.glow?.intensity || 50
+              }
             })}
             className="w-4 h-4 rounded bg-midnight-700 border-midnight-600 text-aurora-400"
           />
-          <span className="text-sm text-midnight-300">Activer la lueur</span>
+          <span className="text-sm text-midnight-300">{t('trackProperties.enableGlow')}</span>
         </label>
         {track.glow?.enabled && (
           <>
             <Slider
-              label="Intensité"
+              label={t('trackProperties.intensity')}
               value={track.glow?.intensity ?? 50}
               min={0}
               max={100}
@@ -653,12 +659,12 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
               })}
             />
             <div className="flex items-center gap-2">
-              <label className="text-xs text-midnight-400">Couleur</label>
+              <label className="text-xs text-midnight-400">{t('trackProperties.color')}</label>
               <input
                 type="color"
                 value={track.glow?.color || '#FFD700'}
-                onChange={(e) => updateDecorationTrack(track.id, { 
-                  glow: { ...track.glow!, color: e.target.value } 
+                onChange={(e) => updateDecorationTrack(track.id, {
+                  glow: { ...track.glow!, color: e.target.value }
                 })}
                 className="w-8 h-6 rounded cursor-pointer bg-transparent"
               />
@@ -674,6 +680,7 @@ function DecorationProperties({ track }: { track: DecorationTrack }) {
 // ANIMATION PROPERTIES
 // =============================================================================
 function AnimationProperties({ track }: { track: AnimationTrack }) {
+  const t = useTranslations('layout')
   const { updateAnimationTrack } = useMontageStore()
   const isLocalized = track.type.startsWith('localized-')
   
@@ -681,10 +688,10 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
     <div className="space-y-4">
       {/* Position (pour animations localisées) */}
       {isLocalized && track.position && (
-        <Section title="Position de l'effet" icon={<Move className="w-3.5 h-3.5" />} color="text-cyan-400">
+        <Section title={t('trackProperties.effectPosition')} icon={<Move className="w-3.5 h-3.5" />} color="text-cyan-400">
           <div className="grid grid-cols-2 gap-3">
             <Slider
-              label="Position X"
+              label={t('trackProperties.posX')}
               value={track.position.x}
               min={0}
               max={100}
@@ -692,7 +699,7 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
               onChange={(x) => updateAnimationTrack(track.id, { position: { ...track.position!, x } })}
             />
             <Slider
-              label="Position Y"
+              label={t('trackProperties.posY')}
               value={track.position.y}
               min={0}
               max={100}
@@ -701,7 +708,7 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
             />
           </div>
           <Slider
-            label="Rayon de dispersion"
+            label={t('trackProperties.dispersalRadius')}
             value={track.position?.radius ?? 30}
             min={5}
             max={80}
@@ -712,9 +719,9 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
       )}
 
       {/* Intensité et vitesse */}
-      <Section title="Intensité & Vitesse" icon={<Sparkles className="w-3.5 h-3.5" />} color="text-pink-400">
+      <Section title={t('trackProperties.intensitySpeed')} icon={<Sparkles className="w-3.5 h-3.5" />} color="text-pink-400">
         <Slider
-          label="Intensité (densité)"
+          label={t('trackProperties.intensityDensity')}
           value={track.intensity}
           min={10}
           max={100}
@@ -722,7 +729,7 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
           onChange={(intensity) => updateAnimationTrack(track.id, { intensity })}
         />
         <Slider
-          label="Vitesse"
+          label={t('trackProperties.speed')}
           value={track.speed ?? 50}
           min={10}
           max={100}
@@ -732,9 +739,9 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
       </Section>
 
       {/* Apparence */}
-      <Section title="Apparence" icon={<Eye className="w-3.5 h-3.5" />} color="text-purple-400">
+      <Section title={t('trackProperties.appearance')} icon={<Eye className="w-3.5 h-3.5" />} color="text-purple-400">
         <Slider
-          label="Opacité"
+          label={t('trackProperties.opacity')}
           value={(track.opacity ?? 1) * 100}
           min={0}
           max={100}
@@ -743,7 +750,7 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
         />
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Fade In"
+            label={t('trackProperties.fadeIn')}
             value={track.fadeIn ?? 0}
             min={0}
             max={3}
@@ -752,7 +759,7 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
             onChange={(fadeIn) => updateAnimationTrack(track.id, { fadeIn })}
           />
           <Slider
-            label="Fade Out"
+            label={t('trackProperties.fadeOut')}
             value={track.fadeOut ?? 0}
             min={0}
             max={3}
@@ -762,7 +769,7 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
           />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-midnight-400">Couleur</label>
+          <label className="text-xs text-midnight-400">{t('trackProperties.color')}</label>
           <input
             type="color"
             value={track.color || '#FFFFFF'}
@@ -771,15 +778,15 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
           />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-midnight-400">Taille</label>
+          <label className="text-xs text-midnight-400">{t('trackProperties.size')}</label>
           <select
             value={track.size || 'medium'}
             onChange={(e) => updateAnimationTrack(track.id, { size: e.target.value as 'small' | 'medium' | 'large' })}
             className="flex-1 px-2 py-1 text-sm rounded bg-midnight-700 border border-midnight-600 text-white"
           >
-            <option value="small">Petite</option>
-            <option value="medium">Moyenne</option>
-            <option value="large">Grande</option>
+            <option value="small">{t('trackProperties.sizeSmall')}</option>
+            <option value="medium">{t('trackProperties.sizeMedium')}</option>
+            <option value="large">{t('trackProperties.sizeLarge')}</option>
           </select>
         </div>
       </Section>
@@ -791,14 +798,15 @@ function AnimationProperties({ track }: { track: AnimationTrack }) {
 // LIGHT PROPERTIES
 // =============================================================================
 function LightProperties({ track }: { track: LightTrack }) {
+  const t = useTranslations('layout')
   const { updateLightTrack } = useMontageStore()
-  
+
   return (
     <div className="space-y-4">
       {/* Couleur et intensité */}
-      <Section title="Lumière" icon={<Lightbulb className="w-3.5 h-3.5" />} color="text-yellow-400">
+      <Section title={t('trackProperties.light')} icon={<Lightbulb className="w-3.5 h-3.5" />} color="text-yellow-400">
         <div className="flex items-center gap-3">
-          <label className="text-xs text-midnight-400">Couleur</label>
+          <label className="text-xs text-midnight-400">{t('trackProperties.color')}</label>
           <input
             type="color"
             value={track.color}
@@ -808,7 +816,7 @@ function LightProperties({ track }: { track: LightTrack }) {
           <span className="text-xs text-midnight-500 font-mono">{track.color}</span>
         </div>
         <Slider
-          label="Intensité"
+          label={t('trackProperties.intensity')}
           value={track.intensity}
           min={0}
           max={100}
@@ -818,10 +826,10 @@ function LightProperties({ track }: { track: LightTrack }) {
       </Section>
 
       {/* Fondus */}
-      <Section title="Transitions" icon={<Clock className="w-3.5 h-3.5" />} color="text-orange-400">
+      <Section title={t('trackProperties.transitions')} icon={<Clock className="w-3.5 h-3.5" />} color="text-orange-400">
         <div className="grid grid-cols-2 gap-3">
           <Slider
-            label="Fade In"
+            label={t('trackProperties.fadeIn')}
             value={track.fadeIn ?? 0}
             min={0}
             max={3}
@@ -830,7 +838,7 @@ function LightProperties({ track }: { track: LightTrack }) {
             onChange={(fadeIn) => updateLightTrack(track.id, { fadeIn })}
           />
           <Slider
-            label="Fade Out"
+            label={t('trackProperties.fadeOut')}
             value={track.fadeOut ?? 0}
             min={0}
             max={3}
@@ -842,26 +850,26 @@ function LightProperties({ track }: { track: LightTrack }) {
       </Section>
 
       {/* Pulsation */}
-      <Section title="Animation" icon={<Sparkles className="w-3.5 h-3.5" />} color="text-pink-400">
+      <Section title={t('trackProperties.animation')} icon={<Sparkles className="w-3.5 h-3.5" />} color="text-pink-400">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={track.pulse?.enabled ?? false}
-            onChange={(e) => updateLightTrack(track.id, { 
-              pulse: { 
-                enabled: e.target.checked, 
+            onChange={(e) => updateLightTrack(track.id, {
+              pulse: {
+                enabled: e.target.checked,
                 speed: track.pulse?.speed || 1,
-                minIntensity: track.pulse?.minIntensity || 20 
-              } 
+                minIntensity: track.pulse?.minIntensity || 20
+              }
             })}
             className="w-4 h-4 rounded bg-midnight-700 border-midnight-600 text-aurora-400"
           />
-          <span className="text-sm text-midnight-300">Pulsation</span>
+          <span className="text-sm text-midnight-300">{t('trackProperties.pulse')}</span>
         </label>
         {track.pulse?.enabled && (
           <>
             <Slider
-              label="Vitesse"
+              label={t('trackProperties.pulseSpeed')}
               value={track.pulse?.speed ?? 1}
               min={0.1}
               max={5}
@@ -872,7 +880,7 @@ function LightProperties({ track }: { track: LightTrack }) {
               })}
             />
             <Slider
-              label="Intensité min"
+              label={t('trackProperties.minIntensity')}
               value={track.pulse?.minIntensity ?? 20}
               min={0}
               max={100}
@@ -892,6 +900,7 @@ function LightProperties({ track }: { track: LightTrack }) {
 // MAIN PANEL (DRAGGABLE)
 // =============================================================================
 export function TrackPropertiesPanel() {
+  const t = useTranslations('layout')
   const {
     selectedTrackId,
     selectedTrackType,
@@ -1000,12 +1009,12 @@ export function TrackPropertiesPanel() {
 
   const getTrackName = () => {
     if (!selected?.track) return ''
-    if (selected.type === 'narration') return '🎤 Narration (Voix)'
+    if (selected.type === 'narration') return t('trackProperties.narrationVoice')
     if (selected.type === 'phrase') {
       const phrase = selected.track as PhraseTiming
       return phrase.text.length > 20 ? phrase.text.substring(0, 20) + '...' : phrase.text
     }
-    return (selected.track as any).name || (selected.track as any).type || 'Élément'
+    return (selected.track as any).name || (selected.track as any).type || t('trackProperties.element')
   }
 
   // Utiliser un portal pour rendre au-dessus de tout (y compris le mode plein écran)

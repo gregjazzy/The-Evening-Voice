@@ -17,5 +17,15 @@ export type {
   GelatoQuoteResponse,
   GelatoQuote,
   GelatoError,
+  GelatoPaperType,
+  GelatoLamination,
+  GelatoCoverType,
+  GelatoPaperOption,
+  GelatoLaminationOption,
 } from './types'
-export { GELATO_PRODUCT_MAPPING } from './types'
+export {
+  GELATO_PRODUCT_MAPPING,
+  GELATO_PAPER_OPTIONS,
+  GELATO_LAMINATION_OPTIONS,
+  buildGelatoProductUid,
+} from './types'

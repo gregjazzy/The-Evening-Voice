@@ -148,17 +148,17 @@ interface PageMedia {
 // Couleurs de page disponibles
 type PageColor = 'cream' | 'white' | 'aged' | 'parchment' | 'blue' | 'pink' | 'mint' | 'lavender' | 'peach' | 'sky'
 
-const PAGE_COLORS: { id: PageColor; name: string; bg: string; lines: string }[] = [
-  { id: 'cream', name: 'Crème', bg: 'bg-amber-50', lines: 'rgba(139, 115, 85, 0.15)' },
-  { id: 'white', name: 'Blanc', bg: 'bg-white', lines: 'rgba(100, 100, 100, 0.12)' },
-  { id: 'aged', name: 'Vieilli', bg: 'bg-amber-100', lines: 'rgba(139, 90, 43, 0.2)' },
-  { id: 'parchment', name: 'Parchemin', bg: 'bg-orange-50', lines: 'rgba(180, 120, 60, 0.15)' },
-  { id: 'blue', name: 'Bleu ciel', bg: 'bg-blue-50', lines: 'rgba(59, 130, 246, 0.15)' },
-  { id: 'pink', name: 'Rose', bg: 'bg-pink-50', lines: 'rgba(236, 72, 153, 0.12)' },
-  { id: 'mint', name: 'Menthe', bg: 'bg-emerald-50', lines: 'rgba(16, 185, 129, 0.12)' },
-  { id: 'lavender', name: 'Lavande', bg: 'bg-purple-50', lines: 'rgba(139, 92, 246, 0.12)' },
-  { id: 'peach', name: 'Pêche', bg: 'bg-orange-100', lines: 'rgba(251, 146, 60, 0.15)' },
-  { id: 'sky', name: 'Ciel', bg: 'bg-sky-50', lines: 'rgba(14, 165, 233, 0.12)' },
+const PAGE_COLORS: { id: PageColor; nameKey: string; bg: string; lines: string }[] = [
+  { id: 'cream', nameKey: 'pageColors.cream', bg: 'bg-amber-50', lines: 'rgba(139, 115, 85, 0.15)' },
+  { id: 'white', nameKey: 'pageColors.white', bg: 'bg-white', lines: 'rgba(100, 100, 100, 0.12)' },
+  { id: 'aged', nameKey: 'pageColors.aged', bg: 'bg-amber-100', lines: 'rgba(139, 90, 43, 0.2)' },
+  { id: 'parchment', nameKey: 'pageColors.parchment', bg: 'bg-orange-50', lines: 'rgba(180, 120, 60, 0.15)' },
+  { id: 'blue', nameKey: 'pageColors.sky', bg: 'bg-blue-50', lines: 'rgba(59, 130, 246, 0.15)' },
+  { id: 'pink', nameKey: 'pageColors.pink', bg: 'bg-pink-50', lines: 'rgba(236, 72, 153, 0.12)' },
+  { id: 'mint', nameKey: 'pageColors.mint', bg: 'bg-emerald-50', lines: 'rgba(16, 185, 129, 0.12)' },
+  { id: 'lavender', nameKey: 'pageColors.lavender', bg: 'bg-purple-50', lines: 'rgba(139, 92, 246, 0.12)' },
+  { id: 'peach', nameKey: 'pageColors.peach', bg: 'bg-orange-100', lines: 'rgba(251, 146, 60, 0.15)' },
+  { id: 'sky', nameKey: 'pageColors.sky', bg: 'bg-sky-50', lines: 'rgba(14, 165, 233, 0.12)' },
 ]
 
 // Interface pour le fond de page (image ou vidéo)
@@ -708,13 +708,13 @@ const PREMIUM_DECORATIONS: DecorationItem[] = [
 ]
 
 // Catégories de décorations avec leurs infos
-const DECORATION_CATEGORIES: { id: DecorationCategory; name: string; icon: string }[] = [
-  { id: 'gold', name: 'Ornements Dorés', icon: '✨' },
-  { id: 'floral', name: 'Floraux', icon: '🌸' },
-  { id: 'royal', name: 'Royaux', icon: '👑' },
-  { id: 'celestial', name: 'Célestes', icon: '⭐' },
-  { id: 'artistic', name: 'Artistiques', icon: '🦋' },
-  { id: 'frames', name: 'Cadres', icon: '🖼️' },
+const DECORATION_CATEGORIES: { id: DecorationCategory; nameKey: string; icon: string }[] = [
+  { id: 'gold', nameKey: 'decorationCategories.gold', icon: '✨' },
+  { id: 'floral', nameKey: 'decorationCategories.floral', icon: '🌸' },
+  { id: 'royal', nameKey: 'decorationCategories.royal', icon: '👑' },
+  { id: 'celestial', nameKey: 'decorationCategories.celestial', icon: '⭐' },
+  { id: 'artistic', nameKey: 'decorationCategories.artistic', icon: '🦋' },
+  { id: 'frames', nameKey: 'decorationCategories.frames', icon: '🖼️' },
 ]
 
 interface StoryPageLocal {
@@ -753,47 +753,41 @@ interface Chapter {
 // ============================================================================
 
 const FONTS = [
-  { 
-    id: 'handwriting', 
-    name: 'Écriture', 
+  {
+    id: 'handwriting',
+    nameKey: 'fonts.handwriting',
     family: "'Caveat', cursive",
     preview: 'Aa',
-    description: 'Manuscrite'
   },
-  { 
-    id: 'tale', 
-    name: 'Conte', 
+  {
+    id: 'tale',
+    nameKey: 'fonts.tale',
     family: "'Cormorant Garamond', serif",
     preview: 'Aa',
-    description: 'Classique'
   },
-  { 
-    id: 'child', 
-    name: 'Enfant', 
+  {
+    id: 'child',
+    nameKey: 'fonts.child',
     family: "'Patrick Hand', cursive",
     preview: 'Aa',
-    description: 'Ludique'
   },
-  { 
-    id: 'book', 
-    name: 'Livre', 
+  {
+    id: 'book',
+    nameKey: 'fonts.book',
     family: "'Merriweather', serif",
     preview: 'Aa',
-    description: 'Élégant'
   },
-  { 
-    id: 'comic', 
-    name: 'BD', 
+  {
+    id: 'comic',
+    nameKey: 'fonts.comic',
     family: "'Comic Neue', cursive",
     preview: 'Aa',
-    description: 'Amusant'
   },
-  { 
-    id: 'magic', 
-    name: 'Magie', 
+  {
+    id: 'magic',
+    nameKey: 'fonts.magic',
     family: "'Spectral', serif",
     preview: 'Aa',
-    description: 'Mystérieux'
   },
 ]
 
@@ -1003,6 +997,7 @@ const DEFAULT_IMAGE_POSITION: ImagePosition = {
 }
 
 function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, opacity = 1, onPositionChange, onStyleChange, onFrameChange, onOpacityChange, onDelete, onBringForward, onSendBackward, onCreateNewImage, containerRef, totalMedia = 1 }: DraggableMediaProps) {
+  const t = useTranslations('writing')
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [isRotating, setIsRotating] = useState(false)
@@ -1507,7 +1502,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
               }}
               className="p-1 rounded-full bg-midnight-700 text-white hover:bg-midnight-600 transition-colors shadow-lg"
               onMouseDown={(e) => e.stopPropagation()}
-              title="Envoyer derrière"
+              title={t('sendToBack')}
             >
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
@@ -1520,7 +1515,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
               }}
               className="p-1 rounded-full bg-midnight-700 text-white hover:bg-midnight-600 transition-colors shadow-lg"
               onMouseDown={(e) => e.stopPropagation()}
-              title="Mettre devant"
+              title={t('bringForward')}
             >
               <ChevronUp className="w-3.5 h-3.5" />
             </button>
@@ -1543,7 +1538,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
               : "bg-midnight-800 text-white hover:bg-aurora-500"
           )}
           onMouseDown={(e) => e.stopPropagation()}
-          title="Filtres"
+          title={t('editor.filters')}
         >
           <Sparkles className="w-4 h-4" />
         </button>
@@ -1559,12 +1554,12 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
           }}
           className={cn(
             "absolute -bottom-2 -right-2 p-1.5 rounded-full transition-colors z-30 shadow-lg",
-            showFrameMenu 
-              ? "bg-amber-500 text-white" 
+            showFrameMenu
+              ? "bg-amber-500 text-white"
               : "bg-midnight-800 text-white hover:bg-amber-500"
           )}
           onMouseDown={(e) => e.stopPropagation()}
-          title="Cadres"
+          title={t('editor.frames')}
         >
           <Frame className="w-4 h-4" />
         </button>
@@ -1579,7 +1574,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
           }}
           className="absolute top-1/2 -right-10 -translate-y-1/2 p-2 rounded-full bg-gradient-to-r from-aurora-500 to-stardust-500 text-white hover:shadow-lg hover:shadow-aurora-500/25 transition-all z-30 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
-          title="Créer une nouvelle image avec ce personnage"
+          title={t('createNewImage')}
         >
           <Wand2 className="w-4 h-4" />
         </button>
@@ -1595,7 +1590,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
               isRotating && "cursor-grabbing scale-125 bg-emerald-400"
             )}
             onMouseDown={handleRotateStart}
-            title="Faire glisser pour pivoter"
+            title={t('rotation')}
           >
             <RotateCw className="w-3.5 h-3.5" />
           </div>
@@ -1623,7 +1618,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-2">
-              🎨 Filtres
+              🎨 {t('editor.filters')}
             </div>
             <div className="grid grid-cols-4 gap-2">
               {IMAGE_STYLES.map((style) => (
@@ -1639,10 +1634,10 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
                       ? "bg-aurora-100 text-aurora-700 ring-2 ring-aurora-400"
                       : "hover:bg-gray-100 text-gray-600"
                   )}
-                  title={style.name}
+                  title={t(`imageStyles.${style.id}`)}
                 >
                   <span className="text-xl">{style.emoji}</span>
-                  <span className="text-xs mt-1 whitespace-nowrap">{style.name}</span>
+                  <span className="text-xs mt-1 whitespace-nowrap">{t(`imageStyles.${style.id}`)}</span>
                 </button>
               ))}
             </div>
@@ -1650,7 +1645,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
             {/* Slider d'opacité */}
             <div className="mt-3 pt-3 border-t border-gray-100">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-600">👁️ Opacité</span>
+                <span className="text-sm font-medium text-gray-600">👁️ {t('opacity')}</span>
                 <span className="text-sm text-gray-500">{Math.round(localOpacity * 100)}%</span>
               </div>
               <input
@@ -1689,7 +1684,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-sm font-medium text-gray-600 px-2 pb-2 border-b border-gray-100 mb-2">
-              🖼️ Cadres
+              🖼️ {t('editor.frames')}
             </div>
             <div className="grid grid-cols-4 gap-2">
               {FRAME_STYLES.map((frame) => (
@@ -1705,10 +1700,10 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
                       ? "bg-amber-100 text-amber-700 ring-2 ring-amber-400"
                       : "hover:bg-gray-100 text-gray-600"
                   )}
-                  title={frame.name}
+                  title={t(`frameStyles.${frame.id}`)}
                 >
                   <span className="text-xl">{frame.emoji}</span>
-                  <span className="text-xs mt-1 whitespace-nowrap">{frame.name}</span>
+                  <span className="text-xs mt-1 whitespace-nowrap">{t(`frameStyles.${frame.id}`)}</span>
                 </button>
               ))}
             </div>
@@ -1774,6 +1769,7 @@ interface DraggableTextBoxProps {
 }
 
 function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleChange, onDelete, containerRef, pageWidth = REFERENCE_PAGE_WIDTH }: DraggableTextBoxProps) {
+  const t = useTranslations('writing')
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -2030,7 +2026,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
                 window.addEventListener('mouseup', onUp)
               }}
             >
-              <span className="text-sm font-medium text-white/90">Style du texte</span>
+              <span className="text-sm font-medium text-white/90">{t('editor.textStyle')}</span>
               <button onClick={() => { setShowStyleMenu(false); setMenuPos(null); }} className="text-midnight-400 hover:text-white transition-colors">
                 <X className="w-4 h-4" />
               </button>
@@ -2039,7 +2035,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
             <div className="p-3 space-y-3">
               {/* Police */}
               <div>
-                <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Police</label>
+                <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">{t('editor.font')}</label>
                 <div className="grid grid-cols-2 gap-1">
                   {FONTS.map((font) => (
                     <button
@@ -2053,7 +2049,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
                       )}
                       style={{ fontFamily: font.family }}
                     >
-                      {font.name}
+                      {t(font.nameKey)}
                     </button>
                   ))}
                 </div>
@@ -2062,7 +2058,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
               {/* Style + Alignement sur une ligne */}
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Style</label>
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">{t('editor.style')}</label>
                   <div className="flex gap-1">
                     <button
                       onClick={() => onStyleChange(textBox.id, { ...textBox.style, isBold: !textBox.style.isBold })}
@@ -2071,7 +2067,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
                         textBox.style.isBold ? "bg-aurora-500/20 text-aurora-300" : "text-white/60 hover:bg-midnight-700/50"
                       )}
                     >
-                      B
+                      {t('editor.bold')}
                     </button>
                     <button
                       onClick={() => onStyleChange(textBox.id, { ...textBox.style, isItalic: !textBox.style.isItalic })}
@@ -2080,12 +2076,12 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
                         textBox.style.isItalic ? "bg-aurora-500/20 text-aurora-300" : "text-white/60 hover:bg-midnight-700/50"
                       )}
                     >
-                      I
+                      {t('editor.italic')}
                     </button>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Align.</label>
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">{t('editor.align')}</label>
                   <div className="flex gap-1">
                     {(['left', 'center', 'right'] as const).map((align) => (
                       <button
@@ -2108,7 +2104,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
               {/* Couleur + Fond sur une ligne */}
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Couleur</label>
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">{t('editor.color')}</label>
                   <div className="flex gap-1 flex-wrap">
                     {['#3d3426', '#000000', '#ffffff', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
                       <button
@@ -2124,7 +2120,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
                   </div>
                 </div>
                 <div className="flex-1">
-                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Fond</label>
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">{t('editor.bgColor')}</label>
                   <div className="flex gap-1 flex-wrap">
                     <button
                       onClick={() => onStyleChange(textBox.id, { ...textBox.style, backgroundColor: undefined })}
@@ -2152,7 +2148,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
               {/* Taille */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] uppercase tracking-wider text-midnight-400">Taille</label>
+                  <label className="text-[11px] uppercase tracking-wider text-midnight-400">{t('editor.size')}</label>
                   <span className="text-[11px] text-aurora-400 font-medium">{textBox.style.fontSize}px</span>
                 </div>
                 <input
@@ -2167,9 +2163,9 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
 
               {/* Interligne */}
               <div>
-                <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">Interligne</label>
+                <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">{t('editor.spacing')}</label>
                 <div className="flex gap-1">
-                  {Object.entries(LINE_SPACINGS).map(([key, { label, pixelHeight }]) => (
+                  {Object.entries(LINE_SPACINGS).map(([key, { nameKey, pixelHeight }]) => (
                     <button
                       key={key}
                       onClick={() => onStyleChange(textBox.id, { ...textBox.style, lineSpacing: key as 'tight' | 'normal' | 'relaxed' })}
@@ -2180,7 +2176,7 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
                           : "text-white/60 hover:bg-midnight-700/50"
                       )}
                     >
-                      {label}
+                      {t(nameKey)}
                     </button>
                   ))}
                 </div>
@@ -2239,6 +2235,7 @@ function DraggableDecoration({
   onDelete,
   containerRef,
 }: DraggableDecorationProps) {
+  const t = useTranslations('writing')
   const [isDragging, setIsDragging] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -2446,7 +2443,7 @@ function DraggableDecoration({
             transform: `rotate(${-rotation}deg) scale(${1/scale})`,
             zIndex: 200,
           }}
-          title="Supprimer cette décoration"
+          title={t('deleteDecoration')}
         >
           <X className="w-5 h-5 text-white" strokeWidth={3} />
         </button>
@@ -2505,7 +2502,7 @@ function DraggableDecoration({
         >
           <span className="text-sm font-medium text-white flex items-center gap-2">
             <Move className="w-3.5 h-3.5 text-midnight-400" />
-            Éditer la décoration
+            {t('editDecoration')}
           </span>
           <button
             onClick={() => setIsEditing(false)}
@@ -2518,7 +2515,7 @@ function DraggableDecoration({
 
         {/* Taille */}
         <div className="mb-3">
-          <label className="text-xs text-midnight-400 block mb-1">Taille</label>
+          <label className="text-xs text-midnight-400 block mb-1">{t('size')}</label>
           <input
             type="range"
             min="20"
@@ -2536,7 +2533,7 @@ function DraggableDecoration({
 
         {/* Rotation */}
         <div className="mb-3">
-          <label className="text-xs text-midnight-400 block mb-1">Rotation</label>
+          <label className="text-xs text-midnight-400 block mb-1">{t('rotation')}</label>
           <input
             type="range"
             min="-180"
@@ -2554,7 +2551,7 @@ function DraggableDecoration({
 
         {/* Opacité */}
         <div className="mb-3">
-          <label className="text-xs text-midnight-400 block mb-1">Opacité</label>
+          <label className="text-xs text-midnight-400 block mb-1">{t('opacity')}</label>
           <input
             type="range"
             min="20"
@@ -2572,7 +2569,7 @@ function DraggableDecoration({
 
         {/* Couleurs premium */}
         <div className="mb-3">
-          <label className="text-xs text-midnight-400 block mb-2">Couleur</label>
+          <label className="text-xs text-midnight-400 block mb-2">{t('editor.color')}</label>
           <div className="grid grid-cols-6 gap-1.5">
             {premiumColors.map((c) => (
               <button
@@ -2593,7 +2590,7 @@ function DraggableDecoration({
           <div className="flex items-center justify-between mb-2">
             <label className="text-xs text-midnight-400 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
-              Luminosité
+              {t('brightness')}
             </label>
             <button
               onClick={() => onGlowChange(decoration.id, !glowEnabled, glowColor, glowIntensity)}
@@ -2616,7 +2613,7 @@ function DraggableDecoration({
               {/* Intensité du glow */}
               <div className="mb-2">
                 <div className="flex items-center justify-between text-xs text-midnight-400 mb-1">
-                  <span>Intensité</span>
+                  <span>{t('intensity')}</span>
                   <span className="text-aurora-400">{glowIntensity}%</span>
                 </div>
                 <input
@@ -2631,7 +2628,7 @@ function DraggableDecoration({
               
               {/* Couleur du glow */}
               <div>
-                <label className="text-xs text-midnight-400 block mb-1.5">Couleur du halo</label>
+                <label className="text-xs text-midnight-400 block mb-1.5">{t('glowColor')}</label>
                 <div className="grid grid-cols-6 gap-1">
                   {[
                     '#FFD700', // Or
@@ -2673,21 +2670,21 @@ function DraggableDecoration({
             <button
               onClick={() => onFlip(decoration.id, 'h')}
               className="p-2 rounded-lg bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white transition-colors"
-              title="Miroir horizontal"
+              title={t('flipHorizontal')}
             >
               <FlipHorizontal className="w-4 h-4" />
             </button>
             <button
               onClick={() => onFlip(decoration.id, 'v')}
               className="p-2 rounded-lg bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white transition-colors"
-              title="Miroir vertical"
+              title={t('flipVertical')}
             >
               <FlipVertical className="w-4 h-4" />
             </button>
             <button
               onClick={() => onRotationChange(decoration.id, 0)}
               className="p-2 rounded-lg bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white transition-colors"
-              title="Réinitialiser rotation"
+              title={t('resetRotation')}
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -2695,10 +2692,10 @@ function DraggableDecoration({
           <button
             onClick={() => onDelete(decoration.id)}
             className="px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium text-sm transition-colors flex items-center gap-1.5"
-            title="Supprimer"
+            title={t('deleteDecoration')}
           >
             <Trash2 className="w-4 h-4" />
-            Supprimer
+            {t('deleteDecoration')}
           </button>
         </div>
       </div>,
@@ -2719,6 +2716,7 @@ interface DecorationPickerProps {
 }
 
 function DecorationPicker({ isOpen, onClose, onSelect }: DecorationPickerProps) {
+  const t = useTranslations('writing')
   const [activeCategory, setActiveCategory] = useState<DecorationCategory>('gold')
   const [hoveredDecoration, setHoveredDecoration] = useState<string | null>(null)
 
@@ -2756,8 +2754,8 @@ function DecorationPicker({ isOpen, onClose, onSelect }: DecorationPickerProps) 
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Décorations Premium</h2>
-                <p className="text-xs text-midnight-400">Ornements luxueux pour embellir votre livre</p>
+                <h2 className="text-lg font-semibold text-white">{t('decorations')}</h2>
+                <p className="text-xs text-midnight-400">{t('decorationsSubtitle')}</p>
               </div>
             </div>
             <button
@@ -2782,7 +2780,7 @@ function DecorationPicker({ isOpen, onClose, onSelect }: DecorationPickerProps) 
                 )}
               >
                 <span>{cat.icon}</span>
-                <span>{cat.name}</span>
+                <span>{t(cat.nameKey)}</span>
               </button>
             ))}
           </div>
@@ -2818,7 +2816,7 @@ function DecorationPicker({ isOpen, onClose, onSelect }: DecorationPickerProps) 
                   />
                   <div className="absolute inset-x-0 bottom-0 p-2 text-center">
                     <span className="text-xs text-midnight-400 group-hover:text-white transition-colors">
-                      {deco.name}
+                      {t(`decorationNames.${deco.id}`)}
                     </span>
                   </div>
                 </motion.button>
@@ -2829,7 +2827,7 @@ function DecorationPicker({ isOpen, onClose, onSelect }: DecorationPickerProps) 
           {/* Footer */}
           <div className="p-4 border-t border-midnight-700/30 bg-midnight-900/50">
             <p className="text-xs text-midnight-500 text-center">
-              💫 Cliquez sur une décoration pour l'ajouter à votre page. Vous pourrez ensuite la déplacer, redimensionner et personnaliser.
+              💫 {t('decorationFooter')}
             </p>
           </div>
         </motion.div>
@@ -2857,6 +2855,7 @@ function EditableBackground({
   containerRef,
   roundedClass = 'rounded-r-lg'
 }: EditableBackgroundProps) {
+  const t = useTranslations('writing')
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [position, setPosition] = useState({ 
@@ -2953,7 +2952,7 @@ function EditableBackground({
       {/* Instructions */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-midnight-900/90 rounded-full text-xs text-white flex items-center gap-2 pointer-events-none">
         <Move className="w-3.5 h-3.5" />
-        Glisser pour déplacer • Molette pour zoomer
+        {t('dragToMove')} • {t('scrollToZoom')}
       </div>
       
       {/* Bouton terminer */}
@@ -2964,12 +2963,12 @@ function EditableBackground({
         }}
         className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2 bg-aurora-500 hover:bg-aurora-600 text-white text-sm font-medium rounded-lg shadow-lg transition-colors pointer-events-auto"
       >
-        ✓ Terminer
+        ✓ {t('done')}
       </button>
-      
+
       {/* Affichage des valeurs */}
       <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/70 rounded text-[10px] text-white pointer-events-none">
-        Zoom: {Math.round(position.scale * 100)}%
+        {t('zoom')}: {Math.round(position.scale * 100)}%
       </div>
     </div>
   )
@@ -2991,6 +2990,7 @@ interface PageTabProps {
 }
 
 function PageTab({ page, index, totalPages, isActive, chapter, onClick, onDelete, canDelete }: PageTabProps) {
+  const t = useTranslations('writing')
   const hasContent = page.content.length > 0
   const hasImage = !!page.image || (page.images && page.images.length > 0)
   
@@ -3000,8 +3000,8 @@ function PageTab({ page, index, totalPages, isActive, chapter, onClick, onDelete
   
   // Label de la page
   const getPageLabel = () => {
-    if (isFrontCover) return '📕 Couverture'
-    if (isBackCover) return '📗 4ème couv.'
+    if (isFrontCover) return `📕 ${t('frontCover')}`
+    if (isBackCover) return `📗 ${t('backCover')}`
     return page.title || `Page ${index + 1}`
   }
   
@@ -3031,7 +3031,7 @@ function PageTab({ page, index, totalPages, isActive, chapter, onClick, onDelete
           "text-[9px] font-medium truncate w-full",
           isFrontCover ? "text-amber-400" : "text-emerald-400"
         )}>
-          {isFrontCover ? 'COUVERTURE' : '4ÈME COUV.'}
+          {isFrontCover ? t('frontCover').toUpperCase() : t('backCoverShort').toUpperCase()}
         </span>
       )}
       
@@ -3048,8 +3048,8 @@ function PageTab({ page, index, totalPages, isActive, chapter, onClick, onDelete
       {/* Numéro et indicateurs */}
       <div className="flex items-center gap-1.5 w-full">
         <div className="flex gap-0.5">
-        {hasContent && <div className="w-1.5 h-1.5 rounded-full bg-aurora-400" title="Texte" />}
-        {hasImage && <div className="w-1.5 h-1.5 rounded-full bg-stardust-400" title="Image" />}
+        {hasContent && <div className="w-1.5 h-1.5 rounded-full bg-aurora-400" title={t('textIndicator')} />}
+        {hasImage && <div className="w-1.5 h-1.5 rounded-full bg-stardust-400" title={t('imageIndicator')} />}
         {!hasContent && !hasImage && <div className="w-1.5 h-1.5 rounded-full bg-midnight-600" />}
       </div>
       
@@ -3086,6 +3086,7 @@ interface OverviewProps {
 }
 
 function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) {
+  const t = useTranslations('writing')
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -3102,7 +3103,7 @@ function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-display text-white">Vue d'ensemble</h2>
+          <h2 className="text-xl font-display text-white">{t('overview')}</h2>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
@@ -3143,7 +3144,7 @@ function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) 
                   "absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[8px] font-bold whitespace-nowrap",
                   isFrontCover ? "bg-amber-500 text-amber-950" : "bg-emerald-500 text-emerald-950"
                 )}>
-                  {isFrontCover ? '📕 COUVERTURE' : '📗 4ÈME COUV.'}
+                  {isFrontCover ? `📕 ${t('frontCover').toUpperCase()}` : `📗 ${t('backCover').toUpperCase()}`}
                 </div>
               )}
               
@@ -3176,7 +3177,7 @@ function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) 
                       ? 'text-emerald-300'
                       : 'text-midnight-400'
               )}>
-                {isFrontCover ? 'Couverture' : isBackCover ? '4ème couv.' : (page.title || `Page ${index + 1}`)}
+                {isFrontCover ? t('frontCover') : isBackCover ? t('backCover') : (page.title || `Page ${index + 1}`)}
               </span>
             </motion.button>
           )}
@@ -3212,13 +3213,14 @@ function CoverEditor({
   onImageAdd,
   onBackgroundAdd,
 }: CoverEditorProps) {
+  const t = useTranslations('writing')
   const formatConfig = BOOK_FORMATS.find(f => f.id === bookFormat)
   const formatRatio = formatConfig ? formatConfig.widthMm / formatConfig.heightMm : 1
-  
-  const title = coverType === 'front' ? '📕 Couverture' : '📖 4ème de couverture'
-  const placeholder = coverType === 'front' 
-    ? 'Titre, auteur, illustration...' 
-    : 'Résumé de l\'histoire, biographie...'
+
+  const title = coverType === 'front' ? `📕 ${t('frontCover')}` : `📖 ${t('backCover')}`
+  const placeholder = coverType === 'front'
+    ? t('coverPlaceholderFront')
+    : t('coverPlaceholderBack')
 
   return (
     <motion.div
@@ -3313,7 +3315,7 @@ function CoverEditor({
             {/* Texte */}
             <div className="glass-card p-4">
               <label className="block text-sm font-medium text-midnight-300 mb-2">
-                {coverType === 'front' ? 'Texte de couverture' : 'Résumé / 4ème de couverture'}
+                {coverType === 'front' ? t('coverTextFront') : t('coverTextBack')}
               </label>
               <textarea
                 value={cover?.content || ''}
@@ -3331,7 +3333,7 @@ function CoverEditor({
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
               >
                 <ImageIcon className="w-5 h-5" />
-                <span>Fond de page</span>
+                <span>{t('background')}</span>
               </button>
               
               <button
@@ -3339,14 +3341,14 @@ function CoverEditor({
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
               >
                 <Plus className="w-5 h-5" />
-                <span>Ajouter image</span>
+                <span>{t('addImage')}</span>
               </button>
             </div>
             
             <p className="text-midnight-500 text-xs text-center">
-              💡 Tu peux ajouter des images, un fond, et du texte à ta couverture.
+              💡 {t('coverTip')}
               <br />
-              Pour un résultat optimal, utilise des images de haute qualité.
+              {t('coverTipQuality')}
             </p>
           </div>
         </div>
@@ -3357,7 +3359,7 @@ function CoverEditor({
             className="btn-primary"
           >
             <Check className="w-4 h-4 mr-2" />
-            Terminé
+            {t('done')}
           </button>
         </div>
       </motion.div>
@@ -3382,11 +3384,11 @@ interface StructureViewProps {
 }
 
 const CHAPTER_TYPES = [
-  { type: 'intro' as const, label: 'Introduction', color: '#22c55e', icon: '📖' },
-  { type: 'development' as const, label: 'Développement', color: '#3b82f6', icon: '📝' },
-  { type: 'climax' as const, label: 'Moment clé', color: '#f97316', icon: '⚡' },
-  { type: 'conclusion' as const, label: 'Conclusion', color: '#8b5cf6', icon: '🎬' },
-  { type: 'custom' as const, label: 'Personnalisé', color: '#ec4899', icon: '✨' },
+  { type: 'intro' as const, labelKey: 'chapterTypes.intro', color: '#22c55e', icon: '📖' },
+  { type: 'development' as const, labelKey: 'chapterTypes.dev', color: '#3b82f6', icon: '📝' },
+  { type: 'climax' as const, labelKey: 'chapterTypes.climax', color: '#f97316', icon: '⚡' },
+  { type: 'conclusion' as const, labelKey: 'chapterTypes.conclusion', color: '#8b5cf6', icon: '🎬' },
+  { type: 'custom' as const, labelKey: 'chapterTypes.custom', color: '#ec4899', icon: '✨' },
 ]
 
 function StructureView({ 
@@ -3400,6 +3402,7 @@ function StructureView({
   onAssignPageToChapter,
   onClose 
 }: StructureViewProps) {
+  const t = useTranslations('writing')
   const [newChapterTitle, setNewChapterTitle] = useState('')
   const [selectedType, setSelectedType] = useState<Chapter['type']>('custom')
   const [showAddChapter, setShowAddChapter] = useState(false)
@@ -3443,7 +3446,7 @@ function StructureView({
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <ListTree className="w-6 h-6 text-aurora-400" />
-            <h2 className="text-xl font-display text-white">Structure de l'histoire</h2>
+            <h2 className="text-xl font-display text-white">{t('storyStructure')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -3455,7 +3458,7 @@ function StructureView({
 
         {/* Barre de progression visuelle */}
         <div className="mb-6 p-4 bg-midnight-800/50 rounded-xl">
-          <p className="text-sm text-midnight-400 mb-3">Progression de l'histoire</p>
+          <p className="text-sm text-midnight-400 mb-3">{t('storyProgress')}</p>
           <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-midnight-700">
             {chapters.map((chapter, i) => {
               const chapterPages = pages.filter(p => p.chapterId === chapter.id)
@@ -3477,14 +3480,14 @@ function StructureView({
               <div
                 className="h-full bg-midnight-600"
                 style={{ width: `${(unassignedPages.length / pages.length) * 100}%` }}
-                title={`Non assignées (${unassignedPages.length} pages)`}
+                title={t('unassignedCount', { count: unassignedPages.length })}
               />
             )}
           </div>
           <div className="flex justify-between mt-2 text-xs text-midnight-500">
-            <span>Début</span>
-            <span>{pages.length} pages au total</span>
-            <span>Fin</span>
+            <span>{t('beginning')}</span>
+            <span>{t('totalPages', { count: pages.length })}</span>
+            <span>{t('end')}</span>
           </div>
         </div>
 
@@ -3500,7 +3503,7 @@ function StructureView({
                   <Folder className="w-4 h-4" style={{ color: chapter.color }} />
                   <span className="font-medium text-white">{chapter.title}</span>
                   <span className="text-xs text-midnight-400">
-                    ({chapterPages.length} {chapterPages.length > 1 ? 'pages' : 'page'})
+                    ({chapterPages.length} {chapterPages.length > 1 ? t('pages') : t('page')})
                   </span>
                 </div>
                 <button
@@ -3537,7 +3540,7 @@ function StructureView({
                 </div>
               ) : (
                 <p className="p-3 text-sm text-midnight-500 italic">
-                  Glisse des pages ici ou clique sur une page non assignée
+                  {t('dragPagesHint')}
                 </p>
               )}
             </div>
@@ -3548,7 +3551,7 @@ function StructureView({
             <div className="rounded-xl border border-midnight-700/50 border-dashed overflow-hidden">
               <div className="flex items-center gap-2 p-3 bg-midnight-800/30">
                 <FileText className="w-4 h-4 text-midnight-500" />
-                <span className="text-midnight-400">Pages non assignées</span>
+                <span className="text-midnight-400">{t('unassignedPages')}</span>
               </div>
               <div className="p-3 grid grid-cols-6 gap-2">
                 {unassignedPages.map((page) => (
@@ -3581,7 +3584,7 @@ function StructureView({
                             }
                           }}
                           className="w-6 h-6 rounded-full bg-aurora-500 text-white text-xs cursor-pointer appearance-none text-center"
-                          title="Assigner à un chapitre"
+                          title={t('assignToChapter')}
                           defaultValue=""
                         >
                           <option value="" disabled>+</option>
@@ -3607,7 +3610,7 @@ function StructureView({
                   type="text"
                   value={newChapterTitle}
                   onChange={(e) => setNewChapterTitle(e.target.value)}
-                  placeholder="Nom du chapitre..."
+                  placeholder={t('chapterNamePlaceholder')}
                   className="flex-1 bg-midnight-900/50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-aurora-500/30"
                   autoFocus
                 />
@@ -3616,13 +3619,13 @@ function StructureView({
                   disabled={!newChapterTitle.trim()}
                   className="px-4 py-2 rounded-lg bg-aurora-500 text-white text-sm font-medium disabled:opacity-50"
                 >
-                  Ajouter
+                  {t('add')}
                 </button>
                 <button
                   onClick={() => setShowAddChapter(false)}
                   className="px-3 py-2 rounded-lg bg-midnight-700 text-midnight-300 text-sm"
                 >
-                  Annuler
+                  {t('cancel')}
                 </button>
               </div>
               <div className="flex gap-2">
@@ -3631,7 +3634,7 @@ function StructureView({
                     key={type.type}
                     onClick={() => {
                       setSelectedType(type.type)
-                      if (!newChapterTitle) setNewChapterTitle(type.label)
+                      if (!newChapterTitle) setNewChapterTitle(t(type.labelKey))
                     }}
                     className={cn(
                       'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all',
@@ -3642,7 +3645,7 @@ function StructureView({
                     style={{ backgroundColor: `${type.color}30`, color: type.color }}
                   >
                     <span>{type.icon}</span>
-                    <span>{type.label}</span>
+                    <span>{t(type.labelKey)}</span>
                   </button>
                 ))}
               </div>
@@ -3653,7 +3656,7 @@ function StructureView({
               className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-midnight-700 hover:border-aurora-500/50 text-midnight-400 hover:text-aurora-400 transition-colors"
             >
               <FolderPlus className="w-5 h-5" />
-              <span>Ajouter un chapitre</span>
+              <span>{t('chapters.new')}</span>
             </button>
           )}
         </div>
@@ -3661,7 +3664,7 @@ function StructureView({
         {/* Suggestions de structure */}
         {chapters.length === 0 && (
           <div className="mt-6 p-4 bg-aurora-500/10 rounded-xl border border-aurora-500/20">
-            <p className="text-sm text-aurora-300 mb-3">💡 Suggestions de structure</p>
+            <p className="text-sm text-aurora-300 mb-3">💡 {t('structure')}</p>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => {
@@ -3669,7 +3672,7 @@ function StructureView({
                     setTimeout(() => {
                       onAddChapter({
                         id: Date.now().toString() + i,
-                        title: type.label,
+                        title: t(type.labelKey),
                         type: type.type,
                         color: type.color,
                       })
@@ -3733,6 +3736,8 @@ interface FormatBarProps {
 }
 
 function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, backgroundMedia, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onBackgroundEditToggle, isEditingBackground, showSafeZones = false, onToggleSafeZones, bookFormat, onBookFormatChange }: FormatBarProps) {
+  const t = useTranslations('writing')
+  const locale = useLocale()
   const [showFonts, setShowFonts] = useState(false)
   const [showFontSizes, setShowFontSizes] = useState(false)
   const [showColors, setShowColors] = useState(false)
@@ -4122,12 +4127,12 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowFonts(!showFonts)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-midnight-800/50 hover:bg-midnight-800 text-white transition-colors min-w-[120px]"
-            title="Police"
+            title={t('editor.font')}
           >
             <span style={{ fontFamily: currentFont.family }} className="text-lg">
               {currentFont.preview}
             </span>
-            <span className="text-sm text-midnight-300">{currentFont.name}</span>
+            <span className="text-sm text-midnight-300">{t(currentFont.nameKey)}</span>
             <ChevronRight className={cn("w-4 h-4 ml-auto transition-transform", showFonts && "rotate-90")} />
           </button>
           
@@ -4162,8 +4167,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                         {font.preview}
                       </span>
                       <div>
-                        <p className="text-sm font-medium">{font.name}</p>
-                        <p className="text-xs text-midnight-400">{font.description}</p>
+                        <p className="text-sm font-medium">{t(font.nameKey)}</p>
                       </div>
                     </button>
                   ))}
@@ -4184,7 +4188,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowFontSizes(!showFontSizes)}
             className="flex items-center gap-1 px-2 py-1 rounded text-sm hover:bg-midnight-800 text-midnight-300 min-w-[50px] justify-center"
-            title="Taille (sélection)"
+            title={t('editor.size')}
           >
             <span>{lastUsedSize}</span>
             <ChevronDown className="w-3 h-3" />
@@ -4235,9 +4239,9 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
             onMouseDown={(e) => e.preventDefault()}
             onClick={applyBold}
             className="w-8 h-8 rounded flex items-center justify-center font-bold transition-colors hover:bg-midnight-800 text-midnight-400 hover:text-aurora-300"
-            title="Gras"
+            title={t('editor.bold')}
           >
-            B
+            {t('editor.bold')}
           </button>
         </Highlightable>
         <Highlightable id="book-italic">
@@ -4245,9 +4249,9 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
             onMouseDown={(e) => e.preventDefault()}
             onClick={applyItalic}
             className="w-8 h-8 rounded flex items-center justify-center italic transition-colors hover:bg-midnight-800 text-midnight-400 hover:text-aurora-300"
-            title="Italique"
+            title={t('editor.italic')}
           >
-            I
+            {t('editor.italic')}
           </button>
         </Highlightable>
       </div>
@@ -4259,10 +4263,10 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
       <Highlightable id="book-text-align">
         <div className="flex items-center gap-1">
           {[
-            { id: 'left' as const, icon: AlignLeft },
-            { id: 'center' as const, icon: AlignCenter },
-            { id: 'right' as const, icon: AlignRight },
-          ].map(({ id, icon: Icon }) => (
+            { id: 'left' as const, icon: AlignLeft, titleKey: 'alignLeft' },
+            { id: 'center' as const, icon: AlignCenter, titleKey: 'alignCenter' },
+            { id: 'right' as const, icon: AlignRight, titleKey: 'alignRight' },
+          ].map(({ id, icon: Icon, titleKey }) => (
             <button
               key={id}
               onClick={() => onStyleChange({ ...style, textAlign: id })}
@@ -4272,6 +4276,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                   ? 'bg-aurora-500/20 text-aurora-300'
                   : 'hover:bg-midnight-800 text-midnight-400'
               )}
+              title={t(titleKey)}
             >
               <Icon className="w-4 h-4" />
             </button>
@@ -4294,7 +4299,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                 ? "bg-dream-500/20 text-dream-300" 
                 : "text-midnight-400 hover:bg-midnight-800"
             )}
-            title="Espacement des lignes"
+            title={t('lineSpacing')}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="6" x2="21" y2="6" />
@@ -4318,8 +4323,8 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   className="absolute top-full left-0 mt-2 p-2 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[140px]"
                 >
-                  <div className="text-xs text-midnight-400 mb-2 font-medium px-2">Interligne</div>
-                  {Object.entries(LINE_SPACINGS).map(([key, { label, pixelHeight }]) => (
+                  <div className="text-xs text-midnight-400 mb-2 font-medium px-2">{t('editor.spacing')}</div>
+                  {Object.entries(LINE_SPACINGS).map(([key, { nameKey, pixelHeight }]) => (
                     <button
                       key={key}
                       onClick={() => {
@@ -4333,7 +4338,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                           : "hover:bg-midnight-800 text-white"
                       )}
                     >
-                      <span>{label}</span>
+                      <span>{t(nameKey)}</span>
                       <span className="text-xs text-midnight-500">{pixelHeight}px</span>
                     </button>
                   ))}
@@ -4354,7 +4359,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => insertSpaces(-4)}
             className="w-7 h-7 rounded-l-lg flex items-center justify-center text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800 transition-colors"
-            title="Retirer des espaces"
+            title={t('removeSpaces')}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -4365,7 +4370,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => insertSpaces(4)}
             className="w-7 h-7 rounded-r-lg flex items-center justify-center text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800 transition-colors"
-            title="Ajouter une tabulation"
+            title={t('addTab')}
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -4375,7 +4380,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
           onMouseDown={(e) => e.preventDefault()}
           onClick={insertLineBreak}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800 transition-colors bg-midnight-800/30"
-          title="Saut de ligne"
+          title={t('lineBreak')}
         >
           <ChevronDown className="w-4 h-4" />
           </button>
@@ -4391,7 +4396,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => setShowColors(!showColors)}
           className="flex flex-col items-center justify-center w-8 h-8 rounded hover:bg-midnight-800 transition-colors"
-          title="Couleur du texte"
+          title={t('textColor')}
         >
           <span className="text-sm font-bold" style={{ color: lastUsedColor }}>A</span>
           <div className="w-5 h-1 rounded-sm" style={{ backgroundColor: lastUsedColor }} />
@@ -4415,7 +4420,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                 onMouseDown={(e) => e.preventDefault()}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-midnight-400">Couleur du texte</p>
+                  <p className="text-xs text-midnight-400">{t('textColor')}</p>
           <button
                     onClick={() => setShowColors(false)}
                     className="text-midnight-500 hover:text-white text-xs"
@@ -4483,7 +4488,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
               ? "bg-aurora-500/20 text-aurora-300" 
               : "text-midnight-400 hover:bg-midnight-800"
           )}
-          title={showLines ? "Masquer les lignes" : "Afficher les lignes"}
+          title={showLines ? t('hideLines') : t('showLines')}
         >
           {/* Icône lignes de cahier */}
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -4507,7 +4512,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
               ? "bg-amber-500/20 text-amber-300" 
               : "text-midnight-400 hover:bg-midnight-800"
           )}
-          title={showSafeZones ? "Masquer les zones d'impression" : "Afficher les zones d'impression"}
+          title={showSafeZones ? t('hideSafeZones') : t('showSafeZones')}
         >
           {/* Icône zones de sécurité (cadre avec marges) */}
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -4516,7 +4521,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
             {/* Cadre intérieur (zone sûre) */}
             <rect x="5" y="5" width="14" height="14" rx="1" strokeDasharray="2 2" className="text-amber-400" />
           </svg>
-          <span className="text-xs hidden sm:inline">Marges</span>
+          <span className="text-xs hidden sm:inline">{t('margins')}</span>
         </button>
         </Highlightable>
       )}
@@ -4534,13 +4539,13 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                 ? "bg-dream-500/20 text-dream-300" 
                 : "text-midnight-400 hover:bg-midnight-800"
             )}
-            title="Format du livre"
+            title={t('bookFormat')}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <rect x="4" y="2" width="12" height="18" rx="1" />
               <line x1="4" y1="6" x2="16" y2="6" />
             </svg>
-            <span className="text-xs hidden sm:inline">Format</span>
+            <span className="text-xs hidden sm:inline">{t('format')}</span>
           </button>
           
           {/* Menu des formats */}
@@ -4557,7 +4562,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   className="absolute top-full left-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[220px]"
                 >
-                  <div className="text-xs text-midnight-400 mb-2 font-medium">Format du livre</div>
+                  <div className="text-xs text-midnight-400 mb-2 font-medium">{t('bookFormat')}</div>
                   <div className="flex flex-col gap-1">
                     {BOOK_FORMATS.map((format) => (
                       <button
@@ -4575,7 +4580,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                       >
                         <span className="text-lg">{format.icon}</span>
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium">{format.nameFr}</span>
+                          <span className="text-sm font-medium">{locale === 'fr' ? format.nameFr : format.name}</span>
                           <span className="text-xs text-midnight-500">{format.widthMm}×{format.heightMm}mm</span>
                         </div>
                         {bookFormat === format.id && (
@@ -4605,7 +4610,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                 ? "bg-dream-500/20 text-dream-300" 
                 : "text-midnight-400 hover:bg-midnight-800"
             )}
-            title="Couleur des pages"
+            title={t('pageColor')}
           >
             <Palette className="w-4 h-4" />
           </button>
@@ -4625,7 +4630,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   className="absolute top-full left-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[200px]"
                 >
-                  <div className="text-xs text-midnight-400 mb-2 font-medium">Couleur du livre</div>
+                  <div className="text-xs text-midnight-400 mb-2 font-medium">{t('pageColor')}</div>
                   <div className="grid grid-cols-5 gap-2">
                     {PAGE_COLORS.map((color) => (
                       <button
@@ -4641,7 +4646,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                             ? "border-aurora-500 ring-2 ring-aurora-500/30"
                             : "border-midnight-600 hover:border-midnight-500"
                         )}
-                        title={color.name}
+                        title={t(color.nameKey)}
                       />
                     ))}
                   </div>
@@ -4668,7 +4673,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                   ? "bg-dream-500/20 text-dream-300"
                   : "text-midnight-400 hover:bg-midnight-800"
             )}
-            title="Fond de page"
+            title={t('background')}
           >
             <Layers className="w-4 h-4" />
           </button>
@@ -4688,7 +4693,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   className="absolute top-full right-0 mt-2 p-3 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[220px]"
                 >
-                  <div className="text-xs text-midnight-400 mb-3 font-medium">Fond de page</div>
+                  <div className="text-xs text-midnight-400 mb-3 font-medium">{t('background')}</div>
                 
                 {backgroundMedia ? (
                   <>
@@ -4719,7 +4724,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                     
                     {/* Slider d'opacité */}
                     <div className="mb-3">
-                      <label className="text-xs text-midnight-400 block mb-1">Opacité</label>
+                      <label className="text-xs text-midnight-400 block mb-1">{t('opacity')}</label>
                       <input
                         type="range"
                         min="10"
@@ -4737,7 +4742,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                     
                     {/* Slider de zoom */}
                     <div className="mb-3">
-                      <label className="text-xs text-midnight-400 block mb-1">Zoom</label>
+                      <label className="text-xs text-midnight-400 block mb-1">{t('zoom')}</label>
                       <input
                         type="range"
                         min="10"
@@ -4770,7 +4775,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                       }`}
                     >
                       <Move className="w-3.5 h-3.5" />
-                      {isEditingBackground ? 'Terminer le positionnement' : 'Déplacer l\'image'}
+                      {isEditingBackground ? t('finishPositioning') : t('moveImage')}
                     </button>
                     
                     {/* Boutons */}
@@ -4782,7 +4787,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                         }}
                         className="flex-1 px-3 py-1.5 bg-midnight-800 hover:bg-midnight-700 text-white text-xs rounded-lg transition-colors"
                       >
-                        Changer
+                        {t('change')}
                       </button>
                       <button
                         onClick={() => {
@@ -4798,7 +4803,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                 ) : (
                   <>
                     <p className="text-xs text-midnight-500 mb-3">
-                      Ajoute une image ou vidéo en fond de cette page
+                      {t('addBackgroundHint')}
                     </p>
                     <button
                       onClick={() => {
@@ -4808,7 +4813,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                       className="w-full px-3 py-2 bg-gradient-to-r from-aurora-600 to-dream-600 text-white text-sm font-medium rounded-lg hover:from-aurora-500 hover:to-dream-500 transition-colors flex items-center justify-center gap-2"
                     >
                       <ImagePlus className="w-4 h-4" />
-                      Ajouter un fond
+                      {t('addBackground')}
                     </button>
                   </>
                 )}
@@ -4924,6 +4929,7 @@ function getFormatRatio(bookFormat: BookFormat = 'portrait-a5'): number {
 
 // Composant pour afficher les zones de sécurité d'impression
 function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefined; side: 'left' | 'right' }) {
+  const t = useTranslations('writing')
   if (!format) return null
   
   // Calculer les pourcentages des marges
@@ -4985,7 +4991,7 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
       
       {/* Labels explicatifs */}
       <div className="absolute top-1 left-1 text-[8px] text-red-400 bg-red-500/20 px-1 rounded font-medium">
-        ✂️ Coupé
+        ✂️ {t('safeZoneCut')}
       </div>
       <div 
         className="absolute text-[8px] text-emerald-400 bg-emerald-500/20 px-1 rounded font-medium"
@@ -4994,7 +5000,7 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
           left: side === 'left' ? `${safeZonePercent + bleedPercent + 1}%` : `${spineMarginPercent + 1}%`,
         }}
       >
-        ✓ Zone sûre
+        ✓ {t('safeZoneSafe')}
       </div>
       <div 
         className={cn(
@@ -5002,7 +5008,7 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
           side === 'left' ? 'right-1' : 'left-1'
         )}
       >
-        Reliure
+        {t('safeZoneBinding')}
       </div>
     </div>
   )
@@ -5010,6 +5016,8 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
 
 function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
   
+  const t = useTranslations('writing')
+
   // ========================================================================
   // CANONICAL RENDERING
   // Pages are always rendered at fixed canonical dimensions (500px width).
@@ -5319,6 +5327,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
     en: { start: 'Dictate', stop: 'Stop', listening: 'Listening...' },
     ru: { start: 'Диктовать', stop: 'Стоп', listening: 'Слушаю...' },
   }
+  const mic = micLabels[locale as keyof typeof micLabels] || micLabels.en
 
   // Hauteur de ligne en pixels pour chaque page (canonical — scale = 1)
   const rightLineHeightPx = getBaseLineHeightPx((rightStyle.lineSpacing || 'normal') as LineSpacing)
@@ -5389,7 +5398,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             <button
               onClick={onBack}
               className="p-1.5 rounded-lg text-midnight-400 hover:text-white hover:bg-midnight-800/50 transition-colors"
-              title="Retour"
+              title={t('formatSelector.back')}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -5400,7 +5409,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               value={storyTitle || ''}
               onChange={(e) => onStoryTitleChange(e.target.value)}
               className="font-display text-sm text-aurora-300 bg-midnight-800/30 rounded-lg px-2 py-1 outline-none border border-transparent focus:border-aurora-500/30 min-w-[120px] max-w-[180px]"
-              placeholder="Titre..."
+              placeholder={t('titlePlaceholder')}
             />
           )}
         </div>
@@ -5443,7 +5452,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           <button
               onClick={onShowStructure}
               className="p-1.5 rounded-lg bg-midnight-800/50 hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
-              title="Structure"
+              title={t('structure')}
             >
               <ListTree className="w-4 h-4" />
           </button>
@@ -5452,7 +5461,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             <button
               onClick={onShowOverview}
               className="p-1.5 rounded-lg bg-midnight-800/50 hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
-              title="Vue d'ensemble"
+              title={t('overview')}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
@@ -5463,7 +5472,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               onClick={onExportPdf}
               disabled={isExportingPdf}
               className="p-1.5 rounded-lg bg-aurora-600/50 hover:bg-aurora-600 text-white/80 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-wait"
-              title="Exporter PDF HD (300 DPI)"
+              title={t('editor.exportPdf')}
             >
               <Download className="w-4 h-4" />
             </button>
@@ -5571,7 +5580,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             <button
               onClick={(e) => { e.stopPropagation(); exitZoom(); }}
               className="absolute top-2 right-2 z-20 p-2 rounded-full bg-amber-200/80 hover:bg-amber-300 text-amber-700 transition-all shadow-sm hover:shadow"
-              title="Revenir au livre"
+              title={t('backToBook')}
             >
               <EyeOff className="w-4 h-4" />
             </button>
@@ -5638,10 +5647,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     {alignmentMenuOpen === 'zoom' && zChapter && (
                       <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
                         {[
-                          { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-4 h-4" /> },
-                          { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-4 h-4" /> },
-                          { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-4 h-4" /> },
-                          { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-4 h-4" /> },
+                          { value: 'left', label: `◀ ${t('alignLeft')}`, icon: <AlignLeft className="w-4 h-4" /> },
+                          { value: 'center', label: `▣ ${t('alignCenter')}`, icon: <AlignCenter className="w-4 h-4" /> },
+                          { value: 'right', label: `▶ ${t('alignRight')}`, icon: <AlignRight className="w-4 h-4" /> },
+                          { value: 'hidden', label: `✕ ${t('alignHide')}`, icon: <EyeOff className="w-4 h-4" /> },
                         ].map((opt) => (
                           <button
                             key={opt.value}
@@ -5689,10 +5698,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   {alignmentMenuOpen === 'zoom' && zChapter && (
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
                       {[
-                        { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-4 h-4" /> },
-                        { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-4 h-4" /> },
-                        { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-4 h-4" /> },
-                        { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-4 h-4" /> },
+                        { value: 'left', label: `◀ ${t('alignLeft')}`, icon: <AlignLeft className="w-4 h-4" /> },
+                        { value: 'center', label: `▣ ${t('alignCenter')}`, icon: <AlignCenter className="w-4 h-4" /> },
+                        { value: 'right', label: `▶ ${t('alignRight')}`, icon: <AlignRight className="w-4 h-4" /> },
+                        { value: 'hidden', label: `✕ ${t('alignHide')}`, icon: <EyeOff className="w-4 h-4" /> },
                       ].map((opt) => (
                         <button
                           key={opt.value}
@@ -5834,14 +5843,14 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {pageFullIndicator === 'zoom' && (
               <div data-pdf-hide="true" className="absolute bottom-[14%] left-0 right-0 z-20 flex justify-center pointer-events-none animate-in fade-in duration-300">
                 <span className="bg-amber-100/90 text-amber-700 text-sm font-serif px-4 py-1.5 rounded-full shadow-sm border border-amber-200/60">
-                  {locale === 'fr' ? 'Page pleine !' : 'Page full!'}
+                  {t('editor.pageFull')}
                 </span>
               </div>
             )}
 
         {/* Barre d'outils en bas */}
             <div data-pdf-hide="true" className="relative z-10 px-8 py-3 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent">
-              <span className="text-sm text-amber-700/50 font-serif">{getWordCount(zPage.content)} {locale === 'fr' ? 'mots' : 'words'}</span>
+              <span className="text-sm text-amber-700/50 font-serif">{getWordCount(zPage.content)} {t('words')}</span>
           <div className="flex items-center gap-2">
                 <button
               onClick={() => {
@@ -5859,7 +5868,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                       ? 'text-red-500 bg-red-100 animate-pulse' 
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
-                  title={isListening && dictatingPage === 'zoom' ? 'Arrêter' : 'Dicter'}
+                  title={isListening && dictatingPage === 'zoom' ? mic.stop : mic.start}
                 >
                   {isListening && dictatingPage === 'zoom' ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
@@ -5867,7 +5876,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 <button
                   onClick={() => onImageAdd(zPageIndex)}
                   className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
-                  title="Ajouter une image"
+                  title={t('addImage')}
                 >
                   <ImageIcon className="w-5 h-5" />
                 </button>
@@ -5881,7 +5890,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                       ? 'text-aurora-600 bg-aurora-100'
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
-                  title="Fond de page"
+                  title={t('background')}
                 >
                   <Layers className="w-5 h-5" />
                 </button>
@@ -5895,7 +5904,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                         ? 'text-aurora-600 bg-aurora-100'
                         : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                     )}
-                    title="Déplacer le fond"
+                    title={t('moveBackground')}
                   >
                     <Move className="w-5 h-5" />
                   </button>
@@ -5909,7 +5918,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                       ? 'text-amber-500 bg-amber-100'
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
-                  title="Décorations"
+                  title={t('decorations')}
                 >
                   <Gem className="w-5 h-5" />
                 </button>
@@ -5923,7 +5932,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                       ? 'text-dream-500 bg-dream-100'
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
-                  title="Zone de texte"
+                  title={t('textBox')}
                 >
                   <Type className="w-5 h-5" />
                 </button>
@@ -5942,10 +5951,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   ? "text-emerald-500 font-bold"
                   : "text-amber-600/40"
             )}>
-              {zPageIndex === 0 
-                ? "📕 COUVERTURE" 
+              {zPageIndex === 0
+                ? `📕 ${t('frontCover').toUpperCase()}`
                 : zPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
-                  ? "📗 4ÈME DE COUVERTURE"
+                  ? `📗 ${t('backCover').toUpperCase()}`
                   : `— Page ${zPageIndex + 1} —`}
             </div>
           </motion.div>
@@ -6001,9 +6010,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {/* Bandeau légende EN OVERLAY - ne prend pas de place */}
             {showSafeZones && (
               <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full bg-midnight-900/90 border border-midnight-700 flex items-center gap-3 text-[10px] whitespace-nowrap">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded border border-red-500"></span><span className="text-red-400">Coupé</span></span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/40"></span><span className="text-emerald-400">Sûr</span></span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-500/40"></span><span className="text-blue-400">Reliure</span></span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded border border-red-500"></span><span className="text-red-400">{t('safeZoneCut')}</span></span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/40"></span><span className="text-emerald-400">{t('safeZoneSafeShort')}</span></span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-500/40"></span><span className="text-blue-400">{t('safeZoneBinding')}</span></span>
               </div>
             )}
             {/* Ombre du livre */}
@@ -6152,10 +6161,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     {alignmentMenuOpen === 'left' && leftChapter && (
                       <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
                         {[
-                          { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-3 h-3" /> },
-                          { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-3 h-3" /> },
-                          { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-3 h-3" /> },
-                          { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-3 h-3" /> },
+                          { value: 'left', label: `◀ ${t('alignLeft')}`, icon: <AlignLeft className="w-3 h-3" /> },
+                          { value: 'center', label: `▣ ${t('alignCenter')}`, icon: <AlignCenter className="w-3 h-3" /> },
+                          { value: 'right', label: `▶ ${t('alignRight')}`, icon: <AlignRight className="w-3 h-3" /> },
+                          { value: 'hidden', label: `✕ ${t('alignHide')}`, icon: <EyeOff className="w-3 h-3" /> },
                         ].map((opt) => (
                           <button
                             key={opt.value}
@@ -6203,10 +6212,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   {alignmentMenuOpen === 'left' && leftChapter && (
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
                       {[
-                        { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-3 h-3" /> },
-                        { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-3 h-3" /> },
-                        { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-3 h-3" /> },
-                        { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-3 h-3" /> },
+                        { value: 'left', label: `◀ ${t('alignLeft')}`, icon: <AlignLeft className="w-3 h-3" /> },
+                        { value: 'center', label: `▣ ${t('alignCenter')}`, icon: <AlignCenter className="w-3 h-3" /> },
+                        { value: 'right', label: `▶ ${t('alignRight')}`, icon: <AlignRight className="w-3 h-3" /> },
+                        { value: 'hidden', label: `✕ ${t('alignHide')}`, icon: <EyeOff className="w-3 h-3" /> },
                       ].map((opt) => (
                         <button
                           key={opt.value}
@@ -6282,7 +6291,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-amber-600/30 text-sm font-serif italic">
-                  {locale === 'fr' ? 'Début du livre' : 'Start of book'}
+                  {t('startOfBook')}
                 </span>
               </div>
             )}
@@ -6291,7 +6300,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {pageFullIndicator === 'left' && (
               <div data-pdf-hide="true" className="absolute bottom-[14%] left-0 right-0 z-20 flex justify-center pointer-events-none animate-in fade-in duration-300">
                 <span className="bg-amber-100/90 text-amber-700 text-xs font-serif px-3 py-1 rounded-full shadow-sm border border-amber-200/60">
-                  {locale === 'fr' ? 'Page pleine !' : 'Page full!'}
+                  {t('editor.pageFull')}
                 </span>
               </div>
             )}
@@ -6304,7 +6313,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onClick={(e) => e.stopPropagation()}
               >
                 <span className="text-xs text-amber-700/50 font-serif">
-                  {leftPage.content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').split(/\s+/).filter(Boolean).length} {locale === 'fr' ? 'mots' : 'words'}
+                  {leftPage.content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').split(/\s+/).filter(Boolean).length} {t('words')}
                 </span>
                 <div className="flex items-center gap-1">
                   <button
@@ -6324,7 +6333,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                         ? 'text-red-500 bg-red-100 animate-pulse' 
                         : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                     )}
-                    title={isListening && dictatingPage === 'left' ? 'Arrêter' : 'Dicter'}
+                    title={isListening && dictatingPage === 'left' ? mic.stop : mic.start}
                   >
                     {isListening && dictatingPage === 'left' ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
@@ -6337,7 +6346,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                       }
                     }}
                     className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
-                    title="Ajouter une image"
+                    title={t('addImage')}
                   >
                     <ImageIcon className="w-4 h-4" />
                   </button>
@@ -6356,7 +6365,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                         ? 'text-aurora-600 bg-aurora-100'
                         : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                     )}
-                    title="Fond de page"
+                    title={t('background')}
                   >
                     <Layers className="w-4 h-4" />
                   </button>
@@ -6370,7 +6379,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                           ? 'text-aurora-600 bg-aurora-100'
                           : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                       )}
-                      title="Déplacer le fond"
+                      title={t('moveBackground')}
                     >
                       <Move className="w-4 h-4" />
                     </button>
@@ -6389,7 +6398,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                         ? 'text-amber-500 bg-amber-100'
                         : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                     )}
-                    title="Décorations"
+                    title={t('decorations')}
                   >
                     <Gem className="w-4 h-4" />
                   </button>
@@ -6408,7 +6417,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                         ? 'text-dream-500 bg-dream-100'
                         : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                     )}
-                    title="Zone de texte"
+                    title={t('textBox')}
                   >
                     <Type className="w-4 h-4" />
                   </button>
@@ -6431,9 +6440,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               style={{ bottom: leftPage && leftPageIndex !== undefined ? '34px' : '4px' }}
             >
               {leftPageIndex === 0
-                ? "COUVERTURE"
+                ? t('frontCover').toUpperCase()
                 : leftPageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
-                  ? "4EME COUV."
+                  ? t('backCoverShort').toUpperCase()
                   : `— ${leftPageIndex !== undefined ? leftPageIndex + 1 : '—'} —`}
             </div>
 
@@ -6598,10 +6607,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     {alignmentMenuOpen === 'right' && rightChapter && (
                       <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
                         {[
-                          { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-3 h-3" /> },
-                          { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-3 h-3" /> },
-                          { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-3 h-3" /> },
-                          { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-3 h-3" /> },
+                          { value: 'left', label: `◀ ${t('alignLeft')}`, icon: <AlignLeft className="w-3 h-3" /> },
+                          { value: 'center', label: `▣ ${t('alignCenter')}`, icon: <AlignCenter className="w-3 h-3" /> },
+                          { value: 'right', label: `▶ ${t('alignRight')}`, icon: <AlignRight className="w-3 h-3" /> },
+                          { value: 'hidden', label: `✕ ${t('alignHide')}`, icon: <EyeOff className="w-3 h-3" /> },
                         ].map((opt) => (
                           <button
                             key={opt.value}
@@ -6649,10 +6658,10 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   {alignmentMenuOpen === 'right' && rightChapter && (
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-amber-200 py-1 z-50">
                       {[
-                        { value: 'left', label: '◀ Gauche', icon: <AlignLeft className="w-3 h-3" /> },
-                        { value: 'center', label: '▣ Centré', icon: <AlignCenter className="w-3 h-3" /> },
-                        { value: 'right', label: '▶ Droite', icon: <AlignRight className="w-3 h-3" /> },
-                        { value: 'hidden', label: '✕ Masquer', icon: <EyeOff className="w-3 h-3" /> },
+                        { value: 'left', label: `◀ ${t('alignLeft')}`, icon: <AlignLeft className="w-3 h-3" /> },
+                        { value: 'center', label: `▣ ${t('alignCenter')}`, icon: <AlignCenter className="w-3 h-3" /> },
+                        { value: 'right', label: `▶ ${t('alignRight')}`, icon: <AlignRight className="w-3 h-3" /> },
+                        { value: 'hidden', label: `✕ ${t('alignHide')}`, icon: <EyeOff className="w-3 h-3" /> },
                       ].map((opt) => (
                         <button
                           key={opt.value}
@@ -6728,7 +6737,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-amber-600/30 text-sm font-serif italic">
-                  {locale === 'fr' ? 'Page suivante...' : 'Next page...'}
+                  {t('nextPage')}
                 </span>
               </div>
             )}
@@ -6737,7 +6746,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {pageFullIndicator === 'right' && (
               <div data-pdf-hide="true" className="absolute bottom-[14%] left-0 right-0 z-20 flex justify-center pointer-events-none animate-in fade-in duration-300">
                 <span className="bg-amber-100/90 text-amber-700 text-xs font-serif px-3 py-1 rounded-full shadow-sm border border-amber-200/60">
-                  {locale === 'fr' ? 'Page pleine !' : 'Page full!'}
+                  {t('editor.pageFull')}
                 </span>
               </div>
             )}
@@ -6748,7 +6757,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               className="absolute bottom-0 left-0 right-0 z-20 px-6 py-2 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent"
               onClick={(e) => e.stopPropagation()}
             >
-              <span className="text-xs text-amber-700/50 font-serif">{getWordCount(page?.content)} {locale === 'fr' ? 'mots' : 'words'}</span>
+              <span className="text-xs text-amber-700/50 font-serif">{getWordCount(page?.content)} {t('words')}</span>
               <div className="flex items-center gap-1">
             <button
               onClick={(e) => { 
@@ -6767,7 +6776,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                       ? 'text-red-500 bg-red-100 animate-pulse' 
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
-                  title={isListening && dictatingPage === 'right' ? 'Arrêter' : 'Dicter'}
+                  title={isListening && dictatingPage === 'right' ? mic.stop : mic.start}
                 >
                   {isListening && dictatingPage === 'right' ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
@@ -6775,7 +6784,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             <button
               onClick={(e) => { e.stopPropagation(); onImageAdd(pageIndex); }}
                   className="p-2 rounded-full text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50 transition-all"
-                  title="Ajouter une image"
+                  title={t('addImage')}
             >
               <ImageIcon className="w-4 h-4" />
             </button>
@@ -6789,7 +6798,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   ? 'text-aurora-600 bg-aurora-100'
                   : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
               )}
-              title="Fond de page"
+              title={t('background')}
             >
               <Layers className="w-4 h-4" />
             </button>
@@ -6803,7 +6812,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     ? 'text-aurora-600 bg-aurora-100'
                     : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                 )}
-                title="Déplacer le fond"
+                title={t('moveBackground')}
               >
                 <Move className="w-4 h-4" />
               </button>
@@ -6817,7 +6826,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   ? 'text-amber-500 bg-amber-100'
                   : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
               )}
-              title="Décorations"
+              title={t('decorations')}
             >
               <Gem className="w-4 h-4" />
             </button>
@@ -6831,7 +6840,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   ? 'text-dream-500 bg-dream-100'
                   : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
               )}
-              title="Zone de texte"
+              title={t('textBox')}
             >
               <Type className="w-4 h-4" />
             </button>
@@ -6853,9 +6862,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               style={{ bottom: '34px' }}
             >
               {pageIndex === 0
-                ? "COUVERTURE"
+                ? t('frontCover').toUpperCase()
                 : pageIndex === (totalPages || 1) - 1 && (totalPages || 1) > 1
-                  ? "4EME COUV."
+                  ? t('backCoverShort').toUpperCase()
                   : `— ${pageIndex + 1} —`}
             </div>
 
@@ -6962,7 +6971,7 @@ function AISidePanel({
   const t = useTranslations('writing')
   
   // Nom par défaut selon la langue
-  const defaultName = currentLocale === 'fr' ? 'Mon aide' : currentLocale === 'en' ? 'My helper' : 'Мой помощник'
+  const defaultName = t('ai.defaultName')
   const displayName = aiName || defaultName
 
   // Scroll to bottom when new messages
@@ -7005,6 +7014,7 @@ function AISidePanel({
           message: fullMessage,
           context: 'book',
           currentMode: 'ecriture', // Pour le guidage visuel (highlights)
+          locale, // Langue de l'interface
           aiName, // Transmettre le nom personnalisé de l'IA
           userName: useAppStore.getState().userName, // Prénom de l'enfant
           chatHistory: messages.slice(-10),
@@ -7028,12 +7038,7 @@ function AISidePanel({
       }
     } catch (error) {
       console.error('Error sending to AI:', error)
-      const errorMessage = locale === 'fr' 
-        ? 'Oups, j\'ai eu un petit problème... Réessaie !' 
-        : locale === 'en'
-        ? 'Oops, I had a little problem... Try again!'
-        : 'Ой, у меня небольшая проблема... Попробуй ещё раз!'
-      setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }])
+      setMessages(prev => [...prev, { role: 'assistant', content: t('ai.error') }])
     } finally {
       setIsLoading(false)
     }
@@ -7059,16 +7064,12 @@ function AISidePanel({
     }
     
     // Message visible (court)
-    const visibleMessage = locale === 'fr'
-      ? `${displayName}, lis ma page ${pageNumber} ! 📄`
-      : locale === 'en'
-      ? `${displayName}, read my page ${pageNumber}! 📄`
-      : `${displayName}, прочитай страницу ${pageNumber}! 📄`
-    
-    // Contexte caché (envoyé à l'API)
-    const hiddenContext = locale === 'fr'
+    const visibleMessage = t('ai.readPageMessage', { name: displayName, page: String(pageNumber) })
+
+    // Contexte caché (envoyé à l'API) — sent to AI, always in the locale's language via the locale param in useAI
+    const hiddenContext = currentLocale === 'fr'
       ? `Contenu de la page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''} :\n\n"${cleanContent}"\n\n→ Analyse la structure (QUI, QUOI, OÙ...), dis-moi si c'est cohérent, et aide-moi à améliorer ! Si tu vois des petites fautes, dis-le moi gentiment.`
-      : locale === 'en'
+      : currentLocale === 'en'
       ? `Content of page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${cleanContent}"\n\n→ Analyze the structure (WHO, WHAT, WHERE...), tell me if it's coherent, and help me improve! If you see small mistakes, tell me gently.`
       : `Содержание страницы ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${cleanContent}"\n\n→ Проанализируй структуру (КТО, ЧТО, ГДЕ...), скажи, всё ли логично, и помоги улучшить! Если увидишь ошибки, скажи мягко.`
     
@@ -7093,21 +7094,17 @@ function AISidePanel({
       return
     }
     
-    const chapterTitle = currentChapterId 
-      ? chapters.find(c => c.id === currentChapterId)?.title || (locale === 'fr' ? 'ce chapitre' : locale === 'en' ? 'this chapter' : 'эту главу')
-      : (locale === 'fr' ? 'mon histoire' : locale === 'en' ? 'my story' : 'мою историю')
-    
+    const chapterTitle = currentChapterId
+      ? chapters.find(c => c.id === currentChapterId)?.title || t('ai.thisChapter')
+      : t('ai.myStory')
+
     // Message visible (court)
-    const visibleMessage = locale === 'fr'
-      ? `${displayName}, lis ${chapterTitle} ! 📑`
-      : locale === 'en'
-      ? `${displayName}, read ${chapterTitle}! 📑`
-      : `${displayName}, прочитай ${chapterTitle}! 📑`
-    
+    const visibleMessage = t('ai.readChapterMessage', { name: displayName, chapter: chapterTitle })
+
     // Contexte caché
-    const hiddenContext = locale === 'fr'
+    const hiddenContext = currentLocale === 'fr'
       ? `Contenu du chapitre :\n\n${chapterContent}\n\n→ Est-ce que l'histoire est cohérente ? Les personnages sont bien décrits ? Il manque quelque chose ? Des conseils pour la suite ?`
-      : locale === 'en'
+      : currentLocale === 'en'
       ? `Chapter content:\n\n${chapterContent}\n\n→ Is the story coherent? Are the characters well described? Is something missing? Any advice for what's next?`
       : `Содержание главы:\n\n${chapterContent}\n\n→ История логична? Персонажи хорошо описаны? Чего-то не хватает? Советы для продолжения?`
     
@@ -7130,19 +7127,15 @@ function AISidePanel({
       return
     }
     
-    const title = storyTitle || (locale === 'fr' ? 'mon livre' : locale === 'en' ? 'my book' : 'моя книга')
-    
+    const title = storyTitle || t('ai.myBook')
+
     // Message visible (court)
-    const visibleMessage = locale === 'fr'
-      ? `${displayName}, lis tout mon livre "${title}" ! 📚`
-      : locale === 'en'
-      ? `${displayName}, read my whole book "${title}"! 📚`
-      : `${displayName}, прочитай всю книгу "${title}"! 📚`
-    
+    const visibleMessage = t('ai.readBookMessage', { name: displayName, title })
+
     // Contexte caché
-    const hiddenContext = locale === 'fr'
+    const hiddenContext = currentLocale === 'fr'
       ? `Contenu complet du livre :\n\n${bookContent}\n\n→ Analyse globale : l'histoire a un bon début, milieu et fin ? Les personnages sont cohérents ? L'histoire est intéressante ? Qu'est-ce que je pourrais améliorer ? Y a-t-il des fautes que tu remarques souvent ?`
-      : locale === 'en'
+      : currentLocale === 'en'
       ? `Full book content:\n\n${bookContent}\n\n→ Global analysis: does the story have a good beginning, middle and end? Are the characters consistent? Is the story interesting? What could I improve? Are there mistakes you notice often?`
       : `Полное содержание книги:\n\n${bookContent}\n\n→ Общий анализ: есть хорошее начало, середина и конец? Персонажи последовательны? История интересная? Что можно улучшить? Есть ли частые ошибки?`
     
@@ -7196,7 +7189,7 @@ function AISidePanel({
             <input
               type="text"
               defaultValue={aiName || ''}
-              placeholder={locale === 'fr' ? 'Prénom...' : locale === 'en' ? 'Name...' : 'Имя...'}
+              placeholder={t('ai.namePlaceholder')}
               maxLength={15}
               autoFocus
               onKeyDown={(e) => {
@@ -7223,7 +7216,7 @@ function AISidePanel({
             <button
               onClick={() => setShowNameEditor(true)}
               className="text-left group"
-              title={locale === 'fr' ? 'Cliquer pour renommer' : locale === 'en' ? 'Click to rename' : 'Нажмите, чтобы переименовать'}
+              title={t('ai.clickToRename')}
             >
               <p className="font-medium text-white flex items-center gap-1.5">
                 {displayName}
@@ -7250,9 +7243,7 @@ function AISidePanel({
             title={autoSpeak ? t('ai.voiceOn') : t('ai.voiceOff')}
           >
             <Volume2 className={cn("w-3.5 h-3.5", isSpeaking && "animate-pulse")} />
-            {autoSpeak 
-              ? (locale === 'fr' ? 'Oral' : locale === 'en' ? 'Voice' : 'Голос') 
-              : (locale === 'fr' ? 'Écrit' : locale === 'en' ? 'Text' : 'Текст')}
+            {autoSpeak ? t('ai.voice') : t('ai.text')}
           </button>
         )}
         
@@ -7266,7 +7257,7 @@ function AISidePanel({
                 ? 'bg-aurora-500/20 text-aurora-300'
                 : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
             )}
-            title={locale === 'fr' ? 'Choisir la voix' : locale === 'en' ? 'Choose voice' : 'Выбрать голос'}
+            title={t('ai.chooseVoice')}
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -7326,7 +7317,7 @@ function AISidePanel({
                     ? 'bg-aurora-500/30 text-aurora-300'
                     : 'bg-midnight-700/30 text-midnight-400 hover:text-aurora-300 hover:bg-aurora-500/20'
                 )}
-                title={isSpeaking ? (locale === 'fr' ? 'Arrêter' : locale === 'en' ? 'Stop' : 'Стоп') : (locale === 'fr' ? `Écouter ${displayName}` : locale === 'en' ? `Listen to ${displayName}` : `Слушать ${displayName}`)}
+                title={isSpeaking ? t('ai.stop') : t('ai.listen', { name: displayName })}
               >
                 <Volume2 className="w-4 h-4" />
               </button>
@@ -7391,7 +7382,7 @@ function AISidePanel({
               >
                 <Sparkles className="w-3.5 h-3.5" />
               </motion.span>
-              <span className="uppercase">{locale === 'fr' ? `${displayName} lit` : locale === 'en' ? `${displayName} reads` : `${displayName} читает`}</span>
+              <span className="uppercase">{t('ai.reads', { name: displayName })}</span>
             </span>
           </motion.button>
           
@@ -7410,9 +7401,9 @@ function AISidePanel({
                 
                 <div className="flex gap-0.5">
                   {[
-                    { action: handleReadPage, icon: FileText, label: locale === 'fr' ? 'Page' : locale === 'en' ? 'Page' : 'Страница', title: t('ai.readPage') },
-                    { action: handleReadChapter, icon: Folder, label: locale === 'fr' ? 'Chapitre' : locale === 'en' ? 'Chapter' : 'Глава', title: t('ai.readChapter') },
-                    { action: handleReadBook, icon: Book, label: locale === 'fr' ? 'Livre' : locale === 'en' ? 'Book' : 'Книга', title: t('ai.readBook') },
+                    { action: handleReadPage, icon: FileText, label: t('ai.pageLabel'), title: t('ai.readPage') },
+                    { action: handleReadChapter, icon: Folder, label: t('ai.chapterLabel'), title: t('ai.readChapter') },
+                    { action: handleReadBook, icon: Book, label: t('ai.bookLabel'), title: t('ai.readBook') },
                   ].map((item, idx) => (
                     <motion.button
                       key={item.label}
@@ -7446,7 +7437,7 @@ function AISidePanel({
         <div className="flex gap-2">
           <input
             type="text"
-            value={isListening ? (locale === 'fr' ? 'J\'écoute...' : locale === 'en' ? 'Listening...' : 'Слушаю...') : message}
+            value={isListening ? t('ai.listening') : message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('ai.placeholder', { name: displayName })}
             disabled={isLoading || isListening}
@@ -7468,7 +7459,7 @@ function AISidePanel({
             )}
             animate={isListening ? { scale: [1, 1.1, 1] } : {}}
             transition={isListening ? { repeat: Infinity, duration: 0.8 } : {}}
-            title={!isSpeechSupported ? 'Non supporté par ce navigateur' : isListening ? 'Arrêter' : `Parler à ${displayName}`}
+            title={!isSpeechSupported ? t('notSupported') : isListening ? t('ai.stop') : t('speakTo', { name: displayName })}
           >
             {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </motion.button>
@@ -7492,8 +7483,11 @@ function AISidePanel({
 }
 
 // ============================================================================
-// COMPOSANT : Sélecteur de structure et format (2 étapes)
+// COMPOSANT : Sélecteur de structure
 // ============================================================================
+
+// Format par défaut (recommandé) — modifiable ensuite dans l'éditeur
+const DEFAULT_BOOK_FORMAT: BookFormat = BOOK_FORMATS.find(f => f.recommended)?.id || 'square-21'
 
 interface StructureSelectorProps {
   onSelect: (structure: StoryStructure, bookFormat: BookFormat) => void
@@ -7505,152 +7499,32 @@ const STRUCTURE_CONFIG: Record<StoryStructure, {
   icon: string
   image: string
 }> = {
-  tale: { 
-    icon: '🏰', 
+  tale: {
+    icon: '🏰',
     image: '/images/structures/structure-tale.jpg',
   },
-  adventure: { 
-    icon: '🗺️', 
+  adventure: {
+    icon: '🗺️',
     image: '/images/structures/structure-adventure.jpg',
   },
-  problem: { 
-    icon: '🧩', 
+  problem: {
+    icon: '🧩',
     image: '/images/structures/structure-problem.jpg',
   },
-  free: { 
-    icon: '✨', 
+  free: {
+    icon: '✨',
     image: '/images/structures/structure-free.jpg',
   },
 }
 
 function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) {
+  const t = useTranslations('writing')
   const structures: StoryStructure[] = ['tale', 'adventure', 'problem', 'free']
-  const [step, setStep] = useState<'structure' | 'format'>('structure')
-  const [selectedStructure, setSelectedStructure] = useState<StoryStructure | null>(null)
 
   const handleSelectStructure = (structure: StoryStructure) => {
-    setSelectedStructure(structure)
-    setStep('format')
+    onSelect(structure, DEFAULT_BOOK_FORMAT)
   }
 
-  const handleSelectFormat = (format: BookFormat) => {
-    if (selectedStructure) {
-      onSelect(selectedStructure, format)
-    }
-  }
-
-  const handleBack = () => {
-    setStep('structure')
-    setSelectedStructure(null)
-  }
-
-  // Étape 2 : Choix du format
-  if (step === 'format') {
-    return (
-      <div className="relative max-w-6xl mx-auto px-2 sm:px-4">
-        {/* Bouton retour */}
-        <motion.button
-          onClick={handleBack}
-          className="absolute top-0 left-2 sm:left-0 flex items-center gap-1 sm:gap-2 text-midnight-400 hover:text-white transition-colors"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-xs sm:text-sm">{locale === 'fr' ? 'Retour' : locale === 'en' ? 'Back' : 'Назад'}</span>
-        </motion.button>
-
-        {/* Titre compact */}
-        <motion.div 
-          className="text-center mb-4 lg:mb-6"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <h2 className="font-display text-xl sm:text-2xl lg:text-3xl text-white mb-1 lg:mb-2">
-            {locale === 'fr' ? 'Quel format pour ton livre ?' : locale === 'en' ? 'What format for your book?' : 'Какой формат книги?'}
-          </h2>
-          <p className="text-white/50 text-xs sm:text-sm">
-            {locale === 'fr' ? 'Ce format sera utilisé pour l\'impression' : locale === 'en' ? 'This format will be used for printing' : 'Этот формат будет использоваться для печати'}
-          </p>
-        </motion.div>
-
-        {/* Grille des formats - s'adapte automatiquement */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 max-w-4xl mx-auto">
-          {BOOK_FORMATS.map((format, index) => (
-            <motion.button
-              key={format.id}
-              onClick={() => handleSelectFormat(format.id)}
-              className="group relative text-left focus:outline-none focus:ring-2 focus:ring-aurora-500/50 rounded-xl lg:rounded-2xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.05 }}
-              whileHover={{ y: -2, scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className={cn(
-                "relative overflow-hidden rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-5 transition-all duration-300",
-                "bg-gradient-to-br from-midnight-800/80 to-midnight-900/80",
-                "border-2 border-midnight-700/50 hover:border-aurora-500/50",
-                "shadow-lg hover:shadow-aurora-500/20",
-                format.recommended && "ring-2 ring-aurora-500/30"
-              )}>
-                {/* Badge recommandé */}
-                {format.recommended && (
-                  <div className="absolute top-2 right-2 lg:top-3 lg:right-3 px-1.5 py-0.5 lg:px-2 lg:py-1 bg-aurora-500/20 text-aurora-300 text-[10px] lg:text-xs font-medium rounded-full border border-aurora-500/30">
-                    ⭐ {locale === 'fr' ? 'Recommandé' : locale === 'en' ? 'Recommended' : 'Рекомендуется'}
-                  </div>
-                )}
-
-                {/* Icône et preview du format */}
-                <div className="flex items-start gap-2 lg:gap-4 mb-2 lg:mb-4">
-                  <div className="text-2xl lg:text-4xl">{format.icon}</div>
-                  {/* Mini preview des proportions */}
-                  <div 
-                    className="bg-amber-50/90 rounded shadow-inner border border-amber-200/50 flex-shrink-0"
-                    style={{
-                      width: `${Math.min(40, format.widthMm / 4)}px`,
-                      height: `${Math.min(55, format.heightMm / 4)}px`,
-                    }}
-                  >
-                    <div className="w-full h-full flex items-center justify-center text-amber-900/30 text-[8px] lg:text-xs">
-                      {format.widthMm}×{format.heightMm}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Nom et dimensions */}
-                <h3 className="text-sm lg:text-lg font-medium text-white mb-0.5 lg:mb-1">{format.nameFr}</h3>
-                <p className="text-xs lg:text-sm text-midnight-400 mb-2 lg:mb-3">
-                  {format.widthMm} × {format.heightMm} mm
-                </p>
-
-                {/* Prix estimé */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] lg:text-xs text-midnight-500">{locale === 'fr' ? 'Prix estimé' : locale === 'en' ? 'Estimated price' : 'Примерная цена'}</span>
-                  <span className="text-xs lg:text-sm font-medium text-aurora-400">{format.priceEstimate}</span>
-                </div>
-
-                {/* Hover effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-aurora-500/0 to-dream-500/0 group-hover:from-aurora-500/5 group-hover:to-dream-500/5 rounded-xl lg:rounded-2xl transition-all duration-300" />
-              </div>
-            </motion.button>
-          ))}
-        </div>
-
-        {/* Note */}
-        <motion.p 
-          className="text-center text-white/40 text-xs lg:text-sm mt-4 lg:mt-8"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          {locale === 'fr' ? '💡 Les pages seront adaptées à ce format' : locale === 'en' ? '💡 Pages will be adapted to this format' : '💡 Страницы будут адаптированы под этот формат'}
-        </motion.p>
-      </div>
-    )
-  }
-
-  // Étape 1 : Choix de la structure
   return (
     <div className="relative max-w-6xl mx-auto">
       {/* Titre compact */}
@@ -7661,10 +7535,10 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
         transition={{ duration: 0.3 }}
       >
         <h2 className="font-display text-xl sm:text-2xl lg:text-3xl text-white mb-1 lg:mb-2">
-          {locale === 'fr' ? 'Quel type d\'histoire ?' : locale === 'en' ? 'What kind of story?' : 'Какой тип истории?'}
+          {t('formatSelector.structureTitle')}
         </h2>
         <p className="text-white/50 text-xs sm:text-sm">
-          {locale === 'fr' ? 'Choisis une structure pour commencer' : locale === 'en' ? 'Choose a structure to start' : 'Выбери структуру для начала'}
+          {t('formatSelector.structureSubtitle')}
         </p>
       </motion.div>
 
@@ -7758,7 +7632,7 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
                   {/* Bouton Commencer premium - caché sur très petits écrans */}
                   <div className="mt-3 lg:mt-5 hidden sm:flex items-center gap-2 text-sm lg:text-base font-semibold text-white opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
                     <span className="px-4 py-2 lg:px-6 lg:py-3 rounded-full bg-white/30 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-white/40 hover:scale-105 transition-all duration-300">
-                      Commencer →
+                      {t('formatSelector.start')} →
                     </span>
                   </div>
                 </div>
@@ -7775,7 +7649,7 @@ function StructureSelector({ onSelect, locale = 'fr' }: StructureSelectorProps) 
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6 }}
       >
-        {locale === 'fr' ? 'Tu pourras modifier la structure plus tard' : locale === 'en' ? 'You can change the structure later' : 'Ты сможешь изменить структуру позже'}
+        {t('formatSelector.structureHint')}
       </motion.p>
     </div>
   )
@@ -7907,6 +7781,7 @@ export function BookMode() {
   // i18n
   const locale = useLocale()
   const t = useTranslations('writing')
+  const tCommon = useTranslations('common')
 
   // Référence pour tracker l'ID de l'histoire chargée
   const loadedStoryIdRef = useRef<string | null>(null)
@@ -8661,7 +8536,7 @@ export function BookMode() {
 
     const newTextBox: PageTextBox = {
       id: `textbox-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      content: 'Double-cliquez pour éditer...',
+      content: t('editor.defaultTextBox'),
       position: { x: 20, y: 20, width: 30, height: 15 },
       style: {
         fontFamily: 'Georgia',
@@ -8881,7 +8756,7 @@ export function BookMode() {
                           }
                         }}
                         className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-midnight-500 hover:text-red-400 transition-all"
-                        title={locale === 'fr' ? 'Supprimer' : locale === 'en' ? 'Delete' : 'Удалить'}
+                        title={tCommon('delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -8912,7 +8787,7 @@ export function BookMode() {
             className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors mb-4"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span className="text-sm">Retour</span>
+            <span className="text-sm">{t('back')}</span>
           </button>
           
           <h1 className="font-display text-2xl md:text-3xl text-white/90">
@@ -9123,7 +8998,7 @@ export function BookMode() {
             onClose={() => setShowBackgroundPicker(false)}
             onSelect={handleBackgroundSelect}
             allowedTypes="all"
-            title="Ajouter un média"
+            title={t('addMedia')}
             storyId={currentStory?.id}
           />
           
@@ -9207,24 +9082,24 @@ export function BookMode() {
                     <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
                       <Trash2 className="w-5 h-5 text-red-400" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white">Supprimer la page ?</h3>
+                    <h3 className="text-lg font-semibold text-white">{t('deletePageTitle')}</h3>
                   </div>
-                  
+
                   <p className="text-midnight-300 mb-6">
-                    Tu veux vraiment supprimer la <span className="text-white font-medium">page {pageToDelete + 1}</span> ?
+                    {t('deletePageConfirm', { page: pageToDelete + 1 })}
                     {pages[pageToDelete]?.content && (
                       <span className="block mt-1 text-amber-400 text-sm">
-                        ⚠️ Cette page contient du texte qui sera perdu !
+                        ⚠️ {t('deletePageWarning')}
                       </span>
                     )}
                   </p>
-                  
+
                   <div className="flex gap-3">
                     <button
                       onClick={() => setPageToDelete(null)}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-midnight-800 text-midnight-300 hover:text-white hover:bg-midnight-700 transition-colors font-medium"
                     >
-                      Non, garder
+                      {t('deletePageKeep')}
                     </button>
                     <button
                       onClick={() => {
@@ -9233,7 +9108,7 @@ export function BookMode() {
                       }}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors font-medium border border-red-500/30"
                     >
-                      Oui, supprimer
+                      {t('deletePageDelete')}
                     </button>
                   </div>
                 </motion.div>
@@ -9295,7 +9170,7 @@ export function BookMode() {
                     }}
                     autoFocus
                     className="bg-midnight-800/50 text-white text-sm px-2 py-1 rounded-lg border border-aurora-500/30 outline-none w-32"
-                    placeholder="Nom du chapitre..."
+                    placeholder={t('chapterNamePlaceholder')}
                   />
                 ) : (
           <button
@@ -9375,7 +9250,7 @@ export function BookMode() {
                         setPageToDelete(index)
                       }}
                       className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-full text-midnight-400 hover:text-red-400 hover:bg-red-500/20 transition-all opacity-0 group-hover:opacity-100"
-                      title="Supprimer cette page"
+                      title={t('deletePage')}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -9389,7 +9264,7 @@ export function BookMode() {
                 handleAddPage()
               }}
               className="p-2 rounded-xl text-midnight-500 hover:text-aurora-400 hover:bg-midnight-800/30 transition-all"
-              title="Ajouter 2 pages"
+              title={t('editor.add2Pages')}
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -9409,8 +9284,8 @@ export function BookMode() {
               whileTap={{ scale: 0.95 }}
             >
               <Check className="w-4 h-4" />
-              <span className="hidden sm:inline">Terminer mon histoire</span>
-              <span className="sm:hidden">Terminer</span>
+              <span className="hidden sm:inline">{t('finishStory')}</span>
+              <span className="sm:hidden">{t('finish')}</span>
             </motion.button>
           )}
           
@@ -9419,7 +9294,7 @@ export function BookMode() {
             <div className="ml-4 flex items-center gap-2">
               <div className="px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 text-xs font-medium flex items-center gap-1.5 border border-green-500/30">
                 <Check className="w-3 h-3" />
-                Terminée
+                {t('completed')}
               </div>
               <motion.button
                 onClick={() => {
@@ -9436,7 +9311,7 @@ export function BookMode() {
                 whileTap={{ scale: 0.95 }}
               >
                 <Edit3 className="w-3 h-3" />
-                Reprendre l'édition
+                {t('resumeEditing')}
               </motion.button>
             </div>
           )}
@@ -9498,15 +9373,14 @@ export function BookMode() {
               </motion.div>
               
               <h2 className="text-3xl font-display text-white mb-2">
-                🎉 Bravo !
+                🎉 {t('completionBravo')}
               </h2>
               <p className="text-xl text-aurora-300 mb-6">
-                Tu as terminé ton histoire !
+                {t('completionDone')}
               </p>
-              
+
               <p className="text-midnight-300 mb-8">
-                "{currentStory?.title}" est maintenant prête. 
-                Que veux-tu faire ensuite ?
+                {t('completionMessage', { title: currentStory?.title || '' })}
               </p>
               
               {/* Options */}
@@ -9522,8 +9396,8 @@ export function BookMode() {
                   whileTap={{ scale: 0.98 }}
                 >
                   <Palette className="w-8 h-8 text-aurora-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                  <div className="text-white font-medium">Créer des images</div>
-                  <div className="text-midnight-400 text-sm">Illustrer mon histoire</div>
+                  <div className="text-white font-medium">{t('createImages')}</div>
+                  <div className="text-midnight-400 text-sm">{t('illustrateStory')}</div>
                 </motion.button>
                 
                 <motion.button
@@ -9537,8 +9411,8 @@ export function BookMode() {
                   whileTap={{ scale: 0.98 }}
                 >
                   <Clapperboard className="w-8 h-8 text-dream-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                  <div className="text-white font-medium">Créer une vidéo</div>
-                  <div className="text-midnight-400 text-sm">Animer mon histoire</div>
+                  <div className="text-white font-medium">{t('createVideo')}</div>
+                  <div className="text-midnight-400 text-sm">{t('animateStory')}</div>
                 </motion.button>
               </div>
               
@@ -9550,7 +9424,7 @@ export function BookMode() {
                 }}
                 className="text-midnight-400 hover:text-white transition-colors text-sm"
               >
-                Continuer à écrire pour l'instant
+                {t('keepWriting')}
               </button>
             </motion.div>
           </motion.div>

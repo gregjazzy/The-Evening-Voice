@@ -9,6 +9,9 @@
 
 import { useState, useCallback, useEffect } from 'react'
 
+// Module-level dedup: persiste entre les instances du hook et les re-mounts
+let _lastSpoken = { text: '', time: 0 }
+
 export interface VoiceOption {
   name: string
   lang: string
@@ -36,9 +39,9 @@ const getHasWebSpeech = () => typeof window !== 'undefined' && 'speechSynthesis'
 // Electron/macOS : Apple d'abord (meilleure qualité, native)
 
 const RECOMMENDED_VOICES_WEB: Record<string, string[]> = {
-  fr: ['Audrey', 'Amélie', 'Thomas', 'Marie', 'Google français'],
-  en: ['Samantha', 'Karen', 'Daniel', 'Google US English', 'Google UK English Female'],
-  ru: ['Milena', 'Yuri', 'Google русский'],
+  fr: ['Google français', 'Audrey', 'Amélie', 'Thomas', 'Marie'],
+  en: ['Google US English', 'Google UK English Female', 'Samantha', 'Karen', 'Daniel'],
+  ru: ['Google русский', 'Milena', 'Yuri'],
 }
 
 const RECOMMENDED_VOICES_ELECTRON: Record<string, string[]> = {
@@ -95,13 +98,14 @@ function cleanTextForTTS(text: string): string {
 // Exporté pour être utilisé par ClientLayout (fallback quand la voix sauvegardée n'est pas disponible)
 export function findBestVoice(locale: string, preferredVoiceName?: string): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
-  
-  // 1. Si une voix spécifique est demandée, la chercher
+  const langCode = locale === 'fr' ? 'fr' : locale === 'ru' ? 'ru' : 'en'
+
+  // 1. Si une voix spécifique est demandée, la chercher (seulement si elle correspond à la locale)
   if (preferredVoiceName) {
     const preferred = voices.find(v => v.name === preferredVoiceName)
-    if (preferred) return preferred
+    if (preferred && preferred.lang.startsWith(langCode)) return preferred
   }
-  
+
   // 2. Chercher parmi les voix recommandées DANS L'ORDRE de préférence (selon environnement)
   const voices_config = getRecommendedVoices()
   const recommendedNames = voices_config[locale] || voices_config.fr
@@ -118,7 +122,6 @@ export function findBestVoice(locale: string, preferredVoiceName?: string): Spee
   
   // 3. Fallback : n'importe quelle voix de la langue
   if (!selectedVoice) {
-    const langCode = locale === 'fr' ? 'fr' : locale === 'ru' ? 'ru' : 'en'
     selectedVoice = voices.find(v => v.lang.startsWith(langCode))
   }
   
@@ -130,12 +133,12 @@ export function findBestVoice(locale: string, preferredVoiceName?: string): Spee
   return selectedVoice || null
 }
 
-// Obtenir toutes les voix disponibles pour une langue
+// Obtenir les voix premium disponibles pour une langue
 function getAvailableVoices(locale: string): VoiceOption[] {
   const voices = window.speechSynthesis.getVoices()
   const langCode = locale === 'fr' ? 'fr' : locale === 'ru' ? 'ru' : 'en'
-  
-  return voices
+
+  const allVoices = voices
     .filter(v => v.lang.startsWith(langCode))
     .map(v => ({
       name: v.name,
@@ -149,6 +152,10 @@ function getAvailableVoices(locale: string): VoiceOption[] {
       const qualityOrder = { premium: 0, standard: 1, basic: 2 }
       return qualityOrder[a.quality] - qualityOrder[b.quality]
     })
+
+  // Ne retourner que les voix premium, avec fallback sur toutes si aucune premium trouvée
+  const premiumOnly = allVoices.filter(v => v.quality === 'premium')
+  return premiumOnly.length > 0 ? premiumOnly : allVoices
 }
 
 export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: string): UseTTSReturn {
@@ -210,6 +217,14 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
     const cleanText = cleanTextForTTS(text)
     if (!cleanText) return // Ne rien lire si le texte est vide après nettoyage
 
+    // Dedup MODULE-LEVEL: même texte dans les 3 dernières secondes → ignorer
+    // (protège contre React Strict Mode, re-mounts, double-appels)
+    const now = Date.now()
+    if (_lastSpoken.text === cleanText && now - _lastSpoken.time < 3000) {
+      return
+    }
+    _lastSpoken = { text: cleanText, time: now }
+
     // Mode Electron : TTS macOS natif
     if (getIsElectron() && window.electronAPI?.tts) {
       try {
@@ -226,44 +241,49 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
     // Mode Web : Web Speech API
     if (getHasWebSpeech()) {
       try {
-        // Arrêter toute lecture en cours SEULEMENT si elle parle vraiment
-        if (window.speechSynthesis.speaking) {
+        // Cancel seulement si déjà en train de parler (éviter de perturber Chrome)
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
           window.speechSynthesis.cancel()
-          // Petit délai pour laisser le temps à cancel() de prendre effet
-          await new Promise(resolve => setTimeout(resolve, 50))
+          await new Promise(resolve => setTimeout(resolve, 150))
         }
-        
+
         const utterance = new SpeechSynthesisUtterance(cleanText)
-        
-        // Essayer de trouver une voix à chaque fois (au cas où pas encore chargée)
+
+        // Essayer de trouver une voix — Chrome charge les voix en async
         let voiceToUse = webVoice
         if (!voiceToUse) {
-          voiceToUse = findBestVoice(locale)
+          // Attendre que les voix soient chargées (Chrome peut prendre du temps)
+          for (let attempt = 0; attempt < 3; attempt++) {
+            window.speechSynthesis.getVoices()
+            await new Promise(resolve => setTimeout(resolve, 150))
+            voiceToUse = findBestVoice(locale)
+            if (voiceToUse) break
+          }
           if (voiceToUse) {
             setWebVoice(voiceToUse)
             setVoicesReady(true)
             console.log('🎤 Voix TTS chargée (lazy):', voiceToUse.name)
           }
         }
-        
+
         if (voiceToUse) {
           utterance.voice = voiceToUse
           console.log('🎤 Utilisation voix:', voiceToUse.name, '| Lang:', voiceToUse.lang)
         } else {
-          console.warn('⚠️ Aucune voix trouvée, utilisation voix par défaut')
+          console.warn('⚠️ Aucune voix trouvée pour locale:', locale, '| Voix dispo:', window.speechSynthesis.getVoices().length)
         }
-        
+
         // Définir la langue explicitement (important si pas de voix)
         utterance.lang = locale === 'fr' ? 'fr-FR' : locale === 'ru' ? 'ru-RU' : 'en-US'
-        
+
         // Paramètres adaptés par langue
         const settings = VOICE_SETTINGS[locale] || VOICE_SETTINGS.fr
         utterance.rate = settings.rate
         utterance.pitch = settings.pitch
         utterance.volume = 1
-        
+
         utterance.onstart = () => {
-          console.log('🔊 TTS démarré avec voix:', voiceToUse?.name || 'défaut')
+          console.log('🔊 TTS démarré avec voix:', voiceToUse?.name || 'défaut', '| Langue:', utterance.lang)
           setIsSpeaking(true)
         }
         utterance.onend = () => {
@@ -271,9 +291,11 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
           setIsSpeaking(false)
         }
         utterance.onerror = (e) => {
-          console.error('❌ Erreur TTS:', e.error, '| Voix:', voiceToUse?.name)
+          // Ignorer silencieusement les erreurs "canceled" (normales après un cancel())
+          if (e.error === 'canceled') return
+          console.error('❌ Erreur TTS:', e.error, '| Voix:', voiceToUse?.name, '| Texte:', cleanText.slice(0, 50))
           // Essayer avec la voix par défaut si la voix sélectionnée échoue
-          if (voiceToUse && e.error !== 'canceled') {
+          if (voiceToUse) {
             console.log('🔄 Tentative avec voix par défaut...')
             const fallbackUtterance = new SpeechSynthesisUtterance(cleanText)
             fallbackUtterance.lang = locale === 'fr' ? 'fr-FR' : locale === 'ru' ? 'ru-RU' : 'en-US'
@@ -285,7 +307,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
           }
           setIsSpeaking(false)
         }
-        
+
         window.speechSynthesis.speak(utterance)
       } catch (error) {
         console.error('Erreur Web Speech:', error)

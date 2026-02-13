@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Heart, Star, Wand2, Check } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
@@ -59,7 +60,9 @@ export function AINameModal({ isOpen, onClose, isFirstTime = false }: AINameModa
 
   if (!isOpen) return null
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
@@ -236,7 +239,8 @@ export function AINameModal({ isOpen, onClose, isFirstTime = false }: AINameModa
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
 

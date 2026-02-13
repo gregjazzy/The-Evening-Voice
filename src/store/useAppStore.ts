@@ -847,6 +847,10 @@ export const useAppStore = create<AppState>()(
         // Progression pédagogique (synchronisée avec Supabase)
         promptingProgress: state.promptingProgress,
         writingProgress: state.writingProgress,
+        // ID de l'histoire en cours pour survivre aux changements de locale
+        currentStoryId: state.currentStory?.id ?? null,
+        // Mode en cours
+        currentMode: state.currentMode,
         // NOTE: stories, currentStory, diaryEntries, chatHistory ne sont PAS persistés
         // en localStorage - Supabase est la seule source de vérité
       }),

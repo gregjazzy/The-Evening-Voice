@@ -16,6 +16,7 @@ import {
   Pause,
   RotateCcw,
 } from 'lucide-react'
+import { useTranslations } from '@/lib/i18n/context'
 
 interface GuidedRecordingProps {
   isOpen: boolean
@@ -42,6 +43,7 @@ type Phase =
   | 'complete'     // Terminé
 
 export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecordingProps) {
+  const t = useTranslations('layout')
   const { getCurrentScene, currentSceneIndex } = useMontageStore()
   const { upload } = useMediaUpload()
   
@@ -151,7 +153,7 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
       
     } catch (err) {
       console.error('Erreur micro:', err)
-      setError('Impossible d\'accéder au microphone')
+      setError(t('guidedRecording.micAccessError'))
     }
   }
 
@@ -351,7 +353,7 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
           <div className="flex items-center justify-between p-4 border-b border-white/10">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Mic className="w-5 h-5 text-aurora-400" />
-              Enregistrement synchronisé
+              {t('guidedRecording.syncRecording')}
             </h2>
             <button
               onClick={onClose}
@@ -370,19 +372,12 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                   <div className="flex gap-3">
                     <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-amber-300 mb-1">Attention</h3>
+                      <h3 className="font-medium text-amber-300 mb-1">{t('guidedRecording.warning')}</h3>
                       <p className="text-sm text-amber-200/80">
                         {hasExistingAnimations ? (
-                          <>
-                            Cette scène contient déjà des <strong>animations ou effets</strong>. 
-                            L'enregistrement vocal va modifier les timings des phrases, ce qui peut 
-                            créer un <strong>décalage</strong> avec vos animations existantes.
-                          </>
+                          t('guidedRecording.warningWithAnimations')
                         ) : (
-                          <>
-                            L'enregistrement va synchroniser automatiquement vos <strong>{phrases.length} phrases</strong> avec votre voix. 
-                            Si vous ajoutez des animations après, elles devront être calées sur ces nouveaux timings.
-                          </>
+                          t('guidedRecording.warningWithoutAnimations', { count: phrases.length })
                         )}
                       </p>
                     </div>
@@ -394,13 +389,13 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                     onClick={onClose}
                     className="flex-1 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
                   >
-                    Annuler
+                    {t('guidedRecording.cancel')}
                   </button>
                   <button
                     onClick={() => setPhase('ready')}
                     className="flex-1 px-4 py-3 rounded-xl bg-aurora-500 hover:bg-aurora-600 transition-colors font-medium"
                   >
-                    J'ai compris, continuer
+                    {t('guidedRecording.understood')}
                   </button>
                 </div>
               </div>
@@ -410,7 +405,7 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
             {phase === 'ready' && (
               <div className="space-y-4 text-center">
                 <p className="text-white/70">
-                  Lis les <strong>{phrases.length} phrases</strong> suivantes à voix haute :
+                  {t('guidedRecording.readPhrases', { count: phrases.length })}
                 </p>
                 
                 <div className="max-h-64 overflow-y-auto p-4 rounded-xl bg-gradient-to-b from-slate-900/80 to-slate-800/80 border border-white/10 text-left space-y-3">
@@ -429,7 +424,7 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                   className="w-full px-6 py-4 rounded-xl bg-rose-500 hover:bg-rose-600 transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <Mic className="w-5 h-5" />
-                  Commencer l'enregistrement
+                  {t('guidedRecording.startRecording')}
                 </motion.button>
               </div>
             )}
@@ -451,7 +446,7 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                   </div>
                   <div className="text-left">
                     <p className="text-2xl font-mono text-rose-400">{formatTime(recordingTime)}</p>
-                    <p className="text-white/50 text-xs">Enregistrement...</p>
+                    <p className="text-white/50 text-xs">{t('guidedRecording.recording')}</p>
                   </div>
                 </div>
                 
@@ -476,7 +471,7 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                   className="w-full px-6 py-4 rounded-xl bg-white/20 hover:bg-white/30 transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <Square className="w-5 h-5 fill-current" />
-                  Arrêter l'enregistrement
+                  {t('guidedRecording.stopRecording')}
                 </motion.button>
               </div>
             )}
@@ -486,9 +481,9 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
               <div className="space-y-4 text-center py-8">
                 <Loader2 className="w-12 h-12 text-aurora-400 animate-spin mx-auto" />
                 <div>
-                  <p className="font-medium">Synchronisation en cours...</p>
+                  <p className="font-medium">{t('guidedRecording.syncing')}</p>
                   <p className="text-sm text-white/50 mt-1">
-                    AssemblyAI analyse votre voix pour aligner les phrases
+                    {t('guidedRecording.analyzingVoice')}
                   </p>
                 </div>
               </div>
@@ -505,7 +500,7 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                 
                 {transcription && (
                   <div className="p-3 rounded-lg bg-white/5 text-sm">
-                    <p className="text-white/50 text-xs mb-1">Transcription détectée :</p>
+                    <p className="text-white/50 text-xs mb-1">{t('guidedRecording.detectedTranscription')}</p>
                     <p className="text-white/80 italic">"{transcription}"</p>
                   </div>
                 )}
@@ -516,9 +511,9 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20"
                   >
                     {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    {isPlaying ? 'Pause' : 'Écouter'}
+                    {isPlaying ? 'Pause' : t('guidedRecording.listen')}
                   </button>
-                  <span className="text-sm text-white/50">Durée: {formatTime(audioDuration)}</span>
+                  <span className="text-sm text-white/50">{t('trackProperties.duration')} {formatTime(audioDuration)}</span>
                 </div>
                 
                 <div className="max-h-48 overflow-y-auto space-y-2">
@@ -541,13 +536,13 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                     className="flex-1 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Recommencer
+                    {t('guidedRecording.restart')}
                   </button>
                   <button
                     onClick={() => setPhase('confirm')}
                     className="flex-1 px-4 py-3 rounded-xl bg-aurora-500 hover:bg-aurora-600 transition-colors font-medium"
                   >
-                    Valider
+                    {t('guidedRecording.validate')}
                   </button>
                 </div>
               </div>
@@ -560,19 +555,12 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                   <div className="flex gap-3">
                     <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-amber-300 mb-1">Confirmation</h3>
+                      <h3 className="font-medium text-amber-300 mb-1">{t('guidedRecording.confirmation')}</h3>
                       <p className="text-sm text-amber-200/80">
                         {hasExistingAnimations ? (
-                          <>
-                            En validant, les timings de vos <strong>{phrases.length} phrases</strong> seront 
-                            mis à jour. Vos <strong>animations existantes risquent d'être décalées</strong>. 
-                            Vous devrez peut-être les réajuster manuellement.
-                          </>
+                          t('guidedRecording.confirmWithAnimations', { count: phrases.length })
                         ) : (
-                          <>
-                            En validant, les <strong>{phrases.length} phrases</strong> seront synchronisées 
-                            avec votre enregistrement vocal dans la timeline.
-                          </>
+                          t('guidedRecording.confirmWithoutAnimations', { count: phrases.length })
                         )}
                       </p>
                     </div>
@@ -584,14 +572,14 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                     onClick={() => setPhase('preview')}
                     className="flex-1 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
                   >
-                    Retour
+                    {t('guidedRecording.back')}
                   </button>
                   <button
                     onClick={handleValidate}
                     className="flex-1 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 transition-colors font-medium flex items-center justify-center gap-2"
                   >
                     <Check className="w-5 h-5" />
-                    OK, Appliquer
+                    {t('guidedRecording.apply')}
                   </button>
                 </div>
               </div>
@@ -604,9 +592,9 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
                   <Check className="w-8 h-8 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="font-medium text-emerald-300">Synchronisation appliquée !</p>
+                  <p className="font-medium text-emerald-300">{t('guidedRecording.syncApplied')}</p>
                   <p className="text-sm text-white/50 mt-1">
-                    {phrases.length} phrases synchronisées avec votre voix
+                    {t('guidedRecording.phrasesSynced', { count: phrases.length })}
                   </p>
                 </div>
               </div>

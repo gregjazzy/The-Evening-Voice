@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { useMontageStore, type PhraseTiming, type PhraseStyle } from '@/store/useMontageStore'
+import { useTranslations } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 import { AnimationEffect } from './AnimationEffects'
 import {
@@ -134,6 +135,7 @@ function PhraseDisplay({ phrase }: { phrase: PhraseTiming }) {
 // =============================================================================
 
 export function PreviewCanvas() {
+  const t = useTranslations('layout')
   const {
     getCurrentScene,
     currentPlaybackTime,
@@ -172,7 +174,7 @@ export function PreviewCanvas() {
   if (!scene) {
     return (
       <div className="glass rounded-xl p-6 flex items-center justify-center h-64">
-        <p className="text-midnight-400">Sélectionne une scène pour voir la prévisualisation</p>
+        <p className="text-midnight-400">{t('preview.selectScene')}</p>
       </div>
     )
   }
@@ -270,7 +272,7 @@ export function PreviewCanvas() {
       <div className="p-3 border-b border-midnight-700/50 flex items-center justify-between">
         <h3 className="text-sm font-medium flex items-center gap-2">
           <Eye className="w-4 h-4 text-aurora-400" />
-          Prévisualisation
+          {t('preview.title')}
         </h3>
         <div className="flex items-center gap-2">
           <button
@@ -279,14 +281,14 @@ export function PreviewCanvas() {
               'p-1.5 rounded-md transition-colors',
               showGrid ? 'bg-aurora-500/30 text-aurora-300' : 'text-midnight-400 hover:text-white'
             )}
-            title="Afficher la grille"
+            title={t('preview.showGrid')}
           >
             <Move className="w-4 h-4" />
           </button>
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
             className="p-1.5 rounded-md text-midnight-400 hover:text-white transition-colors"
-            title={isFullscreen ? 'Quitter plein écran' : 'Plein écran'}
+            title={isFullscreen ? t('preview.exitFullscreen') : t('preview.fullscreen')}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
@@ -540,7 +542,7 @@ export function PreviewCanvas() {
         ) : (
           <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent z-40">
             <p className="text-xl text-midnight-400 text-center italic">
-              {scene.phrases?.[0] || 'Aucun texte'}
+              {scene.phrases?.[0] || t('preview.noText')}
             </p>
           </div>
         )}
@@ -549,8 +551,8 @@ export function PreviewCanvas() {
         {!isPlaying && visibleMedia.length === 0 && visibleDecorations.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center text-midnight-400 px-6 py-4 bg-midnight-900/80 rounded-xl">
-              <p className="text-sm mb-2">📍 Ajoute des éléments depuis la timeline</p>
-              <p className="text-xs">Tu pourras les positionner ici par glisser-déposer</p>
+              <p className="text-sm mb-2">📍 {t('preview.addFromTimeline')}</p>
+              <p className="text-xs">{t('preview.dragToDrop')}</p>
             </div>
           </div>
         )}
@@ -559,12 +561,12 @@ export function PreviewCanvas() {
       {/* Footer avec infos */}
       <div className="p-2 border-t border-midnight-700/50 flex items-center justify-between text-xs text-midnight-400">
         <span>
-          {visibleMedia.length} média{visibleMedia.length !== 1 ? 's' : ''} •{' '}
-          {visibleDecorations.length} déco •{' '}
-          {visibleAnimations.length} anim
+          {visibleMedia.length > 1 ? t('preview.mediasCountPlural', { count: visibleMedia.length }) : t('preview.mediasCount', { count: visibleMedia.length })} •{' '}
+          {t('preview.decoCount', { count: visibleDecorations.length })} •{' '}
+          {t('preview.animCount', { count: visibleAnimations.length })}
         </span>
         <span>
-          Temps: {currentTime.toFixed(1)}s
+          {t('preview.time', { time: currentTime.toFixed(1) })}
         </span>
       </div>
     </div>

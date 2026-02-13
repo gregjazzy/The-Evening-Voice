@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { useAuthStore } from '@/store/useAuthStore'
-import { Sparkles, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Sparkles, Lock, Eye, EyeOff, ArrowRight, User } from 'lucide-react'
 import Link from 'next/link'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 
@@ -16,15 +16,14 @@ export default function LoginPage() {
   const locale = useLocale()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || `/${locale}`
-  
+
   const { signIn, isLoading, user } = useAuthStore()
-  
-  const [email, setEmail] = useState('')
+
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [resetSent, setResetSent] = useState(false)
-  const [isResetting, setIsResetting] = useState(false)
 
   // Rediriger si déjà connecté
   useEffect(() => {
@@ -33,64 +32,62 @@ export default function LoginPage() {
     }
   }, [user, router, redirect])
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Entre ton email pour recevoir le lien de réinitialisation')
-      return
-    }
-    
-    setIsResetting(true)
-    setError(null)
-    
-    try {
-      const { createBrowserClient } = await import('@supabase/ssr')
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/${locale}/reset-password`,
-      })
-      
-      if (error) {
-        setError(error.message)
-      } else {
-        setResetSent(true)
-      }
-    } catch (err) {
-      setError('Erreur lors de l\'envoi')
-    } finally {
-      setIsResetting(false)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    if (!email || !password) {
+    const trimmedFirst = firstName.trim()
+    const trimmedLast = lastName.trim()
+
+    if (!trimmedFirst || !trimmedLast || !password) {
       setError(t('errors.fillAllFields'))
       return
     }
 
-    const { error: signInError } = await signIn(email, password)
-    
-    if (signInError) {
-      setError(signInError)
-    } else {
-      router.push(redirect)
+    const fullName = `${trimmedFirst} ${trimmedLast}`
+
+    // Chercher l'email via l'API lookup
+    try {
+      const lookupRes = await fetch('/api/auth/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: fullName }),
+      })
+
+      if (!lookupRes.ok) {
+        const data = await lookupRes.json()
+        if (data.error === 'not_found') {
+          setError(t('errors.nameNotFound'))
+        } else if (data.error === 'multiple_matches') {
+          setError(t('errors.multipleName'))
+        } else {
+          setError(t('errors.generic'))
+        }
+        return
+      }
+
+      const { email } = await lookupRes.json()
+
+      const { error: signInError } = await signIn(email, password)
+
+      if (signInError) {
+        setError(t('errors.invalidCredentials'))
+      } else {
+        router.push(redirect)
+      }
+    } catch {
+      setError(t('errors.generic'))
     }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* Image de fond avec overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: 'url(/auth-background.png)' }}
       />
-      
+
       {/* Animation de lueur oscillante sur la lanterne */}
       <motion.div
         className="absolute pointer-events-none"
@@ -134,7 +131,7 @@ export default function LoginPage() {
           delay: 0.5,
         }}
       />
-      
+
       {/* Overlay sombre pour lisibilité */}
       <div className="absolute inset-0 bg-gradient-to-t from-gray-950/90 via-gray-950/60 to-gray-950/40" />
       {/* Effet de vignette subtil */}
@@ -155,7 +152,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <motion.div
             className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-aurora-500 to-aurora-700 flex items-center justify-center magic-glow"
-            animate={{ 
+            animate={{
               boxShadow: [
                 '0 0 20px rgba(233, 121, 249, 0.3)',
                 '0 0 40px rgba(233, 121, 249, 0.5)',
@@ -175,22 +172,41 @@ export default function LoginPage() {
         </div>
 
         {/* Formulaire */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Prénom */}
           <div>
-            <label htmlFor="email" className="block text-aurora-300 text-sm font-semibold mb-2">
-              {t('email')}
+            <label htmlFor="firstName" className="block text-aurora-300 text-sm font-semibold mb-2">
+              {t('firstName')}
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-aurora-400" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-aurora-400" />
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-field w-full pl-11"
-                placeholder="email@magic.com"
-                autoComplete="email"
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="input-field w-full" style={{ paddingLeft: '2.75rem' }}
+                placeholder={t('firstNamePlaceholder')}
+                autoComplete="given-name"
+              />
+            </div>
+          </div>
+
+          {/* Nom */}
+          <div>
+            <label htmlFor="lastName" className="block text-aurora-300 text-sm font-semibold mb-2">
+              {t('lastName')}
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-aurora-400" />
+              <input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="input-field w-full" style={{ paddingLeft: '2.75rem' }}
+                placeholder={t('lastNamePlaceholder')}
+                autoComplete="family-name"
               />
             </div>
           </div>
@@ -207,7 +223,7 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="input-field w-full pl-11 pr-11"
+                className="input-field w-full pr-11" style={{ paddingLeft: '2.75rem' }}
                 placeholder="••••••••"
                 autoComplete="current-password"
               />
@@ -258,24 +274,6 @@ export default function LoginPage() {
           </motion.button>
         </form>
 
-        {/* Lien mot de passe oublié */}
-        <div className="mt-4 text-center">
-          {resetSent ? (
-            <p className="text-emerald-400 text-sm">
-              ✉️ Un email de réinitialisation a été envoyé à {email}
-            </p>
-          ) : (
-            <button
-              type="button"
-              onClick={handleForgotPassword}
-              disabled={isResetting}
-              className="text-aurora-300 hover:text-aurora-200 text-sm transition-colors disabled:opacity-50"
-            >
-              {isResetting ? 'Envoi en cours...' : t('forgotPassword')}
-            </button>
-          )}
-        </div>
-
         {/* Lien d'inscription */}
         <div className="mt-6 text-center">
           <p className="text-aurora-300">
@@ -292,4 +290,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
