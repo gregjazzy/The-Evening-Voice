@@ -13,7 +13,8 @@ import {
   BookOpen,
 } from 'lucide-react'
 import { useStudioStore } from '@/store/useStudioStore'
-import { 
+import { useAppStore } from '@/store/useAppStore'
+import {
   useStudioProgressStore,
   LEVEL_NAMES,
   LEVEL_EMOJIS,
@@ -63,6 +64,8 @@ export function StudioMode() {
   // Modale d'introduction (premiere visite)
   const { isFirstVisit, markAsSeen } = useFirstVisit('studio')
   
+  const { currentStory } = useAppStore()
+
   const {
     currentKit,
     createNewKit,
@@ -96,6 +99,7 @@ export function StudioMode() {
   }, [currentKit?.id, currentCreationType])
 
   const handleSelectType = (type: CreationType) => {
+    if (!currentStory) return // Pas de création sans histoire
     setSelectedType(type)
     // Créer le kit dans l'ancien store (pour PromptBuilder)
     createNewKit(type)
@@ -217,8 +221,25 @@ export function StudioMode() {
               exit={{ opacity: 0 }}
               className="h-full overflow-y-auto pb-8"
             >
+              {/* Message si aucune histoire sélectionnée */}
+              {!currentStory && (
+                <motion.div
+                  className="glass rounded-3xl p-8 mb-8 text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <BookOpen className="w-12 h-12 text-midnight-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    {t('mode.noStoryTitle')}
+                  </h3>
+                  <p className="text-sm text-midnight-300">
+                    {t('mode.noStoryDescription')}
+                  </p>
+                </motion.div>
+              )}
+
               {/* Progression globale */}
-              <div className="grid grid-cols-2 gap-6 mb-8">
+              <div className={cn('grid grid-cols-2 gap-6 mb-8', !currentStory && 'opacity-40 pointer-events-none')}>
                 {creationTypes.map((type) => {
                   const level = getLevel(type.id)
                   const levelName = getLevelName(type.id)
@@ -370,10 +391,10 @@ export function StudioMode() {
                 {/* Zone d'import - seulement pour vidéos ou images niveau 3+ */}
                 {/* Images niveau 1-2 : pas besoin, l'image est générée directement */}
                 {/* Vidéos : juste la zone de drop (la galerie est déjà dans "Choisis une image à animer") */}
-                {(selectedType === 'video' || getLevel(selectedType) >= 3) && (
+                {selectedType !== 'video' && getLevel(selectedType) >= 3 && (
                   <div className="mt-4 glass rounded-2xl p-4 mb-4">
-                    <AssetDropzone 
-                      showGallery={selectedType !== 'video'} 
+                    <AssetDropzone
+                      showGallery={true}
                     />
                   </div>
                 )}

@@ -837,7 +837,9 @@
       "imageTypeName": "Изображения",
       "videoTypeName": "Видео",
       "imageTypeDesc": "Создавай волшебные иллюстрации",
-      "videoTypeDesc": "Оживляй свои сцены"
+      "videoTypeDesc": "Оживляй свои сцены",
+      "noStoryTitle": "Сначала выбери историю",
+      "noStoryDescription": "Чтобы создавать изображения или видео, сначала открой историю в редакторе."
     },
     "guide": {
       "imagesTitle": "🖼️ Изображения",

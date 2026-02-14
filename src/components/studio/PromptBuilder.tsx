@@ -27,6 +27,8 @@ import {
   Image as ImageIcon,
   Film,
   Video,
+  Plus,
+  Upload,
   FileText,
 } from 'lucide-react'
 import { useStudioStore, type StyleType, type AmbianceType, type LightType, type FormatType, type MovementType, type CameraType } from '@/store/useStudioStore'
@@ -256,6 +258,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const showStyleButtons = currentLevel < 4    // Visible niveaux 1-3
   const showAmbianceButtons = currentLevel < 4 // Visible niveaux 1-3
   const showLightOptions = currentLevel < 5    // Visible niveaux 1-4
+  const showDetailsSection = currentLevel < 5   // Visible niveaux 1-4
   // Format TOUJOURS visible pour les images (important pour livre vs montage)
   const showFormatButtons = currentCreationType === 'image'
   
@@ -267,7 +270,8 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const { user } = useAuthStore()
   const { uploadFromUrl, isUploading: isUploadingToCloud } = useMediaUpload()
   const toast = useToast()
-  
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [showPreview, setShowPreview] = useState(false)
   const [copied, setCopied] = useState(false)
   const [hasReadPrompt, setHasReadPrompt] = useState(false) // L'enfant doit valider qu'il a lu le prompt
@@ -1349,48 +1353,75 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               )}
             </div>
             
-            {/* Grille d'images disponibles - 6 colonnes x 2 lignes visibles */}
-            {availableImages.length > 0 ? (
-              <div className="grid grid-cols-6 gap-2 max-h-[140px] overflow-y-auto pr-1">
-                {availableImages.map((asset) => (
-                  <motion.button
-                    key={asset.id}
-                    onClick={() => updateKit({ 
-                      sourceImageUrl: asset.cloudUrl || asset.url,
-                      sourceImageId: asset.id 
-                    })}
-                    className={cn(
-                      "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                      currentKit.sourceImageId === asset.id
-                        ? "border-dream-500 ring-2 ring-dream-500/50"
-                        : "border-midnight-700 hover:border-stardust-500/50"
-                    )}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <img
-                      src={asset.cloudUrl || asset.url}
-                      alt={asset.name}
-                      className="w-full h-full object-cover"
-                    />
-                    {currentKit.sourceImageId === asset.id && (
-                      <div className="absolute inset-0 bg-dream-500/20 flex items-center justify-center">
-                        <CheckCircle className="w-8 h-8 text-dream-400" />
-                      </div>
-                    )}
-                  </motion.button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 px-4 rounded-xl bg-midnight-900/50 border-2 border-dashed border-stardust-500/30">
-                <ImageIcon className="w-12 h-12 text-stardust-400 mx-auto mb-3" />
-                <p className="text-stardust-300 font-medium mb-2">
-                  {t('promptBuilderUI.noImagesYet')}
-                </p>
-                <p className="text-sm text-midnight-400">
-                  {t('promptBuilderUI.createImagesFirst')}
-                </p>
-              </div>
+            {/* Input file caché pour import */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const url = URL.createObjectURL(file)
+                addImportedAsset({
+                  id: `import-${Date.now()}`,
+                  name: file.name,
+                  url,
+                  type: 'image',
+                  source: 'upload',
+                  createdAt: new Date().toISOString(),
+                })
+                // Sélectionner automatiquement l'image importée
+                updateKit({ sourceImageUrl: url, sourceImageId: `import-${Date.now()}` })
+                e.target.value = ''
+              }}
+            />
+
+            {/* Grille d'images disponibles + bouton import */}
+            <div className="grid grid-cols-6 gap-2 max-h-[140px] overflow-y-auto pr-1">
+              {availableImages.map((asset) => (
+                <motion.button
+                  key={asset.id}
+                  onClick={() => updateKit({
+                    sourceImageUrl: asset.cloudUrl || asset.url,
+                    sourceImageId: asset.id
+                  })}
+                  className={cn(
+                    "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                    currentKit.sourceImageId === asset.id
+                      ? "border-dream-500 ring-2 ring-dream-500/50"
+                      : "border-midnight-700 hover:border-stardust-500/50"
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <img
+                    src={asset.cloudUrl || asset.url}
+                    alt={asset.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {currentKit.sourceImageId === asset.id && (
+                    <div className="absolute inset-0 bg-dream-500/20 flex items-center justify-center">
+                      <CheckCircle className="w-8 h-8 text-dream-400" />
+                    </div>
+                  )}
+                </motion.button>
+              ))}
+              {/* Bouton + importer */}
+              <motion.button
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-square rounded-lg border-2 border-dashed border-stardust-500/30 hover:border-dream-500/50 flex flex-col items-center justify-center gap-1 transition-all"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Plus className="w-5 h-5 text-stardust-400" />
+                <span className="text-[10px] text-stardust-400">Import</span>
+              </motion.button>
+            </div>
+            {availableImages.length === 0 && (
+              <p className="text-xs text-midnight-400 mt-2 text-center">
+                {t('promptBuilderUI.createImagesFirst')}
+              </p>
             )}
             
             {/* Image sélectionnée en preview */}
@@ -1762,7 +1793,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
 
       {/* Section Détails - après l'ambiance - IMAGES UNIQUEMENT */}
       <AnimatePresence>
-        {showLightOptions && currentKit.ambiance && currentCreationType === 'image' && (
+        {showDetailsSection && currentKit.ambiance && currentCreationType === 'image' && (
           <motion.section
             className="glass rounded-2xl p-6"
             initial={{ opacity: 0, y: 20, height: 0 }}
@@ -2302,9 +2333,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                                     }
                                     console.log(`✅ ${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée:`, result.url)
                                     toast.success(`${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée !`)
-                                    // Fermer l'aperçu SEULEMENT si succès
+                                    // Fermer l'aperçu et reset le kit pour une nouvelle création
                                     setGeneratedAsset(null)
                                     setGenerationError(null)
+                                    // Reset le kit pour repartir à zéro
+                                    const creationType = currentCreationType || 'image'
+                                    useStudioStore.getState().createNewKit(creationType)
+                                    // Scroll en haut
+                                    window.scrollTo({ top: 0, behavior: 'smooth' })
                                   } else {
                                     // Upload a retourné null (erreur silencieuse)
                                     toast.error('Erreur lors de la sauvegarde. Vérifie ta connexion et réessaie.')

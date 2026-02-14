@@ -211,61 +211,42 @@ export function useMediaUpload(): UseMediaUploadReturn {
   const [error, setError] = useState<string | null>(null)
 
   /**
-   * Upload une VIDÉO vers R2 (upload direct avec URL signée)
-   * Évite la limite de taille de Netlify (10 Mo)
+   * Upload une VIDÉO vers R2 via proxy serveur (évite CORS + limite Netlify)
    */
   const uploadVideoToR2 = useCallback(async (
     file: File | Blob,
     options: UploadOptions
   ): Promise<UploadResult | null> => {
     const { source = 'upload', storyId } = options
-    const fileName = file instanceof File ? file.name : `video-${Date.now()}.mp4`
     const contentType = file.type || 'video/mp4'
 
-    console.log('📹 [1/4] Demande URL signée pour upload direct...')
+    console.log('📹 [1/2] Upload vidéo via proxy serveur...')
     setProgress(10)
 
-    // 1. Obtenir une URL signée
-    const presignResponse = await fetch('/api/upload/presign', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName,
-        contentType,
-        userId: user!.id,
-        profileId: profile?.id || '',
-        storyId,
-        source,
-        fileSize: file.size,
-      }),
-    })
+    // Envoyer le fichier au proxy qui upload côté serveur vers R2
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('userId', user!.id)
+    formData.append('profileId', profile?.id || '')
+    formData.append('contentType', contentType)
+    formData.append('source', source)
+    if (storyId) formData.append('storyId', storyId)
 
-    if (!presignResponse.ok) {
-      const errorData = await presignResponse.json().catch(() => ({}))
-      throw new Error(errorData.error || 'Erreur obtention URL signée')
-    }
-
-    const { uploadUrl, publicUrl, assetId, fileName: finalFileName } = await presignResponse.json()
-    console.log('📹 [2/4] URL signée obtenue, upload direct vers R2...')
     setProgress(30)
 
-    // 2. Upload direct vers R2
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': contentType,
-      },
+    const response = await fetch('/api/upload/r2-proxy', {
+      method: 'POST',
+      body: formData,
     })
 
-    if (!uploadResponse.ok) {
-      throw new Error(`Erreur upload R2: ${uploadResponse.status}`)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || `Erreur upload vidéo: ${response.status}`)
     }
 
-    console.log('📹 [3/4] Upload R2 terminé !')
-    setProgress(90)
+    const { publicUrl, assetId, fileName: finalFileName } = await response.json()
 
-    console.log('📹 [4/4] Vidéo sauvegardée avec succès')
+    console.log('📹 [2/2] Vidéo sauvegardée via proxy !')
     setProgress(100)
 
     return {
@@ -363,7 +344,8 @@ export function useMediaUpload(): UseMediaUploadReturn {
     console.log('📤 [4/5] URL publique obtenue:', publicUrl.substring(0, 60) + '...')
     setProgress(80)
 
-    // Créer l'entrée dans la table assets
+    // Créer l'entrée dans la table assets via raw fetch (même pattern que storage upload)
+    // Le SDK Supabase browser deadlock sur fetchWithAuth après un gros upload
     console.log('📤 [5/5] Création entrée dans table assets...')
     const assetInsert = {
       profile_id: profile?.id,
@@ -375,32 +357,45 @@ export function useMediaUpload(): UseMediaUploadReturn {
       file_size: fileToUpload.size,
       mime_type: mimeType,
     }
-    
-    console.log('📤 [5/5] Insert data:', { profile_id: profile?.id, type, source, fileName })
-    
-    const { data: assetData, error: assetError } = await supabase
-      .from('assets')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(assetInsert as any)
-      .select()
-      .single()
 
-    if (assetError) {
-      console.error('❌ [5/5] Erreur création asset:', assetError.message, assetError)
-      // Rollback : supprimer le fichier uploadé
-      await supabase.storage.from(bucket).remove([filePath])
-      throw new Error(`Erreur création asset: ${assetError.message}`)
+    console.log('📤 [5/5] Insert data:', { profile_id: profile?.id, type, source, fileName })
+
+    // Raw fetch vers PostgREST (contourne le deadlock createBrowserClient)
+    const insertUrl = `${supabaseUrl}/rest/v1/assets`
+    const insertResponse = await fetch(insertUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || anonKey}`,
+        'apikey': anonKey,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(assetInsert),
+    })
+
+    if (!insertResponse.ok) {
+      const errBody = await insertResponse.text().catch(() => '')
+      console.error('❌ [5/5] Erreur création asset:', insertResponse.status, errBody)
+      // Rollback : supprimer le fichier uploadé via raw fetch
+      await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${filePath}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token || anonKey}`,
+          'apikey': anonKey,
+        },
+      })
+      throw new Error(`Erreur création asset: ${insertResponse.status} ${errBody}`)
     }
+
+    const insertedRows = await insertResponse.json()
+    const assetData = Array.isArray(insertedRows) ? insertedRows[0] : insertedRows
 
     console.log('✅ [5/5] Asset créé avec succès')
     setProgress(100)
 
-    // Cast nécessaire car les types Supabase peuvent être désynchronisés
-    const asset = assetData as unknown as { id: string }
-
     return {
       url: publicUrl,
-      assetId: asset.id,
+      assetId: assetData.id,
       fileName,
       fileSize: fileToUpload.size,
       mimeType,

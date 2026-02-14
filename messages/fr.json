@@ -837,7 +837,9 @@
       "imageTypeName": "Images",
       "videoTypeName": "Vidéos",
       "imageTypeDesc": "Crée des illustrations magiques",
-      "videoTypeDesc": "Anime tes scènes"
+      "videoTypeDesc": "Anime tes scènes",
+      "noStoryTitle": "Choisis d'abord une histoire",
+      "noStoryDescription": "Pour créer des images ou des vidéos, ouvre d'abord une histoire dans l'éditeur."
     },
     "guide": {
       "imagesTitle": "🖼️ Images",
