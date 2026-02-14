@@ -87,14 +87,13 @@ export function UserMenu() {
       await signOut()
       clearTimeout(timeoutId)
       console.log('✅ Déconnexion réussie, redirection...')
-      router.push('/login')
+      // Hard navigation pour que le middleware relise les cookies (vidés par signOut)
+      // router.push ferait une navigation client-side où les cookies ne sont pas encore à jour
+      window.location.href = '/login'
     } catch (error) {
       clearTimeout(timeoutId)
       console.error('❌ Erreur déconnexion:', error)
-      // Forcer la redirection même en cas d'erreur
       window.location.href = '/login'
-    } finally {
-      setIsSigningOut(false)
     }
   }
 
