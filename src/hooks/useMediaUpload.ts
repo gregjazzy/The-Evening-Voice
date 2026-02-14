@@ -474,44 +474,50 @@ export function useMediaUpload(): UseMediaUploadReturn {
       setProgress(0)
       setError(null)
 
-      console.log('📥 Téléchargement depuis URL:', url.substring(0, 80) + '...')
+      const { type = 'image', source = 'upload', storyId } = options
 
-      // Télécharger le fichier depuis l'URL avec timeout de 60 secondes
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000)
-      
-      const response = await fetch(url, { signal: controller.signal })
-      clearTimeout(timeoutId)
-      
+      console.log('🚀 Transfert serveur-à-serveur:', url.substring(0, 80) + '...')
+      setProgress(20)
+
+      // Transfert via API serveur (fal.ai → Supabase directement, sans passer par le navigateur)
+      const response = await fetch('/api/upload/from-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          userId: user!.id,
+          profileId: profile?.id,
+          storyId,
+          source,
+          type,
+        }),
+      })
+
+      setProgress(80)
+
       if (!response.ok) {
-        throw new Error(`Impossible de télécharger le fichier (${response.status})`)
+        const data = await response.json().catch(() => ({ error: 'Erreur serveur' }))
+        throw new Error(data.error || `Erreur serveur (${response.status})`)
       }
 
-      setProgress(20)
-      console.log('📥 Téléchargement OK, conversion en blob...')
+      const data = await response.json()
+      console.log('✅ Transfert serveur terminé:', data.publicUrl?.substring(0, 60) + '...')
+      setProgress(100)
 
-      const blob = await response.blob()
-      console.log(`📥 Blob créé: ${(blob.size / 1024 / 1024).toFixed(2)} MB`)
-      setProgress(40)
-
-      // Utiliser la fonction upload standard
-      console.log('📤 Début upload vers stockage...')
-      const result = await upload(blob, options)
-      console.log('📤 Upload terminé:', result ? 'succès' : 'échec')
-      return result
+      return {
+        url: data.publicUrl,
+        assetId: data.assetId,
+      }
 
     } catch (err) {
-      const message = err instanceof Error 
-        ? (err.name === 'AbortError' ? 'Téléchargement trop long (timeout 60s)' : err.message)
-        : 'Erreur inconnue'
+      const message = err instanceof Error ? err.message : 'Erreur inconnue'
       setError(message)
       console.error('❌ Upload from URL error:', err)
       return null
     } finally {
-      // S'assurer que isUploading est reset même en cas d'erreur
       setIsUploading(false)
     }
-  }, [upload])
+  }, [user, profile])
 
   /**
    * Supprimer un média

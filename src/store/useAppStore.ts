@@ -429,14 +429,28 @@ export const useAppStore = create<AppState>()(
           order: index + 1, // +1 car la couverture est à l'index 0
         }))
         
-        // Pour le mode libre, créer une page vide
+        // Pour le mode libre, créer 4 pages vides (minimum 6 pages total)
         if (structure === 'free') {
+          for (let i = 0; i < 4; i++) {
+            contentPages.push({
+              id: generateId(),
+              stepIndex: i,
+              content: '',
+              pageType: 'content' as const,
+              order: i + 1,
+            })
+          }
+        }
+
+        // S'assurer que le total est pair (back cover doit être sur une page gauche)
+        // Total = 1 (front) + contentPages + 1 (back)
+        if ((contentPages.length + 2) % 2 !== 0) {
           contentPages.push({
             id: generateId(),
-            stepIndex: 0,
+            stepIndex: contentPages.length,
             content: '',
             pageType: 'content' as const,
-            order: 1,
+            order: contentPages.length + 1,
           })
         }
         

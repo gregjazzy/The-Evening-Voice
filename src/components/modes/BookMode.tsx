@@ -7902,12 +7902,19 @@ export function BookMode() {
       title: '',
       content: '',
       chapterId: undefined,
+      pageType: 'content',
     }
-    const newPages = [...pages, newPage]
+    // Insérer avant la 4e de couverture (dernière page)
+    const lastPage = pages[pages.length - 1]
+    const isLastBackCover = lastPage?.pageType === 'back-cover'
+    const newPages = isLastBackCover
+      ? [...pages.slice(0, -1), newPage, lastPage]
+      : [...pages, newPage]
     setPages(newPages)
-    // Aller au spread contenant la nouvelle page (dernière page)
-    setCurrentSpread(Math.floor((newPages.length - 1) / 2))
-    
+    // Aller au spread contenant la nouvelle page (avant le back cover)
+    const newContentLastIndex = isLastBackCover ? newPages.length - 2 : newPages.length - 1
+    setCurrentSpread(Math.floor(newContentLastIndex / 2))
+
     // Sauvegarder dans le store (utilise pagesToStoreFormat pour inclure tous les champs)
     if (currentStory) {
       updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
@@ -7915,15 +7922,45 @@ export function BookMode() {
   }
 
   const handleDeletePage = (index: number) => {
-    if (pages.length <= 1) return // Garder au moins une page
+    // Ne pas supprimer le front cover ni le back cover
+    const page = pages[index]
+    if (page?.pageType === 'front-cover' || page?.pageType === 'back-cover') return
+    // Garder au minimum 4 pages (front + 2 contenu + back)
+    if (pages.length <= 4) return
     const newPages = pages.filter((_, i) => i !== index)
+    // Si le total devient impair, supprimer aussi la page vide adjacente
+    // pour maintenir le back cover sur une page gauche
+    if (newPages.length % 2 !== 0) {
+      // Chercher une page de contenu vide (avant le back cover) à supprimer
+      const backCoverIdx = newPages.length - 1
+      let blankIdx = -1
+      for (let i = backCoverIdx - 1; i >= 1; i--) {
+        const p = newPages[i]
+        if (!p.content && !p.images?.length && !p.backgroundMedia && !p.textBoxes?.length && p.pageType !== 'front-cover') {
+          blankIdx = i
+          break
+        }
+      }
+      if (blankIdx >= 0) {
+        newPages.splice(blankIdx, 1)
+      } else {
+        // Pas de page vide à supprimer, ajouter une page blanche avant le back cover
+        const blankPage: StoryPageLocal = {
+          id: crypto.randomUUID(),
+          title: '',
+          content: '',
+          pageType: 'content',
+        }
+        newPages.splice(newPages.length - 1, 0, blankPage)
+      }
+    }
     setPages(newPages)
     // Ajuster le spread si nécessaire
     const newTotalSpreads = Math.ceil(newPages.length / 2)
     if (currentSpread >= newTotalSpreads) {
       setCurrentSpread(Math.max(0, newTotalSpreads - 1))
     }
-    
+
     // Sauvegarder dans le store (utilise pagesToStoreFormat pour inclure tous les champs)
     if (currentStory) {
       updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
@@ -9292,8 +9329,8 @@ export function BookMode() {
                       <div className="w-2 h-2 rounded-full bg-aurora-400" />
                     )}
                   </button>
-                  {/* Bouton supprimer (visible seulement sur page active et si plus d'une page) */}
-                  {isActive && pages.length > 1 && (
+                  {/* Bouton supprimer (visible seulement sur page active, pas sur couvertures, minimum 4 pages) */}
+                  {isActive && pages.length > 4 && page.pageType !== 'front-cover' && page.pageType !== 'back-cover' && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()

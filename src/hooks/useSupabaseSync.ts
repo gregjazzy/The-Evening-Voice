@@ -438,38 +438,35 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
         return pageData
       })
 
-      console.log(`📄 UPSERT ${pagesData.length} pages pour story ${story.id}`)
+      console.log(`📄 SAVE ${pagesData.length} pages pour story ${story.id}`)
 
-      // UPSERT toutes les pages (safe : pas de fenêtre sans données)
+      // Supprimer toutes les pages existantes puis réinsérer
+      // (évite les conflits de page_number lors des réorganisations)
       if (pagesData.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: upsertError } = await supabase
-          .from('story_pages')
-          .upsert(pagesData as any, { onConflict: 'id' })
-
-        if (upsertError) {
-          // Détecter spécifiquement les erreurs RLS
-          if (upsertError.message?.includes('row-level security') || upsertError.code === '42501') {
-            console.error('🚨 ERREUR RLS: La policy "Users can manage own pages" manque sur story_pages !')
-            console.error('🚨 Exécutez: CREATE POLICY "Users can manage own pages" ON story_pages FOR ALL USING (story_id IN (SELECT id FROM stories WHERE profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid())));')
-          }
-          throw new Error(`Erreur upsert pages: ${upsertError.message}`)
-        }
-      }
-
-      // Supprimer SEULEMENT les pages qui n'existent plus dans l'histoire
-      const currentPageIds = story.pages.map(p => p.id).filter(Boolean)
-      if (currentPageIds.length > 0) {
+        // 1. Supprimer toutes les pages de cette histoire
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error: deleteError } = await supabase
           .from('story_pages')
           .delete()
-          .eq('story_id', story.id)
-          .not('id', 'in', `(${currentPageIds.join(',')})`) as any
+          .eq('story_id', story.id) as any
 
         if (deleteError) {
-          // Non-fatal : les anciennes pages restent mais ne cassent rien
-          console.warn('⚠️ Nettoyage anciennes pages échoué:', deleteError.message)
+          console.warn('⚠️ Suppression pages échouée:', deleteError.message)
+        }
+
+        // 2. Insérer toutes les pages avec les bons page_number
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: insertError } = await supabase
+          .from('story_pages')
+          .insert(pagesData as any)
+
+        if (insertError) {
+          // Détecter spécifiquement les erreurs RLS
+          if (insertError.message?.includes('row-level security') || insertError.code === '42501') {
+            console.error('🚨 ERREUR RLS: La policy "Users can manage own pages" manque sur story_pages !')
+            console.error('🚨 Exécutez: CREATE POLICY "Users can manage own pages" ON story_pages FOR ALL USING (story_id IN (SELECT id FROM stories WHERE profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid())));')
+          }
+          throw new Error(`Erreur insert pages: ${insertError.message}`)
         }
       }
 

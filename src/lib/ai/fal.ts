@@ -204,7 +204,7 @@ export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResul
  * Utilise REST API directement pour éviter les timeouts du SDK
  */
 export async function checkImageJobStatus(jobId: string, model: string): Promise<FluxImageResult> {
-  const modelEndpoint = model === 'nano-banana' ? 'fal-ai/nano-banana-pro' : 
+  const modelEndpoint = model === 'nano-banana' ? 'fal-ai/nano-banana' :
                         model === 'recraft' ? 'fal-ai/recraft-v3' : 
                         model === 'flux-img2img' ? 'fal-ai/flux' :  // img2img utilise le même endpoint que flux
                         'fal-ai/flux-pro/v1.1'
@@ -334,8 +334,8 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
   console.log(`🎨 Génération avec ${model.toUpperCase()}:`, safePrompt)
 
   // ============================================
-  // NANO BANANA PRO - Google Gemini 3 Pro Image
-  // Meilleure compréhension du langage naturel (FR/EN)
+  // NANO BANANA - Google Gemini 2.5 Flash Image
+  // Rapide et économique ($0.04/image au lieu de $0.15 pour Pro)
   // ============================================
   if (model === 'nano-banana') {
     // Convertir aspectRatio au format Nano Banana (utilise des ratios comme "3:4")
@@ -351,20 +351,19 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
     }
     const ratio = nanoBananaRatios[aspectRatio] || '3:4'
 
-    console.log(`📐 Nano Banana - Ratio: ${ratio}, Resolution: ${resolution}`)
-    
+    console.log(`📐 Nano Banana - Ratio: ${ratio}`)
+
     // Validation : prompt doit avoir minimum 3 caractères
     if (!safePrompt || safePrompt.length < 3) {
       throw new Error('Le prompt doit avoir au moins 3 caractères')
     }
 
     // Soumettre le job via REST API (évite le SDK qui peut timeout sur Netlify)
-    const submitResponse = await falFetch('https://queue.fal.run/fal-ai/nano-banana-pro', {
+    const submitResponse = await falFetch('https://queue.fal.run/fal-ai/nano-banana', {
       method: 'POST',
       body: JSON.stringify({
         prompt: safePrompt,
         aspect_ratio: ratio,
-        resolution: resolution,
         num_images: numImages,
         output_format: 'png',
       }),
