@@ -517,6 +517,7 @@
       "offlineBanner": "No internet connection • Use the magic help buttons below!",
       "stop": "Stop",
       "speak": "Speak",
+      "listening": "Listening...",
       "placeholderOffline": "Type or use magic help...",
       "placeholder": "Type your answer...",
       "backOnline": "I'm back! 🎉 The connection is back, let's keep going together! ✨",

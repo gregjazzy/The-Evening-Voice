@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Globe, Check } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/context'
@@ -29,7 +29,6 @@ export function LanguageSwitcher() {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const locale = useLocale() as Locale
-  const router = useRouter()
   const pathname = usePathname()
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
 
@@ -72,7 +71,10 @@ export function LanguageSwitcher() {
       segments.splice(1, 0, newLocale)
     }
 
-    router.push(segments.join('/'))
+    // Full navigation (pas router.push) pour garantir :
+    // 1. Le changement de locale s'applique toujours (pas de cache stale)
+    // 2. Les hooks de sync re-exécutent (préférences Supabase rechargées)
+    window.location.href = segments.join('/')
   }
 
   return (

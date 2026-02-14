@@ -1078,12 +1078,29 @@ function MontageAIChat() {
     resetTranscript
   } = useSpeechRecognition(locale)
 
-  // Envoyer le transcript quand on arrête de parler
+  // Arrêter la voix et le micro quand on quitte la page
   useEffect(() => {
-    if (!isListening && transcript) {
-      setMessage(transcript)
-      resetTranscript()
+    return () => {
+      stop()
+      stopListening()
     }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Afficher le transcript en temps réel + auto-envoi
+  useEffect(() => {
+    if (transcript) {
+      setMessage(transcript)
+    }
+  }, [transcript])
+
+  const sendMessageRef1 = useRef<(text: string) => void>(() => {})
+  const prevListeningRef1 = useRef(false)
+  useEffect(() => {
+    if (prevListeningRef1.current && !isListening && transcript.trim()) {
+      resetTranscript()
+      sendMessageRef1.current(transcript.trim())
+    }
+    prevListeningRef1.current = isListening
   }, [isListening, transcript, resetTranscript])
 
   // Auto-scroll
@@ -1106,10 +1123,10 @@ function MontageAIChat() {
     }
   }, [messages.length, displayName, autoSpeak, isTTSAvailable, speak, t])
 
-  const sendMessage = async () => {
-    if (!message.trim() || isLoading) return
+  const sendMessageDirect = async (text: string) => {
+    if (!text || isLoading) return
 
-    const userMessage = message.trim()
+    const userMessage = text
     setMessage('')
     setMessages(prev => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
@@ -1154,6 +1171,9 @@ function MontageAIChat() {
       setIsLoading(false)
     }
   }
+
+  const sendMessage = () => sendMessageDirect(message.trim())
+  sendMessageRef1.current = sendMessageDirect
 
   // Version réduite
   if (isCollapsed) {
@@ -1378,11 +1398,29 @@ function TimelineAIHelp() {
     }
   }, [isOpen])
   
+  // Arrêter la voix et le micro quand on quitte
   useEffect(() => {
-    if (!isListening && transcript) {
-      setMessage(transcript)
-      resetTranscript()
+    return () => {
+      stop()
+      stopListening()
     }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Afficher le transcript en temps réel + auto-envoi
+  useEffect(() => {
+    if (transcript) {
+      setMessage(transcript)
+    }
+  }, [transcript])
+
+  const sendMessageRef2 = useRef<(text: string) => void>(() => {})
+  const prevListeningRef2 = useRef(false)
+  useEffect(() => {
+    if (prevListeningRef2.current && !isListening && transcript.trim()) {
+      resetTranscript()
+      sendMessageRef2.current(transcript.trim())
+    }
+    prevListeningRef2.current = isListening
   }, [isListening, transcript, resetTranscript])
 
   useEffect(() => {
@@ -1400,10 +1438,10 @@ function TimelineAIHelp() {
     }
   }, [isOpen, messages.length, displayName, autoSpeak, isTTSAvailable, speak, t])
 
-  const sendMessage = async () => {
-    if (!message.trim() || isLoading) return
+  const sendMessageDirect2 = async (text: string) => {
+    if (!text || isLoading) return
 
-    const userMessage = message.trim()
+    const userMessage = text
     setMessage('')
     setMessages(prev => [...prev, { role: 'user', content: userMessage }])
     setIsLoading(true)
@@ -1443,6 +1481,9 @@ function TimelineAIHelp() {
       setIsLoading(false)
     }
   }
+
+  const sendMessage = () => sendMessageDirect2(message.trim())
+  sendMessageRef2.current = sendMessageDirect2
 
   const content = (
     <>

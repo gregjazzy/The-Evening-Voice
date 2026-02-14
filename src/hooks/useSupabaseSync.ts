@@ -821,13 +821,8 @@ export function useSupabaseSync() {
       if (profile.name) {
         useAppStore.setState({ userName: profile.name })
       }
-      // Charger le nom personnalisé de l'IA (priorité Supabase)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const profileAny = profile as any
-      if (profileAny.ai_name) {
-        useAppStore.setState({ aiName: profileAny.ai_name })
-        console.log(`   ✅ Nom de l'IA chargé: ${profileAny.ai_name}`)
-      }
+      // NOTE: ai_name est chargé par useSyncUserPreferences (source unique)
+      // Ne PAS le charger ici pour éviter les conflits de timing
       if (profile.emotional_context) {
         useAppStore.setState({ emotionalContext: profile.emotional_context as string[] })
       }

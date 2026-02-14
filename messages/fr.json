@@ -517,6 +517,7 @@
       "offlineBanner": "Pas de connexion internet • Utilise les boutons d'aide magique ci-dessous !",
       "stop": "Arrêter",
       "speak": "Parler",
+      "listening": "J'écoute...",
       "placeholderOffline": "Écris ou utilise l'aide magique...",
       "placeholder": "Écris ta réponse...",
       "backOnline": "Je suis de retour ! 🎉 La connexion est revenue, on peut continuer ensemble ! ✨",

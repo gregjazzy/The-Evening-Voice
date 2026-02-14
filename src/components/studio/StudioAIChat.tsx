@@ -43,6 +43,89 @@ const DETAIL_KEYWORDS = ['rouge', 'bleu', 'vert', 'doré', 'brillant', 'grand', 
 const VIDEO_MOVEMENT_KEYWORDS = ['bouge', 'anime', 'danse', 'court', 'vole', 'tombe', 'saute', 'marche', 'tourne', 'moves', 'dances', 'runs', 'flies', 'falls', 'jumps', 'walks', 'spins', 'двигается', 'танцует', 'бежит', 'летит', 'падает', 'прыгает']
 const VIDEO_RHYTHM_KEYWORDS = ['lent', 'rapide', 'doucement', 'vite', 'dynamique', 'calme', 'fluide', 'slow', 'fast', 'gently', 'dynamic', 'calm', 'fluid', 'медленно', 'быстро', 'плавно', 'динамично', 'спокойно']
 
+// ============================================
+// HOOK: Reconnaissance vocale (Speech-to-Text)
+// ============================================
+function useSpeechRecognition(locale: string = 'fr') {
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [isSupported, setIsSupported] = useState(true)
+  const recognitionRef = useRef<any>(null)
+  const hasInitialized = useRef(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsSupported(false)
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setIsSupported(false)
+      return
+    }
+
+    setIsSupported(true)
+    if (hasInitialized.current) return
+    hasInitialized.current = true
+
+    try {
+      recognitionRef.current = new SpeechRecognition()
+      recognitionRef.current.continuous = true
+      recognitionRef.current.interimResults = true
+      recognitionRef.current.lang = locale === 'fr' ? 'fr-FR' : locale === 'en' ? 'en-US' : 'ru-RU'
+
+      recognitionRef.current.onresult = (event: any) => {
+        let finalTranscript = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript
+          }
+        }
+        if (finalTranscript) {
+          setTranscript(prev => prev + finalTranscript)
+        }
+      }
+
+      recognitionRef.current.onerror = () => setIsListening(false)
+      recognitionRef.current.onend = () => setIsListening(false)
+    } catch {
+      setIsSupported(false)
+    }
+
+    return () => {
+      try { recognitionRef.current?.stop() } catch { /* ignore */ }
+    }
+  }, [locale])
+
+  const startListening = async () => {
+    if (!recognitionRef.current || isListening) return
+
+    // Electron: demander permission micro
+    if ((window as any).electronAPI?.requestMicrophoneAccess) {
+      try {
+        const granted = await (window as any).electronAPI.requestMicrophoneAccess()
+        if (!granted) return
+      } catch { /* ignore */ }
+    }
+
+    setTranscript('')
+    try {
+      recognitionRef.current.start()
+      setIsListening(true)
+    } catch { /* ignore */ }
+  }
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    }
+  }
+
+  return { isListening, isSupported, transcript, startListening, stopListening }
+}
+
 function detectMissingElements(
   text: string, 
   hasStyleButton: boolean, 
@@ -258,9 +341,11 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
   const showStyleButtons = level < 4    // Boutons visibles niveaux 1-3
   const showAmbianceButtons = level < 4 // Boutons visibles niveaux 1-3
   
+  // Reconnaissance vocale
+  const speech = useSpeechRecognition(locale)
+
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [isListening, setIsListening] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
@@ -452,6 +537,34 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       }
     }
   }, [currentStep, type, level, friendName])
+
+  // Arrêter la voix et le micro quand on quitte la page
+  useEffect(() => {
+    return () => {
+      tts.stop()
+      speech.stopListening()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Afficher le transcript en temps réel dans l'input
+  useEffect(() => {
+    if (speech.transcript) {
+      setInputValue(speech.transcript)
+    }
+  }, [speech.transcript])
+
+  // Ref pour toujours avoir la dernière version de sendMessage (évite closure stale)
+  const sendMessageRef = useRef<(text: string) => void>(() => {})
+  // Updated after sendMessage is defined (see below)
+
+  // Quand la reconnaissance vocale s'arrête, envoyer automatiquement
+  const prevListeningRef = useRef(false)
+  useEffect(() => {
+    if (prevListeningRef.current && !speech.isListening && speech.transcript.trim()) {
+      sendMessageRef.current(speech.transcript.trim())
+    }
+    prevListeningRef.current = speech.isListening
+  }, [speech.isListening, speech.transcript])
 
   // Scroll vers le bas quand nouveaux messages
   useEffect(() => {
@@ -691,10 +804,10 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
     }, 100)
   }, [aiReaction, voiceEnabled, tts, clearAIReaction, messages, friendName, type, currentStep, level])
 
-  const handleSend = async () => {
-    if (!inputValue.trim() || isLoading) return
+  const sendMessage = async (text: string) => {
+    if (!text || isLoading) return
 
-    const userMessage = inputValue.trim()
+    const userMessage = text
     setInputValue('')
 
     // Ajouter le message de l'enfant
@@ -828,6 +941,11 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
       inputRef.current?.focus()
     }
   }
+
+  // Mettre à jour la ref pour que l'effet vocal utilise toujours la dernière version
+  sendMessageRef.current = sendMessage
+
+  const handleSend = () => sendMessage(inputValue.trim())
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1049,18 +1167,20 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
         )}
         
         <div className="flex gap-2">
-          <button
-            onClick={() => setIsListening(!isListening)}
-            className={cn(
-              'p-3 rounded-xl transition-colors',
-              isListening
-                ? 'bg-red-500/20 text-red-400 animate-pulse'
-                : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
-            )}
-            title={isListening ? t('chat.stop') : t('chat.speak')}
-          >
-            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </button>
+          {speech.isSupported && (
+            <button
+              onClick={() => speech.isListening ? speech.stopListening() : speech.startListening()}
+              className={cn(
+                'p-3 rounded-xl transition-colors',
+                speech.isListening
+                  ? 'bg-red-500/20 text-red-400 animate-pulse'
+                  : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
+              )}
+              title={speech.isListening ? t('chat.stop') : t('chat.speak')}
+            >
+              {speech.isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+          )}
           
           <input
             ref={inputRef}
@@ -1068,7 +1188,7 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={isOffline ? t('chat.placeholderOffline') : t('chat.placeholder')}
+            placeholder={speech.isListening ? t('chat.listening') : isOffline ? t('chat.placeholderOffline') : t('chat.placeholder')}
             className="flex-1 bg-midnight-800/50 rounded-xl px-4 py-3 text-white placeholder:text-midnight-500 text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500/30"
           />
           
