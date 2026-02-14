@@ -76,14 +76,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (profiles.length > 1) {
+    if (matchedProfiles.length > 1) {
       return NextResponse.json(
         { error: 'multiple_matches' },
         { status: 409 }
       )
     }
 
-    const profile = profiles[0]
+    const profile = matchedProfiles[0]
 
     // Récupérer l'email depuis auth.users via l'API admin
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(

@@ -34,3 +34,6 @@ yarn-error.log*
 next-env.d.ts
 
 dist-electron/
+
+# Local Netlify folder
+.netlify

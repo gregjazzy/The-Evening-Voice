@@ -1648,16 +1648,16 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
         </div>
       )}
 
-      {/* Menu de sélection de style (filtres) - taille fixe */}
-      {showStyleMenu && (
+      {/* Menu de sélection de style (filtres) - via portail pour éviter le décalage dû au transform parent */}
+      {showStyleMenu && typeof document !== 'undefined' && createPortal(
         <>
           {/* Overlay pour fermer au clic extérieur */}
-          <div 
-            className="fixed inset-0 z-40"
+          <div
+            className="fixed inset-0 z-[9998]"
             onClick={() => setShowStyleMenu(false)}
           />
-          <div 
-            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[260px]"
+          <div
+            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-[9999] min-w-[260px]"
             style={{
               top: '50%',
               left: '50%',
@@ -1711,19 +1711,20 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
               />
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
 
-      {/* Menu de sélection de cadre - taille fixe */}
-      {showFrameMenu && (
+      {/* Menu de sélection de cadre - via portail pour éviter le décalage dû au transform parent */}
+      {showFrameMenu && typeof document !== 'undefined' && createPortal(
         <>
           {/* Overlay pour fermer au clic extérieur */}
-          <div 
-            className="fixed inset-0 z-40"
+          <div
+            className="fixed inset-0 z-[9998]"
             onClick={() => setShowFrameMenu(false)}
           />
-          <div 
-            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 min-w-[280px]"
+          <div
+            className="fixed bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-[9999] min-w-[280px]"
             style={{
               top: '50%',
               left: '50%',
@@ -1757,7 +1758,8 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
               ))}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
 
       {/* Poignées de redimensionnement */}
