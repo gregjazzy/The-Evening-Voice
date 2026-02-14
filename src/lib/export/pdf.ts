@@ -104,7 +104,8 @@ const FONT_MAP: Record<string, string> = {
 }
 
 // Convertir lineSpacing en valeur CSS
-const getLineHeight = (spacing: string | undefined): string => {
+const getLineHeight = (spacing: string | number | undefined): string => {
+  if (typeof spacing === 'number') return String(spacing / 18) // ratio basé sur fontSize ~18px
   switch (spacing) {
     case 'tight': return '1.4'
     case 'relaxed': return '2.2'

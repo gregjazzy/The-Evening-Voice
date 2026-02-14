@@ -137,8 +137,10 @@ function buildPageDOM(
 
   // Text styles — same defaults as BookMode's DEFAULT_STYLE
   const fontSize = style.fontSize || 18
-  const lineSpacing = (style.lineSpacing || 'normal') as LineSpacing
-  const lineHeightPx = getBaseLineHeightPx(lineSpacing)
+  const rawLineSpacing = style.lineSpacing || 'normal'
+  const lineHeightPx = typeof rawLineSpacing === 'number'
+    ? rawLineSpacing
+    : getBaseLineHeightPx(rawLineSpacing as LineSpacing)
   const fontFamily = style.fontFamily || "'Merriweather', serif"
 
   // Bleed support
@@ -185,22 +187,27 @@ function buildPageDOM(
     bgContainer.setAttribute('data-layer', 'objects')
 
     if (page.backgroundMedia.type === 'video') {
-      const video = document.createElement('video')
-      video.src = page.backgroundMedia.url
-      video.muted = true
-      video.playsInline = true
-      video.style.cssText = `
-        position: absolute;
-        left: ${bleedPx}px;
-        top: ${bleedPxV}px;
-        width: ${width}px;
-        height: ${height}px;
-        object-fit: cover;
-        opacity: ${page.backgroundMedia.opacity};
-        transform: translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1});
-        transform-origin: center center;
-      `
-      bgContainer.appendChild(video)
+      // Utiliser le videoPoster (frame capturé) pour le PDF, sinon fallback sur une div vide
+      const posterUrl = page.backgroundMedia.videoPoster
+      if (posterUrl) {
+        const bgWrapper = document.createElement('div')
+        bgWrapper.style.cssText = `
+          position: absolute;
+          left: ${bleedPx}px;
+          top: ${bleedPxV}px;
+          width: ${width}px;
+          height: ${height}px;
+          overflow: hidden;
+          opacity: ${page.backgroundMedia.opacity};
+          transform: translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1});
+          transform-origin: center center;
+        `
+        const posterImg = document.createElement('img')
+        posterImg.src = posterUrl
+        posterImg.style.cssText = `width: 100%; height: 100%; object-fit: cover;`
+        bgWrapper.appendChild(posterImg)
+        bgContainer.appendChild(bgWrapper)
+      }
     } else {
       const bgImg = document.createElement('div')
       bgImg.style.cssText = `
@@ -238,14 +245,13 @@ function buildPageDOM(
         z-index: ${media.zIndex || 5};
         ${media.type !== 'video' ? `background-image: url(${media.url}); background-size: cover; background-position: center;` : ''}
         opacity: ${opacity};
+        overflow: hidden;
       `
-      if (media.type === 'video') {
-        const video = document.createElement('video')
-        video.src = media.url
-        video.muted = true
-        video.playsInline = true
-        video.style.cssText = `width: 100%; height: 100%; object-fit: cover; opacity: ${opacity};`
-        imgDiv.appendChild(video)
+      if (media.type === 'video' && (media as any).videoPoster) {
+        const posterImg = document.createElement('img')
+        posterImg.src = (media as any).videoPoster
+        posterImg.style.cssText = `width: 100%; height: 100%; object-fit: cover;`
+        imgDiv.appendChild(posterImg)
       }
       contentArea.appendChild(imgDiv)
     }
@@ -296,7 +302,10 @@ function buildPageDOM(
   // ---- 5. Floating text boxes (same as ExactPageRenderer) ----
   if (page.textBoxes) {
     for (const textBox of page.textBoxes) {
-      const tbLineHeight = getScaledLineHeightPx((textBox.style?.lineSpacing || 'normal') as LineSpacing, width)
+      const tbRawSpacing = textBox.style?.lineSpacing || 'normal'
+      const tbLineHeight = typeof tbRawSpacing === 'number'
+        ? tbRawSpacing
+        : getScaledLineHeightPx(tbRawSpacing as LineSpacing, width)
       const tbDiv = document.createElement('div')
       tbDiv.setAttribute('data-layer', 'text')
       tbDiv.style.cssText = `
@@ -400,12 +409,14 @@ async function renderSinglePage(
   // Wrapper positioned far off-screen (no opacity tricks — html-to-image needs visible elements)
   const wrapper = document.createElement('div')
   wrapper.style.cssText = `
-    position: absolute;
+    position: fixed;
     left: -99999px;
     top: -99999px;
     width: ${renderWidth}px;
     height: ${renderHeight}px;
     pointer-events: none;
+    z-index: -9999;
+    overflow: hidden;
   `
   document.body.appendChild(wrapper)
 

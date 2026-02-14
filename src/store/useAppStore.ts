@@ -142,6 +142,7 @@ export interface PageMedia {
   id: string
   url: string
   type: MediaType  // 'image' ou 'video'
+  videoPoster?: string  // Capture du frame vidéo (data URL) pour l'export PDF
   position: {
     x: number
     y: number
@@ -161,6 +162,7 @@ export type PageImage = PageMedia
 export interface BackgroundMedia {
   url: string
   type: 'image' | 'video'
+  videoPoster?: string  // Capture du frame vidéo (data URL) pour l'export PDF
   opacity: number
   x?: number
   y?: number
@@ -195,7 +197,7 @@ export interface PageTextBox {
     textAlign: 'left' | 'center' | 'right'
     isBold?: boolean
     isItalic?: boolean
-    lineSpacing?: 'tight' | 'normal' | 'relaxed'
+    lineSpacing?: 'tight' | 'normal' | 'relaxed' | number
   }
   zIndex: number
   rotation?: number
@@ -212,7 +214,7 @@ export interface PageTextStyle {
   isBold?: boolean
   isItalic?: boolean
   textAlign?: 'left' | 'center' | 'right'
-  lineSpacing?: 'tight' | 'normal' | 'relaxed'
+  lineSpacing?: 'tight' | 'normal' | 'relaxed' | number
 }
 
 export interface StoryPage {

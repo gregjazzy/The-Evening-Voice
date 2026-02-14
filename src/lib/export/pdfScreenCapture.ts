@@ -150,8 +150,11 @@ async function captureElementSafari(
   hideText()
   const wrapper = element.parentElement
   if (wrapper) {
+    // Positionner à 0,0 (requis par html2canvas) mais garder invisible via clip-path
     wrapper.style.left = '0px'
     wrapper.style.top = '0px'
+    wrapper.style.clipPath = 'inset(0 0 0 0)'
+    wrapper.style.opacity = '0'
   }
   const objectsCanvas = await html2canvas(element, {
     scale,
@@ -166,6 +169,8 @@ async function captureElementSafari(
   if (wrapper) {
     wrapper.style.left = '-99999px'
     wrapper.style.top = '-99999px'
+    wrapper.style.clipPath = ''
+    wrapper.style.opacity = ''
   }
   showText()
   console.log('🔍 [PDF] Pass 2 (objects) done, canvas:', objectsCanvas.width, 'x', objectsCanvas.height)

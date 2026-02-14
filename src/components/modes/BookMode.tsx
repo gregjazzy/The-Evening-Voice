@@ -54,6 +54,7 @@ import {
   Settings,
   Wand2,
   Download,
+  Minus,
 } from 'lucide-react'
 import { useAppStore, type Story, type BookFormat } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
@@ -81,7 +82,7 @@ interface TextStyle {
   isBold: boolean
   isItalic: boolean
   textAlign: 'left' | 'center' | 'right'
-  lineSpacing: 'tight' | 'normal' | 'relaxed'
+  lineSpacing: 'tight' | 'normal' | 'relaxed' | number
 }
 
 interface ImagePosition {
@@ -959,7 +960,9 @@ import {
 import type { LineSpacing } from '@/lib/rendering/pageRendering'
 
 // Fonction helper pour calculer la hauteur de ligne en pixels (à la taille de référence)
-const getLineHeightPx = (lineSpacing: 'tight' | 'normal' | 'relaxed') => {
+// Accepte les presets (tight/normal/relaxed) ou une valeur numérique directe
+const getLineHeightPx = (lineSpacing: 'tight' | 'normal' | 'relaxed' | number): number => {
+  if (typeof lineSpacing === 'number') return lineSpacing
   return getBaseLineHeightPx(lineSpacing as LineSpacing)
 }
 
@@ -984,6 +987,7 @@ interface DraggableMediaProps {
   onBringForward?: () => void
   onSendBackward?: () => void
   onCreateNewImage?: () => void  // Créer une nouvelle image avec ce personnage
+  onVideoPosterChange?: (poster: string) => void  // Capture du frame vidéo pour PDF
   containerRef: React.RefObject<HTMLDivElement>
   totalMedia?: number
 }
@@ -996,7 +1000,7 @@ const DEFAULT_IMAGE_POSITION: ImagePosition = {
   rotation: 0, // Pas de rotation par défaut
 }
 
-function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, opacity = 1, onPositionChange, onStyleChange, onFrameChange, onOpacityChange, onDelete, onBringForward, onSendBackward, onCreateNewImage, containerRef, totalMedia = 1 }: DraggableMediaProps) {
+function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, opacity = 1, onPositionChange, onStyleChange, onFrameChange, onOpacityChange, onDelete, onBringForward, onSendBackward, onCreateNewImage, onVideoPosterChange, containerRef, totalMedia = 1 }: DraggableMediaProps) {
   const t = useTranslations('writing')
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
@@ -1018,10 +1022,55 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause()
+        // Capturer le frame actuel pour l'export PDF
+        captureVideoFrame()
       } else {
         videoRef.current.play()
       }
       setIsPlaying(!isPlaying)
+    }
+  }
+
+  // Capturer le frame vidéo actuel comme image (data URL)
+  // Passe par un proxy serveur car pub-*.r2.dev ne renvoie pas de headers CORS
+  // (ne se déclenche qu'une fois au moment du pause, pas à chaque chargement)
+  const captureVideoFrame = async () => {
+    const video = videoRef.current
+    if (!video) { console.warn('⚠️ videoPoster: no video ref'); return }
+    if (!onVideoPosterChange) { console.warn('⚠️ videoPoster: no callback'); return }
+    const seekTime = video.currentTime
+    console.log('📸 Capturing video frame at', seekTime, 's...')
+    try {
+      const resp = await fetch(`/api/media/proxy?url=${encodeURIComponent(src)}`)
+      const blob = await resp.blob()
+      const blobUrl = URL.createObjectURL(blob)
+
+      const tmp = document.createElement('video')
+      tmp.muted = true
+      tmp.playsInline = true
+      tmp.preload = 'auto'
+      tmp.src = blobUrl
+
+      await new Promise<void>((resolve, reject) => {
+        tmp.onloadeddata = () => resolve()
+        tmp.onerror = () => reject(new Error('temp video load error'))
+      })
+
+      tmp.currentTime = seekTime
+      await new Promise<void>((resolve) => { tmp.onseeked = () => resolve() })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = tmp.videoWidth
+      canvas.height = tmp.videoHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height)
+      const poster = canvas.toDataURL('image/jpeg', 0.97)
+      URL.revokeObjectURL(blobUrl)
+
+      console.log('✅ Video frame captured, size:', Math.round(poster.length / 1024), 'KB')
+      onVideoPosterChange(poster)
+    } catch (err) {
+      console.error('❌ Could not capture video frame:', err)
     }
   }
 
@@ -1268,11 +1317,11 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
             style={{
               clipPath: getClipPath(),
               opacity: localOpacity,
-              maskImage: imageStyle === 'cloud' 
-                ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
+              maskImage: imageStyle === 'cloud'
+                ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)'
                 : undefined,
-              WebkitMaskImage: imageStyle === 'cloud' 
-                ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)' 
+              WebkitMaskImage: imageStyle === 'cloud'
+                ? 'radial-gradient(ellipse 75% 75% at 50% 50%, black 35%, transparent 90%)'
                 : undefined,
             }}
             loop
@@ -1892,7 +1941,9 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
     setIsEditing(false)
   }
 
-  const lineHeightPx = getScaledLineHeightPx((textBox.style.lineSpacing || 'normal') as LineSpacing, pageWidth)
+  const lineHeightPx = typeof textBox.style.lineSpacing === 'number'
+    ? textBox.style.lineSpacing
+    : getScaledLineHeightPx((textBox.style.lineSpacing || 'normal') as LineSpacing, pageWidth)
 
   return (
     <div
@@ -4298,65 +4349,34 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
       {/* Séparateur */}
       <div className="w-px h-6 bg-midnight-700/50" />
       
-      {/* Espacement de ligne */}
+      {/* Espacement de ligne +/- */}
       <Highlightable id="book-line-spacing">
-        <div className="relative">
+        <div className="flex items-center bg-midnight-800/30 rounded-lg">
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setShowLineSpacing(!showLineSpacing)}
-            className={cn(
-              "flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors",
-              showLineSpacing 
-                ? "bg-dream-500/20 text-dream-300" 
-                : "text-midnight-400 hover:bg-midnight-800"
-            )}
-            title={t('lineSpacing')}
+            onClick={() => {
+              const current = getLineHeightPx(style.lineSpacing || 'normal')
+              onStyleChange({ ...style, lineSpacing: Math.max(style.fontSize || 8, current - 2) })
+            }}
+            className="w-7 h-7 rounded-l-lg flex items-center justify-center text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800 transition-colors"
+            title={t('editor.spacing')}
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-              <path d="M7 3v3M7 15v3M17 3v3M17 15v3" strokeWidth="1.5" />
-            </svg>
+            <Minus className="w-3.5 h-3.5" />
           </button>
-          
-          <AnimatePresence>
-            {showLineSpacing && (
-              <>
-                {/* Overlay pour fermer au clic extérieur */}
-                <div 
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowLineSpacing(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  className="absolute top-full left-0 mt-2 p-2 bg-midnight-900 rounded-xl border border-midnight-700 shadow-xl z-50 min-w-[140px]"
-                >
-                  <div className="text-xs text-midnight-400 mb-2 font-medium px-2">{t('editor.spacing')}</div>
-                  {Object.entries(LINE_SPACINGS).map(([key, { nameKey, pixelHeight }]) => (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        onStyleChange({ ...style, lineSpacing: key as 'tight' | 'normal' | 'relaxed' })
-                        setShowLineSpacing(false)
-                      }}
-                      className={cn(
-                        "w-full px-3 py-2 text-left text-sm rounded-lg transition-colors flex items-center justify-between",
-                        style.lineSpacing === key
-                          ? "bg-aurora-500/20 text-aurora-300"
-                          : "hover:bg-midnight-800 text-white"
-                      )}
-                    >
-                      <span>{t(nameKey)}</span>
-                      <span className="text-xs text-midnight-500">{pixelHeight}px</span>
-                    </button>
-                  ))}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+          <div className="w-10 h-7 flex items-center justify-center text-[10px] text-midnight-300 border-x border-midnight-700/30">
+            {getLineHeightPx(style.lineSpacing || 'normal')}px
+          </div>
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const current = getLineHeightPx(style.lineSpacing || 'normal')
+              onStyleChange({ ...style, lineSpacing: current + 2 })
+            }}
+            className="w-7 h-7 rounded-r-lg flex items-center justify-center text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800 transition-colors"
+            title={t('editor.spacing')}
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
         </div>
       </Highlightable>
       
@@ -4864,6 +4884,7 @@ interface WritingAreaProps {
   onImageBringForward?: (pageIndex: number, imageId: string) => void
   onImageSendBackward?: (pageIndex: number, imageId: string) => void
   onImageCreateNew?: (imageUrl: string, pageIndex: number) => void  // Créer nouvelle image avec même personnage
+  onVideoPosterChange?: (pageIndex: number, imageId: string, poster: string) => void
   locale?: 'fr' | 'en' | 'ru'
   onPrevPage?: () => void
   onNextPage?: () => void
@@ -5025,7 +5046,7 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
   )
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, onVideoPosterChange, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
   
   const t = useTranslations('writing')
 
@@ -5341,8 +5362,8 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const mic = micLabels[locale as keyof typeof micLabels] || micLabels.en
 
   // Hauteur de ligne en pixels pour chaque page (canonical — scale = 1)
-  const rightLineHeightPx = getBaseLineHeightPx((rightStyle.lineSpacing || 'normal') as LineSpacing)
-  const leftLineHeightPx = getBaseLineHeightPx((leftStyle.lineSpacing || 'normal') as LineSpacing)
+  const rightLineHeightPx = getLineHeightPx(rightStyle.lineSpacing || 'normal')
+  const leftLineHeightPx = getLineHeightPx(leftStyle.lineSpacing || 'normal')
 
   // Style du texte pour la page droite (canonical — valeurs directes, pas de scaling)
   const rightTextStyle: React.CSSProperties = {
@@ -5756,6 +5777,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onBringForward={() => onImageBringForward?.(zPageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(zPageIndex, media.id)}
                 onCreateNewImage={() => onImageCreateNew?.(media.url, zPageIndex)}
+                onVideoPosterChange={(poster) => onVideoPosterChange?.(zPageIndex, media.id, poster)}
                 containerRef={zoomedPageContainerRef}
                 totalMedia={zPageImages.length}
               />
@@ -6117,6 +6139,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onBringForward={() => onImageBringForward?.(leftPageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(leftPageIndex, media.id)}
                 onCreateNewImage={() => onImageCreateNew?.(media.url, leftPageIndex)}
+                onVideoPosterChange={(poster) => onVideoPosterChange?.(leftPageIndex, media.id, poster)}
                 containerRef={leftPageContainerRef}
                 totalMedia={leftPageImages.length}
               />
@@ -6563,6 +6586,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onBringForward={() => onImageBringForward?.(pageIndex, media.id)}
                 onSendBackward={() => onImageSendBackward?.(pageIndex, media.id)}
                 onCreateNewImage={() => onImageCreateNew?.(media.url, pageIndex)}
+                onVideoPosterChange={(poster) => onVideoPosterChange?.(pageIndex, media.id, poster)}
                 containerRef={rightPageContainerRef}
                 totalMedia={rightPageImages.length}
               />
@@ -8043,6 +8067,18 @@ export function BookMode() {
     }
   }
 
+  // Capture du frame vidéo pour l'export PDF
+  const handleVideoPosterChange = (pageIdx: number, imageId: string, poster: string) => {
+    if (!pages[pageIdx]) return
+    const newPages = [...pages]
+    newPages[pageIdx] = updateImageInPage(newPages[pageIdx], imageId, { videoPoster: poster } as Partial<PageMedia>)
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
   // Suppression d'une image d'une page
   const handleImageDelete = (pageIdx: number, imageId: string) => {
     if (!pages[pageIdx]) return
@@ -8949,6 +8985,7 @@ export function BookMode() {
               onImageBringForward={handleImageBringForward}
               onImageSendBackward={handleImageSendBackward}
               onImageCreateNew={handleOpenCharacterCreator}
+              onVideoPosterChange={handleVideoPosterChange}
               bookColor={bookColor}
               onBookColorChange={setBookColor}
               onBackgroundAdd={handleOpenBackgroundPicker}
