@@ -2251,6 +2251,11 @@
     "generate": "Generate",
     "previousAttempts": "Your previous attempts",
     "newChallenge": "New challenge",
+    "pollingProgress": "Image is being prepared...",
+    "instructionTitle": "The challenge",
+    "instructionStep1": "Study the target image carefully",
+    "instructionStep2": "Write the most detailed prompt you can (subject, colors, style, mood...)",
+    "instructionStep3": "The AI will try to recreate it. The more precise your prompt, the closer the result!",
     "level": "Level",
     "attempt": "attempt",
     "attempts": "attempts",
@@ -2354,6 +2359,30 @@
         "hint2": "Books are flying",
         "hint3": "A wise bird is there"
       },
+      "variations-1-balloon": {
+        "description": "A red balloon floating in a blue sky",
+        "hint0": "Keep the balloon",
+        "hint1": "Change its color",
+        "variationInstruction": "Change the RED balloon to a GREEN balloon"
+      },
+      "variations-1-car": {
+        "description": "A small blue car parked on a street, cartoon style",
+        "hint0": "Keep the car",
+        "hint1": "Change its color",
+        "variationInstruction": "Change the BLUE car to a YELLOW car"
+      },
+      "variations-1-flower": {
+        "description": "A big yellow sunflower in a garden, blue sky",
+        "hint0": "Keep the flower in the garden",
+        "hint1": "Change the type of flower",
+        "variationInstruction": "Replace the SUNFLOWER with a RED ROSE"
+      },
+      "variations-1-hat": {
+        "description": "A cute white cat wearing a small red hat",
+        "hint0": "Keep the cat",
+        "hint1": "Change what it wears",
+        "variationInstruction": "Replace the HAT with SUNGLASSES"
+      },
       "variations-2-cottage": {
         "description": "A small house in a flower meadow, sunny summer day",
         "hint0": "Keep the house and the meadow",
@@ -2395,8 +2424,136 @@
         "hint0": "Keep the idea of a magical creature",
         "hint1": "Change the creature and the place",
         "variationInstruction": "Replace the fairy with an ELF and the forest with a CRYSTAL CAVE"
+      },
+      "reproduce-1-butterfly": {
+        "description": "A colorful butterfly with blue and orange wings on a pink flower in a garden",
+        "hint0": "It's an insect that flies",
+        "hint1": "It has big colorful wings",
+        "hint2": "It's sitting on a flower"
+      },
+      "reproduce-1-moon": {
+        "description": "A big bright full moon reflecting on a calm ocean at night, starry sky",
+        "hint0": "It's nighttime",
+        "hint1": "There's water",
+        "hint2": "Something round shines in the sky"
+      },
+      "reproduce-2-penguin": {
+        "description": "A cute penguin wearing a red scarf on an icy shore, snowflakes falling",
+        "hint0": "It's a black and white animal",
+        "hint1": "It's wearing something",
+        "hint2": "It's very cold"
+      },
+      "reproduce-2-owl": {
+        "description": "A wise brown owl on a branch at night, big glowing yellow eyes, full moon",
+        "hint0": "It's a nocturnal bird",
+        "hint1": "It has big eyes",
+        "hint2": "It's nighttime",
+        "hint3": "It's in a tree"
+      },
+      "reproduce-3-market": {
+        "description": "A colorful outdoor market with fruit stalls and flower baskets, Mediterranean village",
+        "hint0": "It's a place where you buy things",
+        "hint1": "There are fruits and flowers",
+        "hint2": "It's outside in the sun",
+        "hint3": "The streets are made of stone"
+      },
+      "reproduce-3-lighthouse": {
+        "description": "A red and white lighthouse on a rocky cliff, waves crashing below, dramatic sky",
+        "hint0": "It's a tower near the sea",
+        "hint1": "It guides ships",
+        "hint2": "There are waves",
+        "hint3": "The sky is dramatic"
+      },
+      "reproduce-4-volcano": {
+        "description": "A volcano erupting at night with lava flowing to the dark sea, red and orange sky",
+        "hint0": "It's a special mountain",
+        "hint1": "Fire comes out of it",
+        "hint2": "It's nighttime",
+        "hint3": "There's water nearby"
+      },
+      "reproduce-4-lanterns": {
+        "description": "Hundreds of glowing paper lanterns floating into the night sky above a calm river",
+        "hint0": "It's nighttime",
+        "hint1": "Lights are rising in the sky",
+        "hint2": "There's water below",
+        "hint3": "It's a magical festival"
+      },
+      "reproduce-5-clocktower": {
+        "description": "A giant clockwork tower in a fantasy city, tiny people on bridges, bronze and gold tones",
+        "hint0": "It's a giant mechanical building",
+        "hint1": "You can see gears",
+        "hint2": "There's a city around it",
+        "hint3": "The colors are warm and metallic"
+      },
+      "reproduce-5-crystal": {
+        "description": "An ice palace made of blue crystal in a frozen valley, northern lights reflecting on walls",
+        "hint0": "It's a very cold building",
+        "hint1": "It's made of ice",
+        "hint2": "The sky has colors",
+        "hint3": "Everything shines and reflects"
+      },
+      "variations-2-snowman": {
+        "description": "A snowman with a top hat and carrot nose in a snowy garden",
+        "hint0": "Keep the snowman",
+        "hint1": "Change where it is",
+        "variationInstruction": "Put the snowman on a BEACH in the sun"
+      },
+      "variations-2-fish": {
+        "description": "A bright orange clownfish swimming in blue water",
+        "hint0": "Keep the fish",
+        "hint1": "Change its color",
+        "variationInstruction": "Change the ORANGE fish to a PURPLE fish"
+      },
+      "variations-3-rocket": {
+        "description": "A colorful rocket flying through space with stars, realistic digital art",
+        "hint0": "Keep the rocket and space",
+        "hint1": "Change the art style",
+        "variationInstruction": "Transform this realistic rocket into ORIGAMI / folded paper style"
+      },
+      "variations-3-cat": {
+        "description": "An orange cat sitting on a windowsill looking outside, photograph",
+        "hint0": "Keep the cat and the window",
+        "hint1": "Change the art style",
+        "variationInstruction": "Transform this photo into WATERCOLOR style"
+      },
+      "variations-4-ship": {
+        "description": "A pirate ship sailing on calm turquoise water, sunny day",
+        "hint0": "Keep the pirate ship",
+        "hint1": "Change the weather and mood",
+        "variationInstruction": "Put the ship in a STORM with lightning and giant waves"
+      },
+      "variations-4-train": {
+        "description": "A red steam train crossing a bridge in green countryside, summer day",
+        "hint0": "Keep the train and the bridge",
+        "hint1": "Change the season and mood",
+        "variationInstruction": "Transform into a WINTER NIGHT scene with snow and stars"
+      },
+      "variations-5-castle": {
+        "description": "A medieval castle on a hilltop surrounded by green fields, sunny day",
+        "hint0": "Keep the idea of a big building",
+        "hint1": "Change the era and location",
+        "variationInstruction": "Transform this medieval castle into a SPACE STATION orbiting a planet"
+      },
+      "variations-5-forest": {
+        "description": "A dark enchanted forest with glowing mushrooms, mysterious night scene",
+        "hint0": "Keep the idea of a glowing magical place",
+        "hint1": "Change the environment completely",
+        "variationInstruction": "Transform this forest into an UNDERWATER scene with corals and bioluminescent jellyfish"
+      },
+      "variations-5-phoenix": {
+        "description": "A majestic red phoenix with fiery wings flying over a volcano, sunset",
+        "hint0": "Keep the idea of a powerful flying creature",
+        "hint1": "Change the creature, colors and setting",
+        "variationInstruction": "Replace the phoenix with an ICE DRAGON flying over a frozen ocean under the northern lights"
       }
-    }
+    },
+    "lockedLevel": "Complete 3 challenges at {threshold}% on level {level}",
+    "newRecord": "New record!",
+    "bestScore": "Best: {score}%",
+    "levelUnlocked": "Level {level} unlocked!",
+    "successCount": "{count}/3 challenges passed",
+    "encouragement1": "Great job, keep going!",
+    "encouragement2": "One more success and you unlock the next level!"
   },
   "publish": {
     "mainTitle": "Publish my book",

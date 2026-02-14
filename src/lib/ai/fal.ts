@@ -204,7 +204,7 @@ export async function checkReduxJobStatus(jobId: string): Promise<FluxImageResul
  * Utilise REST API directement pour éviter les timeouts du SDK
  */
 export async function checkImageJobStatus(jobId: string, model: string): Promise<FluxImageResult> {
-  const modelEndpoint = model === 'nano-banana' ? 'fal-ai/nano-banana' :
+  const modelEndpoint = model === 'nano-banana' ? 'fal-ai/nano-banana-pro' :
                         model === 'recraft' ? 'fal-ai/recraft-v3' : 
                         model === 'flux-img2img' ? 'fal-ai/flux' :  // img2img utilise le même endpoint que flux
                         'fal-ai/flux-pro/v1.1'
@@ -312,7 +312,7 @@ export async function checkImageJobStatus(jobId: string, model: string): Promise
  * Format par défaut: portrait 3:4 (adapté aux livres d'enfants)
  * 
  * Modèles disponibles:
- * - nano-banana: Google Gemini 3 Pro Image - Meilleure compréhension du langage naturel (FR/EN)
+ * - nano-banana: Google Nano Banana Pro (Gemini 3 Pro Image) - Haute qualité, bonne compréhension FR/EN
  * - recraft: Recraft V3 - Bon pour illustrations
  * - flux: Flux Pro 1.1 - Modèle historique
  */
@@ -324,7 +324,7 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
     aspectRatio = '3:4', // Format portrait livre par défaut
     numImages = 1,
     safetyTolerance = 5, // Permissif (le contenu est déjà modéré côté chat par Gemini)
-    model = 'nano-banana', // Nano Banana Pro par défaut (meilleure compréhension langage naturel)
+    model = 'nano-banana', // Nano Banana Pro par défaut (haute qualité, bonne compréhension FR/EN)
     resolution = '2K', // 2K par défaut pour bonne qualité sans upscale
   } = params
 
@@ -334,8 +334,8 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
   console.log(`🎨 Génération avec ${model.toUpperCase()}:`, safePrompt)
 
   // ============================================
-  // NANO BANANA - Google Gemini 2.5 Flash Image
-  // Rapide et économique ($0.04/image au lieu de $0.15 pour Pro)
+  // NANO BANANA PRO - Google Gemini 3 Pro Image
+  // Haute qualité ($0.15/image)
   // ============================================
   if (model === 'nano-banana') {
     // Convertir aspectRatio au format Nano Banana (utilise des ratios comme "3:4")
@@ -351,7 +351,7 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
     }
     const ratio = nanoBananaRatios[aspectRatio] || '3:4'
 
-    console.log(`📐 Nano Banana - Ratio: ${ratio}`)
+    console.log(`📐 Nano Banana Pro - Ratio: ${ratio}, Resolution: ${resolution}`)
 
     // Validation : prompt doit avoir minimum 3 caractères
     if (!safePrompt || safePrompt.length < 3) {
@@ -359,13 +359,14 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
     }
 
     // Soumettre le job via REST API (évite le SDK qui peut timeout sur Netlify)
-    const submitResponse = await falFetch('https://queue.fal.run/fal-ai/nano-banana', {
+    const submitResponse = await falFetch('https://queue.fal.run/fal-ai/nano-banana-pro', {
       method: 'POST',
       body: JSON.stringify({
         prompt: safePrompt,
         aspect_ratio: ratio,
         num_images: numImages,
         output_format: 'png',
+        resolution,
       }),
     })
     
@@ -378,7 +379,7 @@ export async function generateImageFlux(params: FluxImageParams): Promise<FluxIm
     const submitData = await submitResponse.json()
     const request_id = submitData.request_id
     
-    console.log('🍌 Nano Banana job submitted:', request_id)
+    console.log('🍌 Nano Banana Pro job submitted:', request_id)
     
     // Retourner le jobId pour que le client puisse poll
     return {

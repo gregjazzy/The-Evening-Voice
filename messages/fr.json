@@ -2251,6 +2251,11 @@
     "generate": "Générer",
     "previousAttempts": "Tes tentatives précédentes",
     "newChallenge": "Nouveau défi",
+    "pollingProgress": "L'image se prépare...",
+    "instructionTitle": "Le défi",
+    "instructionStep1": "Observe bien l'image cible",
+    "instructionStep2": "Écris le prompt le plus complet possible (sujet, couleurs, style, ambiance...)",
+    "instructionStep3": "L'IA va tenter de recréer l'image. Plus ton prompt est précis, plus le résultat sera proche !",
     "level": "Niveau",
     "attempt": "tentative",
     "attempts": "tentatives",
@@ -2354,6 +2359,30 @@
         "hint2": "Des livres volent",
         "hint3": "Un oiseau sage est présent"
       },
+      "variations-1-balloon": {
+        "description": "Un ballon rouge flottant dans un ciel bleu",
+        "hint0": "Garde le ballon",
+        "hint1": "Change sa couleur",
+        "variationInstruction": "Change le ballon ROUGE en ballon VERT"
+      },
+      "variations-1-car": {
+        "description": "Une petite voiture bleue garée dans une rue, style cartoon",
+        "hint0": "Garde la voiture",
+        "hint1": "Change sa couleur",
+        "variationInstruction": "Change la voiture BLEUE en voiture JAUNE"
+      },
+      "variations-1-flower": {
+        "description": "Un grand tournesol jaune dans un jardin, ciel bleu",
+        "hint0": "Garde la fleur dans le jardin",
+        "hint1": "Change le type de fleur",
+        "variationInstruction": "Remplace le TOURNESOL par une ROSE ROUGE"
+      },
+      "variations-1-hat": {
+        "description": "Un mignon chat blanc avec un petit chapeau rouge",
+        "hint0": "Garde le chat",
+        "hint1": "Change ce qu'il porte",
+        "variationInstruction": "Remplace le CHAPEAU par des LUNETTES DE SOLEIL"
+      },
       "variations-2-cottage": {
         "description": "Une petite maison dans un pré fleuri, journée d'été ensoleillée",
         "hint0": "Garde la maison et le pré",
@@ -2395,8 +2424,136 @@
         "hint0": "Garde l'idée de créature magique",
         "hint1": "Change la créature et le lieu",
         "variationInstruction": "Remplace la fée par un LUTIN et la forêt par une GROTTE de cristal"
+      },
+      "reproduce-1-butterfly": {
+        "description": "Un papillon coloré aux ailes bleues et oranges posé sur une fleur rose dans un jardin",
+        "hint0": "C'est un insecte qui vole",
+        "hint1": "Il a de grandes ailes colorées",
+        "hint2": "Il est posé sur une fleur"
+      },
+      "reproduce-1-moon": {
+        "description": "Une grande pleine lune brillante se reflétant sur un océan calme, ciel étoilé",
+        "hint0": "C'est la nuit",
+        "hint1": "Il y a de l'eau",
+        "hint2": "Quelque chose de rond brille dans le ciel"
+      },
+      "reproduce-2-penguin": {
+        "description": "Un pingouin mignon portant une écharpe rouge sur un rivage glacé, flocons de neige",
+        "hint0": "C'est un animal noir et blanc",
+        "hint1": "Il porte un vêtement",
+        "hint2": "Il fait très froid"
+      },
+      "reproduce-2-owl": {
+        "description": "Un hibou brun sage sur une branche la nuit, grands yeux jaunes brillants, pleine lune",
+        "hint0": "C'est un oiseau nocturne",
+        "hint1": "Il a de grands yeux",
+        "hint2": "C'est la nuit",
+        "hint3": "Il est dans un arbre"
+      },
+      "reproduce-3-market": {
+        "description": "Un marché coloré en plein air avec des étals de fruits et des paniers de fleurs, village méditerranéen",
+        "hint0": "C'est un lieu où on achète des choses",
+        "hint1": "Il y a des fruits et des fleurs",
+        "hint2": "C'est dehors au soleil",
+        "hint3": "Les rues sont en pierre"
+      },
+      "reproduce-3-lighthouse": {
+        "description": "Un phare rouge et blanc sur une falaise rocheuse, vagues en contrebas, ciel dramatique",
+        "hint0": "C'est une tour près de la mer",
+        "hint1": "Elle guide les bateaux",
+        "hint2": "Il y a des vagues",
+        "hint3": "Le ciel est impressionnant"
+      },
+      "reproduce-4-volcano": {
+        "description": "Un volcan en éruption la nuit avec de la lave coulant vers la mer sombre, ciel rouge et orange",
+        "hint0": "C'est une montagne spéciale",
+        "hint1": "Du feu en sort",
+        "hint2": "C'est la nuit",
+        "hint3": "Il y a de l'eau pas loin"
+      },
+      "reproduce-4-lanterns": {
+        "description": "Des centaines de lanternes en papier flottant dans le ciel nocturne au-dessus d'une rivière calme",
+        "hint0": "C'est la nuit",
+        "hint1": "Des lumières montent dans le ciel",
+        "hint2": "Il y a de l'eau en bas",
+        "hint3": "C'est une fête magique"
+      },
+      "reproduce-5-clocktower": {
+        "description": "Une tour géante à engrenages dans une ville fantastique, petites personnes sur des ponts, tons bronze et or",
+        "hint0": "C'est un bâtiment mécanique géant",
+        "hint1": "On voit des rouages",
+        "hint2": "Il y a une ville autour",
+        "hint3": "Les couleurs sont chaudes et métalliques"
+      },
+      "reproduce-5-crystal": {
+        "description": "Un palais de glace en cristal bleu dans une vallée gelée, aurores boréales se reflétant sur les murs",
+        "hint0": "C'est un bâtiment très froid",
+        "hint1": "Il est fait de glace",
+        "hint2": "Le ciel a des couleurs",
+        "hint3": "Tout brille et se reflète"
+      },
+      "variations-2-snowman": {
+        "description": "Un bonhomme de neige avec un chapeau haut-de-forme et un nez carotte dans un jardin enneigé",
+        "hint0": "Garde le bonhomme de neige",
+        "hint1": "Change l'endroit où il se trouve",
+        "variationInstruction": "Mets le bonhomme de neige sur une PLAGE au soleil"
+      },
+      "variations-2-fish": {
+        "description": "Un poisson-clown orange vif nageant dans l'eau bleue",
+        "hint0": "Garde le poisson",
+        "hint1": "Change sa couleur",
+        "variationInstruction": "Change le poisson ORANGE en poisson VIOLET"
+      },
+      "variations-3-rocket": {
+        "description": "Une fusée colorée volant dans l'espace avec des étoiles, art digital réaliste",
+        "hint0": "Garde la fusée et l'espace",
+        "hint1": "Change le style artistique",
+        "variationInstruction": "Transforme cette fusée réaliste en style ORIGAMI / papier plié"
+      },
+      "variations-3-cat": {
+        "description": "Un chat orange assis sur le rebord d'une fenêtre regardant dehors, photo",
+        "hint0": "Garde le chat et la fenêtre",
+        "hint1": "Change le style artistique",
+        "variationInstruction": "Transforme cette photo en style AQUARELLE"
+      },
+      "variations-4-ship": {
+        "description": "Un bateau pirate naviguant sur une eau turquoise calme, journée ensoleillée",
+        "hint0": "Garde le bateau pirate",
+        "hint1": "Change la météo et l'ambiance",
+        "variationInstruction": "Mets le bateau dans une TEMPÊTE avec des éclairs et des vagues géantes"
+      },
+      "variations-4-train": {
+        "description": "Un train à vapeur rouge traversant un pont dans la campagne verte, journée d'été",
+        "hint0": "Garde le train et le pont",
+        "hint1": "Change la saison et l'ambiance",
+        "variationInstruction": "Transforme en scène HIVERNALE NOCTURNE avec de la neige et des étoiles"
+      },
+      "variations-5-castle": {
+        "description": "Un château médiéval sur une colline entouré de champs verts, journée ensoleillée",
+        "hint0": "Garde l'idée d'un grand bâtiment",
+        "hint1": "Change l'époque et le lieu",
+        "variationInstruction": "Transforme ce château médiéval en STATION SPATIALE en orbite autour d'une planète"
+      },
+      "variations-5-forest": {
+        "description": "Une forêt enchantée sombre avec des champignons lumineux, scène nocturne mystérieuse",
+        "hint0": "Garde l'idée de lieu magique lumineux",
+        "hint1": "Change complètement l'environnement",
+        "variationInstruction": "Transforme cette forêt en FOND MARIN avec des coraux et des méduses bioluminescentes"
+      },
+      "variations-5-phoenix": {
+        "description": "Un phénix rouge majestueux aux ailes de feu volant au-dessus d'un volcan, coucher de soleil",
+        "hint0": "Garde l'idée d'une créature volante puissante",
+        "hint1": "Change la créature, les couleurs et le décor",
+        "variationInstruction": "Remplace le phénix par un DRAGON DE GLACE bleu volant au-dessus d'un océan gelé sous les aurores boréales"
       }
-    }
+    },
+    "lockedLevel": "Réussis 3 défis à {threshold}% au niveau {level}",
+    "newRecord": "Nouveau record !",
+    "bestScore": "Meilleur : {score}%",
+    "levelUnlocked": "Niveau {level} débloqué !",
+    "successCount": "{count}/3 défis réussis",
+    "encouragement1": "Bravo, continue comme ça !",
+    "encouragement2": "Encore une réussite et tu débloques le niveau suivant !"
   },
   "publish": {
     "mainTitle": "Publier mon livre",

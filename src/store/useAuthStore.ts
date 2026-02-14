@@ -153,6 +153,7 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem('lavoixdusoir-studio')
           localStorage.removeItem('lavoixdusoir-montage-v3')
           localStorage.removeItem('lavoixdusoir-studio-progress')
+          localStorage.removeItem('lavoixdusoir-challenge-progress')
           console.log('🧹 localStorage vidé avant inscription')
         }
 
@@ -315,8 +316,18 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem('lavoixdusoir-studio') // useStudioStore (assets, kits)
           localStorage.removeItem('lavoixdusoir-montage-v3') // useMontageStore (projets montage)
           localStorage.removeItem('lavoixdusoir-studio-progress') // useStudioProgressStore
+          localStorage.removeItem('lavoixdusoir-challenge-progress') // useChallengeProgressStore
           localStorage.removeItem('lavoixdusoir-current-profile-id') // ID du profil connecté
           console.log('🧹 LocalStorage vidé à la déconnexion')
+
+          // Force-clear all Supabase auth cookies (sb-*) to prevent middleware seeing stale session
+          document.cookie.split(';').forEach(cookie => {
+            const name = cookie.split('=')[0].trim()
+            if (name.startsWith('sb-')) {
+              document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+            }
+          })
+          console.log('🍪 Cookies Supabase nettoyés')
         }
         
         // Toujours réinitialiser le state local (même si Supabase échoue)

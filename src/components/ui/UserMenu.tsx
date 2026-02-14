@@ -67,34 +67,47 @@ export function UserMenu() {
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     if (isSigningOut) {
       console.log('⏳ Déconnexion déjà en cours...')
       return
     }
-    
+
     console.log('🔴 Clic sur Déconnexion')
     setIsSigningOut(true)
     setIsOpen(false)
-    
+
     // Timeout de sécurité : si signOut prend trop de temps, forcer la redirection
     const timeoutId = setTimeout(() => {
       console.warn('⚠️ Timeout déconnexion, redirection forcée')
-      window.location.href = '/login'
+      forceCleanAndRedirect()
     }, 5000)
-    
+
     try {
       await signOut()
       clearTimeout(timeoutId)
       console.log('✅ Déconnexion réussie, redirection...')
-      // Hard navigation pour que le middleware relise les cookies (vidés par signOut)
-      // router.push ferait une navigation client-side où les cookies ne sont pas encore à jour
-      window.location.href = '/login'
+      forceCleanAndRedirect()
     } catch (error) {
       clearTimeout(timeoutId)
       console.error('❌ Erreur déconnexion:', error)
-      window.location.href = '/login'
+      forceCleanAndRedirect()
     }
+  }
+
+  // Force-clear all Supabase auth cookies then navigate
+  // Prevents the middleware from seeing stale cookies and redirecting back to home
+  const forceCleanAndRedirect = () => {
+    document.cookie.split(';').forEach(cookie => {
+      const name = cookie.split('=')[0].trim()
+      if (name.startsWith('sb-')) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`
+      }
+    })
+    // Detect current locale from URL path for proper redirect
+    const locale = window.location.pathname.split('/')[1] || 'fr'
+    window.location.href = `/${locale}/login`
   }
 
   const getRoleIcon = () => {

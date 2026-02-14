@@ -8,6 +8,12 @@
   "reproduce-1-rainbow": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-1-rainbow/variant-1.png"
   ],
+  "reproduce-1-butterfly": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-1-butterfly/variant-1.png"
+  ],
+  "reproduce-1-moon": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-1-moon/variant-1.png"
+  ],
   "reproduce-2-cat": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-2-cat/variant-1.png"
   ],
@@ -16,6 +22,12 @@
   ],
   "reproduce-2-teddy": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-2-teddy/variant-1.png"
+  ],
+  "reproduce-2-penguin": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-2-penguin/variant-1.png"
+  ],
+  "reproduce-2-owl": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-2-owl/variant-1.png"
   ],
   "reproduce-3-castle": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-3-castle/variant-1.png"
@@ -26,6 +38,12 @@
   "reproduce-3-treehouse": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-3-treehouse/variant-1.png"
   ],
+  "reproduce-3-market": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-3-market/variant-1.png"
+  ],
+  "reproduce-3-lighthouse": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-3-lighthouse/variant-1.png"
+  ],
   "reproduce-4-forest": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-4-forest/variant-1.png"
   ],
@@ -34,6 +52,12 @@
   ],
   "reproduce-4-aurora": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-4-aurora/variant-1.png"
+  ],
+  "reproduce-4-volcano": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-4-volcano/variant-1.png"
+  ],
+  "reproduce-4-lanterns": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-4-lanterns/variant-1.png"
   ],
   "reproduce-5-dragon": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-5-dragon/variant-1.png"
@@ -44,11 +68,35 @@
   "reproduce-5-library": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-5-library/variant-1.png"
   ],
+  "reproduce-5-clocktower": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-5-clocktower/variant-1.png"
+  ],
+  "reproduce-5-crystal": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/reproduce-5-crystal/variant-1.png"
+  ],
+  "variations-1-balloon": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-1-balloon/variant-1.png"
+  ],
+  "variations-1-car": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-1-car/variant-1.png"
+  ],
+  "variations-1-flower": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-1-flower/variant-1.png"
+  ],
+  "variations-1-hat": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-1-hat/variant-1.png"
+  ],
   "variations-2-cottage": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-2-cottage/variant-1.png"
   ],
   "variations-2-dog": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-2-dog/variant-1.png"
+  ],
+  "variations-2-snowman": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-2-snowman/variant-1.png"
+  ],
+  "variations-2-fish": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-2-fish/variant-1.png"
   ],
   "variations-3-knight": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-3-knight/variant-1.png"
@@ -56,13 +104,34 @@
   "variations-3-pizza": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-3-pizza/variant-1.png"
   ],
+  "variations-3-rocket": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-3-rocket/variant-1.png"
+  ],
+  "variations-3-cat": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-3-cat/variant-1.png"
+  ],
   "variations-4-city": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-4-city/variant-1.png"
   ],
   "variations-4-garden": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-4-garden/variant-1.png"
   ],
+  "variations-4-ship": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-4-ship/variant-1.png"
+  ],
+  "variations-4-train": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-4-train/variant-1.png"
+  ],
   "variations-5-fairy": [
     "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-5-fairy/variant-1.png"
+  ],
+  "variations-5-castle": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-5-castle/variant-1.png"
+  ],
+  "variations-5-forest": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-5-forest/variant-1.png"
+  ],
+  "variations-5-phoenix": [
+    "https://frufyxrhpqxhnawmrhru.supabase.co/storage/v1/object/public/images/challenges/variations-5-phoenix/variant-1.png"
   ]
 }

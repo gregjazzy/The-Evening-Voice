@@ -54,7 +54,7 @@ export function useMontageSync() {
           id: string
           story_id: string
           title: string
-          scenes: MontageScene[]
+          scenes: MontageScene[] | { scenes: MontageScene[] }
           is_complete: boolean
           created_at: string
           updated_at: string
@@ -93,7 +93,7 @@ export function useMontageSync() {
           id: row.id,
           storyId: row.story_id,
           title: row.title,
-          scenes: (row.scenes || []).map(normalizeScene),
+          scenes: (Array.isArray(row.scenes) ? row.scenes : (row.scenes as any)?.scenes || []).map(normalizeScene),
           isComplete: row.is_complete || false,
           createdAt: new Date(row.created_at),
           updatedAt: new Date(row.updated_at),
