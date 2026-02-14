@@ -2332,15 +2332,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                                       })
                                     }
                                     console.log(`✅ ${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée:`, result.url)
-                                    toast.success(`${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée !`)
-                                    // Fermer l'aperçu et reset le kit pour une nouvelle création
+                                    toast.magic(`${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée !`, 'Bravo ! Tu peux en créer une nouvelle.')
+                                    // Fermer l'aperçu et retourner à l'accueil du Studio
                                     setGeneratedAsset(null)
                                     setGenerationError(null)
-                                    // Reset le kit pour repartir à zéro
-                                    const creationType = currentCreationType || 'image'
-                                    useStudioStore.getState().createNewKit(creationType)
-                                    // Scroll en haut
-                                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                                    // Clear le kit et reset la création → retour vue "select"
+                                    useStudioStore.getState().clearKit()
+                                    useStudioProgressStore.getState().resetCurrentCreation()
                                   } else {
                                     // Upload a retourné null (erreur silencieuse)
                                     toast.error('Erreur lors de la sauvegarde. Vérifie ta connexion et réessaie.')

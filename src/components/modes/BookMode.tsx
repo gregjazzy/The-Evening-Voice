@@ -3834,14 +3834,14 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
   // Ref pour sauvegarder la sélection avant un clic sur la toolbar
   const savedRangeRef = useRef<{ text: string; range: Range | null }>({ text: '', range: null })
   
-  // Sauvegarder la sélection actuelle (appelé automatiquement sur selectionchange)
+  // Sauvegarder la sélection/curseur actuel (appelé automatiquement sur selectionchange)
   const captureSelection = useCallback(() => {
     const selection = window.getSelection()
-    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-      // Vérifier que la sélection est dans une zone contentEditable
+    if (selection && selection.rangeCount > 0) {
+      // Vérifier que la sélection/curseur est dans une zone contentEditable
       const anchorNode = selection.anchorNode
       if (anchorNode) {
-        const editor = (anchorNode as Element).closest?.('[contenteditable="true"]') || 
+        const editor = (anchorNode as Element).closest?.('[contenteditable="true"]') ||
                        anchorNode.parentElement?.closest('[contenteditable="true"]')
         if (editor) {
           savedRangeRef.current = {
@@ -3861,17 +3861,23 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
   
   // Restaurer la sélection si nécessaire et appliquer un formatage
   const applyFormatWithRestore = useCallback((formatFn: () => void) => {
-    // Vérifier d'abord s'il y a une sélection active
+    // Vérifier d'abord s'il y a une sélection/curseur actif dans un contentEditable
     const currentSelection = window.getSelection()
-    const hasActiveSelection = currentSelection && currentSelection.rangeCount > 0 && !currentSelection.isCollapsed
-    
-    if (hasActiveSelection) {
-      // Sélection déjà active, appliquer directement
+    const hasActiveSelection = currentSelection && currentSelection.rangeCount > 0
+    const isInEditor = hasActiveSelection && (() => {
+      const node = currentSelection.anchorNode
+      const editor = (node as Element)?.closest?.('[contenteditable="true"]') ||
+                     node?.parentElement?.closest('[contenteditable="true"]')
+      return !!editor
+    })()
+
+    if (isInEditor) {
+      // Curseur/sélection déjà dans l'éditeur, appliquer directement
       formatFn()
     } else {
-      // Pas de sélection active, essayer de restaurer
-      const { range, text } = savedRangeRef.current
-      if (range && text) {
+      // Pas dans l'éditeur, restaurer depuis la sauvegarde
+      const { range } = savedRangeRef.current
+      if (range) {
         const selection = window.getSelection()
         if (selection) {
           selection.removeAllRanges()
@@ -4259,22 +4265,27 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
       {/* Séparateur */}
       <div className="w-px h-6 bg-midnight-700/50" />
       
-      {/* Alignement */}
+      {/* Alignement (par paragraphe via execCommand) */}
       <Highlightable id="book-text-align">
         <div className="flex items-center gap-1">
           {[
-            { id: 'left' as const, icon: AlignLeft, titleKey: 'alignLeft' },
-            { id: 'center' as const, icon: AlignCenter, titleKey: 'alignCenter' },
-            { id: 'right' as const, icon: AlignRight, titleKey: 'alignRight' },
-          ].map(({ id, icon: Icon, titleKey }) => (
+            { id: 'left' as const, cmd: 'justifyLeft', icon: AlignLeft, titleKey: 'alignLeft' },
+            { id: 'center' as const, cmd: 'justifyCenter', icon: AlignCenter, titleKey: 'alignCenter' },
+            { id: 'right' as const, cmd: 'justifyRight', icon: AlignRight, titleKey: 'alignRight' },
+          ].map(({ id, cmd, icon: Icon, titleKey }) => (
             <button
               key={id}
-              onClick={() => onStyleChange({ ...style, textAlign: id })}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                applyFormatWithRestore(() => {
+                  isFormattingRef.current = true
+                  document.execCommand(cmd, false)
+                  setTimeout(() => { isFormattingRef.current = false }, 50)
+                })
+              }}
               className={cn(
                 'w-7 h-7 rounded flex items-center justify-center transition-colors',
-                style.textAlign === id
-                  ? 'bg-aurora-500/20 text-aurora-300'
-                  : 'hover:bg-midnight-800 text-midnight-400'
+                'hover:bg-midnight-800 text-midnight-400 hover:text-aurora-300'
               )}
               title={t(titleKey)}
             >
@@ -4357,7 +4368,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
         <div className="flex items-center bg-midnight-800/30 rounded-lg">
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => insertSpaces(-4)}
+            onClick={() => applyFormatWithRestore(() => insertSpaces(-4))}
             className="w-7 h-7 rounded-l-lg flex items-center justify-center text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800 transition-colors"
             title={t('removeSpaces')}
           >
@@ -4368,7 +4379,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
           </div>
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => insertSpaces(4)}
+            onClick={() => applyFormatWithRestore(() => insertSpaces(4))}
             className="w-7 h-7 rounded-r-lg flex items-center justify-center text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800 transition-colors"
             title={t('addTab')}
           >
@@ -7774,9 +7785,11 @@ export function BookMode() {
   }, [currentStory, pages, bookColor, showLines, exportToPdf])
   
   // Calcul des indices de pages pour le spread courant
-  const leftPageIndex = currentSpread * 2
-  const rightPageIndex = currentSpread * 2 + 1
-  const totalSpreads = Math.ceil(pages.length / 2)
+  // Spread 0 : couverture seule à droite (left=undefined, right=page 0)
+  // Spread 1 : pages [1, 2], Spread 2 : pages [3, 4], etc.
+  const leftPageIndex = currentSpread === 0 ? undefined : (currentSpread * 2 - 1)
+  const rightPageIndex = currentSpread === 0 ? 0 : (currentSpread * 2)
+  const totalSpreads = Math.ceil((pages.length + 1) / 2)
   
   // i18n
   const locale = useLocale()
@@ -8656,8 +8669,8 @@ export function BookMode() {
   }
 
   // Pages du spread courant
-  const leftPage = pages[leftPageIndex]
-  const rightPage = pages[rightPageIndex]
+  const leftPage = leftPageIndex !== undefined ? pages[leftPageIndex] : undefined
+  const rightPage = rightPageIndex < pages.length ? pages[rightPageIndex] : undefined
 
   // Vue : pas d'histoire en cours (on vérifie currentStory et non storyTitle pour éviter 
   // de quitter cette vue dès qu'on tape une lettre dans le titre)
@@ -8823,7 +8836,7 @@ export function BookMode() {
         <div className="flex-1 flex gap-1 min-h-0 overflow-hidden">
         {/* ZONE CENTRALE - Livre maximisé */}
           <div className="flex-1 min-w-0 overflow-hidden">
-          {leftPage && (
+          {(leftPage || rightPage) && (
             <WritingArea
               page={rightPage}
               pageIndex={rightPageIndex}

@@ -124,16 +124,14 @@ const getAIMessage = (
       return { content: t('chat.steps.describeAdvanced'), type: 'question' }
 
     case 'choose_style':
-      const styleKey = magicKeys.find(k => k.id === 'style')
       return {
-        content: t('chat.steps.chooseStyle', { question: styleKey?.question || '' }),
+        content: t('chat.steps.chooseStyle'),
         type: 'question',
       }
 
     case 'choose_mood':
-      const moodKey = magicKeys.find(k => k.id === 'mood')
       return {
-        content: t('chat.steps.chooseMood', { question: moodKey?.question || '' }),
+        content: t('chat.steps.chooseMood'),
         type: 'question',
       }
 
@@ -397,11 +395,17 @@ export function StudioAIChat({ type, onSuggestion, className }: StudioAIChatProp
     // Éviter de réajouter le même message
     if (lastStepRef.current === stepKey) return
 
-    // Si on vient de valider un champ, l'IA a déjà répondu - pas de message automatique
+    // Si on vient de valider un champ et qu'on est TOUJOURS sur la même étape,
+    // ne pas envoyer de message (l'IA a déjà répondu à la validation).
+    // Mais si l'étape a changé, laisser passer le message de la nouvelle étape.
     if (justValidatedFieldRef.current) {
       justValidatedFieldRef.current = false
-      lastStepRef.current = stepKey // Marquer comme traité
-      return
+      // Ne bloquer que si c'est le même step (re-trigger), pas un nouveau step
+      const prevStep = lastStepRef.current?.split('-')[1] // extraire le step du "type-step-level"
+      if (prevStep === currentStep) {
+        lastStepRef.current = stepKey
+        return
+      }
     }
 
     // Annuler le message précédent si l'étape change vite

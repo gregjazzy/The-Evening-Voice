@@ -89,7 +89,7 @@ function ToastContainer({
   removeToast: (id: string) => void 
 }) {
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm">
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 max-w-sm">
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
@@ -135,9 +135,9 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
+      initial={{ opacity: 0, y: -30, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 100, scale: 0.9 }}
+      exit={{ opacity: 0, y: -30, scale: 0.9 }}
       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
       className={cn(
         'relative overflow-hidden rounded-xl border backdrop-blur-lg shadow-lg',

@@ -91,10 +91,13 @@ export function StudioMode() {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [tutorialType, setTutorialType] = useState<'midjourney' | 'runway'>('midjourney')
 
-  // Changer de vue quand un kit est créé
+  // Changer de vue quand un kit est créé ou supprimé
   useEffect(() => {
     if (currentKit && currentCreationType) {
       setView('create')
+    } else if (!currentKit && !currentCreationType) {
+      setView('select')
+      setSelectedType(null)
     }
   }, [currentKit?.id, currentCreationType])
 
