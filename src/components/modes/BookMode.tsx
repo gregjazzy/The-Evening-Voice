@@ -1041,7 +1041,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
   }
 
   // Unsharp mask — compense la perte de netteté du codec vidéo
-  const applySharpen = (ctx: CanvasRenderingContext2D, w: number, h: number, amount = 0.4) => {
+  const applySharpen = (ctx: CanvasRenderingContext2D, w: number, h: number, amount = 0.6) => {
     const original = ctx.getImageData(0, 0, w, h)
     // Créer une version floutée via un second canvas
     const blurCanvas = document.createElement('canvas')
