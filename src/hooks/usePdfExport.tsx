@@ -187,7 +187,9 @@ function buildPageDOM(
     bgContainer.setAttribute('data-layer', 'objects')
 
     if (page.backgroundMedia.type === 'video') {
-      // Utiliser le videoPoster (frame capturé) pour le PDF, sinon fallback sur une div vide
+      // Utiliser le videoPoster (frame capturé) pour le PDF via background-image
+      // (background-image conserve la résolution native, contrairement à <img>
+      // qui est re-rastérisé à la taille CSS par html-to-image)
       const posterUrl = page.backgroundMedia.videoPoster
       if (posterUrl) {
         const bgWrapper = document.createElement('div')
@@ -198,14 +200,13 @@ function buildPageDOM(
           width: ${width}px;
           height: ${height}px;
           overflow: hidden;
+          background-size: cover;
+          background-position: center;
           opacity: ${page.backgroundMedia.opacity};
           transform: translate(${page.backgroundMedia.x || 0}px, ${page.backgroundMedia.y || 0}px) scale(${page.backgroundMedia.scale || 1});
           transform-origin: center center;
         `
-        const posterImg = document.createElement('img')
-        posterImg.src = posterUrl
-        posterImg.style.cssText = `width: 100%; height: 100%; object-fit: cover;`
-        bgWrapper.appendChild(posterImg)
+        bgWrapper.style.backgroundImage = `url("${posterUrl}")`
         bgContainer.appendChild(bgWrapper)
       }
     } else {
@@ -235,6 +236,9 @@ function buildPageDOM(
       const opacity = (media as PageMedia & { opacity?: number }).opacity ?? 1
       const imgDiv = document.createElement('div')
       imgDiv.setAttribute('data-layer', 'objects')
+      // Pour les vidéos, utiliser background-image avec le poster (même technique que les
+      // images normales) pour préserver la résolution native dans html-to-image
+      const bgUrl = media.type === 'video' ? (media as any).videoPoster : media.url
       imgDiv.style.cssText = `
         position: absolute;
         left: ${media.position.x}%;
@@ -243,15 +247,12 @@ function buildPageDOM(
         height: ${media.position.height}%;
         ${media.position.rotation ? `transform: rotate(${media.position.rotation}deg);` : ''}
         z-index: ${media.zIndex || 5};
-        ${media.type !== 'video' ? `background-image: url(${media.url}); background-size: cover; background-position: center;` : ''}
+        ${bgUrl ? `background-size: cover; background-position: center;` : ''}
         opacity: ${opacity};
         overflow: hidden;
       `
-      if (media.type === 'video' && (media as any).videoPoster) {
-        const posterImg = document.createElement('img')
-        posterImg.src = (media as any).videoPoster
-        posterImg.style.cssText = `width: 100%; height: 100%; object-fit: cover;`
-        imgDiv.appendChild(posterImg)
+      if (bgUrl) {
+        imgDiv.style.backgroundImage = `url("${bgUrl}")`
       }
       contentArea.appendChild(imgDiv)
     }
