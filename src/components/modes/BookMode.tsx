@@ -1073,7 +1073,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
       canvas.height = tmp.videoHeight
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height)
-      const poster = canvas.toDataURL('image/jpeg', 0.97)
+      const poster = canvas.toDataURL('image/png')
       URL.revokeObjectURL(blobUrl)
 
       console.log('✅ Video frame captured, size:', Math.round(poster.length / 1024), 'KB')
