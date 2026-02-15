@@ -136,6 +136,7 @@
     "zoomPage": "Agrandir la page",
     "dictate": "Dicter",
     "addImage": "Ajouter une image",
+    "captureFrame": "Capturer cette image",
     "background": "Fond de page",
     "moveBackground": "Déplacer le fond",
     "decorations": "Décorations",
@@ -2761,6 +2762,12 @@
       "level4Title": "Maître IA",
       "level4Desc": "Tu peux créer des histoires avec n'importe quelle IA !",
       "reward": "Tu pourras créer des histoires extraordinaires et parler à toutes les IA du monde avec tes nouvelles compétences !"
+    },
+    "saveError": {
+      "title": "Sauvegarde impossible",
+      "description": "Tes modifications ne sont plus sauvegardées depuis 2 minutes. Ta session a probablement expiré. Recharge la page pour te reconnecter et récupérer la sauvegarde automatique.",
+      "reload": "Recharger la page",
+      "dismiss": "Fermer"
     },
     "studio": {
       "title": "Le Studio Créatif",

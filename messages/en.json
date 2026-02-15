@@ -136,6 +136,7 @@
     "zoomPage": "Zoom page",
     "dictate": "Dictate",
     "addImage": "Add image",
+    "captureFrame": "Capture this frame",
     "background": "Background",
     "moveBackground": "Move background",
     "decorations": "Decorations",
@@ -2761,6 +2762,12 @@
       "level4Title": "AI Master",
       "level4Desc": "You can create stories with any AI!",
       "reward": "You'll be able to create extraordinary stories and talk to all the AIs in the world with your new skills!"
+    },
+    "saveError": {
+      "title": "Cannot save",
+      "description": "Your changes haven't been saved for 2 minutes. Your session probably expired. Reload the page to reconnect and restore automatic saving.",
+      "reload": "Reload page",
+      "dismiss": "Dismiss"
     },
     "studio": {
       "title": "The Creative Studio",

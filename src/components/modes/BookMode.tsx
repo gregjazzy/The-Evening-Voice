@@ -55,6 +55,8 @@ import {
   Wand2,
   Download,
   Minus,
+  AlertTriangle,
+  Camera,
 } from 'lucide-react'
 import { useAppStore, type Story, type BookFormat } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
@@ -67,6 +69,7 @@ import { VoiceSelector } from '@/components/ui/VoiceSelector'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
+import { useSaveStatus } from '@/hooks/useSupabaseSync'
 import { CharacterImageCreator } from '@/components/studio/CharacterImageCreator'
 import { usePdfExport } from '@/hooks/usePdfExport'
 import { downloadPdf as downloadPdfFile } from '@/lib/export/pdfScreenCapture'
@@ -988,6 +991,7 @@ interface DraggableMediaProps {
   onSendBackward?: () => void
   onCreateNewImage?: () => void  // Créer une nouvelle image avec ce personnage
   onVideoPosterChange?: (poster: string) => void  // Capture du frame vidéo pour PDF
+  onConvertToImage?: (imageUrl: string) => void  // Remplacer la vidéo par une capture image
   containerRef: React.RefObject<HTMLDivElement>
   totalMedia?: number
 }
@@ -1000,7 +1004,7 @@ const DEFAULT_IMAGE_POSITION: ImagePosition = {
   rotation: 0, // Pas de rotation par défaut
 }
 
-function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, opacity = 1, onPositionChange, onStyleChange, onFrameChange, onOpacityChange, onDelete, onBringForward, onSendBackward, onCreateNewImage, onVideoPosterChange, containerRef, totalMedia = 1 }: DraggableMediaProps) {
+function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameStyle, zIndex, opacity = 1, onPositionChange, onStyleChange, onFrameChange, onOpacityChange, onDelete, onBringForward, onSendBackward, onCreateNewImage, onVideoPosterChange, onConvertToImage, containerRef, totalMedia = 1 }: DraggableMediaProps) {
   const t = useTranslations('writing')
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
@@ -1010,6 +1014,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
   const [showFrameMenu, setShowFrameMenu] = useState(false)
   const [showStyleMenu, setShowStyleMenu] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)  // Pour les vidéos
+  const [isCapturing, setIsCapturing] = useState(false)  // Capture frame en cours
   const [localOpacity, setLocalOpacity] = useState(opacity)
   const mediaRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -1071,6 +1076,66 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
       onVideoPosterChange(poster)
     } catch (err) {
       console.error('❌ Could not capture video frame:', err)
+    }
+  }
+
+  // Capturer le frame vidéo et l'uploader comme vraie image sur R2
+  const captureAndConvertToImage = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const video = videoRef.current
+    if (!video || !onConvertToImage) return
+    setIsCapturing(true)
+    const seekTime = video.currentTime
+    console.log('📸 Capture frame pour conversion image à', seekTime, 's...')
+    try {
+      // Fetch via proxy CORS
+      const resp = await fetch(`/api/media/proxy?url=${encodeURIComponent(src)}`)
+      const blob = await resp.blob()
+      const blobUrl = URL.createObjectURL(blob)
+
+      const tmp = document.createElement('video')
+      tmp.muted = true
+      tmp.playsInline = true
+      tmp.preload = 'auto'
+      tmp.src = blobUrl
+      await new Promise<void>((resolve, reject) => {
+        tmp.onloadeddata = () => resolve()
+        tmp.onerror = () => reject(new Error('temp video load error'))
+      })
+      tmp.currentTime = seekTime
+      await new Promise<void>((resolve) => { tmp.onseeked = () => resolve() })
+
+      // Capture haute qualité
+      const canvas = document.createElement('canvas')
+      canvas.width = tmp.videoWidth
+      canvas.height = tmp.videoHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(blobUrl)
+
+      // Convertir en blob JPEG haute qualité
+      const imageBlob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.95)
+      })
+
+      // Upload via r2-proxy (pas besoin de token, c'est notre serveur)
+      const formData = new FormData()
+      const file = new File([imageBlob], `video-frame-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      formData.append('file', file)
+      formData.append('userId', 'video-capture')
+      formData.append('contentType', 'image/jpeg')
+      formData.append('source', 'video-capture')
+
+      const uploadResp = await fetch('/api/upload/r2-proxy', { method: 'POST', body: formData })
+      if (!uploadResp.ok) throw new Error(`Upload échoué: ${uploadResp.status}`)
+      const { publicUrl } = await uploadResp.json()
+
+      console.log('✅ Frame capturé et uploadé:', publicUrl)
+      onConvertToImage(publicUrl)
+    } catch (err) {
+      console.error('❌ Erreur capture/upload frame:', err)
+    } finally {
+      setIsCapturing(false)
     }
   }
 
@@ -1356,14 +1421,28 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
           <div className="absolute inset-0 bg-black/20 pointer-events-none" />
         )}
 
-        {/* Bouton Play/Pause pour vidéos */}
+        {/* Boutons vidéo : Play/Pause + Capturer frame */}
         {mediaType === 'video' && showControls && !showStyleMenu && (
-          <button
-            onClick={toggleVideo}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors z-20"
-          >
-            {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-          </button>
+          <>
+            <button
+              onClick={toggleVideo}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors z-20"
+            >
+              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+            </button>
+            {/* Bouton capturer ce frame comme image — visible quand en pause */}
+            {!isPlaying && onConvertToImage && (
+              <button
+                onClick={captureAndConvertToImage}
+                disabled={isCapturing}
+                className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 text-white text-xs font-medium hover:bg-black/90 transition-colors z-20 disabled:opacity-50"
+                title={t('captureFrame')}
+              >
+                <Camera className="w-4 h-4" />
+                {isCapturing ? '...' : t('captureFrame')}
+              </button>
+            )}
+          </>
         )}
 
         {/* Bouton déplacer (centre) - seulement pour images */}
@@ -3765,6 +3844,67 @@ function StructureView({
 // COMPOSANT : Barre de formatage (contentEditable + execCommand)
 // ============================================================================
 
+// ============================================================================
+// ALERTE DE SAUVEGARDE — modale bloquante si les saves échouent > 2 min
+// ============================================================================
+
+function SaveIndicator() {
+  const { status, errorMsg } = useSaveStatus()
+  const t = useTranslations('writing')
+  const [showAlert, setShowAlert] = useState(false)
+  const errorStartRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (status === 'error') {
+      if (!errorStartRef.current) errorStartRef.current = Date.now()
+      // Vérifier toutes les 10s si on a dépassé 2 minutes
+      const interval = setInterval(() => {
+        if (errorStartRef.current && Date.now() - errorStartRef.current > 120_000) {
+          setShowAlert(true)
+        }
+      }, 10_000)
+      return () => clearInterval(interval)
+    } else {
+      errorStartRef.current = null
+      setShowAlert(false)
+    }
+  }, [status])
+
+  if (!showAlert) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-6 h-6 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">{t('saveError.title')}</h3>
+            <p className="text-sm text-gray-500">{errorMsg}</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-700">{t('saveError.description')}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => window.location.reload()}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-aurora-500 text-white font-medium hover:bg-aurora-600 transition-colors"
+          >
+            {t('saveError.reload')}
+          </button>
+          <button
+            onClick={() => setShowAlert(false)}
+            className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+          >
+            {t('saveError.dismiss')}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 interface FormatBarProps {
   style: TextStyle
   onStyleChange: (style: Partial<TextStyle>) => void
@@ -4887,6 +5027,7 @@ interface WritingAreaProps {
   onImageSendBackward?: (pageIndex: number, imageId: string) => void
   onImageCreateNew?: (imageUrl: string, pageIndex: number) => void  // Créer nouvelle image avec même personnage
   onVideoPosterChange?: (pageIndex: number, imageId: string, poster: string) => void
+  onConvertVideoToImage?: (pageIndex: number, imageId: string, imageUrl: string) => void
   locale?: 'fr' | 'en' | 'ru'
   onPrevPage?: () => void
   onNextPage?: () => void
@@ -5048,7 +5189,7 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
   )
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, onVideoPosterChange, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, onVideoPosterChange, onConvertVideoToImage, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
   
   const t = useTranslations('writing')
 
@@ -5446,8 +5587,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               placeholder={t('titlePlaceholder')}
             />
           )}
+          <SaveIndicator />
         </div>
-        
+
         {/* Centre : Outils de formatage */}
         <div className="glass rounded-lg px-2 py-0.5 shadow-lg z-50">
               {/* L'index de la page active dépend de quelle page a été cliquée en dernier */}
@@ -5780,6 +5922,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onSendBackward={() => onImageSendBackward?.(zPageIndex, media.id)}
                 onCreateNewImage={() => onImageCreateNew?.(media.url, zPageIndex)}
                 onVideoPosterChange={(poster) => onVideoPosterChange?.(zPageIndex, media.id, poster)}
+                onConvertToImage={(url) => onConvertVideoToImage?.(zPageIndex, media.id, url)}
                 containerRef={zoomedPageContainerRef}
                 totalMedia={zPageImages.length}
               />
@@ -6142,6 +6285,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onSendBackward={() => onImageSendBackward?.(leftPageIndex, media.id)}
                 onCreateNewImage={() => onImageCreateNew?.(media.url, leftPageIndex)}
                 onVideoPosterChange={(poster) => onVideoPosterChange?.(leftPageIndex, media.id, poster)}
+                onConvertToImage={(url) => onConvertVideoToImage?.(leftPageIndex, media.id, url)}
                 containerRef={leftPageContainerRef}
                 totalMedia={leftPageImages.length}
               />
@@ -6589,6 +6733,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 onSendBackward={() => onImageSendBackward?.(pageIndex, media.id)}
                 onCreateNewImage={() => onImageCreateNew?.(media.url, pageIndex)}
                 onVideoPosterChange={(poster) => onVideoPosterChange?.(pageIndex, media.id, poster)}
+                onConvertToImage={(url) => onConvertVideoToImage?.(pageIndex, media.id, url)}
                 containerRef={rightPageContainerRef}
                 totalMedia={rightPageImages.length}
               />
@@ -8118,6 +8263,22 @@ export function BookMode() {
     }
   }
 
+  // Convertir une vidéo en image (remplace le média vidéo par l'image capturée)
+  const handleConvertVideoToImage = (pageIdx: number, imageId: string, imageUrl: string) => {
+    if (!pages[pageIdx]) return
+    const newPages = [...pages]
+    newPages[pageIdx] = updateImageInPage(newPages[pageIdx], imageId, {
+      url: imageUrl,
+      type: 'image',
+      videoPoster: undefined,
+    } as Partial<PageMedia>)
+    setPages(newPages)
+
+    if (currentStory) {
+      updateStoryPages(currentStory.id, pagesToStoreFormat(newPages))
+    }
+  }
+
   // Suppression d'une image d'une page
   const handleImageDelete = (pageIdx: number, imageId: string) => {
     if (!pages[pageIdx]) return
@@ -9025,6 +9186,7 @@ export function BookMode() {
               onImageSendBackward={handleImageSendBackward}
               onImageCreateNew={handleOpenCharacterCreator}
               onVideoPosterChange={handleVideoPosterChange}
+              onConvertVideoToImage={handleConvertVideoToImage}
               bookColor={bookColor}
               onBookColorChange={setBookColor}
               onBackgroundAdd={handleOpenBackgroundPicker}

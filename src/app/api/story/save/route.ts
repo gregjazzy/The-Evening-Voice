@@ -1,6 +1,7 @@
 /**
- * API Route - Sauvegarde rapide d'histoire
- * Utilisé par sendBeacon pour sauvegarder avant fermeture de page
+ * API Route - Sauvegarde d'histoire côté serveur
+ * Utilise le service role key → fonctionne même si le token client a expiré
+ * Utilisé par : auto-save, bouton sauvegarder, sendBeacon avant fermeture
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -24,10 +25,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('🚨 Sauvegarde d\'urgence via beacon:', story.title)
+    console.log(`💾 Sauvegarde story "${story.title}" (${story.pages?.length || 0} pages)`)
 
     // Sauvegarder l'histoire
-    const storyData = {
+    const storyData: Record<string, unknown> = {
       id: story.id,
       profile_id: profileId,
       title: story.title,
@@ -40,7 +41,14 @@ export async function POST(request: NextRequest) {
         bookFormat: story.bookFormat || 'portrait-a5',
         chapters: story.chapters || [],
       },
-      updated_at: new Date().toISOString(),
+      updated_at: story.updatedAt || new Date().toISOString(),
+    }
+
+    if (story.createdAt) {
+      storyData.created_at = story.createdAt
+    }
+    if (story.isComplete) {
+      storyData.completed_at = new Date().toISOString()
     }
 
     const { error: storyError } = await supabaseAdmin
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: storyError.message }, { status: 500 })
     }
 
-    // Upsert les pages (safe : pas de fenêtre sans données)
+    // Sauvegarder les pages
     if (story.pages && story.pages.length > 0) {
       const pagesData = story.pages.map((page: any, i: number) => ({
         id: page.id,
@@ -72,6 +80,7 @@ export async function POST(request: NextRequest) {
         background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
       }))
 
+      // Upsert toutes les pages
       const { error: upsertError } = await supabaseAdmin
         .from('story_pages')
         .upsert(pagesData, { onConflict: 'id' })
@@ -81,18 +90,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: upsertError.message }, { status: 500 })
       }
 
-      // Supprimer les pages supprimées (qui ne sont plus dans l'histoire)
+      // Supprimer les pages qui ne sont plus dans l'histoire
       const currentPageIds = story.pages.map((p: any) => p.id).filter(Boolean)
       if (currentPageIds.length > 0) {
-        await supabaseAdmin
+        const { error: deleteError } = await supabaseAdmin
           .from('story_pages')
           .delete()
           .eq('story_id', story.id)
           .not('id', 'in', `(${currentPageIds.join(',')})`)
+
+        if (deleteError) {
+          console.warn('⚠️ Suppression pages orphelines échouée:', deleteError.message)
+        }
       }
     }
 
-    console.log('✅ Sauvegarde d\'urgence terminée:', story.title)
+    console.log(`✅ Story "${story.title}" sauvegardée (${story.pages?.length || 0} pages)`)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('❌ Erreur API save story:', error)

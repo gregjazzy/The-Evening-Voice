@@ -9,7 +9,7 @@
 
 'use client'
 
-import { useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useAppStore, type DiaryEntry, type ChatMessage, type Story, type StoryPage } from '@/store/useAppStore'
@@ -101,6 +101,40 @@ function toISOStringSafe(date: Date | string | undefined | null): string {
 
 // Référence module-level pour le flush avant déconnexion
 let _pendingStoryForFlush: { story: Story; profileId: string; userName: string } | null = null
+
+// ============================================================================
+// SAVE STATUS — état global observable pour l'indicateur de sauvegarde
+// ============================================================================
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+type SaveStatusListener = (status: SaveStatus, errorMsg?: string) => void
+
+let _saveStatus: SaveStatus = 'idle'
+let _saveErrorMsg: string | undefined
+let _saveStatusListeners: Set<SaveStatusListener> = new Set()
+
+function setSaveStatus(status: SaveStatus, errorMsg?: string) {
+  _saveStatus = status
+  _saveErrorMsg = errorMsg
+  _saveStatusListeners.forEach(fn => fn(status, errorMsg))
+}
+
+/** Hook React pour lire le statut de sauvegarde en temps réel */
+export function useSaveStatus(): { status: SaveStatus; errorMsg?: string } {
+  const [state, setState] = useState<{ status: SaveStatus; errorMsg?: string }>({
+    status: _saveStatus,
+    errorMsg: _saveErrorMsg,
+  })
+
+  useEffect(() => {
+    const listener: SaveStatusListener = (status, errorMsg) => {
+      setState({ status, errorMsg })
+    }
+    _saveStatusListeners.add(listener)
+    return () => { _saveStatusListeners.delete(listener) }
+  }, [])
+
+  return state
+}
 
 /**
  * Flush immédiat de la sauvegarde en attente (appelé avant signOut)
@@ -257,118 +291,10 @@ async function withRetry<T>(
   throw lastError
 }
 
-/**
- * Vérifie que la session Supabase est valide et tente un rafraîchissement si nécessaire.
- * Retourne true si la session est OK, false sinon.
- * Cela évite les sauvegardes silencieusement perdues quand le token a expiré
- * (cause: AbortError lors du auto-refresh de GoTrueClient).
- */
-async function ensureValidSession(): Promise<boolean> {
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession()
-    
-    // Ignorer les AbortError silencieusement (problème connu Supabase auth-js avec Web Locks)
-    if (error) {
-      const isAbortError = error.name === 'AbortError' || 
-                          error.message?.includes('aborted') ||
-                          error.message?.includes('signal is aborted')
-      if (isAbortError) {
-        console.warn('⚠️ Session check aborted (normal lors du rechargement/concurrence)')
-        return false // Retourner false pour éviter la sauvegarde avec session invalide
-      }
-    }
-    
-    if (error || !session) {
-      console.warn('⚠️ Session invalide ou expirée, tentative de refresh...')
-      try {
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-        
-        // Ignorer les AbortError lors du refresh aussi
-        if (refreshError) {
-          const isAbortError = refreshError.name === 'AbortError' || 
-                              refreshError.message?.includes('aborted') ||
-                              refreshError.message?.includes('signal is aborted')
-          if (isAbortError) {
-            console.warn('⚠️ Refresh session aborted (normal lors du rechargement/concurrence)')
-            return false
-          }
-        }
-        
-        if (refreshError || !refreshData.session) {
-          console.error('❌ Impossible de rafraîchir la session:', refreshError?.message || 'pas de session')
-          notify.error('Session expirée', 'Impossible de sauvegarder. Recharge la page ou reconnecte-toi.')
-          return false
-        }
-        console.log('✅ Session rafraîchie avec succès')
-        return true
-      } catch (refreshErr: any) {
-        // Capturer les AbortError qui peuvent être lancées comme exceptions
-        const isAbortError = refreshErr?.name === 'AbortError' || 
-                            refreshErr?.message?.includes('aborted') ||
-                            refreshErr?.message?.includes('signal is aborted')
-        if (isAbortError) {
-          console.warn('⚠️ Refresh session aborted (exception)')
-          return false
-        }
-        throw refreshErr // Re-lancer les autres erreurs
-      }
-    }
-    // Vérifier si le token expire dans moins de 60 secondes
-    const expiresAt = session.expires_at ? session.expires_at * 1000 : 0
-    const now = Date.now()
-    if (expiresAt > 0 && expiresAt - now < 60_000) {
-      console.log('⏰ Token expire bientôt, refresh proactif...')
-      try {
-        const { error: refreshError } = await supabase.auth.refreshSession()
-        if (refreshError) {
-          // Ignorer les AbortError lors du refresh proactif aussi
-          const isAbortError = refreshError.name === 'AbortError' || 
-                              refreshError.message?.includes('aborted') ||
-                              refreshError.message?.includes('signal is aborted')
-          if (isAbortError) {
-            console.warn('⚠️ Refresh proactif aborted (normal)')
-          } else {
-            console.warn('⚠️ Refresh proactif échoué:', refreshError.message)
-          }
-          // On continue quand même — le token est encore valide pour quelques secondes
-        } else {
-          console.log('✅ Token rafraîchi proactivement')
-        }
-      } catch (refreshErr: any) {
-        // Ignorer les AbortError lors du refresh proactif
-        const isAbortError = refreshErr?.name === 'AbortError' || 
-                            refreshErr?.message?.includes('aborted') ||
-                            refreshErr?.message?.includes('signal is aborted')
-        if (!isAbortError) {
-          console.warn('⚠️ Refresh proactif exception:', refreshErr)
-        }
-      }
-    }
-    return true
-  } catch (err: any) {
-    // Filtrer les AbortError dans le catch global aussi
-    const isAbortError = err?.name === 'AbortError' || 
-                        err?.message?.includes('aborted') ||
-                        err?.message?.includes('signal is aborted')
-    if (isAbortError) {
-      console.warn('⚠️ Session check aborted (catch global)')
-      return false
-    }
-    console.error('❌ Erreur lors de la vérification de session:', err)
-    return false
-  }
-}
-
-// Fonction utilitaire pour sauvegarder une histoire (hors hook)
+// Fonction utilitaire pour sauvegarder une histoire via l'API serveur
+// Passe par /api/story/save qui utilise le service role key → aucun problème de token
 async function saveStoryToSupabase(story: Story, profileId: string, userName: string) {
-  // Vérifier que la session est valide AVANT de commencer la sauvegarde
-  const sessionOk = await ensureValidSession()
-  if (!sessionOk) {
-    console.error(`❌ Sauvegarde annulée pour "${story.title}" : session invalide`)
-    // Mettre en pending pour retry lors du prochain changement
-    pendingSaves.set(story.id, { story, profileId, userName })
-    return false
-  }
+  setSaveStatus('saving')
 
   // Vérifier si une sauvegarde est déjà en cours pour cette histoire
   if (storySaveLocks.get(story.id)) {
@@ -385,134 +311,32 @@ async function saveStoryToSupabase(story: Story, profileId: string, userName: st
   console.log(`🔒 Lock acquis pour "${story.title}"`)
 
   try {
-    // Sauvegarder avec retry automatique
     const saved = await withRetry(async () => {
-      // Sauvegarder l'histoire
-      const storyData = {
-        id: story.id,
-        profile_id: profileId,
-        title: story.title,
-        author: userName || 'Anonyme',
-        status: story.isComplete ? 'completed' : 'in_progress',
-        total_pages: story.pages.length,
-        current_page: story.currentStep + 1,
-        metadata: {
-          structure: story.structure,
-          bookFormat: story.bookFormat || 'portrait-a5',
-          chapters: story.chapters || [],
-        },
-        created_at: toISOStringSafe(story.createdAt),
-        updated_at: toISOStringSafe(story.updatedAt),
-        completed_at: story.isComplete ? new Date().toISOString() : null,
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: storyError } = await supabase.from('stories').upsert(storyData as any)
+      console.log(`📄 SAVE ${story.pages.length} pages pour story ${story.id} via API`)
 
-      if (storyError) {
-        throw new Error(`Erreur sauvegarde story: ${storyError.message}`)
-      }
-
-      // Préparer toutes les pages
-      const pagesData = story.pages.map((page, i) => {
-        const pageData = {
-          id: page.id,
-          story_id: story.id,
-          page_number: i + 1,
-          title: page.title,
-          text_blocks: [{
-            content: page.content || '',
-            style: page.style || null,
-          }],
-          media_layers: {
-            images: page.images || [],
-            decorations: page.decorations || [],
-            textBoxes: page.textBoxes || [],
-            chapterId: page.chapterId,
-            pageType: page.pageType || 'content',
-            backgroundMedia: page.backgroundMedia || null,
-          },
-          background_image_url: page.backgroundMedia?.type === 'image' ? page.backgroundMedia.url : null,
-          background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
-        }
-        console.log(`   📄 Page ${i + 1} (${pageData.media_layers.pageType}): "${(page.content || '').substring(0, 30)}..." - ${page.images?.length || 0} images, ${page.decorations?.length || 0} décos`)
-        return pageData
+      const response = await fetch('/api/story/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ story, profileId, userName }),
       })
 
-      console.log(`📄 SAVE ${pagesData.length} pages pour story ${story.id}`)
-
-      // Supprimer toutes les pages existantes puis réinsérer
-      // (évite les conflits de page_number lors des réorganisations)
-      if (pagesData.length > 0) {
-        // 1. Supprimer toutes les pages de cette histoire
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: deleteError } = await supabase
-          .from('story_pages')
-          .delete()
-          .eq('story_id', story.id) as any
-
-        if (deleteError) {
-          console.warn('⚠️ Suppression pages échouée:', deleteError.message)
-        }
-
-        // 2. Insérer toutes les pages avec les bons page_number
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: insertError } = await supabase
-          .from('story_pages')
-          .insert(pagesData as any)
-
-        if (insertError) {
-          // Détecter spécifiquement les erreurs RLS
-          if (insertError.message?.includes('row-level security') || insertError.code === '42501') {
-            console.error('🚨 ERREUR RLS: La policy "Users can manage own pages" manque sur story_pages !')
-            console.error('🚨 Exécutez: CREATE POLICY "Users can manage own pages" ON story_pages FOR ALL USING (story_id IN (SELECT id FROM stories WHERE profile_id IN (SELECT id FROM profiles WHERE user_id = auth.uid())));')
-          }
-          throw new Error(`Erreur insert pages: ${insertError.message}`)
-        }
-      }
-
-      // Vérification : relire les pages depuis Supabase pour confirmer
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('story_pages')
-        .select('id, page_number, media_layers')
-        .eq('story_id', story.id)
-        .order('page_number')
-
-      if (verifyError) {
-        console.error('⚠️ Vérification post-save échouée:', verifyError.message)
-      } else {
-        const savedCount = verifyData?.length || 0
-        const expectedCount = story.pages.length
-        if (savedCount !== expectedCount) {
-          console.error(`❌ INCOHÉRENCE: ${expectedCount} pages envoyées mais ${savedCount} en base !`)
-          notify.error('Erreur de sauvegarde', `Seulement ${savedCount}/${expectedCount} pages sauvegardées. Réessaie de sauvegarder.`)
-        } else {
-          // Vérifier que media_layers contient bien les images/décos
-          for (const dbPage of verifyData!) {
-            const localPage = story.pages.find((_, i) => i + 1 === dbPage.page_number)
-            if (!localPage) continue
-            const ml = dbPage.media_layers as any
-            const dbImages = ml?.images?.length || 0
-            const dbDecos = ml?.decorations?.length || 0
-            const localImages = localPage.images?.length || 0
-            const localDecos = localPage.decorations?.length || 0
-            if (dbImages !== localImages || dbDecos !== localDecos) {
-              console.error(`❌ INCOHÉRENCE page ${dbPage.page_number}: local=${localImages}img/${localDecos}déco, DB=${dbImages}img/${dbDecos}déco`)
-            }
-          }
-          console.log(`✅ Vérification OK: ${savedCount} pages confirmées en base`)
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+        throw new Error(errorData.error || `Erreur serveur ${response.status}`)
       }
 
       return true
     }).catch((err) => {
       console.error('❌ Sauvegarde échouée après retries:', err)
+      setSaveStatus('error', 'Sauvegarde échouée')
       notify.error('Erreur de sauvegarde', `L'histoire "${story.title}" n'a pas pu être sauvegardée après plusieurs tentatives. Vérifie ta connexion.`)
       return false
     })
 
     if (saved) {
       console.log(`✅ Histoire "${story.title}" sauvegardée (${story.pages.length} pages)`)
-      // Vider le pending flush puisque la sauvegarde a réussi
+      setSaveStatus('saved')
+      setTimeout(() => { if (_saveStatus === 'saved') setSaveStatus('idle') }, 3000)
       if (_pendingStoryForFlush?.story.id === story.id) {
         _pendingStoryForFlush = null
       }

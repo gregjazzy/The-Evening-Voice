@@ -53,12 +53,13 @@ export async function POST(request: NextRequest) {
     console.log('📤 Upload R2 OK:', publicUrl.substring(0, 80))
 
     // Créer l'entrée dans la table assets
+    const assetType = contentType.startsWith('image/') ? 'image' : 'video'
     const { data: asset, error: assetError } = await supabase
       .from('assets')
       .insert({
         profile_id: profileId,
         story_id: storyId || null,
-        type: 'video',
+        type: assetType,
         source,
         url: publicUrl,
         file_name: uniqueFileName,
