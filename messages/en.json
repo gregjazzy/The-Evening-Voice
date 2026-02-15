@@ -138,6 +138,8 @@
     "addImage": "Add image",
     "captureFrame": "Capture this frame",
     "saveButton": "Save",
+    "captureFrameSuccess": "Image added to the page",
+    "captureFrameError": "Could not capture image",
     "background": "Background",
     "moveBackground": "Move background",
     "decorations": "Decorations",

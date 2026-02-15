@@ -73,6 +73,7 @@ import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { useSaveStatus, triggerManualSave } from '@/hooks/useSupabaseSync'
 import { useAuthStore } from '@/store/useAuthStore'
+import { notify } from '@/store/useNotificationStore'
 import { CharacterImageCreator } from '@/components/studio/CharacterImageCreator'
 import { usePdfExport } from '@/hooks/usePdfExport'
 import { downloadPdf as downloadPdfFile } from '@/lib/export/pdfScreenCapture'
@@ -1137,8 +1138,10 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
 
       console.log('✅ Frame capturé et uploadé:', publicUrl)
       onConvertToImage(publicUrl)
+      notify.success(t('captureFrame'), t('captureFrameSuccess'))
     } catch (err) {
       console.error('❌ Erreur capture/upload frame:', err)
+      notify.error(t('captureFrame'), t('captureFrameError'))
     } finally {
       setIsCapturing(false)
     }

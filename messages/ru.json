@@ -138,6 +138,8 @@
     "addImage": "Добавить картинку",
     "captureFrame": "Сохранить этот кадр",
     "saveButton": "Сохранить",
+    "captureFrameSuccess": "Картинка добавлена на страницу",
+    "captureFrameError": "Не удалось сохранить кадр",
     "background": "Фон страницы",
     "moveBackground": "Переместить фон",
     "decorations": "Украшения",
