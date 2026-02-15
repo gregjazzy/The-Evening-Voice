@@ -57,6 +57,8 @@ import {
   Minus,
   AlertTriangle,
   Camera,
+  Save,
+  Loader2,
 } from 'lucide-react'
 import { useAppStore, type Story, type BookFormat } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
@@ -69,7 +71,7 @@ import { VoiceSelector } from '@/components/ui/VoiceSelector'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
-import { useSaveStatus } from '@/hooks/useSupabaseSync'
+import { useSaveStatus, triggerManualSave } from '@/hooks/useSupabaseSync'
 import { CharacterImageCreator } from '@/components/studio/CharacterImageCreator'
 import { usePdfExport } from '@/hooks/usePdfExport'
 import { downloadPdf as downloadPdfFile } from '@/lib/export/pdfScreenCapture'
@@ -3852,12 +3854,12 @@ function SaveIndicator() {
   const { status, errorMsg } = useSaveStatus()
   const t = useTranslations('writing')
   const [showAlert, setShowAlert] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const errorStartRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (status === 'error') {
       if (!errorStartRef.current) errorStartRef.current = Date.now()
-      // Vérifier toutes les 10s si on a dépassé 2 minutes
       const interval = setInterval(() => {
         if (errorStartRef.current && Date.now() - errorStartRef.current > 120_000) {
           setShowAlert(true)
@@ -3870,38 +3872,75 @@ function SaveIndicator() {
     }
   }, [status])
 
-  if (!showAlert) return null
+  const handleManualSave = async () => {
+    setIsSaving(true)
+    const ok = await triggerManualSave()
+    setIsSaving(false)
+    if (!ok) {
+      setShowAlert(true)
+    }
+  }
 
-  return createPortal(
-    <div className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-6 h-6 text-red-600" />
+  return (
+    <>
+      {/* Bouton de sauvegarde toujours visible */}
+      <button
+        onClick={handleManualSave}
+        disabled={isSaving || status === 'saving'}
+        className={cn(
+          "p-1.5 rounded-lg transition-colors",
+          status === 'error'
+            ? "text-red-400 hover:text-red-300 hover:bg-red-900/30"
+            : status === 'saved'
+            ? "text-green-400 hover:text-green-300 hover:bg-green-900/30"
+            : "text-midnight-400 hover:text-white hover:bg-midnight-800/50"
+        )}
+        title={t('saveButton')}
+      >
+        {isSaving || status === 'saving' ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : status === 'saved' ? (
+          <Check className="w-4 h-4" />
+        ) : status === 'error' ? (
+          <AlertTriangle className="w-4 h-4" />
+        ) : (
+          <Save className="w-4 h-4" />
+        )}
+      </button>
+
+      {/* Modale d'erreur après 2 min ou échec sauvegarde manuelle */}
+      {showAlert && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{t('saveError.title')}</h3>
+                <p className="text-sm text-gray-500">{errorMsg}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-700">{t('saveError.description')}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-aurora-500 text-white font-medium hover:bg-aurora-600 transition-colors"
+              >
+                {t('saveError.reload')}
+              </button>
+              <button
+                onClick={() => setShowAlert(false)}
+                className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+              >
+                {t('saveError.dismiss')}
+              </button>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">{t('saveError.title')}</h3>
-            <p className="text-sm text-gray-500">{errorMsg}</p>
-          </div>
-        </div>
-        <p className="text-sm text-gray-700">{t('saveError.description')}</p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => window.location.reload()}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-aurora-500 text-white font-medium hover:bg-aurora-600 transition-colors"
-          >
-            {t('saveError.reload')}
-          </button>
-          <button
-            onClick={() => setShowAlert(false)}
-            className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
-          >
-            {t('saveError.dismiss')}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
+        </div>,
+        document.body
+      )}
+    </>
   )
 }
 

@@ -118,6 +118,20 @@ function setSaveStatus(status: SaveStatus, errorMsg?: string) {
   _saveStatusListeners.forEach(fn => fn(status, errorMsg))
 }
 
+/** Sauvegarde manuelle — déclenche immédiatement la sauvegarde de l'histoire en cours */
+export async function triggerManualSave(): Promise<boolean> {
+  if (!_pendingStoryForFlush) {
+    // Rien à sauvegarder, ou déjà sauvegardé
+    if (_saveStatus !== 'error') {
+      setSaveStatus('saved')
+      setTimeout(() => { if (_saveStatus === 'saved') setSaveStatus('idle') }, 3000)
+    }
+    return true
+  }
+  const { story, profileId, userName } = _pendingStoryForFlush
+  return saveStoryToSupabase(story, profileId, userName)
+}
+
 /** Hook React pour lire le statut de sauvegarde en temps réel */
 export function useSaveStatus(): { status: SaveStatus; errorMsg?: string } {
   const [state, setState] = useState<{ status: SaveStatus; errorMsg?: string }>({
