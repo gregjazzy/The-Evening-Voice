@@ -1060,6 +1060,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
       d[i + 2] = Math.min(255, Math.max(0, d[i + 2] + amount * (d[i + 2] - b[i + 2])))
     }
     ctx.putImageData(original, 0, 0)
+    console.log('🔍 Unsharp mask applied:', w, '×', h, 'amount:', amount)
   }
 
   // Capture le frame vidéo avec drawImage + unsharp mask, direct ou via proxy
