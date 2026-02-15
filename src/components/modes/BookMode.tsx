@@ -1122,18 +1122,20 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
         canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.95)
       })
 
-      // Upload via r2-proxy
+      // Upload vers Supabase Storage via API serveur
       const { user, profile } = useAuthStore.getState()
       const formData = new FormData()
       const file = new File([imageBlob], `video-frame-${Date.now()}.jpg`, { type: 'image/jpeg' })
       formData.append('file', file)
-      formData.append('userId', user?.id || 'video-capture')
+      formData.append('userId', user?.id || 'anonymous')
       formData.append('profileId', profile?.id || '')
-      formData.append('contentType', 'image/jpeg')
       formData.append('source', 'video-capture')
 
-      const uploadResp = await fetch('/api/upload/r2-proxy', { method: 'POST', body: formData })
-      if (!uploadResp.ok) throw new Error(`Upload échoué: ${uploadResp.status}`)
+      const uploadResp = await fetch('/api/upload/image', { method: 'POST', body: formData })
+      if (!uploadResp.ok) {
+        const err = await uploadResp.json().catch(() => ({ error: `HTTP ${uploadResp.status}` }))
+        throw new Error(err.error || `Upload échoué: ${uploadResp.status}`)
+      }
       const { publicUrl } = await uploadResp.json()
 
       console.log('✅ Frame capturé et uploadé:', publicUrl)
