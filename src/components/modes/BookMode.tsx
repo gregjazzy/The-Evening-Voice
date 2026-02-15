@@ -72,6 +72,7 @@ import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { useSaveStatus, triggerManualSave } from '@/hooks/useSupabaseSync'
+import { useAuthStore } from '@/store/useAuthStore'
 import { CharacterImageCreator } from '@/components/studio/CharacterImageCreator'
 import { usePdfExport } from '@/hooks/usePdfExport'
 import { downloadPdf as downloadPdfFile } from '@/lib/export/pdfScreenCapture'
@@ -1120,11 +1121,13 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
         canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.95)
       })
 
-      // Upload via r2-proxy (pas besoin de token, c'est notre serveur)
+      // Upload via r2-proxy
+      const { user, profile } = useAuthStore.getState()
       const formData = new FormData()
       const file = new File([imageBlob], `video-frame-${Date.now()}.jpg`, { type: 'image/jpeg' })
       formData.append('file', file)
-      formData.append('userId', 'video-capture')
+      formData.append('userId', user?.id || 'video-capture')
+      formData.append('profileId', profile?.id || '')
       formData.append('contentType', 'image/jpeg')
       formData.append('source', 'video-capture')
 
