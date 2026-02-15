@@ -8263,15 +8263,31 @@ export function BookMode() {
     }
   }
 
-  // Convertir une vidéo en image (remplace le média vidéo par l'image capturée)
+  // Capturer un frame vidéo comme nouvelle image (ajoutée à côté de la vidéo)
   const handleConvertVideoToImage = (pageIdx: number, imageId: string, imageUrl: string) => {
     if (!pages[pageIdx]) return
+    const page = pages[pageIdx]
+    // Récupérer la position de la vidéo source pour placer l'image à côté
+    const sourceMedia = page.images?.find(m => m.id === imageId)
     const newPages = [...pages]
-    newPages[pageIdx] = updateImageInPage(newPages[pageIdx], imageId, {
+    const mediaId = `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const newMedia: PageMedia = {
+      id: mediaId,
       url: imageUrl,
       type: 'image',
-      videoPoster: undefined,
-    } as Partial<PageMedia>)
+      position: sourceMedia ? {
+        ...sourceMedia.position,
+        x: Math.min(sourceMedia.position.x + 5, 90),
+        y: Math.min(sourceMedia.position.y + 5, 90),
+      } : DEFAULT_IMAGE_POSITION,
+      style: sourceMedia?.style || 'normal',
+      frame: sourceMedia?.frame || 'none',
+      zIndex: (page.images?.length || 0) + 1,
+    }
+    newPages[pageIdx] = {
+      ...page,
+      images: [...(page.images || []), newMedia],
+    }
     setPages(newPages)
 
     if (currentStory) {
