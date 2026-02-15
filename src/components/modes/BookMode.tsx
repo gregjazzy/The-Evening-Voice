@@ -1040,22 +1040,49 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
     }
   }
 
-  // Capturer le frame vidéo actuel comme image (data URL)
-  // Capture directe depuis le <video> affiché (crossOrigin="anonymous")
-  // Fallback via proxy si le canvas est teinté (CORS)
+  // Unsharp mask — compense la perte de netteté du codec vidéo
+  const applySharpen = (ctx: CanvasRenderingContext2D, w: number, h: number, amount = 0.4) => {
+    const original = ctx.getImageData(0, 0, w, h)
+    // Créer une version floutée via un second canvas
+    const blurCanvas = document.createElement('canvas')
+    blurCanvas.width = w
+    blurCanvas.height = h
+    const blurCtx = blurCanvas.getContext('2d')!
+    blurCtx.filter = 'blur(1px)'
+    blurCtx.drawImage(ctx.canvas, 0, 0)
+    const blurred = blurCtx.getImageData(0, 0, w, h)
+    // Unsharp mask: original + amount * (original - blurred)
+    const d = original.data
+    const b = blurred.data
+    for (let i = 0; i < d.length; i += 4) {
+      d[i]     = Math.min(255, Math.max(0, d[i]     + amount * (d[i]     - b[i])))
+      d[i + 1] = Math.min(255, Math.max(0, d[i + 1] + amount * (d[i + 1] - b[i + 1])))
+      d[i + 2] = Math.min(255, Math.max(0, d[i + 2] + amount * (d[i + 2] - b[i + 2])))
+    }
+    ctx.putImageData(original, 0, 0)
+  }
+
+  // Capture le frame vidéo avec drawImage + unsharp mask, direct ou via proxy
+  const captureVideoToCanvas = async (video: HTMLVideoElement): Promise<HTMLCanvasElement> => {
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    applySharpen(ctx, canvas.width, canvas.height)
+    return canvas
+  }
+
+  // Capturer le frame vidéo actuel comme image (data URL pour PDF)
   const captureVideoFrame = async () => {
     const video = videoRef.current
     if (!video) { console.warn('⚠️ videoPoster: no video ref'); return }
     if (!onVideoPosterChange) { console.warn('⚠️ videoPoster: no callback'); return }
     console.log('📸 Capturing video frame at', video.currentTime, 's...')
 
-    // Essayer capture directe depuis le video affiché (meilleure qualité)
+    // Essayer capture directe depuis le video affiché
     try {
-      const canvas = document.createElement('canvas')
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const canvas = await captureVideoToCanvas(video)
       const poster = canvas.toDataURL('image/png')
       console.log('✅ Video frame captured (direct), size:', Math.round(poster.length / 1024), 'KB')
       onVideoPosterChange(poster)
@@ -1085,11 +1112,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
       tmp.currentTime = seekTime
       await new Promise<void>((resolve) => { tmp.onseeked = () => resolve() })
 
-      const canvas = document.createElement('canvas')
-      canvas.width = tmp.videoWidth
-      canvas.height = tmp.videoHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height)
+      const canvas = await captureVideoToCanvas(tmp)
       const poster = canvas.toDataURL('image/png')
       URL.revokeObjectURL(blobUrl)
 
@@ -1111,11 +1134,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
       // Capture directe depuis le video affiché (meilleure qualité)
       let canvas: HTMLCanvasElement
       try {
-        canvas = document.createElement('canvas')
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        canvas = await captureVideoToCanvas(video)
         // Vérifier que le canvas n'est pas teinté (CORS)
         canvas.toDataURL()
         console.log('✅ Capture directe réussie')
@@ -1139,11 +1158,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
         tmp.currentTime = seekTime
         await new Promise<void>((resolve) => { tmp.onseeked = () => resolve() })
 
-        canvas = document.createElement('canvas')
-        canvas.width = tmp.videoWidth
-        canvas.height = tmp.videoHeight
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height)
+        canvas = await captureVideoToCanvas(tmp)
         URL.revokeObjectURL(blobUrl)
       }
 
