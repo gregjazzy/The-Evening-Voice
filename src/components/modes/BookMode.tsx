@@ -1100,49 +1100,62 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
     }
   }
 
-  // Capturer le frame vidéo et l'uploader comme vraie image sur R2
+  // Capturer le frame vidéo et l'uploader comme vraie image
   const captureAndConvertToImage = async (e: React.MouseEvent) => {
     e.stopPropagation()
     const video = videoRef.current
     if (!video || !onConvertToImage) return
     setIsCapturing(true)
-    const seekTime = video.currentTime
-    console.log('📸 Capture frame pour conversion image à', seekTime, 's...')
+    console.log('📸 Capture frame pour conversion image à', video.currentTime, 's...')
     try {
-      // Fetch via proxy CORS
-      const resp = await fetch(`/api/media/proxy?url=${encodeURIComponent(src)}`)
-      const blob = await resp.blob()
-      const blobUrl = URL.createObjectURL(blob)
+      // Capture directe depuis le video affiché (meilleure qualité)
+      let canvas: HTMLCanvasElement
+      try {
+        canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        // Vérifier que le canvas n'est pas teinté (CORS)
+        canvas.toDataURL()
+        console.log('✅ Capture directe réussie')
+      } catch {
+        // Fallback proxy si CORS bloque
+        console.warn('⚠️ Capture directe échouée (CORS), fallback proxy...')
+        const seekTime = video.currentTime
+        const resp = await fetch(`/api/media/proxy?url=${encodeURIComponent(src)}`)
+        const blob = await resp.blob()
+        const blobUrl = URL.createObjectURL(blob)
 
-      const tmp = document.createElement('video')
-      tmp.muted = true
-      tmp.playsInline = true
-      tmp.preload = 'auto'
-      tmp.src = blobUrl
-      await new Promise<void>((resolve, reject) => {
-        tmp.onloadeddata = () => resolve()
-        tmp.onerror = () => reject(new Error('temp video load error'))
-      })
-      tmp.currentTime = seekTime
-      await new Promise<void>((resolve) => { tmp.onseeked = () => resolve() })
+        const tmp = document.createElement('video')
+        tmp.muted = true
+        tmp.playsInline = true
+        tmp.preload = 'auto'
+        tmp.src = blobUrl
+        await new Promise<void>((resolve, reject) => {
+          tmp.onloadeddata = () => resolve()
+          tmp.onerror = () => reject(new Error('temp video load error'))
+        })
+        tmp.currentTime = seekTime
+        await new Promise<void>((resolve) => { tmp.onseeked = () => resolve() })
 
-      // Capture haute qualité
-      const canvas = document.createElement('canvas')
-      canvas.width = tmp.videoWidth
-      canvas.height = tmp.videoHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height)
-      URL.revokeObjectURL(blobUrl)
+        canvas = document.createElement('canvas')
+        canvas.width = tmp.videoWidth
+        canvas.height = tmp.videoHeight
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height)
+        URL.revokeObjectURL(blobUrl)
+      }
 
-      // Convertir en blob JPEG haute qualité
+      // PNG lossless pour préserver la qualité
       const imageBlob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.95)
+        canvas.toBlob((b) => resolve(b!), 'image/png')
       })
 
       // Upload vers Supabase Storage via API serveur
       const { user, profile } = useAuthStore.getState()
       const formData = new FormData()
-      const file = new File([imageBlob], `video-frame-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      const file = new File([imageBlob], `video-frame-${Date.now()}.png`, { type: 'image/png' })
       formData.append('file', file)
       formData.append('userId', user?.id || 'anonymous')
       formData.append('profileId', profile?.id || '')
