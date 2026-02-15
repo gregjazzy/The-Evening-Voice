@@ -5875,7 +5875,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           onClick={exitZoom}
         >
           {/* Scale wrapper for zoomed page */}
-          <div style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center', willChange: 'transform' }}>
+          <div style={{ zoom: zoomScale }}>
           {/* Page zoomée — canonical fixed dimensions */}
           <motion.div
             ref={zoomedPageContainerRef}
@@ -6309,11 +6309,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
           <div
             data-scale-wrapper
             style={{
-              transform: `scale(${spreadScale})`,
-              transformOrigin: 'center center',
-              // The wrapper itself takes the canonical spread size for layout purposes
-              // but doesn't clip — the parent centers it
-              willChange: 'transform',
+              zoom: spreadScale,
             }}
           >
           {/* LIVRE — Canonical fixed dimensions */}
