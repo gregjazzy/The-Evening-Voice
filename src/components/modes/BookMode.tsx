@@ -1041,15 +1041,32 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
   }
 
   // Capturer le frame vidéo actuel comme image (data URL)
-  // Passe par un proxy serveur car pub-*.r2.dev ne renvoie pas de headers CORS
-  // (ne se déclenche qu'une fois au moment du pause, pas à chaque chargement)
+  // Capture directe depuis le <video> affiché (crossOrigin="anonymous")
+  // Fallback via proxy si le canvas est teinté (CORS)
   const captureVideoFrame = async () => {
     const video = videoRef.current
     if (!video) { console.warn('⚠️ videoPoster: no video ref'); return }
     if (!onVideoPosterChange) { console.warn('⚠️ videoPoster: no callback'); return }
-    const seekTime = video.currentTime
-    console.log('📸 Capturing video frame at', seekTime, 's...')
+    console.log('📸 Capturing video frame at', video.currentTime, 's...')
+
+    // Essayer capture directe depuis le video affiché (meilleure qualité)
     try {
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const poster = canvas.toDataURL('image/png')
+      console.log('✅ Video frame captured (direct), size:', Math.round(poster.length / 1024), 'KB')
+      onVideoPosterChange(poster)
+      return
+    } catch (directErr) {
+      console.warn('⚠️ Direct capture failed (CORS), falling back to proxy...', directErr)
+    }
+
+    // Fallback: re-télécharger via proxy pour contourner CORS
+    try {
+      const seekTime = video.currentTime
       const resp = await fetch(`/api/media/proxy?url=${encodeURIComponent(src)}`)
       const blob = await resp.blob()
       const blobUrl = URL.createObjectURL(blob)
@@ -1076,7 +1093,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
       const poster = canvas.toDataURL('image/png')
       URL.revokeObjectURL(blobUrl)
 
-      console.log('✅ Video frame captured, size:', Math.round(poster.length / 1024), 'KB')
+      console.log('✅ Video frame captured (proxy), size:', Math.round(poster.length / 1024), 'KB')
       onVideoPosterChange(poster)
     } catch (err) {
       console.error('❌ Could not capture video frame:', err)
@@ -1385,6 +1402,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
           <video
             ref={videoRef}
             src={src}
+            crossOrigin="anonymous"
             className={cn(
               "w-full h-full object-cover pointer-events-none",
               getImageStyleClasses(),
