@@ -1074,6 +1074,39 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
     return canvas
   }
 
+  // Extraction de frame côté serveur via FFmpeg (meilleure qualité que canvas)
+  const extractFrameServerSide = async (
+    videoUrl: string,
+    timestamp: number,
+    mode: 'upload' | 'dataurl'
+  ): Promise<{ publicUrl?: string; dataUrl?: string } | null> => {
+    try {
+      const { user, profile } = useAuthStore.getState()
+      const resp = await fetch('/api/video/extract-frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoUrl,
+          timestamp,
+          userId: user?.id || 'anonymous',
+          profileId: profile?.id || undefined,
+          mode,
+        }),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
+        console.warn('⚠️ FFmpeg extraction failed:', err.error)
+        return null
+      }
+      const data = await resp.json()
+      console.log('✅ Frame captured via FFmpeg (server-side)')
+      return data
+    } catch (err) {
+      console.warn('⚠️ FFmpeg extraction error:', err)
+      return null
+    }
+  }
+
   // Capturer le frame vidéo actuel comme image (data URL pour PDF)
   const captureVideoFrame = async () => {
     const video = videoRef.current
@@ -1081,18 +1114,26 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
     if (!onVideoPosterChange) { console.warn('⚠️ videoPoster: no callback'); return }
     console.log('📸 Capturing video frame at', video.currentTime, 's...')
 
-    // Essayer capture directe depuis le video affiché
+    // 1. Essayer extraction serveur FFmpeg (meilleure qualité)
+    const ffmpegResult = await extractFrameServerSide(src, video.currentTime, 'dataurl')
+    if (ffmpegResult?.dataUrl) {
+      console.log('✅ Video frame captured via FFmpeg')
+      onVideoPosterChange(ffmpegResult.dataUrl)
+      return
+    }
+
+    // 2. Fallback: capture canvas directe
     try {
       const canvas = await captureVideoToCanvas(video)
       const poster = canvas.toDataURL('image/png')
-      console.log('✅ Video frame captured (direct), size:', Math.round(poster.length / 1024), 'KB')
+      console.log('✅ Video frame captured (canvas direct), size:', Math.round(poster.length / 1024), 'KB')
       onVideoPosterChange(poster)
       return
     } catch (directErr) {
       console.warn('⚠️ Direct capture failed (CORS), falling back to proxy...', directErr)
     }
 
-    // Fallback: re-télécharger via proxy pour contourner CORS
+    // 3. Fallback: re-télécharger via proxy pour contourner CORS
     try {
       const seekTime = video.currentTime
       const resp = await fetch(`/api/media/proxy?url=${encodeURIComponent(src)}`)
@@ -1132,15 +1173,22 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
     setIsCapturing(true)
     console.log('📸 Capture frame pour conversion image à', video.currentTime, 's...')
     try {
-      // Capture directe depuis le video affiché (meilleure qualité)
+      // 1. Essayer extraction serveur FFmpeg (meilleure qualité + upload intégré)
+      const ffmpegResult = await extractFrameServerSide(src, video.currentTime, 'upload')
+      if (ffmpegResult?.publicUrl) {
+        console.log('✅ Frame capturé via FFmpeg et uploadé:', ffmpegResult.publicUrl)
+        onConvertToImage(ffmpegResult.publicUrl)
+        notify.success(t('captureFrame'), t('captureFrameSuccess'))
+        return
+      }
+
+      // 2. Fallback: capture canvas
       let canvas: HTMLCanvasElement
       try {
         canvas = await captureVideoToCanvas(video)
-        // Vérifier que le canvas n'est pas teinté (CORS)
         canvas.toDataURL()
-        console.log('✅ Capture directe réussie')
+        console.log('✅ Capture directe réussie (canvas fallback)')
       } catch {
-        // Fallback proxy si CORS bloque
         console.warn('⚠️ Capture directe échouée (CORS), fallback proxy...')
         const seekTime = video.currentTime
         const resp = await fetch(`/api/media/proxy?url=${encodeURIComponent(src)}`)
@@ -1163,12 +1211,10 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
         URL.revokeObjectURL(blobUrl)
       }
 
-      // PNG lossless pour préserver la qualité
       const imageBlob = await new Promise<Blob>((resolve) => {
         canvas.toBlob((b) => resolve(b!), 'image/png')
       })
 
-      // Upload vers Supabase Storage via API serveur
       const { user, profile } = useAuthStore.getState()
       const formData = new FormData()
       const file = new File([imageBlob], `video-frame-${Date.now()}.png`, { type: 'image/png' })
@@ -1184,7 +1230,7 @@ function DraggableMedia({ mediaId, src, mediaType, position, imageStyle, frameSt
       }
       const { publicUrl } = await uploadResp.json()
 
-      console.log('✅ Frame capturé et uploadé:', publicUrl)
+      console.log('✅ Frame capturé et uploadé (canvas fallback):', publicUrl)
       onConvertToImage(publicUrl)
       notify.success(t('captureFrame'), t('captureFrameSuccess'))
     } catch (err) {

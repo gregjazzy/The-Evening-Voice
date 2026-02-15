@@ -41,6 +41,7 @@ const nextConfig = {
       'onnxruntime-web',
       'onnxruntime-node',
       'onnxruntime-common',
+      'ffmpeg-static',
     ],
   },
   
