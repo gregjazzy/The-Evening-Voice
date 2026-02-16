@@ -49,7 +49,9 @@ function svgToPngDataUrl(svgString: string, width: number, height: number): Prom
   if (!svg.includes('xmlns=')) {
     svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"')
   }
-  if (!svg.includes('width=')) {
+  // Check the <svg> tag itself for width= (not stroke-width, fill-width, etc.)
+  const svgTag = svg.match(/<svg[^>]*>/)?.[0] || ''
+  if (!svgTag.match(/\swidth=/)) {
     svg = svg.replace('<svg', `<svg width="${width}" height="${height}"`)
   }
   return new Promise((resolve, reject) => {
