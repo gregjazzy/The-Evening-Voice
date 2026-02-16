@@ -225,20 +225,19 @@ export function Sidebar() {
                             {story.title || 'Sans titre'}
                           </span>
                         </button>
-                        {currentStory?.id === story.id ? (
+                        {currentStory?.id === story.id && (
                           <Check className="w-4 h-4 text-aurora-400 flex-shrink-0" />
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setStoryToDelete(story.id)
-                            }}
-                            className="w-6 h-6 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                          </button>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setStoryToDelete(story.id)
+                          }}
+                          className="w-6 h-6 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all flex-shrink-0"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        </button>
                       </div>
                     ))
                   )}
