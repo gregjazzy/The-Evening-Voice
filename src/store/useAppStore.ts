@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useAuthStore } from './useAuthStore'
 
 // NOTE: La sauvegarde Supabase est désormais gérée UNIQUEMENT par useSupabaseSync.ts
 // pour éviter les race conditions et conflits de contraintes.
@@ -29,28 +30,8 @@ import {
   completeStory as completeStoryFn,
 } from '@/lib/ai/prompting-pedagogy'
 
-// Fonction pour récupérer le profileId depuis le localStorage de l'auth store
-function getProfileIdFromStorage(): string | null {
-  try {
-    const authData = localStorage.getItem('lavoixdusoir-auth')
-    if (authData) {
-      const parsed = JSON.parse(authData)
-      return parsed?.state?.profile?.id || null
-    }
-  } catch (e) {
-    console.error('Erreur lecture profileId:', e)
-  }
-  return null
-}
-
 // Fonction pour supprimer une histoire via l'API serveur (bypass RLS)
-async function deleteStoryFromSupabase(storyId: string) {
-  const profileId = getProfileIdFromStorage()
-  if (!profileId) {
-    console.warn('⚠️ Pas de profileId, suppression Supabase ignorée')
-    return
-  }
-
+async function deleteStoryFromSupabase(storyId: string, profileId: string) {
   try {
     const response = await fetch('/api/story/delete', {
       method: 'POST',
@@ -510,9 +491,14 @@ export const useAppStore = create<AppState>()(
           stories: state.stories.filter(s => s.id !== storyId),
           currentStory: state.currentStory?.id === storyId ? null : state.currentStory,
         }))
-        
+
         // Supprimer aussi dans Supabase
-        deleteStoryFromSupabase(storyId)
+        const profileId = useAuthStore.getState().profile?.id
+        if (profileId) {
+          deleteStoryFromSupabase(storyId, profileId)
+        } else {
+          console.warn('⚠️ Pas de profileId, suppression Supabase ignorée')
+        }
       },
       goToNextStep: (storyId) => {
         set((state) => {
