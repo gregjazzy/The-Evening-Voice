@@ -180,6 +180,7 @@ function buildPageDOM(
     top: ${bleedPxV}px;
     width: ${width}px;
     height: ${height}px;
+    overflow: hidden;
   `
   pageDiv.appendChild(contentArea)
 
