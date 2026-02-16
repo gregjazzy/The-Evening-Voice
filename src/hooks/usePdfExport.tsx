@@ -28,6 +28,8 @@ import {
   getPageCaptureSize,
   estimateGenerationTime,
   computeBleedPx,
+  computeCaptureScale,
+  captureElementDebug,
   type ScreenCapturePdfResult,
 } from '@/lib/export/pdfScreenCapture'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
@@ -85,6 +87,17 @@ export interface PdfExportOptions {
   showLines?: boolean
   includePageNumbers?: boolean
   useUpscale?: boolean
+}
+
+// Debug snapshot for each page step
+export interface DebugPageSnapshot {
+  pageIndex: number
+  label: string
+  dataUrl: string
+}
+
+export interface PdfDebugResult {
+  snapshots: DebugPageSnapshot[]
 }
 
 // ---------------------------------------------------------------------------
@@ -619,6 +632,108 @@ export function usePdfExport() {
     }
   }, [t])
 
+  // Debug preview: capture each intermediate step as images
+  const [debugSnapshots, setDebugSnapshots] = useState<DebugPageSnapshot[]>([])
+
+  const debugPreviewPdf = useCallback(async (
+    story: Story,
+    options: PdfExportOptions = {}
+  ): Promise<void> => {
+    const {
+      format = BOOK_FORMATS.find(f => f.id === 'portrait-a5') || BOOK_FORMATS[0],
+      pageColor = 'cream',
+      showLines = true,
+    } = options
+
+    console.log('🔬 PDF DEBUG PREVIEW — format:', format.id)
+
+    setState({
+      isExporting: true,
+      progress: 0,
+      message: 'Debug: construction des pages...',
+      error: null,
+      result: null,
+    })
+    setDebugSnapshots([])
+
+    try {
+      await document.fonts.ready
+      const { width, height } = getPageCaptureSize(format)
+      const bleedPx = computeBleedPx(format)
+      const captureScale = computeCaptureScale(format)
+      // Use lower scale for debug (faster)
+      const debugScale = Math.max(2, Math.min(captureScale, 3))
+
+      const allSnapshots: DebugPageSnapshot[] = []
+      const cleanups: (() => void)[] = []
+
+      for (let i = 0; i < story.pages.length; i++) {
+        setState(s => ({
+          ...s,
+          progress: Math.round((i / story.pages.length) * 100),
+          message: `Debug page ${i + 1}/${story.pages.length}...`,
+        }))
+
+        // Step 1: Render page DOM
+        const { element, cleanup } = await renderSinglePage(
+          story.pages[i], i, story.pages.length,
+          pageColor, showLines, width, height, format.id, bleedPx,
+          { front: 'COUVERTURE', back: '4ÈME DE COUVERTURE' },
+        )
+        cleanups.push(cleanup)
+
+        // Step 2: Quick screenshot of the raw DOM (before Safari SVG→PNG conversion)
+        // We use a simple canvas capture at low scale for speed
+        try {
+          const { toPng } = await import('html-to-image')
+          const rawDom = await toPng(element, { pixelRatio: 1, cacheBust: true })
+          allSnapshots.push({
+            pageIndex: i,
+            label: `Page ${i + 1} — DOM brut (avant capture)`,
+            dataUrl: rawDom,
+          })
+        } catch {
+          console.warn(`Debug: raw DOM capture failed for page ${i}`)
+        }
+
+        // Step 3: Capture with intermediate steps (Safari 2-pass or Chrome single)
+        const debugSteps = await captureElementDebug(element, debugScale)
+        for (const step of debugSteps) {
+          allSnapshots.push({
+            pageIndex: i,
+            label: `Page ${i + 1} — ${step.label}`,
+            dataUrl: step.dataUrl,
+          })
+        }
+      }
+
+      // Cleanup DOM
+      cleanups.forEach(fn => fn())
+
+      setDebugSnapshots(allSnapshots)
+      setState({
+        isExporting: false,
+        progress: 100,
+        message: `Debug terminé: ${allSnapshots.length} snapshots`,
+        error: null,
+        result: null,
+      })
+    } catch (error) {
+      console.error('PDF debug preview error:', error)
+      setState({
+        isExporting: false,
+        progress: 0,
+        message: '',
+        error: error instanceof Error ? error.message : 'Erreur debug preview',
+        result: null,
+      })
+    }
+  }, [t])
+
+  const clearDebugSnapshots = useCallback(() => {
+    setDebugSnapshots([])
+  }, [])
+
   const download = useCallback((filename: string) => {
     if (state.result) {
       downloadPdf(state.result, filename)
@@ -637,11 +752,15 @@ export function usePdfExport() {
       error: null,
       result: null,
     })
+    setDebugSnapshots([])
   }, [])
 
   return {
     ...state,
     exportToPdf,
+    debugPreviewPdf,
+    debugSnapshots,
+    clearDebugSnapshots,
     download,
     getEstimatedTime,
     reset,

@@ -199,7 +199,7 @@ async function captureElementSafari(
  * Chrome/Firefox: html-to-image (toPng) — single pass.
  * Safari:         hybrid 2-layer composite (domToPng + html2canvas).
  */
-async function captureElementToPng(
+export async function captureElementToPng(
   element: HTMLElement,
   scale: number = 2
 ): Promise<string> {
@@ -212,6 +212,85 @@ async function captureElementToPng(
     cacheBust: true,
     includeQueryParams: true,
   })
+}
+
+/**
+ * Debug capture: return intermediate layer snapshots.
+ * Safari: text-only, objects-only, composite.
+ * Chrome: single capture.
+ */
+export async function captureElementDebug(
+  element: HTMLElement,
+  scale: number = 2
+): Promise<{ label: string; dataUrl: string }[]> {
+  const results: { label: string; dataUrl: string }[] = []
+
+  if (isSafari) {
+    const objectEls = Array.from(element.querySelectorAll<HTMLElement>('[data-layer="objects"]'))
+    const textEls = Array.from(element.querySelectorAll<HTMLElement>('[data-layer="text"]'))
+
+    // Pass 1: text only
+    const origBackground = element.style.background
+    element.style.background = 'transparent'
+    objectEls.forEach(el => el.style.visibility = 'hidden')
+    const textDataUrl = await domToPng(element, {
+      scale,
+      fetch: { requestInit: { mode: 'cors' } },
+    })
+    objectEls.forEach(el => el.style.visibility = '')
+    element.style.background = origBackground
+    results.push({ label: 'Safari Pass 1 (text only)', dataUrl: textDataUrl })
+
+    // Pass 2: objects only
+    textEls.forEach(el => el.style.visibility = 'hidden')
+    const wrapper = element.parentElement
+    if (wrapper) {
+      wrapper.style.left = '0px'
+      wrapper.style.top = '0px'
+      wrapper.style.clipPath = 'inset(0 0 0 0)'
+      wrapper.style.opacity = '0'
+    }
+    const objectsCanvas = await html2canvas(element, {
+      scale,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: null,
+      imageTimeout: 30000,
+      logging: false,
+      scrollX: 0,
+      scrollY: 0,
+    })
+    if (wrapper) {
+      wrapper.style.left = '-99999px'
+      wrapper.style.top = '-99999px'
+      wrapper.style.clipPath = ''
+      wrapper.style.opacity = ''
+    }
+    textEls.forEach(el => el.style.visibility = '')
+    results.push({ label: 'Safari Pass 2 (objects only)', dataUrl: objectsCanvas.toDataURL('image/png') })
+
+    // Composite
+    const w = element.offsetWidth * scale
+    const h = element.offsetHeight * scale
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(objectsCanvas, 0, 0, w, h)
+    const textImg = await loadImage(textDataUrl)
+    ctx.drawImage(textImg, 0, 0, w, h)
+    results.push({ label: 'Safari Composite (final)', dataUrl: canvas.toDataURL('image/png') })
+  } else {
+    // Chrome: single capture
+    const dataUrl = await toPng(element, {
+      pixelRatio: scale,
+      cacheBust: true,
+      includeQueryParams: true,
+    })
+    results.push({ label: 'Capture (html-to-image)', dataUrl })
+  }
+
+  return results
 }
 
 /**

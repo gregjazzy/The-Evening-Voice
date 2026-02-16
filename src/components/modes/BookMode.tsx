@@ -5231,6 +5231,7 @@ interface WritingAreaProps {
   onShowBackCover?: () => void
   // Export PDF
   onExportPdf?: () => void
+  onDebugPdf?: () => void
   isExportingPdf?: boolean
   exportStatus?: string
 }
@@ -5329,7 +5330,7 @@ function SafeZoneOverlay({ format, side }: { format: BookFormatConfig | undefine
   )
 }
 
-function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, onVideoPosterChange, onConvertVideoToImage, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
+function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange, onStyleChange, onChapterChange, onCreateChapter, onUpdateChapter, onImageAdd, onImagePositionChange, onImageStyleChange, onImageFrameChange, onImageOpacityChange, onImageDelete, onImageBringForward, onImageSendBackward, onImageCreateNew, onVideoPosterChange, onConvertVideoToImage, locale = 'fr', onPrevPage, onNextPage, hasPrevPage, hasNextPage, totalPages, leftPage, leftPageIndex, onLeftContentChange, storyTitle, onStoryTitleChange, onBack, onShowStructure, onShowOverview, onZoomChange, externalZoomedPage, showLines = true, onToggleLines, bookColor = 'cream', onBookColorChange, onBackgroundAdd, onBackgroundOpacityChange, onBackgroundPositionChange, onBackgroundRemove, onDecorationAdd, onDecorationPositionChange, onDecorationScaleChange, onDecorationRotationChange, onDecorationColorChange, onDecorationOpacityChange, onDecorationGlowChange, onDecorationFlip, onDecorationDelete, onTextBoxAdd, onTextBoxPositionChange, onTextBoxContentChange, onTextBoxStyleChange, onTextBoxDelete, isLocked = false, onUnlock, bookFormat = 'portrait-a5', onBookFormatChange, showSafeZones = false, onToggleSafeZones, hasFrontCover, hasBackCover, onShowFrontCover, onShowBackCover, onExportPdf, onDebugPdf, isExportingPdf = false, exportStatus = '' }: WritingAreaProps) {
   
   const t = useTranslations('writing')
 
@@ -5791,6 +5792,17 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               title={t('editor.exportPdf')}
             >
               <Download className="w-4 h-4" />
+            </button>
+          )}
+          {/* Bouton Debug PDF */}
+          {onDebugPdf && (
+            <button
+              onClick={onDebugPdf}
+              disabled={isExportingPdf}
+              className="p-1.5 rounded-lg bg-red-600/30 hover:bg-red-600/60 text-red-300 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-wait text-[9px] font-bold"
+              title="Debug PDF — voir les étapes intermédiaires"
+            >
+              DBG
             </button>
           )}
           {exportStatus && (
@@ -8055,16 +8067,15 @@ export function BookMode() {
     isExporting: isExportingPdf,
     message: exportStatus,
     exportToPdf,
+    debugPreviewPdf,
+    debugSnapshots,
+    clearDebugSnapshots,
   } = usePdfExport()
 
-  const handleExportPdf = useCallback(async () => {
-    if (!currentStory || pages.length === 0) return
-
-    const storyFormat = currentStory.bookFormat || 'portrait-a5'
-    const formatConfig = BOOK_FORMATS.find(f => f.id === storyFormat) || BOOK_FORMATS[0]
-
-    // Build a Story-shaped object from the local pages state
-    const storyForExport = {
+  // Helper to build the story object from local pages state
+  const buildStoryForExport = useCallback(() => {
+    if (!currentStory || pages.length === 0) return null
+    return {
       ...currentStory,
       pages: pages.map(p => ({
         id: p.id,
@@ -8078,6 +8089,14 @@ export function BookMode() {
         style: p.style,
       })),
     }
+  }, [currentStory, pages])
+
+  const handleExportPdf = useCallback(async () => {
+    const storyForExport = buildStoryForExport()
+    if (!storyForExport || !currentStory) return
+
+    const storyFormat = currentStory.bookFormat || 'portrait-a5'
+    const formatConfig = BOOK_FORMATS.find(f => f.id === storyFormat) || BOOK_FORMATS[0]
 
     const result = await exportToPdf(storyForExport as any, {
       format: formatConfig,
@@ -8089,7 +8108,21 @@ export function BookMode() {
       const filename = `${currentStory.title.replace(/[^a-zA-Z0-9]/g, '_')}_${formatConfig.name}_Gelato`
       downloadPdfFile(result, filename)
     }
-  }, [currentStory, pages, bookColor, showLines, exportToPdf])
+  }, [currentStory, buildStoryForExport, bookColor, showLines, exportToPdf])
+
+  const handleDebugPdf = useCallback(async () => {
+    const storyForExport = buildStoryForExport()
+    if (!storyForExport || !currentStory) return
+
+    const storyFormat = currentStory.bookFormat || 'portrait-a5'
+    const formatConfig = BOOK_FORMATS.find(f => f.id === storyFormat) || BOOK_FORMATS[0]
+
+    await debugPreviewPdf(storyForExport as any, {
+      format: formatConfig,
+      pageColor: bookColor,
+      showLines,
+    })
+  }, [currentStory, buildStoryForExport, bookColor, showLines, debugPreviewPdf])
   
   // Calcul des indices de pages pour le spread courant
   // Spread 0 : couverture seule à droite (left=undefined, right=page 0)
@@ -9363,6 +9396,7 @@ export function BookMode() {
               onUnlock={() => currentStory && reopenStory(currentStory.id)}
               // Export PDF
               onExportPdf={handleExportPdf}
+              onDebugPdf={handleDebugPdf}
               isExportingPdf={isExportingPdf}
               exportStatus={exportStatus}
             />
@@ -9419,7 +9453,44 @@ export function BookMode() {
             onClose={() => setShowDecorationPicker(false)}
             onSelect={handleAddDecoration}
           />
-          
+
+          {/* Debug PDF Preview Overlay */}
+          {debugSnapshots.length > 0 && (
+            <div className="fixed inset-0 z-[200] bg-black/95 overflow-auto">
+              <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-black/80 backdrop-blur border-b border-white/10">
+                <h2 className="text-white font-bold text-lg">
+                  Debug PDF — {debugSnapshots.length} snapshots
+                </h2>
+                <button
+                  onClick={clearDebugSnapshots}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
+              <div className="p-6 space-y-8">
+                {debugSnapshots.map((snap, idx) => (
+                  <div key={idx} className="border border-white/20 rounded-xl overflow-hidden">
+                    <div className="px-4 py-2 bg-white/5 border-b border-white/10">
+                      <span className="text-sm font-mono text-amber-400">{snap.label}</span>
+                      <span className="text-xs text-white/40 ml-3">
+                        ({Math.round(snap.dataUrl.length / 1024)} KB)
+                      </span>
+                    </div>
+                    <div className="p-4 flex justify-center bg-white/5">
+                      <img
+                        src={snap.dataUrl}
+                        alt={snap.label}
+                        className="max-h-[600px] border border-white/10 shadow-2xl"
+                        style={{ imageRendering: 'auto' }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Alerte DPI pour images basse résolution */}
           <AnimatePresence>
             {dpiWarning && (
