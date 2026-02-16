@@ -31,10 +31,10 @@ export { BOOK_FORMATS, type BookFormatConfig }
 const TARGET_DPI = 300
 
 /** Convert millimeters to pixels at a given DPI */
-export const mmToPx = (mm: number, dpi: number = TARGET_DPI) => Math.round((mm / 25.4) * dpi)
+const mmToPx = (mm: number, dpi: number = TARGET_DPI) => Math.round((mm / 25.4) * dpi)
 
 /** Convert millimeters to PDF points (72 DPI) */
-export const mmToPt = (mm: number) => (mm / 25.4) * 72
+const mmToPt = (mm: number) => (mm / 25.4) * 72
 
 // ---------------------------------------------------------------------------
 // Types
@@ -340,11 +340,7 @@ async function upscaleImage(imageDataUrl: string, scale: 2 | 4 = 2): Promise<str
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a print-ready PDF by rendering pages ONE AT A TIME.
- *
- * Each page is rendered → captured → cleaned up before the next one starts.
- * This prevents pages from overlapping in the off-screen DOM and bleeding
- * into each other's captures.
+ * Generate a print-ready PDF from pre-rendered page elements.
  *
  * Uses pdf-lib instead of jsPDF for accurate image placement.
  * The PDF dimensions include bleed (3mm each side) so it can be sent
