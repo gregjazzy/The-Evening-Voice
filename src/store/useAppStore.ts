@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { supabase } from '@/lib/supabase/client'
 
 // NOTE: La sauvegarde Supabase est désormais gérée UNIQUEMENT par useSupabaseSync.ts
 // pour éviter les race conditions et conflits de contraintes.
@@ -44,34 +43,24 @@ function getProfileIdFromStorage(): string | null {
   return null
 }
 
-// Fonction pour supprimer une histoire de Supabase
+// Fonction pour supprimer une histoire via l'API serveur (bypass RLS)
 async function deleteStoryFromSupabase(storyId: string) {
   const profileId = getProfileIdFromStorage()
   if (!profileId) {
     console.warn('⚠️ Pas de profileId, suppression Supabase ignorée')
     return
   }
-  
+
   try {
-    // Supprimer d'abord les pages de l'histoire
-    const { error: pagesError } = await (supabase as any)
-      .from('story_pages')
-      .delete()
-      .eq('story_id', storyId)
-    
-    if (pagesError) {
-      console.error('❌ Erreur suppression pages Supabase:', pagesError)
-    }
-    
-    // Puis supprimer l'histoire elle-même
-    const { error: storyError } = await (supabase as any)
-      .from('stories')
-      .delete()
-      .eq('id', storyId)
-      .eq('profile_id', profileId) // Sécurité: ne supprimer que ses propres histoires
-    
-    if (storyError) {
-      console.error('❌ Erreur suppression histoire Supabase:', storyError)
+    const response = await fetch('/api/story/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storyId, profileId }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      console.error('❌ Erreur suppression histoire:', errorData.error)
     } else {
       console.log('✅ Histoire supprimée de Supabase:', storyId)
     }
