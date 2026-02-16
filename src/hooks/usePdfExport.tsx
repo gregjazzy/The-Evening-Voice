@@ -29,9 +29,13 @@ import {
   estimateGenerationTime,
   computeBleedPx,
   computeCaptureScale,
+  captureElementToPng,
   captureElementDebug,
+  mmToPx,
+  mmToPt,
   type ScreenCapturePdfResult,
 } from '@/lib/export/pdfScreenCapture'
+import { PDFDocument } from 'pdf-lib'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 
 const isSafari =
@@ -558,52 +562,70 @@ export function usePdfExport() {
 
       const { width, height } = getPageCaptureSize(format)
       const bleedPx = computeBleedPx(format)
+      const coverLabels = { front: t('frontCover').toUpperCase(), back: t('backCover').toUpperCase() }
+      const captureScale = computeCaptureScale(format)
 
-      // Render each page sequentially
-      const pageElements: HTMLElement[] = []
-      const cleanups: (() => void)[] = []
+      // PDF dimensions
+      const pdfWidthMm = format.widthMm + 2 * format.bleedMm
+      const pdfHeightMm = format.heightMm + 2 * format.bleedMm
+      const pdfWidthPt = mmToPt(pdfWidthMm)
+      const pdfHeightPt = mmToPt(pdfHeightMm)
+      const targetWidthPx = mmToPx(pdfWidthMm)
+      const targetHeightPx = mmToPx(pdfHeightMm)
 
-      for (let i = 0; i < story.pages.length; i++) {
+      const pdfDoc = await PDFDocument.create()
+      const totalPages = story.pages.length
+
+      // Render and capture ONE page at a time to avoid overlapping DOM elements.
+      // Previously all pages were rendered simultaneously at (-99999px, -99999px),
+      // causing adjacent pages to bleed into each other's captures.
+      for (let i = 0; i < totalPages; i++) {
+        const progress = Math.round((i / totalPages) * 90)
         setState(s => ({
           ...s,
-          progress: Math.round((i / story.pages.length) * 20),
-          message: t('renderingPage', { current: i + 1, total: story.pages.length }),
+          progress: Math.round(progress * 0.8) + 20,
+          message: t('capturePage', { current: i + 1, total: totalPages }),
         }))
 
+        // 1. Render page DOM (off-screen)
         const { element, cleanup } = await renderSinglePage(
-          story.pages[i], i, story.pages.length,
-          pageColor, showLines, width, height, format.id, bleedPx,
-          { front: t('frontCover').toUpperCase(), back: t('backCover').toUpperCase() },
+          story.pages[i], i, totalPages,
+          pageColor, showLines, width, height, format.id, bleedPx, coverLabels,
         )
-        pageElements.push(element)
-        cleanups.push(cleanup)
+
+        // 2. Capture to PNG (only this page exists in the DOM)
+        const imageDataUrl = await captureElementToPng(element, captureScale)
+
+        // 3. Cleanup DOM immediately — before rendering next page
+        cleanup()
+
+        // 4. Embed in PDF
+        const base64 = imageDataUrl.split(',')[1]
+        const binary = atob(base64)
+        const imageBytes = new Uint8Array(binary.length)
+        for (let j = 0; j < binary.length; j++) {
+          imageBytes[j] = binary.charCodeAt(j)
+        }
+        const pngImage = await pdfDoc.embedPng(imageBytes)
+        const page = pdfDoc.addPage([pdfWidthPt, pdfHeightPt])
+        page.drawImage(pngImage, {
+          x: 0, y: 0,
+          width: pdfWidthPt, height: pdfHeightPt,
+        })
       }
 
-      setState(s => ({ ...s, progress: 20, message: t('capturingPages') }))
+      // Finalize PDF
+      const pdfBytes = await pdfDoc.save()
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
 
-      // Generate PDF from the page elements
-      const result = await generatePdfFromScreenCaptures(
-        story,
-        pageElements,
-        {
-          format,
-          pageColor,
-          showLines,
-          includePageNumbers,
-          useUpscale,
-          onProgress: (progress, _message) => {
-            const adjustedProgress = 20 + Math.round(progress * 0.8)
-            // Translate the capture progress message
-            const totalPages = story.pages.length
-            const currentPage = Math.round((progress / 90) * totalPages) + 1
-            const translatedMessage = t('capturePage', { current: Math.min(currentPage, totalPages), total: totalPages })
-            setState(s => ({ ...s, progress: adjustedProgress, message: translatedMessage }))
-          },
-        }
-      )
-
-      // Clean up all rendered pages
-      cleanups.forEach(fn => fn())
+      const result: ScreenCapturePdfResult = {
+        blob,
+        url,
+        pageCount: totalPages,
+        fileSize: blob.size,
+        dimensions: { widthPx: targetWidthPx, heightPx: targetHeightPx },
+      }
 
       setState({
         isExporting: false,
@@ -665,8 +687,8 @@ export function usePdfExport() {
       const debugScale = Math.max(2, Math.min(captureScale, 3))
 
       const allSnapshots: DebugPageSnapshot[] = []
-      const cleanups: (() => void)[] = []
 
+      // Render and capture ONE page at a time (same fix as main export)
       for (let i = 0; i < story.pages.length; i++) {
         setState(s => ({
           ...s,
@@ -674,16 +696,14 @@ export function usePdfExport() {
           message: `Debug page ${i + 1}/${story.pages.length}...`,
         }))
 
-        // Step 1: Render page DOM
+        // Step 1: Render page DOM (only this page exists in DOM)
         const { element, cleanup } = await renderSinglePage(
           story.pages[i], i, story.pages.length,
           pageColor, showLines, width, height, format.id, bleedPx,
           { front: 'COUVERTURE', back: '4ÈME DE COUVERTURE' },
         )
-        cleanups.push(cleanup)
 
-        // Step 2: Quick screenshot of the raw DOM (before Safari SVG→PNG conversion)
-        // We use a simple canvas capture at low scale for speed
+        // Step 2: Quick screenshot of the raw DOM
         try {
           const { toPng } = await import('html-to-image')
           const rawDom = await toPng(element, { pixelRatio: 1, cacheBust: true })
@@ -705,10 +725,10 @@ export function usePdfExport() {
             dataUrl: step.dataUrl,
           })
         }
-      }
 
-      // Cleanup DOM
-      cleanups.forEach(fn => fn())
+        // Step 4: Cleanup this page BEFORE rendering next one
+        cleanup()
+      }
 
       setDebugSnapshots(allSnapshots)
       setState({
