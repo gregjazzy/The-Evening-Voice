@@ -259,8 +259,20 @@ function buildPageDOM(
   }
 
   // ---- 4. Decorations (SVG — same as ExactPageRenderer) ----
-  console.log('🔍 [PDF] page', pageIndex, 'decorations:', page.decorations?.length || 0, page.decorations?.map((d: any) => d.decorationId))
   if (page.decorations) {
+    console.log('🎄 [PDF] page', pageIndex, 'decorations count:', page.decorations.length)
+    page.decorations.forEach((d: any, i: number) => {
+      console.log(`  🎄 [${i}] id=${d.id} decoId=${d.decorationId} pos=(${d.position?.x?.toFixed?.(1)}, ${d.position?.y?.toFixed?.(1)}) scale=${d.scale} rot=${d.rotation}`)
+    })
+    // Détecter les doublons
+    const ids = page.decorations.map((d: any) => d.id)
+    const uniqueIds = new Set(ids)
+    if (ids.length !== uniqueIds.size) {
+      console.warn('⚠️ [PDF] DOUBLONS DÉTECTÉS! ids:', ids)
+    }
+    const decoIds = page.decorations.map((d: any) => d.decorationId)
+    console.log('🎄 [PDF] decorationId frequency:', decoIds.reduce((acc: any, id: string) => { acc[id] = (acc[id] || 0) + 1; return acc }, {}))
+
     for (const deco of page.decorations) {
       const decorationItem = PREMIUM_DECORATIONS.find(d => d.id === deco.decorationId)
       if (!decorationItem) { console.log('🔍 [PDF] decoration NOT FOUND in PREMIUM_DECORATIONS:', deco.decorationId); continue }
