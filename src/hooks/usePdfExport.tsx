@@ -496,7 +496,13 @@ async function renderSinglePage(
           console.log('🔍 [PDF] Converting SVG to PNG, size:', decoSize, 'svg length:', svgStr.length)
           const pngDataUrl = await svgToPngDataUrl(svgStr, decoSize, decoSize)
           console.log('🔍 [PDF] SVG→PNG OK, png length:', pngDataUrl.length)
+          // Replace inline SVG with PNG background — Safari foreignObject
+          // renders inline SVGs incorrectly, causing phantom decorations
+          el.innerHTML = ''
           el.style.backgroundImage = `url("${pngDataUrl}")`
+          el.style.backgroundSize = 'contain'
+          el.style.backgroundRepeat = 'no-repeat'
+          el.style.backgroundPosition = 'center'
         } catch (e) {
           console.warn('🔍 [PDF] SVG to PNG conversion FAILED:', e)
         }
