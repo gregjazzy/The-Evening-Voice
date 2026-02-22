@@ -792,6 +792,8 @@ interface PhraseRubanProps {
   pixelsPerSecond: number
   maxDuration: number  // Durée max de la timeline
   isActive: boolean
+  minStartTime: number  // Borne min (fin de la phrase précédente) pour garder l'ordre
+  maxEndTime: number    // Borne max (début de la phrase suivante) pour garder l'ordre
   onTimeRangeChange: (timeRange: TimeRange) => void
   onSelect: () => void  // Sélectionner la narration pour ouvrir le panneau de volume
   onDoubleClick: () => void  // Double-clic pour ouvrir le sélecteur de voix
@@ -802,6 +804,8 @@ function PhraseRuban({
   pixelsPerSecond,
   maxDuration,
   isActive,
+  minStartTime,
+  maxEndTime,
   onTimeRangeChange,
   onSelect,
   onDoubleClick,
@@ -854,10 +858,10 @@ function PhraseRuban({
       const deltaTime = deltaX / pixelsPerSecond
 
       if (isDragging) {
-        // Déplacement du ruban entier (peut aller n'importe où sur la timeline)
+        // Déplacement du ruban entier (contraint entre la phrase précédente et la suivante)
         const segmentDuration = originalTimeRange.current.endTime - originalTimeRange.current.startTime
-        const newStartTime = Math.max(0, Math.min(
-          maxDuration - segmentDuration,
+        const newStartTime = Math.max(minStartTime, Math.min(
+          maxEndTime - segmentDuration,
           originalTimeRange.current.startTime + deltaTime
         ))
         onTimeRangeChange({
@@ -865,8 +869,8 @@ function PhraseRuban({
           endTime: newStartTime + segmentDuration,
         })
       } else if (isResizingLeft) {
-        // Resize côté gauche (minimum 0.3s de durée)
-        const newStartTime = Math.max(0, Math.min(
+        // Resize côté gauche (contraint par la phrase précédente, minimum 0.3s)
+        const newStartTime = Math.max(minStartTime, Math.min(
           phrase.timeRange.endTime - 0.3,
           originalTimeRange.current.startTime + deltaTime
         ))
@@ -875,10 +879,10 @@ function PhraseRuban({
           endTime: phrase.timeRange.endTime,
         })
       } else if (isResizingRight) {
-        // Resize côté droit (minimum 0.3s de durée)
+        // Resize côté droit (contraint par la phrase suivante, minimum 0.3s)
         const newEndTime = Math.max(
           phrase.timeRange.startTime + 0.3,
-          Math.min(maxDuration, originalTimeRange.current.endTime + deltaTime)
+          Math.min(maxEndTime, originalTimeRange.current.endTime + deltaTime)
         )
         onTimeRangeChange({
           startTime: phrase.timeRange.startTime,
@@ -900,7 +904,7 @@ function PhraseRuban({
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, isResizingLeft, isResizingRight, pixelsPerSecond, maxDuration, phrase.timeRange, onTimeRangeChange])
+  }, [isDragging, isResizingLeft, isResizingRight, pixelsPerSecond, maxDuration, minStartTime, maxEndTime, phrase.timeRange, onTimeRangeChange])
 
   // Couleur basée sur le personnage ou défaut
   const bgColor = phrase.characterColor 
@@ -999,18 +1003,28 @@ function PhrasesTrackScrollable({
       
       {/* Zone des rubans (scrollable via le container parent) - positions ABSOLUES */}
       <div className="flex-1 h-full relative" style={{ minWidth: timelineWidth }}>
-        {phrases.map((phrase, index) => (
-          <PhraseRuban
-            key={phrase.id}
-            phrase={phrase}
-            pixelsPerSecond={pixelsPerSecond}
-            maxDuration={maxDuration}
-            isActive={index === activePhraseIndex}
-            onTimeRangeChange={(timeRange) => onPhraseTimeRangeChange(phrase.id, timeRange)}
-            onSelect={() => onSelectPhrase(phrase.id)}
-            onDoubleClick={() => onDoubleClickPhrase(phrase.id)}
-          />
-        ))}
+        {phrases.map((phrase, index) => {
+          // Bornes pour garder l'ordre des phrases : ne pas dépasser la phrase précédente/suivante
+          const prevPhrase = index > 0 ? phrases[index - 1] : null
+          const nextPhrase = index < phrases.length - 1 ? phrases[index + 1] : null
+          const minStartTime = prevPhrase ? prevPhrase.timeRange.endTime : 0
+          const maxEndTime = nextPhrase ? nextPhrase.timeRange.startTime : maxDuration
+
+          return (
+            <PhraseRuban
+              key={phrase.id}
+              phrase={phrase}
+              pixelsPerSecond={pixelsPerSecond}
+              maxDuration={maxDuration}
+              isActive={index === activePhraseIndex}
+              minStartTime={minStartTime}
+              maxEndTime={maxEndTime}
+              onTimeRangeChange={(timeRange) => onPhraseTimeRangeChange(phrase.id, timeRange)}
+              onSelect={() => onSelectPhrase(phrase.id)}
+              onDoubleClick={() => onDoubleClickPhrase(phrase.id)}
+            />
+          )
+        })}
       </div>
     </div>
   )

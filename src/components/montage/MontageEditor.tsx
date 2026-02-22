@@ -248,8 +248,27 @@ function NarrationPanel() {
   const audioChunksRef = useRef<Blob[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   const scene = getCurrentScene()
+
+  // Pré-initialiser le micro au montage du composant pour éviter le délai de ~3s
+  useEffect(() => {
+    navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
+    }).then(stream => {
+      streamRef.current = stream
+      console.log('🎤 NarrationPanel: micro pré-initialisé')
+    }).catch(err => {
+      console.error('Erreur pré-init micro:', err)
+    })
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop())
+      }
+    }
+  }, [])
 
   // Cleanup
   useEffect(() => {
@@ -275,11 +294,16 @@ function NarrationPanel() {
   // Démarrer l'enregistrement
   const startRecording = async () => {
     setPermissionDenied(false)
-    
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
-      })
+      // Réutiliser le stream pré-initialisé ou en créer un nouveau
+      let stream = streamRef.current
+      if (!stream || !stream.active) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
+        })
+        streamRef.current = stream
+      }
       
       const mimeType = getSupportedAudioMimeType()
       const options: MediaRecorderOptions = mimeType ? { mimeType } : {}
@@ -294,7 +318,8 @@ function NarrationPanel() {
       mediaRecorderRef.current.onstop = async () => {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm'
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
-        stream.getTracks().forEach(track => track.stop())
+        // Ne pas stopper le stream ici - on le garde chaud pour les prochains enregistrements
+        // Le cleanup se fait au démontage du composant
         
         if (audioBlob.size === 0) return
         
@@ -1737,7 +1762,7 @@ export function MontageEditor() {
                             loadProject(existing.id)
                           } else {
                             // TOUJOURS récupérer depuis localStorage (Supabase sync bugué)
-                            let pagesWithContent: Array<{id: string, content?: string, order?: number}> = []
+                            let pagesWithContent: Array<{id: string, title?: string, content?: string, order?: number, pageType?: string}> = []
                             try {
                               const localData = JSON.parse(localStorage.getItem('lavoixdusoir-storage') || '{}')
                               const localStory = localData.state?.stories?.find((s: { id: string }) => s.id === story.id)
@@ -1745,22 +1770,27 @@ export function MontageEditor() {
                                 pagesWithContent = localStory.pages
                                 console.log('📖 Pages récupérées depuis localStorage:', pagesWithContent.length)
                               }
-                            } catch (e) { 
+                            } catch (e) {
                               console.error('Erreur localStorage:', e)
                             }
-                            
+
                             // Fallback sur story.pages si localStorage vide
                             if (pagesWithContent.length === 0) {
                               pagesWithContent = story.pages
                               console.log('📖 Fallback sur story.pages:', pagesWithContent.length)
                             }
-                            
+
                             const pages = pagesWithContent
-                              .map((p, idx) => ({
-                                id: p.id,
-                                title: t('montageEditor.sceneTitle', { index: (p.order ?? idx) + 1 }),
-                                text: p.content || '',
-                              }))
+                              .map((p, idx) => {
+                                // Pour la couverture (front-cover), utiliser le titre de l'histoire comme texte
+                                const isCover = p.pageType === 'front-cover'
+                                const text = p.content || (isCover ? story.title : '')
+                                return {
+                                  id: p.id,
+                                  title: isCover ? story.title : t('montageEditor.sceneTitle', { index: (p.order ?? idx) + 1 }),
+                                  text,
+                                }
+                              })
                               .filter(p => p.text.trim().length > 0) // Filtrer les pages vides
                             
                             // Ne pas créer si aucune page avec du contenu

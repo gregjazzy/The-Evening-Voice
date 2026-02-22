@@ -89,6 +89,21 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
     }
   }, [isOpen, currentSceneIndex])
 
+  // Pré-initialiser le micro dès la phase "ready" pour éviter le délai de ~3s au démarrage
+  useEffect(() => {
+    if (isOpen && phase === 'ready' && !streamRef.current) {
+      navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
+      }).then(stream => {
+        streamRef.current = stream
+        console.log('🎤 Micro pré-initialisé (warm-up)')
+      }).catch(err => {
+        console.error('Erreur pré-init micro:', err)
+        setError(t('guidedRecording.micAccessError'))
+      })
+    }
+  }, [isOpen, phase])
+
   // Cleanup
   useEffect(() => {
     return () => {
@@ -109,10 +124,14 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
   const startRecording = async () => {
     setError(null)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
-      })
-      streamRef.current = stream
+      // Réutiliser le stream pré-initialisé ou en créer un nouveau
+      let stream = streamRef.current
+      if (!stream || !stream.active) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
+        })
+        streamRef.current = stream
+      }
       
       const mimeType = getSupportedAudioMimeType()
       const options: MediaRecorderOptions = mimeType ? { mimeType } : {}
@@ -127,7 +146,8 @@ export function GuidedRecording({ isOpen, onClose, onComplete }: GuidedRecording
       mediaRecorderRef.current.onstop = () => {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm'
         const blob = new Blob(audioChunksRef.current, { type: mimeType })
-        stream.getTracks().forEach(track => track.stop())
+        // Ne pas stopper le stream ici - on le garde chaud pour un éventuel ré-enregistrement
+        // Le cleanup se fait au démontage du composant
         
         if (blob.size > 0) {
           const url = URL.createObjectURL(blob)

@@ -367,62 +367,20 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
         className="hidden"
       />
 
-      {/* Boutons d'import - simplifié */}
-      {showDropzone && (
+      {/* Bouton pour voir mes créations existantes */}
+      {showDropzone && projectAssets.length > 0 && (
         <div className="space-y-2">
-          {/* Bouton principal : ouvre le MODAL d'import (fichier OU images existantes) */}
           <motion.button
-            onClick={() => {
-              console.log('🖱️ Clic sur bouton import - ouverture modal')
-              setShowImportModal(true)
-            }}
-            className="w-full border-2 border-dashed border-aurora-500/40 hover:border-aurora-500 rounded-2xl p-5 text-center transition-all hover:bg-aurora-500/10 bg-aurora-500/5"
+            onClick={() => setShowImportModal(true)}
+            className="w-full border border-midnight-600 hover:border-stardust-500/50 rounded-xl p-3 text-center transition-all hover:bg-midnight-800/30 flex items-center justify-center gap-2"
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            disabled={isProcessing}
           >
-            {isProcessing ? (
-              <div className="py-2">
-                <motion.div
-                  className="w-10 h-10 mx-auto mb-2 rounded-full bg-aurora-500/20 flex items-center justify-center"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                >
-                  <Sparkles className="w-5 h-5 text-aurora-400" />
-                </motion.div>
-                <p className="text-aurora-300 text-sm">{t('assetDropzone.importing')}</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-aurora-500/30 flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-aurora-300" />
-                  </div>
-                </div>
-                <p className="text-aurora-300 font-semibold text-sm">
-                  {t('assetDropzone.importFromComputer')}
-                </p>
-                <p className="text-xs text-aurora-400/60 mt-1">
-                  {t('assetDropzone.clickToChoose')}
-                </p>
-              </>
-            )}
+            <FolderOpen className="w-4 h-4 text-stardust-400" />
+            <span className="text-stardust-300 text-sm">
+              {t('assetDropzone.viewExisting', { count: String(projectAssets.length) })}
+            </span>
           </motion.button>
-          
-          {/* Bouton secondaire : voir mes créations existantes */}
-          {projectAssets.length > 0 && (
-            <motion.button
-              onClick={() => setShowImportModal(true)}
-              className="w-full border border-midnight-600 hover:border-stardust-500/50 rounded-xl p-3 text-center transition-all hover:bg-midnight-800/30 flex items-center justify-center gap-2"
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <FolderOpen className="w-4 h-4 text-stardust-400" />
-              <span className="text-stardust-300 text-sm">
-                {t('assetDropzone.viewExisting', { count: String(projectAssets.length) })}
-              </span>
-            </motion.button>
-          )}
         </div>
       )}
 
@@ -531,42 +489,7 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                 </div>
               )}
 
-              {/* Séparateur visuel */}
-              {availableImagesForModal.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px bg-midnight-700" />
-                  <span className="text-xs text-midnight-500 uppercase">ou</span>
-                  <div className="flex-1 h-px bg-midnight-700" />
-                </div>
-              )}
-              
-              {/* Section 2 : Importer depuis l'ordinateur */}
-              <div>
-                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4 text-stardust-400" />
-                  {t('assetDropzone.importFromComputer')}
-                </h3>
-                <motion.button
-                  onClick={() => {
-                    // Fermer la modale d'abord, puis ouvrir le sélecteur après un petit délai
-                    setShowImportModal(false)
-                    setTimeout(() => {
-                      fileInputRef.current?.click()
-                    }, 100)
-                  }}
-                  className="w-full p-4 rounded-xl border-2 border-dashed border-stardust-500/30 bg-stardust-500/10 hover:bg-stardust-500/20 hover:border-stardust-500/50 transition-all flex items-center justify-center gap-3"
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Plus className="w-6 h-6 text-stardust-400" />
-                  <span className="text-stardust-300 font-medium">Parcourir mes fichiers (image ou vidéo)...</span>
-                </motion.button>
-                <p className="text-xs text-midnight-500 mt-2 text-center">
-                  Formats acceptés : images (PNG, JPG, WEBP) et vidéos (MP4, MOV, WEBM)
-                </p>
-              </div>
-
-              {/* Message si aucune image (affiche juste le bouton d'import) */}
+              {/* Message si aucune image */}
               {availableImagesForModal.length === 0 && (
                 <div className="text-center py-6 px-4 rounded-xl bg-midnight-800/30 border border-midnight-700">
                   <Image className="w-10 h-10 text-midnight-500 mx-auto mb-2" />
