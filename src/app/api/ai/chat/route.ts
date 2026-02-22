@@ -1,12 +1,11 @@
 /**
- * API Route - Chat avec l'IA-Amie (nom personnalisable)
- * Utilise le système des 5 Clés Magiques (images) + 5 Questions Magiques (écriture)
- * + Système de guidage visuel (highlights)
+ * API Route - Chat avec l'assistant technique
+ * Guidage visuel (highlights) + modération de contenu
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { generateLunaResponse, type ChatMessage, type LunaContext } from '@/lib/ai/gemini'
-import type { PromptingProgress, StoryStructure, WritingPromptingProgress } from '@/lib/ai/prompting-pedagogy'
+import type { StoryStructure } from '@/lib/ai/prompting-pedagogy'
 import { parseHighlightCommands, generateInterfaceKnowledge, type HighlightConfig } from '@/store/useHighlightStore'
 import { getApiKeyForRequest } from '@/lib/config/server-config'
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
@@ -28,7 +27,7 @@ async function isContentAppropriate(text: string, apiKey: string): Promise<boole
     })
 
     const prompt = `Tu es un modérateur de contenu pour une application destinée aux enfants de 4 à 10 ans.
-    
+
 Un enfant a écrit ce message : "${text}"
 
 Ce message est-il approprié pour un enfant ? Réponds UNIQUEMENT par "OUI" ou "NON".
@@ -39,7 +38,7 @@ Critères pour répondre "NON" :
 - Violence graphique
 - Thèmes adultes inappropriés
 
-Réponds "OUI" si c'est une question innocente sur l'écriture d'histoire.`
+Réponds "OUI" pour tout le reste : questions sur l'application, l'interface, les outils, l'écriture, les images, ou toute question innocente même si elle est mal formulée ou incompréhensible.`
 
     const result = await model.generateContent(prompt)
     const response = result.response.text().trim().toUpperCase()
@@ -52,41 +51,24 @@ Réponds "OUI" si c'est une question innocente sur l'écriture d'histoire.`
 
 // Réponses de redirection pour contenu inapproprié
 const REDIRECT_RESPONSES = {
-  fr: "Hmm, je préfère qu'on parle d'autre chose ! 😊 Qu'est-ce que tu aimerais raconter comme histoire ? Un aventurier courageux ? Une princesse magique ? Un animal rigolo ?",
-  en: "Hmm, let's talk about something else! 😊 What kind of story would you like to tell? A brave adventurer? A magical princess? A funny animal?",
-  ru: "Хм, давай поговорим о чём-то другом! 😊 Какую историю ты хочешь рассказать? О храбром приключенце? О волшебной принцессе? О забавном животном?"
+  fr: "Hmm, je préfère qu'on parle d'autre chose ! 😊",
+  en: "Hmm, let's talk about something else! 😊",
+  ru: "Хм, давай поговорим о чём-то другом! 😊"
 }
 
 interface ChatRequestBody {
   message: string
   context?: 'diary' | 'book' | 'studio' | 'montage' | 'general'
-  currentMode?: string // Mode actuel de l'interface (pour le guidage visuel)
+  currentMode?: string
   locale?: 'fr' | 'en' | 'ru'
-  aiName?: string // Nom personnalisé de l'IA
-  userName?: string // Prénom de l'enfant
+  aiName?: string
+  userName?: string
   chatHistory?: ChatMessage[]
   emotionalContext?: string[]
-  promptingProgress?: PromptingProgress
-  writingProgress?: WritingPromptingProgress
   storyStructure?: StoryStructure
   storyStep?: number
-  // Contexte spécifique au Studio
   studioContext?: {
     type: 'image' | 'video'
-    currentStep?: string
-    level?: number
-    // État du kit de création
-    kit?: {
-      subject?: string
-      subjectDetails?: string
-      style?: string | null
-      ambiance?: string | null
-      light?: string | null
-    } | null
-    // Éléments manquants détectés
-    missingElements?: string[]
-    // Étapes complétées
-    completedSteps?: string[]
   }
 }
 
@@ -99,17 +81,15 @@ interface ChatResponse {
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequestBody = await request.json()
-    const { 
-      message, 
+    const {
+      message,
       context = 'general',
       currentMode,
       locale = 'fr',
       aiName,
       userName,
-      chatHistory = [], 
+      chatHistory = [],
       emotionalContext = [],
-      promptingProgress,
-      writingProgress,
       storyStructure,
       storyStep,
       studioContext
@@ -142,29 +122,21 @@ export async function POST(request: NextRequest) {
     const interfaceMode = currentMode || context || 'general'
     const interfaceKnowledge = generateInterfaceKnowledge(interfaceMode)
 
-    // Construire le contexte de l'IA-Amie
+    // Construire le contexte de l'assistant
     const aiContext: LunaContext = {
       mode: context,
       locale,
-      aiName, // Nom personnalisé transmis au prompt
-      userName, // Prénom de l'enfant pour personnaliser les réponses
-      apiKey: apiKey || undefined, // Clé API dynamique
-      promptingProgress,
-      writingProgress,
+      aiName,
+      userName,
+      apiKey: apiKey || undefined,
       storyStructure,
       storyStep,
       emotionalContext,
-      studioType: studioContext?.type, // Type de création studio (image/video)
-      // Nouveau : contexte enrichi pour le Studio
-      studioKit: studioContext?.kit,
-      studioMissingElements: studioContext?.missingElements,
-      studioLevel: studioContext?.level,
-      studioConsecutiveStruggles: studioContext?.consecutiveStruggles, // Blocages répétés
-      // Nouveau : connaissance de l'interface pour le guidage visuel
+      studioType: studioContext?.type,
       interfaceKnowledge,
     }
 
-    // Générer la réponse de l'IA-Amie
+    // Générer la réponse de l'assistant
     const rawResponse = await generateLunaResponse(
       message,
       aiContext,

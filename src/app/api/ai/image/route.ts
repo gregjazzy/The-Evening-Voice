@@ -11,13 +11,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { 
-  generateImageFlux, 
+import {
+  generateImageFlux,
   generateImageRedux,
-  checkImageJobStatus, 
+  checkImageJobStatus,
   checkReduxJobStatus,
-  adaptChildPrompt, 
-  isFalAvailable 
+  isFalAvailable
 } from '@/lib/ai/fal'
 
 // GET - Vérifier le status d'un job
@@ -141,9 +140,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 🍌 Sinon, utiliser Nano Banana Pro (comportement par défaut)
-    const prompt = fullPrompt 
-      ? promptText 
-      : adaptChildPrompt(promptText, style, ambiance)
+    // Prompt envoyé tel quel — pas de transformation
+    const prompt = promptText
 
     console.log(`🎨 Soumission job ${model.toUpperCase()}:`, prompt.substring(0, 150) + '...')
 

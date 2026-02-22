@@ -24,20 +24,15 @@ import {
   Loader2,
   Download,
   RefreshCw,
-  Image as ImageIcon,
-  Film,
-  Video,
-  Plus,
-  Upload,
   FileText,
 } from 'lucide-react'
-import { useStudioStore, type StyleType, type AmbianceType, type LightType, type FormatType, type MovementType, type CameraType } from '@/store/useStudioStore'
+import { useStudioStore, type StyleType, type AmbianceType, type LightType, type FormatType } from '@/store/useStudioStore'
 import { useStudioProgressStore } from '@/store/useStudioProgressStore'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { useToast } from '@/components/ui/Toast'
-import { useTranslations } from '@/lib/i18n/context'
+import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 
 // Options de style avec icônes et couleurs
@@ -75,16 +70,6 @@ const formatOptions: { id: FormatType; emoji: string; color: string }[] = [
   { id: 'paysage', emoji: '🖼️', color: 'from-blue-500 to-cyan-600' },
   { id: 'carre', emoji: '⬜', color: 'from-pink-500 to-rose-600' },
 ]
-
-// Options de mouvement pour vidéos
-const movementOptions: { id: MovementType; emoji: string; color: string }[] = [
-  { id: 'lent', emoji: '🐢', color: 'from-blue-400 to-cyan-500' },
-  { id: 'rapide', emoji: '⚡', color: 'from-orange-500 to-red-500' },
-  { id: 'doux', emoji: '🌸', color: 'from-pink-400 to-rose-500' },
-  { id: 'dynamique', emoji: '🎬', color: 'from-purple-500 to-indigo-500' },
-  { id: 'immobile', emoji: '🖼️', color: 'from-slate-400 to-gray-500' },
-]
-
 
 // ============================================================================
 // DÉTECTION PAR MOTS-CLÉS (pour niveaux 3+)
@@ -232,45 +217,24 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     importedAssets,
   } = useStudioStore()
   
-  // Filtrer les images disponibles pour les vidéos (uniquement celles du projet actuel)
-  // Les URLs blob (blob:http://...) ne survivent pas au rechargement de page
-  const availableImages = importedAssets.filter(a => 
-    a.type === 'image' && 
-    (a.cloudUrl || (a.url && !a.url.startsWith('blob:'))) && // URL valide (cloudUrl ou non-blob)
-    (!a.projectId || a.projectId === currentStory?.id) // Images de l'histoire ou sans projet (anciennes)
-  )
 
-  const { 
+  const {
     currentCreationType,
-    completeStep,
-    completedSteps,
-    isStepDoneByChild,
-    getLevel,
   } = useStudioProgressStore()
-  
-  // Récupérer le niveau actuel pour savoir quoi afficher
-  const currentLevel = currentCreationType ? getLevel(currentCreationType) : 1
-  
-  // Formation progressive : les boutons restent visibles plus longtemps
-  // Niveau 4+ = l'enfant décrit style/ambiance dans son texte
-  // Niveau 5  = l'enfant décrit tout (détails + format inclus) dans son texte
-  // === IMAGES : Progression des boutons ===
-  const showStyleButtons = currentLevel < 4    // Visible niveaux 1-3
-  const showAmbianceButtons = currentLevel < 4 // Visible niveaux 1-3
-  const showLightOptions = currentLevel < 5    // Visible niveaux 1-4
-  const showDetailsSection = currentLevel < 5   // Visible niveaux 1-4
-  // Format TOUJOURS visible pour les images (important pour livre vs montage)
-  const showFormatButtons = currentCreationType === 'image'
-  
-  // === VIDÉOS : Progression des boutons ===
-  // Niveau 1-3 : Bouton mouvement visible
-  // Niveau 4+ : L'enfant décrit le mouvement dans son texte
-  const showMovementButtons = currentCreationType === 'video' && currentLevel < 4
+
+  // All UI elements always visible — no progressive revelation
+  // Vibe coding: all scaffolding hidden — free prompt → generate directly
+  const showStyleButtons = false
+  const showAmbianceButtons = false
+  const showLightOptions = false
+  const showDetailsSection = false
+  const showFormatButtons = false
+
   const { addImportedAsset } = useStudioStore()
   const { user } = useAuthStore()
   const { uploadFromUrl, isUploading: isUploadingToCloud } = useMediaUpload()
   const toast = useToast()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+
 
   const [showPreview, setShowPreview] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -771,64 +735,70 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         }
         explanations.push(formatExplanations[currentKit.format] || '')
       }
-    } else if (currentCreationType === 'video') {
-      // === EXPLICATION POUR LES VIDÉOS ===
-      if (currentKit.sourceImageUrl) {
-        explanations.push("🖼️ <strong>Image de départ :</strong> Tu as choisi une image qui va s'animer !")
-      }
-      
-      if (currentKit.action) {
-        explanations.push(`🎬 <strong>Ce qui va se passer :</strong> ${currentKit.action}`)
-      }
-      
-      if (currentKit.movement) {
-        const movementExplanations: Record<string, string> = {
-          lent: "🐢 <strong>Vitesse :</strong> Les mouvements seront lents et doux<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"slow gentle movement\" (mouvement lent et doux)</span>",
-          rapide: "⚡ <strong>Vitesse :</strong> Les mouvements seront rapides et dynamiques !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"fast dynamic movement\" (mouvement rapide et dynamique)</span>",
-          doux: "🌸 <strong>Vitesse :</strong> Les mouvements seront fluides et délicats<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"soft smooth movement\" (mouvement doux et fluide)</span>",
-          dynamique: "🎯 <strong>Vitesse :</strong> Plein d'énergie et de mouvement !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"energetic movement\" (mouvement énergique)</span>",
-          immobile: "🖼️ <strong>Vitesse :</strong> Presque immobile, juste un petit souffle de vie<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"subtle breathing motion\" (mouvement subtil comme une respiration)</span>",
-        }
-        explanations.push(movementExplanations[currentKit.movement] || '')
-      }
-      
-      if (currentKit.camera) {
-        const cameraExplanations: Record<string, string> = {
-          fixe: "📹 <strong>Caméra :</strong> La caméra ne bouge pas, elle reste fixe<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"static camera\" (caméra statique = qui ne bouge pas)</span>",
-          zoom_in: "🔍 <strong>Caméra :</strong> La caméra va zoomer (se rapprocher doucement)<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"slow zoom in\" (zoom lent vers l'avant)</span>",
-          zoom_out: "🔭 <strong>Caméra :</strong> La caméra va dézoomer (s'éloigner doucement)<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"slow zoom out\" (zoom lent vers l'arrière)</span>",
-          pan_gauche: "👈 <strong>Caméra :</strong> La caméra va glisser vers la gauche<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"pan left\" (panoramique vers la gauche)</span>",
-          pan_droite: "👉 <strong>Caméra :</strong> La caméra va glisser vers la droite<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"pan right\" (panoramique vers la droite)</span>",
-          travelling: "🎥 <strong>Caméra :</strong> La caméra va suivre l'action comme dans les films !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"tracking shot\" (plan de suivi = la caméra suit le personnage ou l'objet)</span>",
-        }
-        explanations.push(cameraExplanations[currentKit.camera] || '')
-      }
-      
-      if (currentKit.effects) {
-        const effectsExplanations: Record<string, string> = {
-          sparkles: "✨ <strong>Effet spécial :</strong> Des étincelles magiques vont apparaître !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"magical sparkles and particles\" (étincelles magiques et particules)</span>",
-          glow: "🌈 <strong>Effet spécial :</strong> Un halo lumineux va entourer l'image !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"soft glowing halo effect\" (effet de halo brillant doux)</span>",
-          smoke: "💨 <strong>Effet spécial :</strong> De la fumée mystérieuse va flotter !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"gentle smoke and mist\" (fumée douce et brume)</span>",
-          stars: "⭐ <strong>Effet spécial :</strong> Des étoiles vont briller et scintiller !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"twinkling stars\" (étoiles scintillantes)</span>",
-          fire: "🔥 <strong>Effet spécial :</strong> Des flammes et des braises chaudes !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"warm flames and embers\" (flammes chaudes et braises)</span>",
-          snow: "❄️ <strong>Effet spécial :</strong> Des flocons de neige vont tomber doucement !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"falling snowflakes\" (flocons de neige qui tombent)</span>",
-          magic: "🪄 <strong>Effet spécial :</strong> De la poussière de fée magique !<br/><span class='text-aurora-400 text-xs'>→ En anglais : \"magical fairy dust particles\" (particules de poussière de fée magique)</span>",
-        }
-        explanations.push(effectsExplanations[currentKit.effects] || '')
-      }
     }
     
     return explanations.filter(e => e).join('\n')
   }
   
   // 🎨 Génération directe via fal.ai (niveaux 1-2)
+  const locale = useLocale()
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedAsset, setGeneratedAsset] = useState<{ url: string; type: 'image' | 'video' } | null>(null)
+  const [generatedAsset, setGeneratedAsset] = useState<{ url: string; type: 'image' } | null>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
+
+  // Satisfaction flow state
+  const [satisfactionAnswer, setSatisfactionAnswer] = useState<'yes' | 'no' | null>(null)
+  const [disappointmentText, setDisappointmentText] = useState('')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null)
+
+  // Reset satisfaction when generating new image
+  useEffect(() => {
+    if (isGenerating) {
+      setSatisfactionAnswer(null)
+      setDisappointmentText('')
+      setAnalysisResult(null)
+    }
+  }, [isGenerating])
+
+  // "Help me understand" — AI analyzes gap between prompt and desired result
+  const handleAnalyzePrompt = async () => {
+    if (!disappointmentText || !currentKit?.subject) return
+    setIsAnalyzing(true)
+    setAnalysisResult(null)
+    try {
+      const childPrompt = currentKit.subject
+
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: locale === 'fr'
+            ? `L'enfant a écrit ce prompt pour générer une image : "${childPrompt}"\nCe qui la déçoit dans le résultat : "${disappointmentText}"\n\nExplique-lui simplement pourquoi son prompt a pu donner un résultat différent de ce qu'elle imaginait. Dis-lui ce qu'elle pourrait changer dans sa description pour se rapprocher de ce qu'elle veut. Ne propose PAS d'idées créatives — explique seulement le lien entre les mots du prompt et le résultat visuel.`
+            : locale === 'en'
+            ? `The child wrote this prompt to generate an image: "${childPrompt}"\nWhat disappoints her about the result: "${disappointmentText}"\n\nExplain simply why her prompt may have produced a different result from what she imagined. Tell her what she could change in her description to get closer to what she wants. Do NOT suggest creative ideas — only explain the link between the prompt words and the visual result.`
+            : `Ребёнок написал этот промпт для генерации изображения: "${childPrompt}"\nЧто её разочаровало в результате: "${disappointmentText}"\n\nОбъясни просто, почему её промпт мог дать результат, отличный от того, что она представляла. Скажи, что она может изменить в описании, чтобы приблизиться к желаемому. НЕ предлагай творческих идей — только объясни связь между словами промпта и визуальным результатом.`,
+          context: 'studio',
+          locale,
+          aiName: useAppStore.getState().aiName,
+          userName: useAppStore.getState().userName,
+          studioContext: { type: currentCreationType || 'image' },
+        }),
+      })
+      if (!response.ok) throw new Error('API error')
+      const data = await response.json()
+      setAnalysisResult(data.text || data.response || 'No response')
+    } catch (error) {
+      console.error('Erreur analyse:', error)
+      setAnalysisResult(locale === 'fr' ? "Désolé, je n'ai pas pu analyser. Réessaie !" : locale === 'en' ? "Sorry, I couldn't analyze. Try again!" : "Извини, не смог проанализировать. Попробуй ещё раз!")
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
   const [isSavingToCloud, setIsSavingToCloud] = useState(false) // Pour l'upload permanent (Supabase/R2)
   
-  // Niveaux 1-2 utilisent fal.ai directement, 3+ copient vers fal.ai playground
-  const useDirectGeneration = currentLevel <= 2
+  // All users go through fal.ai playground (no level gating)
+  const useDirectGeneration = false
   
   // Réinitialiser la validation quand le prompt change
   useEffect(() => {
@@ -847,32 +817,19 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     setGeneratedAsset(null)
     
     try {
-      const isVideo = currentCreationType === 'video'
-      const endpoint = isVideo ? '/api/ai/video' : '/api/ai/image'
-      
-      // Préparer le format selon le type
+      const endpoint = '/api/ai/image'
+
       const formatMap: Record<string, string> = {
         portrait: '3:4',
         paysage: '16:9',
         carre: '1:1',
       }
-      
-      // Préparer les données selon le type
-      const requestBody = isVideo 
-        ? {
-            // Pour les vidéos : image-to-video avec action et mouvement
-            imageUrl: currentKit.sourceImageUrl,
-            prompt: `${currentKit.action}. ${currentKit.movement ? `Movement style: ${currentKit.movement}` : ''}`,
-            duration: '5',
-          }
-        : {
-            // Pour les images
-            description: currentKit.subject,
-            style: currentKit.style || 'magique',
-            ambiance: currentKit.ambiance || 'jour',
-            aspectRatio: formatMap[currentKit.format || 'portrait'] || '3:4',
-            prompt: currentKit.generatedPrompt,
-          }
+
+      const requestBody = {
+        description: currentKit.subject,
+        aspectRatio: formatMap[currentKit.format || 'portrait'] || '3:4',
+        prompt: currentKit.subject, // Prompt brut de l'enfant, tel quel
+      }
       
       console.log('🚀 Envoi requête génération:', {
         endpoint,
@@ -909,77 +866,58 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
 
       // 🔄 POLLING : Si on reçoit un jobId, on doit poll jusqu'à completion
       if (data.status === 'pending' && data.jobId) {
-        console.log('⏳ Job en attente, démarrage du polling...', data.jobId, isVideo ? '(vidéo)' : '(image)')
-        
-        // Vidéos prennent plus de temps : 3 minutes max vs 2 minutes pour images
-        const maxPolls = isVideo ? 90 : 60 // 90 x 2s = 3 min pour vidéos
-        const pollInterval = 2000 // 2 secondes
-        
+        console.log('⏳ Job en attente, démarrage du polling...', data.jobId)
+
+        const maxPolls = 60 // 60 x 2s = 2 min
+        const pollInterval = 2000
+
         for (let i = 0; i < maxPolls; i++) {
           await new Promise(resolve => setTimeout(resolve, pollInterval))
-          
-          // URL différente selon le type (image ou vidéo)
-          const statusUrl = isVideo 
-            ? `/api/ai/video?jobId=${encodeURIComponent(data.jobId)}&hasImage=${data.hasImage || 'false'}`
-            : `/api/ai/image?jobId=${encodeURIComponent(data.jobId)}&model=${encodeURIComponent(data.model || 'nano-banana')}`
-          
+
+          const statusUrl = `/api/ai/image?jobId=${encodeURIComponent(data.jobId)}&model=${encodeURIComponent(data.model || 'nano-banana')}`
+
           console.log(`🔍 Poll ${i + 1}/${maxPolls}...`)
-          
+
           const statusResponse = await fetch(statusUrl)
           const statusData = await statusResponse.json()
-          
+
           console.log('📊 Status:', statusData.status)
-          
-          // Pour les vidéos, on cherche videoUrl, pour les images imageUrl
-          const assetReady = isVideo 
-            ? (statusData.status === 'completed' && statusData.videoUrl)
-            : (statusData.status === 'completed' && statusData.imageUrl)
-          
-          if (assetReady) {
+
+          if (statusData.status === 'completed' && statusData.imageUrl) {
             data = statusData
             break
           }
-          
+
           if (statusData.status === 'failed') {
             throw new Error(statusData.error || 'La génération a échoué')
           }
-          
-          // Continuer à poll si pending ou processing
         }
-        
+
         if (data.status !== 'completed') {
           throw new Error('Timeout - la génération prend trop de temps')
         }
       }
 
-      const assetUrl = isVideo ? data.videoUrl : data.imageUrl
-      
+      const assetUrl = data.imageUrl
+
       if (!assetUrl) {
         throw new Error('Pas d\'URL reçue')
       }
-      
-      console.log('✅ Asset généré:', assetUrl)
-      setGeneratedAsset({ url: assetUrl, type: isVideo ? 'video' : 'image' })
 
-      // Sauvegarder localement (URL temporaire) — l'upload Supabase se fait manuellement
-      const assetName = isVideo
-        ? (currentKit.action?.substring(0, 30) || 'Vidéo') + '...'
-        : (currentKit.subject?.substring(0, 30) || 'Image') + '...'
+      console.log('✅ Image générée:', assetUrl)
+      setGeneratedAsset({ url: assetUrl, type: 'image' })
+
+      const assetName = (currentKit.subject?.substring(0, 30) || 'Image') + '...'
 
       addImportedAsset({
         name: assetName,
         url: assetUrl,
-        type: isVideo ? 'video' : 'image',
+        type: 'image',
         file: null,
-        source: isVideo ? 'runway' : 'midjourney',
-        promptUsed: currentKit.generatedPrompt,
+        source: 'midjourney',
+        promptUsed: currentKit.subject,
         projectId: currentStory?.id,
       })
-      
-      // Marquer les étapes comme complétées
-      completeStep('review_prompt')
-      completeStep('generate')
-      completeStep('import')
       
       } catch (error) {
       console.error('Erreur génération fal.ai:', error)
@@ -991,12 +929,11 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     
   // 🛡️ La modération est gérée par l'IA-Amie dans le chat (pas d'API séparée)
   
-  // Au niveau 4+, l'enfant doit écrire les éléments dans son texte
-  const isAdvancedLevel = currentLevel >= 4
+  // No level gating — all features always available
+  const isAdvancedLevel = true
   const baseCompleteness = checkKitCompleteness()
-  
-  // Calculer la détection de mots-clés pour les niveaux avancés
-  const isExpertLevel = currentLevel >= 5 // Niveau expert : tout doit être dans le texte
+
+  const isExpertLevel = true
   
   const advancedDetection = useMemo(() => {
     if (!isAdvancedLevel || !currentKit?.subject) {
@@ -1016,51 +953,21 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   // Niveau 5 : style + ambiance + détails requis
   const isImageCreation = currentCreationType === 'image'
   
-  // Format toujours requis pour les images (livre vs montage)
-  // Au niveau 5, peut aussi être détecté dans le texte
-  const formatOk = !isImageCreation || // Vidéos: pas besoin de format
-    currentKit?.format || // Format sélectionné via bouton (tous niveaux)
-    (isExpertLevel && advancedDetection.hasFormat) // Niveau 5: aussi accepté dans le texte
-    
-  // Vérifier si le prompt est complet
-  const complete = isAdvancedLevel 
-    ? advancedDetection.hasEnoughText && 
-      advancedDetection.hasStyle && 
-      advancedDetection.hasAmbiance &&
-      (isExpertLevel ? advancedDetection.hasDetails : true) &&
-      formatOk
-    : baseCompleteness.complete && formatOk // Format requis même pour débutants (images)
-    
-  // Construire la liste des éléments manquants
-  const missing = useMemo(() => {
-    if (!isAdvancedLevel) return baseCompleteness.missing
-    
-    const missingItems: string[] = []
-    if (!advancedDetection.hasEnoughText) missingItems.push(t('promptBuilderUI.missingDescription'))
-    if (!advancedDetection.hasStyle) missingItems.push(t('promptBuilderUI.missingStyle'))
-    if (!advancedDetection.hasAmbiance) missingItems.push(t('promptBuilderUI.missingMood'))
-    if (isExpertLevel && !advancedDetection.hasDetails) missingItems.push(t('promptBuilderUI.missingDetails'))
-    // Format requis pour toutes les images (tous niveaux)
-    if (isImageCreation && !currentKit?.format && !(isExpertLevel && advancedDetection.hasFormat)) {
-      missingItems.push(t('promptBuilderUI.missingFormat'))
-    }
-    return missingItems
-  }, [isAdvancedLevel, isExpertLevel, baseCompleteness.missing, advancedDetection, isImageCreation, currentKit?.format])
+  // Vibe coding: prompt is complete when child has written something
+  const complete = (currentKit?.subject?.length || 0) >= 3
+
+  // No missing elements indicator — child writes freely
+  const missing: string[] = []
   
-  // Valider l'étape "Voir mon prompt" quand le prompt est affiché automatiquement (kit complet)
-  useEffect(() => {
-    if (complete && currentKit?.generatedPrompt && !completedSteps.includes('review_prompt')) {
-      completeStep('review_prompt')
-    }
-  }, [complete, currentKit?.generatedPrompt, completedSteps, completeStep])
+  // Removed: auto-completion of review_prompt step
   
   // Refs pour tracker les changements
   const prevSubjectRef = useRef('')
   const prevStyleRef = useRef<StyleType | null>(null)
   const prevAmbianceRef = useRef<AmbianceType | null>(null)
   
-  // Délai avant d'afficher les sections suivantes (pour ne pas être trop brusque)
-  const [showNextSections, setShowNextSections] = useState(false)
+  // All sections always visible — no gating by AI validation
+  const [showNextSections] = useState(true)
   
   // État pour les champs validés (déplacé ici pour être disponible dans les useEffect)
   const [validatedFields, setValidatedFields] = useState<{
@@ -1099,159 +1006,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     detectedRhythm: [],
   })
   
-  // Afficher les sections suivantes APRÈS validation par l'IA (étape 'describe' complétée)
-  useEffect(() => {
-    const isDescribeCompleted = completedSteps.includes('describe')
-    
-    if (isDescribeCompleted && !showNextSections) {
-      const timer = setTimeout(() => {
-        setShowNextSections(true)
-      }, 300)
-      return () => clearTimeout(timer)
-    }
-    
-    if (!isDescribeCompleted && showNextSections) {
-      setShowNextSections(false)
-    }
-  }, [completedSteps, showNextSections])
+  // Sections always visible — removed step gating
 
-  // Fonction pour invalider une étape et envoyer des réactions à l'IA
-  const { uncompleteStep, sendAIReaction } = useStudioProgressStore()
+  // Removed: AI validation of text fields — vibe coding, child writes freely
   
-  // ============================================================================
-  // VALIDATION DES CHAMPS TEXTE - Envoie au chat pour que l'IA contrôle
-  // ============================================================================
-  
-  // Fonction de validation d'un champ texte - envoie au chat (NE VALIDE PAS tout de suite)
-  const validateTextField = (fieldName: 'subject' | 'details' | 'notes' | 'action', text: string) => {
-    // Envoyer le texte au chat pour que l'IA le vérifie
-    const fieldLabels: Record<string, string> = {
-      subject: 'mon idée',
-      details: 'les détails',
-      notes: 'mes notes',
-      action: 'ce qui se passe',
-    }
-    
-    sendAIReaction({
-      type: 'user_input',
-      fieldName,
-      userMessage: text, // Le texte de l'enfant pour l'afficher dans le chat
-      message: `L'enfant a écrit pour "${fieldLabels[fieldName]}": "${text}"` // Contexte pour l'IA
-    })
-    
-    // NE PAS valider ici - attendre la réponse de l'IA dans le chat
-    // La validation sera faite par StudioAIChat si l'IA approuve
-  }
-  
-  // Invalider les champs si le texte change après validation
-  useEffect(() => {
-    // Éviter les updates inutiles : ne faire quelque chose que si le sujet a vraiment changé
-    const currentSubject = currentKit?.subject || ''
-    if (currentSubject === prevSubjectRef.current) return
-    
-    // Le sujet a changé
-    if (validatedFields.subject) {
-      setValidatedFields(prev => ({ ...prev, subject: false }))
-      if (completedSteps.includes('describe')) {
-        uncompleteStep('describe')
-      }
-    }
-    prevSubjectRef.current = currentSubject
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentKit?.subject])
+  // Removed: field invalidation on text change — no step tracking
 
-  useEffect(() => {
-    if (!currentKit) return
-    
-    // Étape 2 : Style choisi
-    if (currentKit.style && !prevStyleRef.current) {
-      if (!completedSteps.includes('choose_style')) {
-        completeStep('choose_style')
-      }
-    }
-    prevStyleRef.current = currentKit.style
-  }, [currentKit?.style, completeStep, completedSteps])
-
-  useEffect(() => {
-    if (!currentKit) return
-    
-    // Étape 3 : Ambiance choisie
-    if (currentKit.ambiance && !prevAmbianceRef.current) {
-      if (!completedSteps.includes('choose_mood')) {
-        completeStep('choose_mood')
-      }
-    }
-    prevAmbianceRef.current = currentKit.ambiance
-  }, [currentKit?.ambiance, completeStep, completedSteps])
-
-  // Étape 4 : Lumière choisie
-  const prevLightRef = useRef(currentKit?.light)
-  useEffect(() => {
-    if (!currentKit) return
-    
-    if (currentKit.light && !prevLightRef.current) {
-      if (!completedSteps.includes('choose_light')) {
-        completeStep('choose_light')
-      }
-    }
-    prevLightRef.current = currentKit.light
-  }, [currentKit?.light, completeStep, completedSteps])
-
-  // Étape 5 : Format choisi (images uniquement)
-  const prevFormatRef = useRef(currentKit?.format)
-  useEffect(() => {
-    if (!currentKit || currentCreationType !== 'image') return
-    
-    if (currentKit.format && !prevFormatRef.current) {
-      if (!completedSteps.includes('choose_format')) {
-        completeStep('choose_format')
-      }
-    }
-    prevFormatRef.current = currentKit.format
-  }, [currentKit?.format, currentCreationType, completeStep, completedSteps])
-
-  // Étape 5b : Mouvement choisi (vidéos uniquement)
-  const prevMovementRef = useRef(currentKit?.movement)
-  useEffect(() => {
-    if (!currentKit || currentCreationType !== 'video') return
-    
-    if (currentKit.movement && !prevMovementRef.current) {
-      if (!completedSteps.includes('choose_movement')) {
-        completeStep('choose_movement')
-      }
-    }
-    prevMovementRef.current = currentKit.movement
-  }, [currentKit?.movement, currentCreationType, completeStep, completedSteps])
-
-  // Étape : Caméra choisie (vidéos uniquement)
-  const prevCameraRef = useRef(currentKit?.camera)
-  useEffect(() => {
-    if (!currentKit || currentCreationType !== 'video') return
-    
-    if (currentKit.camera && !prevCameraRef.current) {
-      if (!completedSteps.includes('choose_camera')) {
-        completeStep('choose_camera')
-      }
-    }
-    prevCameraRef.current = currentKit.camera
-  }, [currentKit?.camera, currentCreationType, completeStep, completedSteps])
-
-  // Étape : Effets choisis (vidéos uniquement) - utilise 'choose_extra' selon le store
-  const prevEffectsRef = useRef(currentKit?.effects)
-  useEffect(() => {
-    if (!currentKit || currentCreationType !== 'video') return
-    
-    // Valider si un effet est choisi (même "aucun" = chaîne vide déjà définie)
-    if (currentKit.effects !== undefined && currentKit.effects !== prevEffectsRef.current) {
-      if (!completedSteps.includes('choose_extra')) {
-        completeStep('choose_extra')
-      }
-    }
-    prevEffectsRef.current = currentKit.effects
-  }, [currentKit?.effects, currentCreationType, completeStep, completedSteps])
-
-  // Étape 6 : Détails ajoutés - Maintenant géré via les boutons "Valider" manuels
-  // La fonction validateTextField() dans chaque champ appelle completeStep('choose_extra')
+  // Removed: all step completion tracking effects — no pedagogy
 
   // Copier le prompt
   const handleCopyPrompt = async () => {
@@ -1260,399 +1021,217 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     try {
       await navigator.clipboard.writeText(currentKit.generatedPrompt)
       setCopied(true)
-      
-      // Marquer les étapes comme complétées
-      if (!completedSteps.includes('review_prompt')) {
-        completeStep('review_prompt')
-      }
-      
+
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
       console.error('Erreur copie:', err)
     }
   }
 
-  // Ouvrir fal.ai (Flux Pro pour images, Kling pour vidéos)
   const handleOpenTool = () => {
-    const url = currentCreationType === 'video' 
-      ? 'https://fal.ai/models/fal-ai/kling-video/v2.5-turbo/pro/text-to-video/playground' 
-      : 'https://fal.ai/models/fal-ai/flux-pro/v1.1/playground'
-    
-    window.open(url, '_blank')
-    
-    if (!completedSteps.includes('open_safari')) {
-      completeStep('open_safari')
-    }
-    
-    // Si le prompt a été copié, on considère que "Coller le prompt" sera fait
-    if (completedSteps.includes('review_prompt') && !completedSteps.includes('paste_prompt')) {
-      // Délai de 3 secondes (le temps que l'utilisateur colle)
-      setTimeout(() => {
-        completeStep('paste_prompt')
-      }, 3000)
-    }
+    window.open('https://fal.ai/models/fal-ai/flux-pro/v1.1/playground', '_blank')
   }
 
-  // Détection automatique par mots-clés pour niveaux 3+
+  // Keyword detection (kept for UI feedback, no step completion)
   useEffect(() => {
-    if (!currentKit || !isAdvancedLevel) return
-    
-    const creationType = currentCreationType || 'image'
+    if (!currentKit) return
+
+    const creationType = 'image' as const
     const detected = detectElementsInText(
       currentKit.subject + ' ' + (currentKit.subjectDetails || ''),
       creationType
     )
     setDetectedElements(detected)
-    
-    // Auto-compléter les étapes si détecté (niveau 3+ seulement)
-    // NOTE: On ne coche PAS automatiquement "choose_extra" ici basé sur les mots-clés
-    // du sujet principal. Cette étape ne doit être cochée que si l'utilisateur
-    // remplit explicitement le champ subjectDetails, light, ou additionalNotes.
-    if (detected.hasStyle && !completedSteps.includes('choose_style')) {
-      completeStep('choose_style')
-    }
-    if (detected.hasAmbiance && !completedSteps.includes('choose_mood')) {
-      completeStep('choose_mood')
-    }
-  }, [currentKit?.subject, currentKit?.subjectDetails, isAdvancedLevel, currentCreationType, completeStep, completedSteps])
+  }, [currentKit?.subject, currentKit?.subjectDetails, currentCreationType])
 
   if (!currentKit) return null
 
   return (
     <div className="space-y-6">
-      {/* ========== SECTION VIDÉO : Sélection d'image de base (PREMIÈRE ÉTAPE) ========== */}
-      <AnimatePresence>
-        {currentCreationType === 'video' && (
-          <motion.section
-            className={cn(
-              "glass rounded-2xl p-6 transition-all",
-              !currentKit.sourceImageUrl && "ring-2 ring-stardust-500/50 animate-pulse-subtle"
-            )}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <motion.div
-                animate={!currentKit.sourceImageUrl ? { scale: [1, 1.2, 1] } : {}}
-                transition={{ repeat: Infinity, duration: 2 }}
-              >
-                <ImageIcon className={cn(
-                  "w-5 h-5",
-                  !currentKit.sourceImageUrl ? "text-stardust-400" : "text-dream-400"
-                )} />
-              </motion.div>
-              <h3 className={cn(
-                "font-semibold",
-                !currentKit.sourceImageUrl ? "text-stardust-300" : "text-white"
-              )}>
-                {!currentKit.sourceImageUrl ? `🖼️ ${t('promptBuilderUI.chooseImageToAnimate')}` : `🖼️ ${t('promptBuilderUI.imageSelected')}`}
-              </h3>
-              {currentKit.sourceImageUrl && (
-                <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
-              )}
-            </div>
-            
-            {/* Input file caché pour import */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                const url = URL.createObjectURL(file)
-                addImportedAsset({
-                  id: `import-${Date.now()}`,
-                  name: file.name,
-                  url,
-                  type: 'image',
-                  source: 'upload',
-                  createdAt: new Date().toISOString(),
-                })
-                // Sélectionner automatiquement l'image importée
-                updateKit({ sourceImageUrl: url, sourceImageId: `import-${Date.now()}` })
-                e.target.value = ''
-              }}
-            />
-
-            {/* Grille d'images disponibles + bouton import */}
-            <div className="grid grid-cols-6 gap-2 max-h-[140px] overflow-y-auto pr-1">
-              {availableImages.map((asset) => (
-                <motion.button
-                  key={asset.id}
-                  onClick={() => updateKit({
-                    sourceImageUrl: asset.cloudUrl || asset.url,
-                    sourceImageId: asset.id
-                  })}
-                  className={cn(
-                    "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                    currentKit.sourceImageId === asset.id
-                      ? "border-dream-500 ring-2 ring-dream-500/50"
-                      : "border-midnight-700 hover:border-stardust-500/50"
-                  )}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <img
-                    src={asset.cloudUrl || asset.url}
-                    alt={asset.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {currentKit.sourceImageId === asset.id && (
-                    <div className="absolute inset-0 bg-dream-500/20 flex items-center justify-center">
-                      <CheckCircle className="w-8 h-8 text-dream-400" />
-                    </div>
-                  )}
-                </motion.button>
-              ))}
-              {/* Bouton + importer */}
-              <motion.button
-                onClick={() => fileInputRef.current?.click()}
-                className="aspect-square rounded-lg border-2 border-dashed border-stardust-500/30 hover:border-dream-500/50 flex flex-col items-center justify-center gap-1 transition-all"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Plus className="w-5 h-5 text-stardust-400" />
-                <span className="text-[10px] text-stardust-400">Import</span>
-              </motion.button>
-            </div>
-            {availableImages.length === 0 && (
-              <p className="text-xs text-midnight-400 mt-2 text-center">
-                {t('promptBuilderUI.createImagesFirst')}
-              </p>
-            )}
-            
-            {/* Image sélectionnée en preview */}
-            {currentKit.sourceImageUrl && (
-              <motion.div
-                className="mt-4 p-3 rounded-xl bg-dream-500/10 border border-dream-500/20"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <p className="text-sm text-dream-300 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  {t('promptBuilderUI.imageWillBecomeVideo')}
-                </p>
-              </motion.div>
-            )}
-          </motion.section>
-        )}
-      </AnimatePresence>
-
-      {/* Section Sujet - IMAGES UNIQUEMENT - avec animation pulsante si vide */}
-      {currentCreationType === 'image' && (
+      {/* Section Sujet + Générer */}
+      {(
       <motion.section
-        className={cn(
-          "glass rounded-2xl p-6 transition-all",
-          !currentKit.subject && "ring-2 ring-aurora-500/50 animate-pulse-subtle"
-        )}
+        className="glass rounded-2xl p-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center gap-2 mb-4">
-          <motion.div
-            animate={!currentKit.subject ? { scale: [1, 1.2, 1] } : {}}
-            transition={{ repeat: Infinity, duration: 2 }}
-          >
-            <Lightbulb className={cn(
-              "w-5 h-5",
-              !currentKit.subject ? "text-aurora-400" : "text-stardust-400"
-            )} />
-          </motion.div>
-          <h3 className={cn(
-            "font-semibold",
-            !currentKit.subject ? "text-aurora-300" : "text-white"
-          )}>
-            {!currentKit.subject ? t('promptBuilderUI.whatDoYouWantToCreateHighlight') : t('promptBuilderUI.whatDoYouWantToCreate')}
+          <Wand2 className="w-5 h-5 text-aurora-400" />
+          <h3 className="font-semibold text-white">
+            {t('promptBuilderUI.whatDoYouWantToCreate')}
           </h3>
-            {validatedFields.subject && (
-            <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
-          )}
         </div>
-        
-          <div className="flex gap-2">
+
         <textarea
           value={currentKit.subject}
-              onChange={(e) => {
-                updateKit({ subject: e.target.value })
-                // Invalider si modifié après validation
-                if (validatedFields.subject) {
-                  setValidatedFields(prev => ({ ...prev, subject: false }))
-                }
-              }}
+          onChange={(e) => updateKit({ subject: e.target.value })}
           placeholder={t('promptBuilderUI.describePlaceholder')}
-          className={cn(
-                "flex-1 h-24 resize-none rounded-xl p-4 text-white placeholder:text-midnight-400 focus:ring-2 focus:outline-none transition-all",
-                validatedFields.subject
-                  ? "bg-dream-500/10 border-2 border-dream-500/30 focus:ring-dream-500/50"
-                  : !currentKit.subject 
-                    ? "bg-aurora-500/10 border-2 border-aurora-500/30 placeholder:text-aurora-300/60 focus:ring-aurora-500/50" 
-                    : "bg-midnight-900/50 focus:ring-aurora-500/50"
-          )}
+          className="w-full h-28 resize-none rounded-xl p-4 text-white placeholder:text-midnight-400 bg-midnight-900/50 focus:ring-2 focus:ring-aurora-500/50 focus:outline-none transition-all"
           data-mentor-target="studio-subject"
         />
-          </div>
-          
-          {/* Indicateur de progression si trop court */}
-          {currentKit.subject && currentKit.subject.length > 0 && currentKit.subject.length < 15 && !validatedFields.subject && (
-            <motion.div
-              className="mt-3 p-3 rounded-xl bg-stardust-500/10 border border-stardust-500/20 text-stardust-300 text-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span>📝 {t('promptBuilderUI.continueDescription')}</span>
-                <span className="text-xs">{currentKit.subject.length}/15 {t('promptBuilderUI.characters')}</span>
-              </div>
-              <div className="h-1 bg-midnight-800 rounded-full overflow-hidden">
-                <motion.div 
-                  className="h-full bg-stardust-500"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (currentKit.subject.length / 15) * 100)}%` }}
-                />
-              </div>
-            </motion.div>
-          )}
-          
-          {/* Bouton Valider - seulement si assez long */}
-          {currentKit.subject.length >= 15 && !validatedFields.subject && (
-            <motion.button
-              onClick={() => validateTextField('subject', currentKit.subject)}
-              className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-aurora-500/20 text-aurora-300 border border-aurora-500/30 hover:bg-aurora-500/30 transition-all font-medium"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <CheckCircle className="w-5 h-5" />
-              {t('promptBuilderUI.validateDescription')}
-            </motion.button>
-          )}
-          
-          {/* Message de validation réussie */}
-          {completedSteps.includes('describe') && (
-            <motion.div
-              className="mt-3 p-3 rounded-xl bg-dream-500/10 border border-dream-500/20 text-dream-300 text-sm flex items-center gap-2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <CheckCircle className="w-4 h-4" />
-              {t('promptBuilderUI.ideaValidated')}
-            </motion.div>
-          )}
-          
-      </motion.section>
-      )}
 
-      {/* ========== SECTION VIDÉO : Action/Scénario ========== */}
-      <AnimatePresence>
-        {currentCreationType === 'video' && currentKit.sourceImageUrl && (
-          <motion.section
-            className={cn(
-              "glass rounded-2xl p-6 transition-all",
-              !currentKit.action && "ring-2 ring-stardust-500/50 animate-pulse-subtle"
-            )}
-            initial={{ opacity: 0, y: 20, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -10, height: 0 }}
-            transition={{ duration: 0.3 }}
+        {/* Bouton Générer — directement après la description */}
+        <motion.button
+          onClick={handleDirectGenerate}
+          disabled={isGenerating || !complete}
+          className={cn(
+            'w-full mt-4 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all',
+            isGenerating
+              ? 'bg-aurora-500/50 text-white cursor-wait'
+              : !complete
+                ? 'bg-midnight-700 text-midnight-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-aurora-500 to-dream-500 text-white hover:from-aurora-600 hover:to-dream-600'
+          )}
+          whileHover={!isGenerating && complete ? { scale: 1.02 } : {}}
+          whileTap={!isGenerating && complete ? { scale: 0.98 } : {}}
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-6 h-6 animate-spin" />
+              {t('promptBuilderUI.creatingInProgress')}
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-6 h-6" />
+              {t('promptBuilderUI.createMyImage')}
+            </>
+          )}
+        </motion.button>
+
+        {/* Erreur de génération */}
+        {generationError && (
+          <motion.div
+            className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
           >
-            <div className="flex items-center gap-2 mb-4">
-              <motion.div
-                animate={!currentKit.action ? { scale: [1, 1.2, 1] } : {}}
-                transition={{ repeat: Infinity, duration: 2 }}
-              >
-                <Zap className={cn(
-                  "w-5 h-5",
-                  !currentKit.action ? "text-stardust-400" : "text-dream-400"
-                )} />
-              </motion.div>
-              <h3 className={cn(
-                "font-semibold",
-                !currentKit.action ? "text-stardust-300" : "text-white"
-              )}>
-                {!currentKit.action ? `🎬 ${t('promptBuilderUI.whatHappens')}` : `🎬 ${t('promptBuilderUI.scenario')}`}
-              </h3>
-              {validatedFields.action && (
-                <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
-              )}
+            {generationError}
+          </motion.div>
+        )}
+
+        {/* Résultat généré */}
+        {generatedAsset && (
+          <motion.div
+            className="mt-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <div className="rounded-xl overflow-hidden border-2 border-dream-500/50">
+              <img
+                src={generatedAsset.url}
+                alt="Image générée"
+                className="w-full h-auto min-h-[200px] bg-midnight-800"
+              />
             </div>
-            
-            <textarea
-              value={currentKit.action}
-              onChange={(e) => {
-                updateKit({ action: e.target.value })
-                if (validatedFields.action) {
-                  setValidatedFields(prev => ({ ...prev, action: false }))
-                }
-              }}
-              placeholder={t('promptBuilderUI.videoActionPlaceholder')}
-              className={cn(
-                "w-full h-20 resize-none rounded-xl p-4 text-white placeholder:text-midnight-400 focus:ring-2 focus:outline-none transition-all",
-                validatedFields.action
-                  ? "bg-dream-500/10 border-2 border-dream-500/30 focus:ring-dream-500/50"
-                  : !currentKit.action 
-                    ? "bg-stardust-500/10 border-2 border-stardust-500/30 placeholder:text-stardust-300/60 focus:ring-stardust-500/50" 
-                    : "bg-midnight-900/50 focus:ring-stardust-500/50"
-              )}
-            />
-            
-            {/* Suggestions d'actions */}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <p className="text-xs text-midnight-400 w-full mb-1">💡 {t('promptBuilderUI.examples')}</p>
-              {[
-                t('promptBuilderUI.videoSuggestions.0'),
-                t('promptBuilderUI.videoSuggestions.1'),
-                t('promptBuilderUI.videoSuggestions.2'),
-                t('promptBuilderUI.videoSuggestions.3'),
-                t('promptBuilderUI.videoSuggestions.4'),
-              ].map((suggestion) => (
-                <button
-                  key={suggestion}
-                  onClick={() => {
-                    updateKit({ action: currentKit.action + (currentKit.action ? ' ' : '') + suggestion })
-                    if (validatedFields.action) {
-                      setValidatedFields(prev => ({ ...prev, action: false }))
-                    }
-                  }}
-                  className="px-2 py-1 text-xs rounded-lg bg-stardust-500/20 text-stardust-300 hover:bg-stardust-500/30 transition-colors"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-            
-            {/* Bouton Valider Action */}
-            {currentKit.action && currentKit.action.length >= 5 && !validatedFields.action && (
-              <motion.button
-                onClick={() => validateTextField('action', currentKit.action || '')}
-                className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-stardust-500/20 text-stardust-300 border border-stardust-500/30 hover:bg-stardust-500/30 transition-all font-medium"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <CheckCircle className="w-5 h-5" />
-                {t('promptBuilderUI.validateScenario')}
-              </motion.button>
+
+            {/* Satisfaction check — "Does it match what you wanted?" */}
+            {!satisfactionAnswer && (
+              <div className="mt-4 glass rounded-xl p-4">
+                <p className="text-sm text-white font-medium mb-3">
+                  {locale === 'fr' ? 'Ça correspond à ce que tu voulais ?' : locale === 'en' ? 'Does it match what you wanted?' : 'Это то, что ты хотела?'}
+                </p>
+                <div className="flex gap-3">
+                  <motion.button
+                    onClick={() => setSatisfactionAnswer('yes')}
+                    className="flex-1 py-3 rounded-xl bg-dream-500/20 text-dream-300 border border-dream-500/30 hover:bg-dream-500/30 font-medium transition-all"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {locale === 'fr' ? 'Oui !' : locale === 'en' ? 'Yes!' : 'Да!'}
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setSatisfactionAnswer('no')}
+                    className="flex-1 py-3 rounded-xl bg-stardust-500/20 text-stardust-300 border border-stardust-500/30 hover:bg-stardust-500/30 font-medium transition-all"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {locale === 'fr' ? 'Non...' : locale === 'en' ? 'No...' : 'Нет...'}
+                  </motion.button>
+                </div>
+              </div>
             )}
-            
-            {/* Message de validation réussie */}
-            {completedSteps.includes('describe') && (
+
+            {/* If satisfied → keep/use the image */}
+            {satisfactionAnswer === 'yes' && (
               <motion.div
-                className="mt-3 p-3 rounded-xl bg-dream-500/10 border border-dream-500/20 text-dream-300 text-sm flex items-center gap-2"
+                className="mt-4 glass rounded-xl p-4 text-center"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
-                <CheckCircle className="w-4 h-4" />
-                {t('promptBuilderUI.scenarioValidated')}
+                <p className="text-dream-300 font-medium mb-3">
+                  {locale === 'fr' ? 'Super ! Tu peux utiliser cette image dans ton histoire.' : locale === 'en' ? 'Great! You can use this image in your story.' : 'Отлично! Можешь использовать это изображение в своей истории.'}
+                </p>
               </motion.div>
             )}
-          </motion.section>
+
+            {/* If not satisfied → explain what's wrong */}
+            {satisfactionAnswer === 'no' && (
+              <motion.div
+                className="mt-4 glass rounded-xl p-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <p className="text-sm text-stardust-300 font-medium mb-3">
+                  {locale === 'fr' ? 'Qu\'est-ce qui ne te plaît pas ?' : locale === 'en' ? "What don't you like about it?" : 'Что тебе не нравится?'}
+                </p>
+                <textarea
+                  value={disappointmentText}
+                  onChange={(e) => setDisappointmentText(e.target.value)}
+                  placeholder={locale === 'fr' ? 'Explique ce que tu voulais...' : locale === 'en' ? 'Explain what you wanted...' : 'Объясни, что ты хотела...'}
+                  className="w-full h-20 resize-none rounded-xl p-3 text-white placeholder:text-midnight-400 bg-midnight-900/50 focus:ring-2 focus:ring-stardust-500/50 focus:outline-none text-sm"
+                />
+
+                <div className="flex gap-3 mt-3">
+                  {/* Re-generate with new prompt */}
+                  <motion.button
+                    onClick={() => {
+                      setSatisfactionAnswer(null)
+                      setGeneratedAsset(null)
+                      setDisappointmentText('')
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-aurora-500/20 text-aurora-300 border border-aurora-500/30 hover:bg-aurora-500/30 font-medium text-sm transition-all"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {locale === 'fr' ? 'Modifier mon prompt et réessayer' : locale === 'en' ? 'Edit my prompt and retry' : 'Изменить промпт и попробовать снова'}
+                  </motion.button>
+
+                  {/* Analyze prompt flaws */}
+                  {disappointmentText.length >= 5 && (
+                    <motion.button
+                      onClick={handleAnalyzePrompt}
+                      disabled={isAnalyzing}
+                      className="flex-1 py-2.5 rounded-xl bg-stardust-500/20 text-stardust-300 border border-stardust-500/30 hover:bg-stardust-500/30 font-medium text-sm transition-all"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {isAnalyzing ? (
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                      ) : (
+                        locale === 'fr' ? 'Aide-moi à comprendre' : locale === 'en' ? 'Help me understand' : 'Помоги мне понять'
+                      )}
+                    </motion.button>
+                  )}
+                </div>
+
+                {/* AI analysis result */}
+                {analysisResult && (
+                  <motion.div
+                    className="mt-3 p-3 rounded-xl bg-midnight-800/70 text-sm text-white whitespace-pre-line"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    {analysisResult}
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </motion.div>
         )}
-      </AnimatePresence>
+      </motion.section>
+      )}
 
       {/* Section Style - VISIBLE SEULEMENT NIVEAU 1-2 (apprentissage) - IMAGES UNIQUEMENT */}
       <AnimatePresence>
@@ -1717,24 +1296,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         )}
       </AnimatePresence>
       
-      {/* Message d'encouragement pour niveau 3+ (les boutons disparaissent) */}
-      <AnimatePresence>
-        {!showStyleButtons && showNextSections && (
-          <motion.div
-            className="glass rounded-xl p-4 border border-dream-500/30"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-          >
-            <p className="text-sm text-dream-300 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              <span>
-                {t('promptBuilderUI.levelAdvanced', { level: String(currentLevel) })}
-              </span>
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Removed: level advanced message */}
 
       {/* Section Ambiance - VISIBLE SEULEMENT NIVEAU 1-3 - IMAGES UNIQUEMENT */}
       <AnimatePresence>
@@ -1804,7 +1366,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-dream-400" />
               <h3 className="font-semibold text-white">✨ {t('promptBuilderUI.addDetails')}</h3>
-              {completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && (
+              {currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && (
                 <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
               )}
             </div>
@@ -1822,38 +1384,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               placeholder={t('promptBuilderUI.detailsPlaceholder')}
               className={cn(
                 "w-full rounded-xl px-4 py-3 text-white placeholder:text-midnight-400",
-                completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10
+                currentKit.subjectDetails && currentKit.subjectDetails.length >= 10
                   ? "bg-dream-500/10 border border-dream-500/30"
                   : "bg-midnight-900/50"
               )}
               data-mentor-target="studio-details"
             />
-            {/* Bouton Valider Détails */}
-            {/* Minimum 10 caractères pour valider les détails */}
-            {currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && !completedSteps.includes('choose_extra') && (
-              <motion.button
-                onClick={() => validateTextField('details', currentKit.subjectDetails || '')}
-                className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-dream-500/10 text-dream-300 border border-dream-500/20 hover:bg-dream-500/20 transition-all text-sm"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-              >
-                <CheckCircle className="w-4 h-4" />
-                {t('promptBuilderUI.validate')}
-              </motion.button>
-            )}
-            {/* Message d'aide si texte trop court */}
-            {currentKit.subjectDetails && currentKit.subjectDetails.length > 0 && currentKit.subjectDetails.length < 10 && !completedSteps.includes('choose_extra') && (
-              <p className="mt-2 text-xs text-midnight-400">
-                💡 {t('promptBuilderUI.addMoreDetails', { count: String(10 - currentKit.subjectDetails.length) })}
-              </p>
-            )}
-            {completedSteps.includes('choose_extra') && currentKit.subjectDetails && currentKit.subjectDetails.length >= 10 && (
-              <p className="mt-2 text-xs text-dream-400 flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" /> {t('promptBuilderUI.validated')}
-              </p>
-            )}
+            {/* Removed: validate/validation UI — vibe coding */}
           </motion.section>
         )}
       </AnimatePresence>
@@ -1950,561 +1487,6 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         )}
       </AnimatePresence>
 
-      {/* Section Mouvement (vidéos uniquement) - Après VALIDATION de l'action */}
-      <AnimatePresence>
-        {showMovementButtons && completedSteps.includes('describe') && (
-          <motion.section
-            className="glass rounded-2xl p-6"
-            initial={{ opacity: 0, y: 20, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -10, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Film className="w-5 h-5 text-purple-400" />
-              <h3 className="font-semibold text-white">💫 {t('promptBuilderUI.chooseMovement')}</h3>
-              {currentKit.movement && (
-                <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
-              )}
-            </div>
-            
-            <p className="text-sm text-midnight-300 mb-4">
-              {t('promptBuilderUI.howVideoMoves')}
-            </p>
-            
-            <div className="grid grid-cols-3 gap-3 md:grid-cols-5">
-              {movementOptions.map((movement) => (
-                <motion.button
-                  key={movement.id}
-                  onClick={() => updateKit({ 
-                    movement: currentKit.movement === movement.id ? null : movement.id 
-                  })}
-                  className={cn(
-                    'p-4 rounded-xl flex flex-col items-center gap-2 transition-all',
-                    currentKit.movement === movement.id
-                      ? 'bg-gradient-to-r ' + movement.color + ' text-white ring-2 ring-white/30'
-                      : 'bg-midnight-800/50 hover:bg-midnight-700/50'
-                  )}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <span className="text-2xl">{movement.emoji}</span>
-                  <span className="text-sm font-medium">{t(`promptBuilderUI.movements.${movement.id}.label`)}</span>
-                  <span className="text-xs opacity-70">{t(`promptBuilderUI.movements.${movement.id}.description`)}</span>
-                </motion.button>
-              ))}
-            </div>
-            
-          </motion.section>
-        )}
-      </AnimatePresence>
-
-      {/* Section Caméra (vidéos uniquement) - AVANT les effets selon le guide */}
-      <AnimatePresence>
-        {currentCreationType === 'video' && currentKit.movement && (
-          <motion.section
-            className="glass rounded-2xl p-6"
-            initial={{ opacity: 0, y: 20, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -10, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Video className="w-5 h-5 text-blue-400" />
-              <h3 className="font-semibold text-white">🎥 {t('promptBuilderUI.cameraMovement')}</h3>
-              {currentKit.camera && (
-                <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
-              )}
-            </div>
-            
-            <p className="text-sm text-midnight-300 mb-4">
-              {t('promptBuilderUI.howCameraMoves')}
-            </p>
-            
-            <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
-              {([
-                { id: 'fixe' as const, emoji: '🎯' },
-                { id: 'zoom_in' as const, emoji: '🔍' },
-                { id: 'zoom_out' as const, emoji: '🔭' },
-                { id: 'pan_gauche' as const, emoji: '⬅️' },
-                { id: 'pan_droite' as const, emoji: '➡️' },
-                { id: 'travelling' as const, emoji: '🎬' },
-              ] as const).map((cam) => (
-                <motion.button
-                  key={cam.id}
-                  onClick={() => updateKit({ 
-                    camera: currentKit.camera === cam.id ? null : cam.id 
-                  })}
-                  className={cn(
-                    'p-3 rounded-xl flex flex-col items-center gap-1 transition-all',
-                    currentKit.camera === cam.id
-                      ? 'bg-blue-500/30 text-white ring-2 ring-blue-500/50'
-                      : 'bg-midnight-800/50 hover:bg-midnight-700/50'
-                  )}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <span className="text-xl">{cam.emoji}</span>
-                  <span className="text-xs font-medium">{t(`promptBuilderUI.cameras.${cam.id}.label`)}</span>
-                </motion.button>
-              ))}
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
-
-      {/* Section Effets spéciaux (vidéos uniquement) - APRÈS la caméra selon le guide */}
-      <AnimatePresence>
-        {currentCreationType === 'video' && currentKit.movement && (
-          <motion.section
-            className="glass rounded-2xl p-6"
-            initial={{ opacity: 0, y: 20, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -10, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-              <h3 className="font-semibold text-white">✨ {t('promptBuilderUI.specialEffects')}</h3>
-              {currentKit.effects && (
-                <CheckCircle className="w-4 h-4 text-dream-400 ml-auto" />
-              )}
-            </div>
-            
-            <p className="text-sm text-midnight-300 mb-4">
-              {t('promptBuilderUI.addMagic')}
-            </p>
-            
-            <div className="grid grid-cols-4 gap-2 md:grid-cols-8">
-              {[
-                { id: '', labelKey: 'promptBuilderUI.effects.none', emoji: '➖' },
-                { id: 'sparkles', labelKey: 'promptBuilderUI.effects.sparkles', emoji: '✨' },
-                { id: 'glow', labelKey: 'promptBuilderUI.effects.glow', emoji: '🌈' },
-                { id: 'smoke', labelKey: 'promptBuilderUI.effects.smoke', emoji: '💨' },
-                { id: 'stars', labelKey: 'promptBuilderUI.effects.stars', emoji: '⭐' },
-                { id: 'fire', labelKey: 'promptBuilderUI.effects.fire', emoji: '🔥' },
-                { id: 'snow', labelKey: 'promptBuilderUI.effects.snow', emoji: '❄️' },
-                { id: 'magic', labelKey: 'promptBuilderUI.effects.magic', emoji: '🪄' },
-              ].map((effect) => (
-                <motion.button
-                  key={effect.id || 'none'}
-                  onClick={() => updateKit({ 
-                    effects: currentKit.effects === effect.id ? '' : effect.id 
-                  })}
-                  className={cn(
-                    'p-2 rounded-xl flex flex-col items-center gap-1 transition-all',
-                    currentKit.effects === effect.id
-                      ? 'bg-amber-500/30 text-white ring-2 ring-amber-500/50'
-                      : 'bg-midnight-800/50 hover:bg-midnight-700/50'
-                  )}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <span className="text-xl">{effect.emoji}</span>
-                  <span className="text-[10px] font-medium">{t(effect.labelKey)}</span>
-                </motion.button>
-              ))}
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
-
-      {/* Résumé / Preview - apparaît avec les autres sections */}
-      <AnimatePresence>
-        {showNextSections && (
-          <motion.section
-            className={cn(
-              'rounded-2xl p-6 border-2',
-              complete
-                ? 'bg-dream-500/10 border-dream-500/30'
-                : 'bg-stardust-500/10 border-stardust-500/30'
-            )}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                {complete ? (
-                  <>
-                    <CheckCircle className="w-5 h-5 text-dream-400" />
-                    <h3 className="font-semibold text-dream-300">{t('promptBuilderUI.kitReady')}</h3>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="w-5 h-5 text-stardust-400" />
-                    <h3 className="font-semibold text-stardust-300">
-                      {t('promptBuilderUI.missing', { fields: missing.join(', ') })}
-                    </h3>
-                  </>
-                )}
-              </div>
-              
-              <button
-                onClick={() => {
-                  setShowPreview(!showPreview)
-                  // Valider l'étape "Voir mon prompt" quand on ouvre le prompt
-                  if (!showPreview && !completedSteps.includes('review_prompt')) {
-                    completeStep('review_prompt')
-                  }
-                }}
-                className="text-sm text-aurora-300 hover:text-aurora-200"
-              >
-                {showPreview ? t('promptBuilderUI.hidePrompt') : t('promptBuilderUI.showPrompt')}
-              </button>
-            </div>
-
-            {/* BOUTONS D'ACTION PRINCIPAUX */}
-            {complete && (
-              <motion.div
-                className="space-y-3"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                {/* ========== AFFICHAGE DU PROMPT AVEC VALIDATION ========== */}
-                {useDirectGeneration && (
-                  <motion.div
-                    className="p-4 rounded-xl bg-midnight-900/50 border border-midnight-700/50 mb-4"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <div className="flex items-center gap-2 mb-4">
-                      <FileText className="w-6 h-6 text-aurora-400" />
-                      <h4 className="font-bold text-lg text-white">✨ {t('promptBuilderUI.magicPrompt')}</h4>
-                      <span className="text-xs text-aurora-300/70 ml-auto">{t('promptBuilderUI.aiWillRead')}</span>
-                    </div>
-                    
-                    {/* 📚 Prompt avec tooltips interactifs sur les termes techniques */}
-                    <div className="relative">
-                      <div className="font-mono text-xl leading-relaxed text-white bg-gradient-to-br from-midnight-800/80 to-midnight-900/80 p-5 rounded-xl mb-2 whitespace-pre-wrap border border-aurora-500/30 shadow-lg shadow-aurora-500/10">
-                        {currentKit.generatedPrompt 
-                          ? renderPromptWithTooltips(currentKit.generatedPrompt)
-                          : t('promptBuilderUI.promptAppearHere')}
-                      </div>
-                      
-                      {/* Légende des mots soulignés */}
-                      <p className="text-xs text-aurora-400/70 mb-4 flex items-center gap-2">
-                        <Lightbulb className="w-3 h-3" />
-                        <span>{t('promptBuilderUI.tooltipHint')}</span>
-                      </p>
-                    </div>
-                    
-                    {/* Case à cocher de validation */}
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          checked={hasReadPrompt}
-                          onChange={(e) => setHasReadPrompt(e.target.checked)}
-                          className="sr-only"
-                        />
-                        <div className={cn(
-                          "w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center",
-                          hasReadPrompt 
-                            ? "bg-dream-500 border-dream-400" 
-                            : "bg-midnight-800 border-midnight-600 group-hover:border-aurora-500/50"
-                        )}>
-                          {hasReadPrompt && <Check className="w-4 h-4 text-white" />}
-                        </div>
-                      </div>
-                      <span className={cn(
-                        "text-sm transition-colors",
-                        hasReadPrompt ? "text-dream-300" : "text-midnight-300 group-hover:text-white"
-                      )}>
-                        {t('promptBuilderUI.readPromptCheckbox')}
-                      </span>
-                    </label>
-                  </motion.div>
-                )}
-
-                {/* ========== NIVEAUX 1-2 : Génération directe via fal.ai ========== */}
-                {useDirectGeneration ? (
-                  <>
-                    {/* Bouton Générer */}
-                    <motion.button
-                      onClick={handleDirectGenerate}
-                      disabled={isGenerating || !hasReadPrompt}
-                      className={cn(
-                        'w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all',
-                        isGenerating
-                          ? 'bg-aurora-500/50 text-white cursor-wait'
-                          : !hasReadPrompt
-                            ? 'bg-midnight-700 text-midnight-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-aurora-500 to-dream-500 text-white hover:from-aurora-600 hover:to-dream-600'
-                      )}
-                      whileHover={!isGenerating && hasReadPrompt ? { scale: 1.02 } : {}}
-                      whileTap={!isGenerating && hasReadPrompt ? { scale: 0.98 } : {}}
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                          {t('promptBuilderUI.creatingInProgress')}
-                        </>
-                      ) : !hasReadPrompt ? (
-                        <>
-                          <FileText className="w-6 h-6" />
-                          {t('promptBuilderUI.readPromptFirst')}
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-6 h-6" />
-                          🪄 {currentCreationType === 'video' ? t('promptBuilderUI.createMyVideo') : t('promptBuilderUI.createMyImage')}
-                        </>
-                      )}
-                    </motion.button>
-                    
-                    {/* Message d'erreur */}
-                    {generationError && (
-                      <motion.div
-                        className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                      >
-                        ❌ {generationError}
-                        <button
-                          onClick={handleDirectGenerate}
-                          className="ml-2 underline hover:no-underline"
-                        >
-                          {t('promptBuilderUI.retry')}
-                        </button>
-                      </motion.div>
-                    )}
-                    
-                    {/* Affichage de l'asset généré */}
-                    {generatedAsset && (
-                      <motion.div
-                        className="mt-4 rounded-xl overflow-hidden border-2 border-dream-500/50"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                      >
-                        {generatedAsset.type === 'image' ? (
-                          <img 
-                            src={generatedAsset.url} 
-                            alt="Image générée" 
-                            className="w-full h-auto min-h-[200px] bg-midnight-800"
-                            onError={(e) => {
-                              console.error('Erreur chargement image:', generatedAsset.url)
-                              e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect fill="%231a1a2e" width="400" height="300"/><text fill="%23888" font-size="14" x="50%" y="50%" text-anchor="middle">Image non disponible</text></svg>'
-                            }}
-                          />
-                        ) : (
-                          <video 
-                            src={generatedAsset.url} 
-                            controls 
-                            autoPlay 
-                            loop
-                            className="w-full h-auto min-h-[200px] bg-midnight-800"
-                          />
-                        )}
-                        
-                        <div className="p-4 bg-dream-500/10 space-y-3">
-                          <p className="text-dream-300 font-medium text-center">
-                            🎉 {t('promptBuilderUI.result')}
-                          </p>
-                          
-                          {/* 3 boutons d'action */}
-                          <div className="grid grid-cols-3 gap-2">
-                            {/* ✅ Garder */}
-                            <motion.button
-                              onClick={async () => {
-                                // Vérifier que l'utilisateur est connecté
-                                if (!user) {
-                                  toast.error('Tu dois être connecté pour sauvegarder. Rafraîchis la page et reconnecte-toi.')
-                                  return
-                                }
-                                
-                                // Upload vers stockage permanent (Supabase pour images, R2 pour vidéos)
-                                setIsSavingToCloud(true)
-                                try {
-                                  const result = await uploadFromUrl(generatedAsset.url, {
-                                    type: generatedAsset.type,
-                                    source: generatedAsset.type === 'video' ? 'runway' : 'midjourney',
-                                    storyId: currentStory?.id,
-                                  })
-                                  
-                                  if (result) {
-                                    // Mettre à jour l'asset avec l'URL permanente
-                                    const asset = importedAssets.find(a => a.url === generatedAsset.url)
-                                    if (asset) {
-                                      useStudioStore.getState().updateAsset(asset.id, { 
-                                        cloudUrl: result.url,
-                                        assetId: result.assetId,
-                                      })
-                                    }
-                                    console.log(`✅ ${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée:`, result.url)
-                                    toast.magic(`${generatedAsset.type === 'video' ? 'Vidéo' : 'Image'} sauvegardée !`, 'Bravo ! Tu peux en créer une nouvelle.')
-                                    // Fermer l'aperçu et retourner à l'accueil du Studio
-                                    setGeneratedAsset(null)
-                                    setGenerationError(null)
-                                    // Clear le kit et reset la création → retour vue "select"
-                                    useStudioStore.getState().clearKit()
-                                    useStudioProgressStore.getState().resetCurrentCreation()
-                                  } else {
-                                    // Upload a retourné null (erreur silencieuse)
-                                    toast.error('Erreur lors de la sauvegarde. Vérifie ta connexion et réessaie.')
-                                  }
-                                } catch (error) {
-                                  console.error('Erreur sauvegarde:', error)
-                                  toast.error(`Erreur : ${error instanceof Error ? error.message : 'Sauvegarde impossible'}`)
-                                } finally {
-                                  setIsSavingToCloud(false)
-                                }
-                              }}
-                              disabled={isSavingToCloud || isUploadingToCloud}
-                              className={cn(
-                                "flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl transition-all border",
-                                (isSavingToCloud || isUploadingToCloud)
-                                  ? "bg-dream-500/10 text-dream-400 border-dream-500/20 cursor-wait"
-                                  : "bg-dream-500/20 text-dream-300 hover:bg-dream-500/30 border-dream-500/30"
-                              )}
-                              whileHover={!(isSavingToCloud || isUploadingToCloud) ? { scale: 1.02 } : {}}
-                              whileTap={!(isSavingToCloud || isUploadingToCloud) ? { scale: 0.98 } : {}}
-                            >
-                              {(isSavingToCloud || isUploadingToCloud) ? (
-                                <Loader2 className="w-6 h-6 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-6 h-6" />
-                              )}
-                              <span className="text-sm font-medium">
-                                {(isSavingToCloud || isUploadingToCloud) ? t('promptBuilderUI.saving') : t('promptBuilderUI.keep')}
-                              </span>
-                            </motion.button>
-                            
-                            {/* 🗑️ Supprimer */}
-                            <motion.button
-                              onClick={() => {
-                                // Supprimer de la galerie
-                                const assets = importedAssets.filter(a => a.url !== generatedAsset.url)
-                                // On doit utiliser le store pour supprimer
-                                const lastAsset = importedAssets.find(a => a.url === generatedAsset.url)
-                                if (lastAsset) {
-                                  useStudioStore.getState().removeImportedAsset(lastAsset.id)
-                                }
-                                setGeneratedAsset(null)
-                                setGenerationError(null)
-                              }}
-                              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all border border-red-500/30"
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <AlertCircle className="w-6 h-6" />
-                              <span className="text-sm font-medium">{t('promptBuilderUI.delete')}</span>
-                            </motion.button>
-                            
-                            {/* 🔄 Nouvelle création */}
-                            <motion.button
-                              onClick={async () => {
-                                // Supprimer l'ancienne de la galerie et régénérer
-                                const lastAsset = importedAssets.find(a => a.url === generatedAsset.url)
-                                if (lastAsset) {
-                                  useStudioStore.getState().removeImportedAsset(lastAsset.id)
-                                }
-                                setGeneratedAsset(null)
-                                setGenerationError(null)
-                                // Petit délai pour éviter rate limiting
-                                await new Promise(resolve => setTimeout(resolve, 500))
-                                // Relancer la génération
-                                handleDirectGenerate()
-                              }}
-                              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-aurora-500/20 text-aurora-300 hover:bg-aurora-500/30 transition-all border border-aurora-500/30"
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <RefreshCw className="w-6 h-6" />
-                              <span className="text-sm font-medium">{t('promptBuilderUI.redo')}</span>
-                            </motion.button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                    
-                    <p className="text-center text-xs text-midnight-400 mt-2">
-                      {t('promptBuilderUI.aiWillCreate', { type: currentCreationType === 'video' ? t('promptBuilderUI.yourVideo') : t('promptBuilderUI.yourImage') })}
-                    </p>
-                  </>
-                ) : (
-                  /* ========== NIVEAUX 3+ : Copier + Aller sur fal.ai ========== */
-                  <>
-                {/* Bouton Copier le prompt */}
-                <motion.button
-                  onClick={handleCopyPrompt}
-                  className={cn(
-                    'w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all',
-                    copied
-                      ? 'bg-dream-500 text-white'
-                      : 'bg-gradient-to-r from-aurora-500 to-aurora-600 text-white hover:from-aurora-600 hover:to-aurora-700'
-                  )}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {copied ? (
-                    <>
-                      <CheckCircle className="w-6 h-6" />
-                      {t('promptBuilderUI.copied')}
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-6 h-6" />
-                      {t('promptBuilderUI.copyPrompt')}
-                    </>
-                  )}
-                </motion.button>
-
-                    {/* Bouton Ouvrir fal.ai */}
-                <motion.button
-                  onClick={handleOpenTool}
-                  className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg bg-gradient-to-r from-stardust-500 to-stardust-600 text-midnight-900 hover:from-stardust-400 hover:to-stardust-500 transition-all"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Rocket className="w-6 h-6" />
-                      {t('promptBuilderUI.goToFal')}
-                  <ExternalLink className="w-5 h-5" />
-                </motion.button>
-
-                <p className="text-center text-xs text-midnight-400 mt-2">
-                  {t('promptBuilderUI.pasteHint')}
-                </p>
-
-                {/* Bouton de confirmation après avoir ouvert l'outil */}
-                {completedSteps.includes('open_safari') && !completedSteps.includes('generate') && (
-                  <motion.button
-                    onClick={() => {
-                      if (!completedSteps.includes('paste_prompt')) {
-                        completeStep('paste_prompt')
-                      }
-                      completeStep('generate')
-                    }}
-                    className="w-full mt-4 flex items-center justify-center gap-3 px-6 py-3 rounded-xl font-medium text-sm bg-dream-500/20 text-dream-300 border border-dream-500/30 hover:bg-dream-500/30 transition-all"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Sparkles className="w-5 h-5" />
-                    {t('promptBuilderUI.launchedCreation')}
-                  </motion.button>
-                )}
-
-                {/* Message final quand la création est lancée */}
-                {completedSteps.includes('generate') && (
-                  <motion.div
-                    className="mt-4 p-4 rounded-xl bg-dream-500/10 border border-dream-500/30 text-center"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                  >
-                    <p className="text-dream-300 font-medium">
-                      🎉 {t('promptBuilderUI.importHint')}
-                    </p>
-                  </motion.div>
-                    )}
-                  </>
-                )}
-              </motion.div>
-            )}
-          </motion.section>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

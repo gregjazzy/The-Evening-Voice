@@ -39,6 +39,7 @@ export type HighlightableElement =
   | 'book-page-list'
   | 'book-chapters'
   | 'book-ai-chat'
+  | 'export-pdf-button'
   // Studio
   | 'studio-prompt-input'
   | 'studio-copy-button'
@@ -148,7 +149,8 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
   'book-page-list': { label: 'Liste des pages', description: 'La barre qui montre toutes les pages de ton livre', mode: 'ecriture' },
   'book-chapters': { label: 'Chapitres', description: 'Le bouton pour organiser ton livre en chapitres', mode: 'ecriture' },
   'book-ai-chat': { label: 'Parler avec moi', description: 'L\'endroit où tu peux me poser des questions', mode: 'ecriture' },
-  
+  'export-pdf-button': { label: 'Télécharger PDF', description: 'Le bouton pour télécharger ton livre en PDF. Ensuite va dans Publier pour l\'imprimer.', mode: 'ecriture' },
+
   // Studio
   'studio-prompt-input': { label: 'Zone de prompt', description: 'L\'endroit où tu décris l\'image que tu veux créer', mode: 'studio' },
   'studio-copy-button': { label: 'Copier', description: 'Le bouton pour copier ton prompt', mode: 'studio' },

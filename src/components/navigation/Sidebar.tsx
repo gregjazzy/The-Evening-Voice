@@ -264,7 +264,7 @@ export function Sidebar() {
             const isLocked = modesRequiringStory.includes(item.id) && !hasStoryWithTitle
             
             return (
-              <Highlightable key={item.id} id={item.highlightId}>
+              <Highlightable key={item.id} id={item.highlightId} labelPosition="right">
                 <motion.button
                   onClick={() => !isLocked && setCurrentMode(item.id)}
                   className={cn(

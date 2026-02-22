@@ -59,6 +59,7 @@ import {
   Camera,
   Save,
   Loader2,
+  SpellCheck,
 } from 'lucide-react'
 import { useAppStore, type Story, type BookFormat } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
@@ -68,7 +69,6 @@ import { cn } from '@/lib/utils'
 import { MediaPicker } from '@/components/editor/MediaPicker'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { VoiceSelector } from '@/components/ui/VoiceSelector'
-import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { useSaveStatus, triggerManualSave } from '@/hooks/useSupabaseSync'
@@ -5707,7 +5707,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
       {/* Barre d'outils unifiée (titre + outils + actions) */}
-      <div className="flex items-center justify-between gap-2 mb-1 relative z-50 px-1 flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 mb-1 relative z-50 px-1 flex-shrink-0 overflow-visible">
         {/* Gauche : Retour + Titre */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {onBack && (
@@ -5763,36 +5763,19 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               })()}
             </div>
         
-        {/* Droite : Structure + Vue */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {onShowStructure && (
-          <button
-              onClick={onShowStructure}
-              className="p-1.5 rounded-lg bg-midnight-800/50 hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
-              title={t('structure')}
-            >
-              <ListTree className="w-4 h-4" />
-          </button>
-          )}
-          {onShowOverview && (
-            <button
-              onClick={onShowOverview}
-              className="p-1.5 rounded-lg bg-midnight-800/50 hover:bg-midnight-800 text-midnight-400 hover:text-white transition-colors"
-              title={t('overview')}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          )}
-          {/* Bouton Export PDF HD */}
+        {/* Export PDF */}
+        <div className="flex items-center gap-1">
           {onExportPdf && (
-            <button
-              onClick={onExportPdf}
-              disabled={isExportingPdf}
-              className="p-1.5 rounded-lg bg-aurora-600/50 hover:bg-aurora-600 text-white/80 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-wait"
-              title={t('editor.exportPdf')}
-            >
-              <Download className="w-4 h-4" />
-            </button>
+            <Highlightable id="export-pdf-button" labelPosition="left">
+              <button
+                onClick={onExportPdf}
+                disabled={isExportingPdf}
+                className="p-1.5 rounded-lg bg-aurora-600/50 hover:bg-aurora-600 text-white/80 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-wait"
+                title={t('editor.exportPdf')}
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            </Highlightable>
           )}
           {/* Bouton Debug PDF */}
           {onDebugPdf && (
@@ -7266,7 +7249,6 @@ function AISidePanel({
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [autoSpeak, setAutoSpeak] = useState(true) // Vocal activé par défaut
-  const [isAnalysisMenuOpen, setIsAnalysisMenuOpen] = useState(false)
   const [showVoiceSelector, setShowVoiceSelector] = useState(false)
   const [showNameEditor, setShowNameEditor] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -7312,7 +7294,7 @@ function AISidePanel({
   // Initial message
   useEffect(() => {
     if (messages.length === 0) {
-      setMessages([{ role: 'assistant', content: t('ai.intro') }])
+      setMessages([{ role: 'assistant', content: t('ai.intro', { name: (useAppStore.getState().userName || '').split(' ')[0] }) }])
     }
   }, [])
 
@@ -7384,91 +7366,35 @@ function AISidePanel({
     return tmp.textContent || tmp.innerText || ''
   }
 
-  // === LECTURE PAGE ===
-  const handleReadPage = () => {
+  // === LECTURE À VOIX HAUTE (TTS) ===
+  const handleReadAloud = () => {
     const cleanContent = stripHtml(pageContent).trim()
-    
+    if (!cleanContent) return
+    if (tts.isAvailable) {
+      tts.speak(cleanContent)
+    }
+  }
+
+  // === VÉRIFICATION DES FAUTES ===
+  const handleSpellCheck = () => {
+    const cleanContent = stripHtml(pageContent).trim()
     if (!cleanContent) {
       sendToAI(t('ai.emptyPage'))
       return
     }
-    
-    // Message visible (court)
-    const visibleMessage = t('ai.readPageMessage', { name: displayName, page: String(pageNumber) })
 
-    // Contexte caché (envoyé à l'API) — sent to AI, always in the locale's language via the locale param in useAI
-    const hiddenContext = currentLocale === 'fr'
-      ? `Contenu de la page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''} :\n\n"${cleanContent}"\n\n→ Analyse la structure (QUI, QUOI, OÙ...), dis-moi si c'est cohérent, et aide-moi à améliorer ! Si tu vois des petites fautes, dis-le moi gentiment.`
+    const visibleMessage = currentLocale === 'fr'
+      ? `Vérifie les fautes de ma page ${pageNumber}`
       : currentLocale === 'en'
-      ? `Content of page ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${cleanContent}"\n\n→ Analyze the structure (WHO, WHAT, WHERE...), tell me if it's coherent, and help me improve! If you see small mistakes, tell me gently.`
-      : `Содержание страницы ${pageNumber}${pageTitle ? ` "${pageTitle}"` : ''}:\n\n"${cleanContent}"\n\n→ Проанализируй структуру (КТО, ЧТО, ГДЕ...), скажи, всё ли логично, и помоги улучшить! Если увидишь ошибки, скажи мягко.`
-    
-    sendToAI(visibleMessage, hiddenContext)
-  }
+      ? `Check spelling on my page ${pageNumber}`
+      : `Проверь ошибки на странице ${pageNumber}`
 
-  // === LECTURE CHAPITRE ===
-  const handleReadChapter = () => {
-    const chapterPages = currentChapterId 
-      ? allPages.filter(p => p.chapterId === currentChapterId)
-      : allPages
-    
-    const chapterContent = chapterPages
-      .map((p, i) => {
-        const cleanText = stripHtml(p.content).trim()
-        return `Page ${i + 1}${p.title ? ` - ${p.title}` : ''}: "${cleanText || '(vide)'}"`
-      })
-      .join('\n\n')
-    
-    if (!chapterContent.trim() || chapterPages.every(p => !stripHtml(p.content).trim())) {
-      sendToAI(t('ai.emptyChapter'))
-      return
-    }
-    
-    const chapterTitle = currentChapterId
-      ? chapters.find(c => c.id === currentChapterId)?.title || t('ai.thisChapter')
-      : t('ai.myStory')
-
-    // Message visible (court)
-    const visibleMessage = t('ai.readChapterMessage', { name: displayName, chapter: chapterTitle })
-
-    // Contexte caché
     const hiddenContext = currentLocale === 'fr'
-      ? `Contenu du chapitre :\n\n${chapterContent}\n\n→ Est-ce que l'histoire est cohérente ? Les personnages sont bien décrits ? Il manque quelque chose ? Des conseils pour la suite ?`
+      ? `Texte de la page ${pageNumber} :\n\n"${cleanContent}"\n\nPour chaque faute d'orthographe ou de grammaire, montre le mot fautif et explique POURQUOI c'est une faute (la règle). Ne corrige PAS directement — aide-la à comprendre pour qu'elle corrige elle-même. NE commente PAS le contenu, l'histoire, les personnages ou la créativité. Si pas de faute, dis juste "Pas de faute !"`
       : currentLocale === 'en'
-      ? `Chapter content:\n\n${chapterContent}\n\n→ Is the story coherent? Are the characters well described? Is something missing? Any advice for what's next?`
-      : `Содержание главы:\n\n${chapterContent}\n\n→ История логична? Персонажи хорошо описаны? Чего-то не хватает? Советы для продолжения?`
-    
-    sendToAI(visibleMessage, hiddenContext)
-  }
+      ? `Text from page ${pageNumber}:\n\n"${cleanContent}"\n\nFor each spelling or grammar mistake, show the incorrect word and explain WHY it's a mistake (the rule). Do NOT correct directly — help her understand so she can fix it herself. Do NOT comment on the content, story, characters, or creativity. If no mistakes, just say "No mistakes!"`
+      : `Текст страницы ${pageNumber}:\n\n"${cleanContent}"\n\nДля каждой орфографической или грамматической ошибки покажи неправильное слово и объясни ПОЧЕМУ это ошибка (правило). НЕ исправляй напрямую — помоги ей понять, чтобы она исправила сама. НЕ комментируй содержание, историю, персонажей или творчество. Если ошибок нет, просто скажи "Ошибок нет!"`
 
-  // === LECTURE LIVRE ENTIER ===
-  const handleReadBook = () => {
-    const bookContent = allPages
-      .map((p, i) => {
-        const chapter = chapters.find(c => c.id === p.chapterId)
-        const chapterLabel = chapter ? `[${chapter.title}] ` : ''
-        const cleanText = stripHtml(p.content).trim()
-        return `${chapterLabel}Page ${i + 1}${p.title ? ` - ${p.title}` : ''}: "${cleanText || '(vide)'}"`
-      })
-      .join('\n\n')
-    
-    if (!bookContent.trim() || allPages.every(p => !stripHtml(p.content).trim())) {
-      sendToAI(t('ai.emptyBook'))
-      return
-    }
-    
-    const title = storyTitle || t('ai.myBook')
-
-    // Message visible (court)
-    const visibleMessage = t('ai.readBookMessage', { name: displayName, title })
-
-    // Contexte caché
-    const hiddenContext = currentLocale === 'fr'
-      ? `Contenu complet du livre :\n\n${bookContent}\n\n→ Analyse globale : l'histoire a un bon début, milieu et fin ? Les personnages sont cohérents ? L'histoire est intéressante ? Qu'est-ce que je pourrais améliorer ? Y a-t-il des fautes que tu remarques souvent ?`
-      : currentLocale === 'en'
-      ? `Full book content:\n\n${bookContent}\n\n→ Global analysis: does the story have a good beginning, middle and end? Are the characters consistent? Is the story interesting? What could I improve? Are there mistakes you notice often?`
-      : `Полное содержание книги:\n\n${bookContent}\n\n→ Общий анализ: есть хорошее начало, середина и конец? Персонажи последовательны? История интересная? Что можно улучшить? Есть ли частые ошибки?`
-    
     sendToAI(visibleMessage, hiddenContext)
   }
 
@@ -7668,102 +7594,29 @@ function AISidePanel({
         <div ref={messagesEndRef} />
       </div>
       
-      {/* Input avec analyse premium */}
-      <form onSubmit={handleSubmit} className="p-3 border-t border-midnight-700/30">
-        {/* Pastille IA Analyse - Design Premium */}
-        <div className="flex justify-end mb-3 relative">
-          <motion.button
-            type="button"
-            onClick={() => setIsAnalysisMenuOpen((v) => !v)}
-            disabled={isLoading}
-            className={cn(
-              'group relative px-3 py-1.5 rounded-full text-[11px] font-medium tracking-wide',
-              'bg-gradient-to-r from-aurora-600/10 via-dream-500/10 to-aurora-600/10',
-              'border border-aurora-500/20 text-aurora-200/80',
-              'hover:border-aurora-400/40 hover:text-white',
-              'shadow-[0_0_20px_rgba(139,92,246,0.1)]',
-              'hover:shadow-[0_0_25px_rgba(139,92,246,0.2)]',
-              'transition-all duration-300',
-              isAnalysisMenuOpen && 'border-aurora-400/50 text-white shadow-[0_0_30px_rgba(139,92,246,0.25)]',
-              isLoading && 'opacity-50 cursor-not-allowed'
-            )}
-            whileHover={!isLoading ? { scale: 1.03 } : {}}
-            whileTap={!isLoading ? { scale: 0.97 } : {}}
-          >
-            {/* Shimmer effect */}
-            <div className="absolute inset-0 rounded-full overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-            </div>
-            
-            {/* Glow ring on active */}
-            {isAnalysisMenuOpen && (
-              <motion.div
-                className="absolute -inset-[1px] rounded-full bg-gradient-to-r from-aurora-500/30 via-dream-500/30 to-aurora-500/30 blur-sm"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              />
-            )}
-            
-            <span className="relative flex items-center gap-2">
-              <motion.span
-                animate={isAnalysisMenuOpen ? { rotate: 180 } : { rotate: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-              </motion.span>
-              <span className="uppercase">{t('ai.reads', { name: displayName })}</span>
-            </span>
-          </motion.button>
-          
-          {/* Menu radial premium */}
-          <AnimatePresence>
-            {isAnalysisMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 8 }}
-                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-                className="absolute right-0 bottom-full mb-2 p-1 rounded-2xl bg-midnight-950/95 backdrop-blur-xl border border-aurora-500/20 shadow-2xl shadow-aurora-500/10"
-              >
-                {/* Gradient border effect */}
-                <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-aurora-500/30 via-transparent to-dream-500/30 -z-10 blur-[1px]" />
-                
-                <div className="flex gap-0.5">
-                  {[
-                    { action: handleReadPage, icon: FileText, label: t('ai.pageLabel'), title: t('ai.readPage') },
-                    { action: handleReadChapter, icon: Folder, label: t('ai.chapterLabel'), title: t('ai.readChapter') },
-                    { action: handleReadBook, icon: Book, label: t('ai.bookLabel'), title: t('ai.readBook') },
-                  ].map((item, idx) => (
-                    <motion.button
-                      key={item.label}
-                      type="button"
-                      onClick={() => { setIsAnalysisMenuOpen(false); item.action(); }}
-                      className="group/item relative px-4 py-2 rounded-xl text-[11px] font-medium text-midnight-300 hover:text-white transition-all duration-200 flex flex-col items-center gap-1.5"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05, duration: 0.2 }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      title={item.title}
-                    >
-                      {/* Hover glow */}
-                      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-aurora-500/0 via-aurora-500/0 to-dream-500/0 group-hover/item:from-aurora-500/20 group-hover/item:via-aurora-500/10 group-hover/item:to-dream-500/20 transition-all duration-300" />
-                      
-                      {/* Icon with glow */}
-                      <div className="relative">
-                        <item.icon className="w-4 h-4 relative z-10 transition-transform duration-200 group-hover/item:scale-110" />
-                        <div className="absolute inset-0 blur-md bg-aurora-500/0 group-hover/item:bg-aurora-500/50 transition-all duration-300" />
-                      </div>
-                      
-                      <span className="relative z-10 tracking-wide">{item.label}</span>
-                    </motion.button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* Boutons outils : lire à voix haute + vérifier les fautes */}
+      <div className="flex gap-2 px-3 pt-2">
+        <button
+          type="button"
+          onClick={handleReadAloud}
+          disabled={!stripHtml(pageContent).trim()}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <Volume2 className="w-3.5 h-3.5" />
+          {currentLocale === 'fr' ? 'Lire ma page' : currentLocale === 'en' ? 'Read my page' : 'Прочитать страницу'}
+        </button>
+        <button
+          type="button"
+          onClick={handleSpellCheck}
+          disabled={isLoading || !stripHtml(pageContent).trim()}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <SpellCheck className="w-3.5 h-3.5" />
+          {currentLocale === 'fr' ? 'Vérifier les fautes' : currentLocale === 'en' ? 'Check spelling' : 'Проверить ошибки'}
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="p-3 border-t border-midnight-700/30 mt-1">
         <div className="flex gap-2">
           <input
             type="text"
@@ -8009,8 +7862,6 @@ export function BookMode() {
   const [storyTitle, setStoryTitle] = useState('')
   const [showAIPanel, setShowAIPanel] = useState(true) // Panneau IA ouvert par défaut
   
-  // Modale d'introduction (première visite)
-  const { isFirstVisit, markAsSeen } = useFirstVisit('writing')
   const [showOverview, setShowOverview] = useState(false)
   const [showStructureSelector, setShowStructureSelector] = useState(false)
   const [showStructureView, setShowStructureView] = useState(false)
@@ -9396,7 +9247,6 @@ export function BookMode() {
               onUnlock={() => currentStory && reopenStory(currentStory.id)}
               // Export PDF
               onExportPdf={handleExportPdf}
-              onDebugPdf={handleDebugPdf}
               isExportingPdf={isExportingPdf}
               exportStatus={exportStatus}
             />
@@ -9970,12 +9820,6 @@ export function BookMode() {
         {/* Éditeur de couverture supprimé - Page 1 = couverture, dernière page = 4ème */}
       </AnimatePresence>
       
-      {/* Modale d'introduction - première visite */}
-      <ModeIntroModal
-        mode="writing"
-        isOpen={isFirstVisit}
-        onClose={markAsSeen}
-      />
     </div>
   )
 }

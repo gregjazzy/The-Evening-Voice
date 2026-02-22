@@ -121,43 +121,8 @@ const generateId = (): string => {
 // Templates de prompt par outil
 const promptTemplates = {
   midjourney: (kit: PromptKit) => {
-    const parts = []
-    if (kit.subject) parts.push(kit.subject)
-    if (kit.subjectDetails) parts.push(kit.subjectDetails)
-    if (kit.style) {
-      const styleMap: Record<StyleType, string> = {
-        dessin: 'hand-drawn illustration style',
-        photo: 'photorealistic',
-        magique: 'magical fantasy art, ethereal glow',
-        anime: 'anime style, Studio Ghibli inspired',
-        aquarelle: 'watercolor painting style',
-        pixel: 'pixel art, retro game style'
-      }
-      parts.push(styleMap[kit.style])
-    }
-    if (kit.ambiance) {
-      const ambianceMap: Record<AmbianceType, string> = {
-        jour: 'daytime, bright atmosphere',
-        nuit: 'nighttime, starry sky',
-        orage: 'stormy weather, dramatic clouds',
-        brume: 'misty, fog, mysterious atmosphere',
-        feerique: 'fairy tale setting, enchanted',
-        mystere: 'mysterious, shadowy, intriguing'
-      }
-      parts.push(ambianceMap[kit.ambiance])
-    }
-    if (kit.light) {
-      const lightMap: Record<LightType, string> = {
-        soleil: 'golden sunlight',
-        lune: 'moonlit, silver glow',
-        bougie: 'candlelight, warm orange glow',
-        neon: 'neon lights, cyberpunk',
-        aurore: 'aurora borealis, northern lights'
-      }
-      parts.push(lightMap[kit.light])
-    }
-    if (kit.additionalNotes) parts.push(kit.additionalNotes)
-    return parts.join(', ')
+    // Prompt envoyé tel quel — pas de transformation
+    return kit.subject || ''
   },
   
   elevenlabs: (kit: PromptKit) => {

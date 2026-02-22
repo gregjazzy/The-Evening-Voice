@@ -75,6 +75,131 @@ function svgToPngDataUrl(svgString: string, width: number, height: number): Prom
   })
 }
 
+/**
+ * Load an image and return its natural width.
+ * For data URLs and regular URLs alike.
+ */
+function getImageNaturalWidth(url: string): Promise<number> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(img.naturalWidth)
+    img.onerror = () => resolve(0)
+    img.src = url
+  })
+}
+
+/**
+ * Upscale a single image via /api/ai/upscale if its natural resolution
+ * is below the target width needed for 300 DPI print.
+ */
+async function upscaleImageIfNeeded(
+  imageUrl: string,
+  targetWidthPx: number,
+): Promise<string> {
+  try {
+    const naturalWidth = await getImageNaturalWidth(imageUrl)
+    if (naturalWidth === 0) return imageUrl
+    if (naturalWidth >= targetWidthPx) {
+      console.log(`🔍 Image already ${naturalWidth}px wide (target: ${targetWidthPx}px) — skip upscale`)
+      return imageUrl
+    }
+
+    const scale = naturalWidth < targetWidthPx / 2 ? 4 : 2
+    console.log(`🔍 Upscaling image ${naturalWidth}px → x${scale} (target: ${targetWidthPx}px)`)
+
+    // Data URLs: extract base64 and send as imageBase64
+    // Regular URLs: send as imageUrl
+    const isDataUrl = imageUrl.startsWith('data:')
+    const body: Record<string, unknown> = { scale }
+
+    if (isDataUrl) {
+      // Extract base64 payload after the comma
+      const base64 = imageUrl.split(',')[1]
+      if (!base64) return imageUrl
+      body.imageBase64 = base64
+    } else {
+      body.imageUrl = imageUrl
+    }
+
+    const response = await fetch('/api/ai/upscale', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      console.warn(`⚠️ Upscale API returned ${response.status} — using original image`)
+      return imageUrl
+    }
+
+    const result = await response.json()
+    if (result.success && result.url) {
+      console.log(`✅ Upscaled to ${result.width}x${result.height}px`)
+      return result.url
+    }
+
+    return imageUrl
+  } catch (err) {
+    console.warn('⚠️ Image upscale failed, using original:', err)
+    return imageUrl
+  }
+}
+
+/**
+ * Upscale all images on a page (background media + floating images)
+ * that are below the target resolution for print quality.
+ * Returns a cloned page with upscaled URLs.
+ */
+async function upscalePageImages(
+  page: Story['pages'][0],
+  targetWidthPx: number,
+): Promise<Story['pages'][0]> {
+  const cloned = { ...page }
+
+  // Upscale background media
+  if (cloned.backgroundMedia) {
+    const bgMedia = { ...cloned.backgroundMedia }
+    const sourceUrl = bgMedia.type === 'video' ? bgMedia.videoPoster : bgMedia.url
+    if (sourceUrl) {
+      const upscaled = await upscaleImageIfNeeded(sourceUrl, targetWidthPx)
+      if (upscaled !== sourceUrl) {
+        if (bgMedia.type === 'video') {
+          bgMedia.videoPoster = upscaled
+        } else {
+          bgMedia.url = upscaled
+        }
+        cloned.backgroundMedia = bgMedia
+      }
+    }
+  }
+
+  // Upscale floating images
+  if (cloned.images && cloned.images.length > 0) {
+    const upscaledImages = await Promise.all(
+      cloned.images.map(async (media) => {
+        const imgTargetWidth = Math.round(targetWidthPx * (media.position.width / 100))
+        const sourceUrl = media.type === 'video' ? (media as any).videoPoster : media.url
+        if (!sourceUrl) return media
+
+        const upscaled = await upscaleImageIfNeeded(sourceUrl, imgTargetWidth)
+        if (upscaled !== sourceUrl) {
+          const clonedMedia = { ...media }
+          if (media.type === 'video') {
+            (clonedMedia as any).videoPoster = upscaled
+          } else {
+            clonedMedia.url = upscaled
+          }
+          return clonedMedia
+        }
+        return media
+      })
+    )
+    cloned.images = upscaledImages
+  }
+
+  return cloned
+}
+
 export interface PdfExportState {
   isExporting: boolean
   progress: number
@@ -568,11 +693,26 @@ export function usePdfExport() {
       const { width, height } = getPageCaptureSize(format)
       const bleedPx = computeBleedPx(format)
 
+      // Target width in pixels at 300 DPI (for upscale decisions)
+      const targetWidthPx = Math.round(((format.widthMm + 2 * format.bleedMm) / 25.4) * 300)
+
       // Render each page sequentially
       const pageElements: HTMLElement[] = []
       const cleanups: (() => void)[] = []
 
       for (let i = 0; i < story.pages.length; i++) {
+        let page = story.pages[i]
+
+        // Upscale individual images before building the DOM
+        if (useUpscale) {
+          setState(s => ({
+            ...s,
+            progress: Math.round((i / story.pages.length) * 10),
+            message: t('renderingPage', { current: i + 1, total: story.pages.length }) + ' (upscale)',
+          }))
+          page = await upscalePageImages(page, targetWidthPx)
+        }
+
         setState(s => ({
           ...s,
           progress: Math.round((i / story.pages.length) * 20),
@@ -580,7 +720,7 @@ export function usePdfExport() {
         }))
 
         const { element, cleanup } = await renderSinglePage(
-          story.pages[i], i, story.pages.length,
+          page, i, story.pages.length,
           pageColor, showLines, width, height, format.id, bleedPx,
           { front: t('frontCover').toUpperCase(), back: t('backCover').toUpperCase() },
         )
@@ -652,6 +792,7 @@ export function usePdfExport() {
       format = BOOK_FORMATS.find(f => f.id === 'portrait-a5') || BOOK_FORMATS[0],
       pageColor = 'cream',
       showLines = true,
+      useUpscale = false,
     } = options
 
     console.log('🔬 PDF DEBUG PREVIEW — format:', format.id)
@@ -672,11 +813,23 @@ export function usePdfExport() {
       const captureScale = computeCaptureScale(format)
       // Use lower scale for debug (faster)
       const debugScale = Math.max(2, Math.min(captureScale, 3))
+      const targetWidthPx = Math.round(((format.widthMm + 2 * format.bleedMm) / 25.4) * 300)
 
       const allSnapshots: DebugPageSnapshot[] = []
       const cleanups: (() => void)[] = []
 
       for (let i = 0; i < story.pages.length; i++) {
+        let page = story.pages[i]
+
+        // Upscale individual images before building the DOM
+        if (useUpscale) {
+          setState(s => ({
+            ...s,
+            message: `Debug page ${i + 1}/${story.pages.length} (upscale)...`,
+          }))
+          page = await upscalePageImages(page, targetWidthPx)
+        }
+
         setState(s => ({
           ...s,
           progress: Math.round((i / story.pages.length) * 100),
@@ -685,7 +838,7 @@ export function usePdfExport() {
 
         // Step 1: Render page DOM
         const { element, cleanup } = await renderSinglePage(
-          story.pages[i], i, story.pages.length,
+          page, i, story.pages.length,
           pageColor, showLines, width, height, format.id, bleedPx,
           { front: 'COUVERTURE', back: '4ÈME DE COUVERTURE' },
         )

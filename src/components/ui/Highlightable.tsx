@@ -12,6 +12,8 @@ interface HighlightableProps {
   className?: string
   /** Si true, le wrapper prend toute la taille du parent */
   fill?: boolean
+  /** Position du label: 'center' (défaut), 'left', 'right' */
+  labelPosition?: 'center' | 'left' | 'right'
   /** Callback quand l'élément est cliqué pendant qu'il brille */
   onHighlightClick?: () => void
 }
@@ -29,6 +31,7 @@ export function Highlightable({
   children,
   className,
   fill = false,
+  labelPosition = 'center',
   onHighlightClick,
 }: HighlightableProps) {
   const t = useTranslations('common')
@@ -138,8 +141,11 @@ export function Highlightable({
           <motion.div
             key={`label-${id}`}
             className={cn(
-              "absolute left-1/2 -translate-x-1/2 z-[10000] whitespace-nowrap",
-              labelBelow ? "-bottom-10" : "-top-10"
+              "absolute z-[10000] whitespace-nowrap",
+              labelBelow ? "-bottom-10" : "-top-10",
+              labelPosition === 'center' && "left-1/2 -translate-x-1/2",
+              labelPosition === 'right' && "left-0",
+              labelPosition === 'left' && "right-0",
             )}
             initial={{ opacity: 0, y: labelBelow ? -10 : 10 }}
             animate={{ opacity: 1, y: 0 }}
