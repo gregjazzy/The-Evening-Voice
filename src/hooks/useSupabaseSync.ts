@@ -410,7 +410,6 @@ export function useSupabaseSync() {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('lavoixdusoir-storage')
         localStorage.removeItem('lavoixdusoir-studio')
-        localStorage.removeItem('lavoixdusoir-montage-v3')
         localStorage.removeItem('lavoixdusoir-studio-progress')
       }
     }
@@ -1185,25 +1184,30 @@ export function useSupabaseSync() {
 
     const unsubscribe = useMontageStore.subscribe(
       (state, prevState) => {
-        // Détecter les projets qui ont changé
-        const currentProjectsJson = JSON.stringify(state.projects.map(p => ({ id: p.id, updatedAt: p.updatedAt })))
-        const prevProjectsJson = JSON.stringify(prevState.projects.map(p => ({ id: p.id, updatedAt: p.updatedAt })))
-        
-        if (currentProjectsJson !== prevProjectsJson) {
-          // Trouver le projet qui a changé
-          for (const project of state.projects) {
-            const prevProject = prevState.projects.find(p => p.id === project.id)
-            if (!prevProject || project.updatedAt.getTime() !== prevProject.updatedAt.getTime()) {
-              debouncedSaveMontageProject(project)
-              console.log(`   📤 Projet montage "${project.title}" en cours de sauvegarde...`)
-            }
+        // Détecter un NOUVEAU projet (sauvegarde immédiate)
+        if (state.projects.length > prevState.projects.length) {
+          const prevIds = new Set(prevState.projects.map(p => p.id))
+          const newProjects = state.projects.filter(p => !prevIds.has(p.id))
+          for (const project of newProjects) {
+            console.log(`   📤 Nouveau projet montage "${project.title}", sauvegarde immédiate`)
+            saveMontageProject(project)
+          }
+          return
+        }
+
+        // Détecter les projets MODIFIÉS (sauvegarde debounced)
+        for (const project of state.projects) {
+          const prevProject = prevState.projects.find(p => p.id === project.id)
+          if (prevProject && project.updatedAt.getTime() !== prevProject.updatedAt.getTime()) {
+            debouncedSaveMontageProject(project)
+            console.log(`   📤 Projet montage "${project.title}" en cours de sauvegarde...`)
           }
         }
       }
     )
 
     return () => unsubscribe()
-  }, [profile?.id, debouncedSaveMontageProject])
+  }, [profile?.id, saveMontageProject, debouncedSaveMontageProject])
 
   // ============================================
   // SYNCHRONISATION STUDIO PROGRESS

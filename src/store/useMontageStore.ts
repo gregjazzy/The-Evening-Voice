@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { supabase } from '@/lib/supabase/client'
+import { useAuthStore } from './useAuthStore'
 
 // =============================================================================
 // TYPES - Système de timeline basé sur le TEMPS (secondes)
@@ -532,7 +533,6 @@ interface MontageState {
 }
 
 export const useMontageStore = create<MontageState>()(
-  persist(
     (set, get) => ({
       // État initial
       currentProject: null,
@@ -635,7 +635,25 @@ export const useMontageStore = create<MontageState>()(
         set((state) => ({
           projects: state.projects.filter((p) => p.id !== projectId),
           currentProject: state.currentProject?.id === projectId ? null : state.currentProject,
+          currentSceneIndex: state.currentProject?.id === projectId ? 0 : state.currentSceneIndex,
         }))
+
+        // Fire-and-forget Supabase delete
+        const profileId = useAuthStore.getState().profile?.id
+        if (profileId) {
+          supabase
+            .from('montage_projects')
+            .delete()
+            .eq('id', projectId)
+            .eq('profile_id', profileId)
+            .then(({ error }) => {
+              if (error) {
+                console.error('Erreur suppression montage Supabase:', error)
+              } else {
+                console.log('✅ Projet montage supprimé de Supabase')
+              }
+            })
+        }
       },
 
       // === ACTIONS SCÈNE ===
@@ -1219,59 +1237,5 @@ export const useMontageStore = create<MontageState>()(
           (phrase) => time >= phrase.timeRange.startTime && time < phrase.timeRange.endTime
         ) || null
       },
-    }),
-    {
-      name: 'lavoixdusoir-montage-v3', // Nouvelle version avec migration
-      partialize: (state) => ({
-        projects: state.projects,
-      }),
-      // Migration des anciennes données
-      migrate: (persistedState: unknown, version: number) => {
-        const state = persistedState as { projects?: MontageProject[] }
-        
-        if (state.projects) {
-          // Migrer les phrases vers le format absolu avec audioTimeRange
-          const migratedProjects = state.projects.map((project) => ({
-            ...project,
-            scenes: project.scenes.map((scene) => {
-              if (scene.narration?.phrases && scene.narration.phrases.length > 0) {
-                const introDuration = scene.introDuration || 0
-                const migratedPhrases = scene.narration.phrases.map((phrase) => {
-                  // Si audioTimeRange n'existe pas, c'est l'ancien format
-                  if (!phrase.audioTimeRange) {
-                    console.log(`🔄 [localStorage] Migration phrase vers format absolu`)
-                    return {
-                      ...phrase,
-                      audioTimeRange: {
-                        startTime: phrase.timeRange.startTime,
-                        endTime: phrase.timeRange.endTime,
-                      },
-                      timeRange: {
-                        startTime: introDuration + phrase.timeRange.startTime,
-                        endTime: introDuration + phrase.timeRange.endTime,
-                      },
-                    }
-                  }
-                  return phrase
-                })
-                return {
-                  ...scene,
-                  narration: {
-                    ...scene.narration,
-                    phrases: migratedPhrases,
-                  },
-                }
-              }
-              return scene
-            }),
-          }))
-          
-          return { projects: migratedProjects }
-        }
-        
-        return persistedState as MontageState
-      },
-      version: 3,
-    }
-  )
+    })
 )
