@@ -28,13 +28,22 @@ export const CANONICAL_PAGE_WIDTH = 500
 export const REFERENCE_PAGE_WIDTH = CANONICAL_PAGE_WIDTH
 
 /**
+ * Resolve a BookFormat to its actual format ID.
+ * Handles aliases like 'portrait-a4' → 'portrait-a5' (same Gelato product).
+ */
+function resolveFormatId(bookFormat: BookFormat): BookFormat {
+  if (bookFormat === 'portrait-a4') return 'portrait-a5'
+  return bookFormat
+}
+
+/**
  * Get the canonical pixel dimensions for a given book format.
  * Width is always CANONICAL_PAGE_WIDTH (500px).
  * Height is calculated from the format's mm ratio.
  */
 export function getCanonicalDimensions(bookFormat: BookFormat = 'portrait-a5'): { width: number; height: number } {
-  const fmt = BOOK_FORMATS.find(f => f.id === bookFormat)
-  if (!fmt) return { width: CANONICAL_PAGE_WIDTH, height: Math.round(CANONICAL_PAGE_WIDTH / 0.7) } // fallback A5
+  const fmt = BOOK_FORMATS.find(f => f.id === resolveFormatId(bookFormat))
+  if (!fmt) return { width: CANONICAL_PAGE_WIDTH, height: Math.round(CANONICAL_PAGE_WIDTH / 0.75) } // fallback portrait 21×28
   const ratio = fmt.widthMm / fmt.heightMm
   return {
     width: CANONICAL_PAGE_WIDTH,
@@ -143,7 +152,7 @@ export const PAGE_PADDING_RATIOS = {
 export function getPagePaddingPx(bookFormat: BookFormat = 'portrait-a5'): {
   left: number; right: number; top: number; bottom: number
 } {
-  const dims = getCanonicalDimensions(bookFormat)
+  const dims = getCanonicalDimensions(resolveFormatId(bookFormat))
   return {
     left: Math.round(PAGE_PADDING_RATIOS.left * dims.width),
     right: Math.round(PAGE_PADDING_RATIOS.right * dims.width),

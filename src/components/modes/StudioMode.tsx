@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette,
   Image,
+  Video,
   ArrowLeft,
   Sparkles,
   Eye,
@@ -20,10 +21,10 @@ import { PromptBuilder } from '@/components/studio/PromptBuilder'
 import { AssetDropzone } from '@/components/studio/AssetDropzone'
 import { StudioAIChat } from '@/components/studio/StudioAIChat'
 import { TutorialGuide } from '@/components/studio/TutorialGuide'
-import { cn } from '@/lib/utils'
+import { cn, getThumbnailUrl } from '@/lib/utils'
 import { useTranslations } from '@/lib/i18n/context'
 
-// Types de creation disponibles — images uniquement (livre d'histoires)
+// Types de creation disponibles
 const creationTypes: Array<{
   id: CreationType
   nameKey: string
@@ -38,6 +39,14 @@ const creationTypes: Array<{
     descriptionKey: 'mode.imageTypeDesc',
     icon: Image,
     color: 'from-aurora-500 to-aurora-700',
+    tool: 'fal.ai',
+  },
+  {
+    id: 'video',
+    nameKey: 'mode.videoTypeName',
+    descriptionKey: 'mode.videoTypeDesc',
+    icon: Video,
+    color: 'from-stardust-500 to-stardust-700',
     tool: 'fal.ai',
   },
 ]
@@ -148,7 +157,7 @@ export function StudioMode() {
             </h1>
             <p className="text-midnight-300 text-xs">
               {view === 'select' && t('mode.subtitleSelect')}
-              {view === 'create' && selectedType && t('mode.subtitleCreate', { type: t('mode.imageCreation') })}
+              {view === 'create' && selectedType && t('mode.subtitleCreate', { type: t(selectedType === 'video' ? 'mode.videoCreation' : 'mode.imageCreation') })}
               {view === 'gallery' && t('mode.subtitleGallery')}
             </p>
           </div>
@@ -328,14 +337,22 @@ export function StudioMode() {
                       >
                         {asset.type === 'image' && (
                           <img
-                            src={asset.url}
+                            src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
                             alt={asset.name}
                             className="w-full h-full object-cover"
+                            loading="lazy"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement
+                              if (!img.dataset.fallback) {
+                                img.dataset.fallback = '1'
+                                img.src = asset.cloudUrl || asset.url
+                              }
+                            }}
                           />
                         )}
                         {asset.type === 'video' && (
                           <video
-                            src={asset.url}
+                            src={asset.cloudUrl || asset.url}
                             className="w-full h-full object-cover"
                             muted
                             loop

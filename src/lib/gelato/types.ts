@@ -22,20 +22,17 @@ export interface GelatoProductPrice {
   quantity: number
 }
 
-// Formats de livres photo Gelato
+// Formats de livres photo Gelato (tailles réelles du catalogue)
+// 20x20cm (8x8"), 21x28cm (8x11"), 28x28cm (11x11")
 export type GelatoPhotoBookSize =
-  | 'photobook-hardcover-a4-portrait'
-  | 'photobook-hardcover-a4-landscape'
-  | 'photobook-hardcover-a5-portrait'
-  | 'photobook-hardcover-a5-landscape'
-  | 'photobook-hardcover-square-210x210'
-  | 'photobook-hardcover-square-180x180'
-  | 'photobook-softcover-a4-portrait'
-  | 'photobook-softcover-a4-landscape'
-  | 'photobook-softcover-a5-portrait'
-  | 'photobook-softcover-a5-landscape'
-  | 'photobook-softcover-square-210x210'
-  | 'photobook-softcover-square-180x180'
+  | 'photobook-hardcover-200x200'
+  | 'photobook-hardcover-210x280'
+  | 'photobook-hardcover-280x210'
+  | 'photobook-hardcover-280x280'
+  | 'photobook-softcover-200x200'
+  | 'photobook-softcover-210x280'
+  | 'photobook-softcover-280x210'
+  | 'photobook-softcover-280x280'
 
 // ============================================================================
 // OPTIONS GELATO CONFIGURABLES
@@ -106,13 +103,14 @@ export const GELATO_LAMINATION_OPTIONS: GelatoLaminationOption[] = [
   { id: 'glossy-lamination', nameFr: 'Pelliculage brillant', nameEn: 'Glossy lamination', icon: '✨' },
 ]
 
-// Mapping taille → segment pf Gelato
+// Mapping taille → segment pf Gelato (catalogue réel)
+// square-21 = 20x20cm (8×8"), square-18 = 28x28cm (11×11"), portrait-a5 = 21x28cm (8×11")
 const FORMAT_PF_SEGMENT: Record<string, string> = {
-  'square-21': '210x210-mm-8x8',
-  'square-18': '180x180-mm-7x7',
-  'portrait-a5': 'a5',
-  'portrait-a4': 'a4',
-  'landscape-a5': 'a5-landscape',
+  'square-21': '200x200-mm-8x8',
+  'square-18': '280x280-mm-11x11',
+  'portrait-a5': '210x280-mm-8x11',
+  'portrait-a4': '210x280-mm-8x11',  // alias → même produit que portrait-a5
+  'landscape-a5': '280x210-mm-11x8',
 }
 
 // Construire dynamiquement le product UID Gelato
@@ -122,7 +120,7 @@ export function buildGelatoProductUid(
   paper: GelatoPaperType,
   lamination: GelatoLamination,
 ): string {
-  const pf = FORMAT_PF_SEGMENT[format] || '210x210-mm-8x8'
+  const pf = FORMAT_PF_SEGMENT[format] || '200x200-mm-8x8'
   const bt = cover === 'hardcover' ? 'perfect-hardcover' : 'glued-softcover'
   return `photobook_pf_${pf}_pt_${paper}_cl_4-4_ccl_4-0_bt_${bt}_ct_${lamination}_prt_1-0`
 }
@@ -130,24 +128,24 @@ export function buildGelatoProductUid(
 // @deprecated Use buildGelatoProductUid() instead
 export const GELATO_PRODUCT_MAPPING: Record<string, { softcover: string; hardcover: string }> = {
   'square-21': {
-    softcover: 'photobook_pf_210x210-mm-8x8_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
-    hardcover: 'photobook_pf_210x210-mm-8x8_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
+    softcover: 'photobook_pf_200x200-mm-8x8_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
+    hardcover: 'photobook_pf_200x200-mm-8x8_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
   },
   'square-18': {
-    softcover: 'photobook_pf_180x180-mm-7x7_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
-    hardcover: 'photobook_pf_180x180-mm-7x7_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
+    softcover: 'photobook_pf_280x280-mm-11x11_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
+    hardcover: 'photobook_pf_280x280-mm-11x11_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
   },
   'portrait-a5': {
-    softcover: 'photobook_pf_a5_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
-    hardcover: 'photobook_pf_a5_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
+    softcover: 'photobook_pf_210x280-mm-8x11_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
+    hardcover: 'photobook_pf_210x280-mm-8x11_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
   },
   'portrait-a4': {
-    softcover: 'photobook_pf_a4_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
-    hardcover: 'photobook_pf_a4_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
+    softcover: 'photobook_pf_210x280-mm-8x11_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
+    hardcover: 'photobook_pf_210x280-mm-8x11_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
   },
   'landscape-a5': {
-    softcover: 'photobook_pf_a5-landscape_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
-    hardcover: 'photobook_pf_a5-landscape_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
+    softcover: 'photobook_pf_280x210-mm-11x8_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_glued-softcover_ct_matt-lamination_prt_1-0',
+    hardcover: 'photobook_pf_280x210-mm-11x8_pt_170-gsm-coated-silk_cl_4-4_ccl_4-0_bt_perfect-hardcover_ct_matt-lamination_prt_1-0',
   },
 }
 

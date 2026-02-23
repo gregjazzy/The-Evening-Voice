@@ -27,10 +27,6 @@ interface UseAIReturn {
   isGeneratingImage: boolean
   imageProgress: number
   
-  // Génération de voix
-  generateVoice: (text: string, type?: 'narration' | 'ai_friend') => Promise<string | null>
-  isGeneratingVoice: boolean
-  
   // Génération de vidéo
   generateVideo: (imageUrl: string, ambiance: string) => Promise<string | null>
   isGeneratingVideo: boolean
@@ -61,7 +57,6 @@ export function useAI(): UseAIReturn {
   
   const [isLoadingChat, setIsLoadingChat] = useState(false)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
-  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
   const [imageProgress, setImageProgress] = useState(0)
   const [videoProgress, setVideoProgress] = useState(0)
@@ -205,42 +200,6 @@ export function useAI(): UseAIReturn {
   }, [])
 
   // ============================================
-  // GÉNÉRATION DE VOIX
-  // ============================================
-  
-  const generateVoice = useCallback(async (
-    text: string,
-    type: 'narration' | 'ai_friend' = 'narration'
-  ): Promise<string | null> => {
-    setIsGeneratingVoice(true)
-    
-    try {
-      const response = await fetch('/api/ai/voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, type }),
-      })
-      
-      if (!response.ok) {
-        throw new Error('Erreur génération voix')
-      }
-      
-      const data = await response.json()
-      
-      // Convertir base64 en URL blob
-      const audioBlob = base64ToBlob(data.audioData, data.mimeType)
-      const audioUrl = URL.createObjectURL(audioBlob)
-      
-      return audioUrl
-    } catch (error) {
-      console.error('Erreur génération voix:', error)
-      return null
-    } finally {
-      setIsGeneratingVoice(false)
-    }
-  }, [])
-
-  // ============================================
   // GÉNÉRATION DE VIDÉO
   // ============================================
   
@@ -302,8 +261,6 @@ export function useAI(): UseAIReturn {
     checkImageStatus,
     isGeneratingImage,
     imageProgress,
-    generateVoice,
-    isGeneratingVoice,
     generateVideo,
     isGeneratingVideo,
     videoProgress,

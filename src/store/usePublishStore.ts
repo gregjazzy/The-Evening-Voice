@@ -8,12 +8,12 @@ import { GELATO_PAPER_OPTIONS, GELATO_LAMINATION_OPTIONS } from '@/lib/gelato'
 // FORMATS DE LIVRE DISPONIBLES
 // ============================================================================
 
-export type BookFormat = 
-  | 'square-21'      // Carré 21x21 cm - Idéal livres enfants
-  | 'square-18'      // Carré 18x18 cm - Compact
-  | 'portrait-a5'    // A5 Portrait (14.8x21 cm)
-  | 'portrait-a4'    // A4 Portrait (21x29.7 cm)
-  | 'landscape-a5'   // A5 Paysage (21x14.8 cm)
+export type BookFormat =
+  | 'square-21'      // Carré 20x20 cm (Gelato 8x8") - Idéal livres enfants
+  | 'square-18'      // Carré 28x28 cm (Gelato 11x11") - Grand format
+  | 'portrait-a5'    // Portrait 21x28 cm (Gelato 8x11")
+  | 'portrait-a4'    // Portrait 21x28 cm (alias, même produit Gelato que portrait-a5)
+  | 'landscape-a5'   // Paysage 28x21 cm (Gelato 8x11" horizontal)
 
 export interface BookFormatConfig {
   id: BookFormat
@@ -34,10 +34,10 @@ export interface BookFormatConfig {
 export const BOOK_FORMATS: BookFormatConfig[] = [
   {
     id: 'square-21',
-    name: 'Square 21cm',
-    nameFr: 'Carré 21cm',
-    widthMm: 210,
-    heightMm: 210,
+    name: 'Square 20cm',
+    nameFr: 'Carré 20cm (8×8")',
+    widthMm: 200,
+    heightMm: 200,
     bleedMm: 3,
     safeZoneMm: 5,
     spineMarginMm: 10,
@@ -49,65 +49,60 @@ export const BOOK_FORMATS: BookFormatConfig[] = [
   },
   {
     id: 'square-18',
-    name: 'Square 18cm',
-    nameFr: 'Carré 18cm',
-    widthMm: 180,
-    heightMm: 180,
+    name: 'Square 28cm',
+    nameFr: 'Carré 28cm (11×11")',
+    widthMm: 280,
+    heightMm: 280,
     bleedMm: 3,
     safeZoneMm: 5,
     spineMarginMm: 10,
     minPages: 20,
     maxPages: 80,
-    priceEstimate: '12-20€',
+    priceEstimate: '20-35€',
     recommended: false,
     icon: '📗',
   },
   {
     id: 'portrait-a5',
-    name: 'A5 Portrait',
-    nameFr: 'A5 Portrait',
-    widthMm: 148,
-    heightMm: 210,
+    name: 'Portrait 21×28cm',
+    nameFr: 'Portrait 21×28cm (8×11")',
+    widthMm: 210,
+    heightMm: 280,
     bleedMm: 3,
     safeZoneMm: 5,
     spineMarginMm: 12,
     minPages: 24,
     maxPages: 200,
-    priceEstimate: '10-18€',
+    priceEstimate: '15-25€',
     recommended: false,
     icon: '📘',
   },
   {
-    id: 'portrait-a4',
-    name: 'A4 Portrait',
-    nameFr: 'A4 Portrait',
-    widthMm: 210,
-    heightMm: 297,
-    bleedMm: 3,
-    safeZoneMm: 5,
-    spineMarginMm: 15,
-    minPages: 20,
-    maxPages: 100,
-    priceEstimate: '20-35€',
-    recommended: false,
-    icon: '📙',
-  },
-  {
     id: 'landscape-a5',
-    name: 'A5 Landscape',
-    nameFr: 'A5 Paysage',
-    widthMm: 210,
-    heightMm: 148,
+    name: 'Landscape 28×21cm',
+    nameFr: 'Paysage 28×21cm (11×8")',
+    widthMm: 280,
+    heightMm: 210,
     bleedMm: 3,
     safeZoneMm: 5,
     spineMarginMm: 12,
     minPages: 24,
     maxPages: 100,
-    priceEstimate: '12-22€',
+    priceEstimate: '15-25€',
     recommended: false,
     icon: '📓',
   },
 ]
+
+/**
+ * Find a BookFormatConfig by format ID, handling aliases
+ * (e.g. 'portrait-a4' → 'portrait-a5', same Gelato product).
+ * Always returns a valid config (falls back to first format).
+ */
+export function findBookFormat(formatId: BookFormat | string): BookFormatConfig {
+  const resolved = formatId === 'portrait-a4' ? 'portrait-a5' : formatId
+  return BOOK_FORMATS.find(f => f.id === resolved) || BOOK_FORMATS[0]
+}
 
 // ============================================================================
 // TYPES DE COUVERTURE
@@ -637,7 +632,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
       return
     }
 
-    const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
+    const format = findBookFormat(selectedFormat)
     const coverConfig = COVER_TYPES.find(c => c.type === coverType)
     const paperOption = GELATO_PAPER_OPTIONS.find(p => p.id === paperType)
 

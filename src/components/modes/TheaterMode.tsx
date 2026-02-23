@@ -3,324 +3,290 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Theater, 
-  Play, 
-  Pause, 
-  SkipBack, 
+import {
+  Theater,
+  Play,
+  Pause,
+  SkipBack,
   SkipForward,
   Volume2,
   VolumeX,
-  Maximize,
-  Minimize,
-  Settings,
-  Lightbulb,
-  WifiOff,
   Book,
-  Sparkles,
-  Home,
   Film,
   X,
-  Download,
-  Loader2,
-  CheckCircle2,
-  Video
+  Home,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
-import { useMontageStore, type MontageProject, type MontageScene } from '@/store/useMontageStore'
-import { useMentorStore } from '@/store/useMentorStore'
-import { useHomeKit } from '@/hooks/useHomeKit'
+import { useMontageStore, type MontageProject } from '@/store/useMontageStore'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { cn } from '@/lib/utils'
 import { useTranslations } from '@/lib/i18n/context'
 
 export function TheaterMode() {
-  // Modale d'introduction (première visite)
   const { isFirstVisit, markAsSeen } = useFirstVisit('theater')
   const t = useTranslations('theater')
 
-  // Pour le portal - s'assurer que le DOM est monté
   const [isMounted, setIsMounted] = useState(false)
-  
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-  // ✅ Utilise maintenant useMontageStore au lieu de useLayoutStore
+  useEffect(() => { setIsMounted(true) }, [])
+
   const { projects } = useMontageStore()
-  const { isConnected: mentorConnected, controlActive } = useMentorStore()
-  const homeKit = useHomeKit()
 
   // États du théâtre
   const [selectedProject, setSelectedProject] = useState<MontageProject | null>(null)
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
   const [volume, setVolume] = useState(80)
   const [isMuted, setIsMuted] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(true)
-  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0)
-  
-  // États pour l'export vidéo
-  const [isExporting, setIsExporting] = useState(false)
-  const [exportingProjectId, setExportingProjectId] = useState<string | null>(null)
-  const [exportProgress, setExportProgress] = useState(0)
-  const [exportResult, setExportResult] = useState<{
-    mp4Url: string
-    playbackId: string
-  } | null>(null)
-  const [exportError, setExportError] = useState<string | null>(null)
+  const [currentTime, setCurrentTime] = useState(0)
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null)
-  const audioRefs = useRef<Record<string, HTMLAudioElement>>({})
   const narrationRef = useRef<HTMLAudioElement | null>(null)
+  const musicRef = useRef<HTMLAudioElement | null>(null)
+  const currentMusicUrlRef = useRef<string | null>(null)
+  const soundRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+  const soundTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const rafRef = useRef<number | null>(null)
+  const pageStartTime = useRef<number>(0)
   const hideControlsTimer = useRef<NodeJS.Timeout>()
-  const playbackTimer = useRef<NodeJS.Timeout>()
 
-  // Projets terminés (ou tous pour le moment, on peut filtrer par isComplete)
   const completedProjects = projects.filter((p) => p.scenes.length > 0)
   const currentScene = selectedProject?.scenes[currentSceneIndex]
+  const sceneCount = selectedProject?.scenes.length || 0
 
-  // Calculer la durée totale de la scène (intro + narration + outro)
-  const getSceneDuration = (scene: MontageScene) => {
-    return (scene.introDuration || 0) + (scene.narration?.duration || scene.duration || 10) + (scene.outroDuration || 0)
-  }
-
-  // Durée de la scène actuelle (déclaré tôt pour être utilisé dans les useEffects)
-  const sceneDuration = currentScene ? getSceneDuration(currentScene) : 10
-
-  // Auto-hide des contrôles
-  useEffect(() => {
-    if (isFullscreen && showControls) {
-      hideControlsTimer.current = setTimeout(() => {
-        setShowControls(false)
-      }, 3000)
-    }
-    return () => clearTimeout(hideControlsTimer.current)
-  }, [isFullscreen, showControls])
-
-  // Synchroniser HomeKit avec la scène
-  useEffect(() => {
-    if (currentScene && homeKit.isConnected) {
-      // Utiliser les lightTracks si disponibles
-      const lightTrack = currentScene.lightTracks?.[0]
-      if (lightTrack) {
-        homeKit.setLightColor('all', lightTrack.color)
-        homeKit.setLightBrightness('all', lightTrack.intensity)
-      } else {
-        // Fallback : ambiance par défaut
-        homeKit.syncWithAmbiance('jour', 80)
-      }
-    }
-  }, [currentScene?.id, homeKit.isConnected])
-
-  // Gérer la lecture audio (narration + musique + sons) - synchronisé avec timeRanges
-  useEffect(() => {
-    if (!currentScene || !isPlaying) return
-
-    // Jouer la narration si on est dans son timeRange
-    const introDuration = currentScene.introDuration || 0
-    const narrationStart = introDuration
-    const narrationEnd = narrationStart + (currentScene.narration?.duration || 0)
-    
-    if (currentScene.narration?.audioUrl && 
-        currentPlaybackTime >= narrationStart && 
-        currentPlaybackTime <= narrationEnd) {
-      if (!narrationRef.current) {
-        narrationRef.current = new Audio(currentScene.narration.audioUrl)
-        narrationRef.current.currentTime = currentPlaybackTime - narrationStart
-      }
-      narrationRef.current.volume = isMuted ? 0 : volume / 100
-      if (narrationRef.current.paused) {
-        narrationRef.current.play().catch(console.error)
-      }
-    } else if (narrationRef.current && !narrationRef.current.paused) {
-      narrationRef.current.pause()
-    }
-
-    // Jouer les pistes musique (filtrées par timeRange)
-    currentScene.musicTracks?.forEach((track) => {
-      const trackStart = track.timeRange?.startTime || 0
-      const trackEnd = track.timeRange?.endTime || sceneDuration
-      const isInRange = currentPlaybackTime >= trackStart && currentPlaybackTime <= trackEnd
-      
-      if (!audioRefs.current[track.id]) {
-        const audio = new Audio(track.url)
-        audio.volume = (track.volume * volume) / 100
-        audio.loop = track.loop
-        audioRefs.current[track.id] = audio
-      }
-      
-      const audio = audioRefs.current[track.id]
-      audio.volume = isMuted ? 0 : (track.volume * volume) / 100
-      
-      if (isInRange && audio.paused) {
-        audio.currentTime = currentPlaybackTime - trackStart
-        audio.play().catch(console.error)
-      } else if (!isInRange && !audio.paused) {
-        audio.pause()
-      }
-    })
-
-    // Jouer les effets sonores (filtrés par timeRange)
-    currentScene.soundTracks?.forEach((track) => {
-      const trackStart = track.timeRange?.startTime || 0
-      const trackEnd = track.timeRange?.endTime || sceneDuration
-      const isInRange = currentPlaybackTime >= trackStart && currentPlaybackTime <= trackEnd
-      
-      if (!audioRefs.current[track.id]) {
-        const audio = new Audio(track.url)
-        audio.volume = (track.volume * volume) / 100
-        audio.loop = track.loop
-        audioRefs.current[track.id] = audio
-      }
-      
-      const audio = audioRefs.current[track.id]
-      audio.volume = isMuted ? 0 : (track.volume * volume) / 100
-      
-      if (isInRange && audio.paused) {
-        audio.play().catch(console.error)
-      } else if (!isInRange && !audio.paused) {
-        audio.pause()
-      }
-    })
-
-    return () => {
-      // Arrêter les audios de cette scène quand on change
-      narrationRef.current?.pause()
-      currentScene.musicTracks?.forEach((track) => {
-        audioRefs.current[track.id]?.pause()
-      })
-      currentScene.soundTracks?.forEach((track) => {
-        audioRefs.current[track.id]?.pause()
-      })
-    }
-  }, [currentScene?.id, isPlaying, volume, isMuted, currentPlaybackTime, sceneDuration])
-
-  // Auto-avance et playback timer
-  useEffect(() => {
-    if (!isPlaying || !autoAdvance || !selectedProject || !currentScene) return
-
-    const duration = getSceneDuration(currentScene)
-
-    // Timer pour le temps de lecture
-    playbackTimer.current = setInterval(() => {
-      setCurrentPlaybackTime((prev) => {
-        if (prev >= duration) {
-          // Passer à la scène suivante
-          if (currentSceneIndex < selectedProject.scenes.length - 1) {
-            setCurrentSceneIndex((i) => i + 1)
-            return 0
-          } else {
-            // Fin du spectacle
-            setIsPlaying(false)
-            return prev
-          }
-        }
-        return prev + 0.1
-      })
-    }, 100)
-
-    return () => {
-      if (playbackTimer.current) {
-        clearInterval(playbackTimer.current)
-      }
-    }
-  }, [isPlaying, autoAdvance, currentSceneIndex, selectedProject, currentScene])
-
-  // Reset playback time quand on change de scène
-  useEffect(() => {
-    setCurrentPlaybackTime(0)
-  }, [currentSceneIndex])
-
-  // Plein écran
-  const toggleFullscreen = useCallback(async () => {
-    if (!containerRef.current) return
-
-    try {
-      if (!document.fullscreenElement) {
-        await containerRef.current.requestFullscreen()
-        setIsFullscreen(true)
-      } else {
-        await document.exitFullscreen()
-        setIsFullscreen(false)
-      }
-    } catch (error) {
-      console.error('Erreur fullscreen:', error)
-    }
-  }, [])
-
-  // Navigation
-  const goToPreviousScene = () => {
-    if (currentSceneIndex > 0) {
-      setCurrentSceneIndex((prev) => prev - 1)
-    }
-  }
-
-  const goToNextScene = () => {
-    if (selectedProject && currentSceneIndex < selectedProject.scenes.length - 1) {
-      setCurrentSceneIndex((prev) => prev + 1)
-    }
-  }
-
-  const handleStartShow = (project: MontageProject) => {
-    setSelectedProject(project)
-    setCurrentSceneIndex(0)
-    setCurrentPlaybackTime(0)
-    setIsPlaying(true)
-    setIsFullscreen(true)
-    toggleFullscreen()
-    
-    // Connecter HomeKit si disponible
-    if (!homeKit.isConnected) {
-      homeKit.connect()
-    }
-  }
-
-  const handleExitShow = () => {
-    setIsPlaying(false)
-    setSelectedProject(null)
-    setIsFullscreen(false)
-    setCurrentPlaybackTime(0)
-    
-    // Sortir du plein écran seulement si on est en plein écran
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {
-        // Ignorer l'erreur si le document n'est pas actif
-      })
-    }
-    
-    // Arrêter tous les audios
+  // ─── Audio cleanup (stable — uses refs only) ───
+  const cleanupAudio = useCallback(() => {
     narrationRef.current?.pause()
     narrationRef.current = null
-    Object.values(audioRefs.current).forEach(audio => audio.pause())
-    audioRefs.current = {}
-    
-    // Remettre les lumières à la normale
-    if (homeKit.isConnected) {
-      homeKit.syncWithAmbiance('jour', 80)
-    }
-  }
+    musicRef.current?.pause()
+    musicRef.current = null
+    currentMusicUrlRef.current = null
+    soundRefs.current.forEach(audio => audio.pause())
+    soundRefs.current.clear()
+    soundTimers.current.forEach(timer => clearTimeout(timer))
+    soundTimers.current.clear()
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    rafRef.current = null
+  }, [])
 
-  // Préchargement des assets
+  // Refs pour les valeurs lues dans l'effet sans déclencher de re-run
+  const volumeRef = useRef(volume)
+  const isMutedRef = useRef(isMuted)
+  const autoAdvanceRef = useRef(autoAdvance)
+  useEffect(() => { volumeRef.current = volume }, [volume])
+  useEffect(() => { isMutedRef.current = isMuted }, [isMuted])
+  useEffect(() => { autoAdvanceRef.current = autoAdvance }, [autoAdvance])
+
+  // Constantes de timing
+  const NARRATION_DELAY = 3    // secondes avant que la voix commence
+  const LINGER_AFTER = 5       // secondes après la fin de la voix
+  const DEFAULT_DISPLAY = 5    // secondes par défaut pour pages sans narration
+  const MUSIC_FADE_MS = 1500   // durée fade in/out musique en ms
+
+  // ─── Fade out musique ───
+  const fadeOutMusic = useCallback(() => {
+    const music = musicRef.current
+    if (music && music.volume > 0) {
+      const startVol = music.volume
+      const steps = 20
+      const stepMs = MUSIC_FADE_MS / steps
+      let step = 0
+      const fade = setInterval(() => {
+        step++
+        music.volume = Math.max(0, startVol * (1 - step / steps))
+        if (step >= steps) {
+          clearInterval(fade)
+          music.pause()
+        }
+      }, stepMs)
+    } else {
+      music?.pause()
+    }
+    musicRef.current = null
+    currentMusicUrlRef.current = null
+  }, [])
+
+  // ─── Cleanup narration + sons (sans toucher à la musique) ───
+  const cleanupNarrationAndSounds = useCallback(() => {
+    narrationRef.current?.pause()
+    narrationRef.current = null
+    soundRefs.current.forEach(a => a.pause())
+    soundRefs.current.clear()
+    soundTimers.current.forEach(timer => clearTimeout(timer))
+    soundTimers.current.clear()
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    rafRef.current = null
+  }, [])
+
+  // ─── Effet principal : scene change + play/pause ───
+  // Tout est inline pour garantir le cleanup correct
+  useEffect(() => {
+    // Cleanup narration + sons (la musique est gérée séparément)
+    cleanupNarrationAndSounds()
+    setCurrentTime(0)
+
+    const scene = selectedProject?.scenes[currentSceneIndex]
+    if (!isPlaying || !scene) {
+      // Si on arrête la lecture, fade out la musique aussi
+      if (!isPlaying) fadeOutMusic()
+      return
+    }
+
+    const vol = isMutedRef.current ? 0 : volumeRef.current / 100
+    const hasNarration = !!scene.narration?.audioUrl
+
+    // Helper pour avancer à la page suivante
+    const advanceToNext = () => {
+      const totalScenes = selectedProject?.scenes.length || 0
+      if (autoAdvanceRef.current && currentSceneIndex < totalScenes - 1) {
+        soundTimers.current.set('__advance', setTimeout(() => setCurrentSceneIndex(i => i + 1), LINGER_AFTER * 1000))
+      } else if (currentSceneIndex >= totalScenes - 1) {
+        soundTimers.current.set('__advance', setTimeout(() => setIsPlaying(false), LINGER_AFTER * 1000))
+      }
+    }
+
+    // Narration — démarrage avec délai de 3s
+    if (hasNarration) {
+      const narration = new Audio(scene.narration.audioUrl!)
+      narration.volume = vol * (scene.narration.volume ?? 1)
+      narrationRef.current = narration
+
+      narration.onended = () => advanceToNext()
+
+      // Lancer la voix après le délai
+      const narrationTimer = setTimeout(() => {
+        narration.play().catch(console.warn)
+      }, NARRATION_DELAY * 1000)
+      soundTimers.current.set('__narration-delay', narrationTimer)
+    } else {
+      // Pas de narration → auto-avance après displayDuration
+      const displayMs = (scene.displayDuration || DEFAULT_DISPLAY) * 1000
+      soundTimers.current.set('__advance', setTimeout(() => {
+        const totalScenes = selectedProject?.scenes.length || 0
+        if (autoAdvanceRef.current && currentSceneIndex < totalScenes - 1) {
+          setCurrentSceneIndex(i => i + 1)
+        } else if (currentSceneIndex >= totalScenes - 1) {
+          setIsPlaying(false)
+        }
+      }, displayMs))
+    }
+
+    // ─── Musique de fond — continuité si même URL ───
+    const musicTrack = scene.musicTracks?.[0]
+    const newMusicUrl = musicTrack?.url || null
+    const currentMusicUrl = currentMusicUrlRef.current
+
+    if (newMusicUrl === currentMusicUrl && musicRef.current) {
+      // Même musique → on la laisse jouer, juste ajuster le volume si besoin
+      const defaultVol = (selectedProject?.defaultMusicVolume ?? 30) / 100
+      const targetVol = vol * (musicTrack!.volume ?? defaultVol)
+      musicRef.current.volume = targetVol
+    } else {
+      // Musique différente ou plus de musique → fade out l'ancienne
+      if (musicRef.current) fadeOutMusic()
+
+      // Démarrer la nouvelle musique avec fade-in
+      if (musicTrack?.url) {
+        const music = new Audio(musicTrack.url)
+        const defaultVol = (selectedProject?.defaultMusicVolume ?? 30) / 100
+        const targetVol = vol * (musicTrack.volume ?? defaultVol)
+        music.volume = 0
+        music.loop = musicTrack.loop !== false
+        musicRef.current = music
+        currentMusicUrlRef.current = musicTrack.url
+        music.play().catch(console.warn)
+        // Fade in
+        const steps = 30
+        const stepMs = MUSIC_FADE_MS / steps
+        let step = 0
+        const fadeIn = setInterval(() => {
+          step++
+          if (musicRef.current === music) {
+            music.volume = Math.min(targetVol, targetVol * (step / steps))
+          }
+          if (step >= steps) clearInterval(fadeIn)
+        }, stepMs)
+        soundTimers.current.set('__music-fade-in', fadeIn as unknown as NodeJS.Timeout)
+      }
+    }
+
+    // Effets sonores (timer-based)
+    scene.soundTracks?.forEach((sound) => {
+      const startAt = sound.timeRange?.startTime || 0
+      const endAt = sound.timeRange?.endTime
+      const soundVol = vol * (sound.volume ?? 0.7)
+
+      const startTimer = setTimeout(() => {
+        const audio = new Audio(sound.url)
+        audio.volume = soundVol
+        if (sound.loop) audio.loop = true
+        soundRefs.current.set(sound.id, audio)
+        audio.play().catch(console.warn)
+
+        if (endAt && endAt > startAt) {
+          const stopTimer = setTimeout(() => {
+            audio.pause()
+            soundRefs.current.delete(sound.id)
+          }, (endAt - startAt) * 1000)
+          soundTimers.current.set(`${sound.id}-stop`, stopTimer)
+        }
+      }, startAt * 1000)
+
+      soundTimers.current.set(sound.id, startTimer)
+    })
+
+    // RAF pour le temps courant
+    pageStartTime.current = performance.now()
+    const tick = () => {
+      const elapsed = (performance.now() - pageStartTime.current) / 1000
+      setCurrentTime(elapsed)
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+
+    // Cleanup au changement de scène (la musique est gérée dans le corps de l'effet)
+    return () => {
+      cleanupNarrationAndSounds()
+    }
+  }, [currentSceneIndex, isPlaying, selectedProject?.id])
+
+  // ─── Volume update ───
+  useEffect(() => {
+    const vol = isMuted ? 0 : volume / 100
+    if (narrationRef.current) {
+      narrationRef.current.volume = vol * (currentScene?.narration?.volume ?? 1)
+    }
+    if (musicRef.current) {
+      const musicTrack = currentScene?.musicTracks?.[0]
+      const defaultVol = (selectedProject?.defaultMusicVolume ?? 30) / 100
+      musicRef.current.volume = vol * (musicTrack?.volume ?? defaultVol)
+    }
+    soundRefs.current.forEach(audio => {
+      audio.volume = vol * 0.7
+    })
+  }, [volume, isMuted])
+
+  // ─── Auto-hide contrôles ───
+  useEffect(() => {
+    if (showControls && isPlaying) {
+      hideControlsTimer.current = setTimeout(() => setShowControls(false), 4000)
+      return () => clearTimeout(hideControlsTimer.current)
+    }
+  }, [showControls, isPlaying])
+
+  // ─── Préchargement ───
   useEffect(() => {
     if (!selectedProject) return
-
     selectedProject.scenes.forEach((scene) => {
-      // Précharger les médias
       scene.mediaTracks?.forEach((media) => {
         if (media.type === 'image') {
           const img = new Image()
           img.src = media.url
-        } else if (media.type === 'video') {
-          const video = document.createElement('video')
-          video.preload = 'auto'
-          video.src = media.url
         }
       })
-      
-      // Précharger l'audio de narration
       if (scene.narration?.audioUrl) {
         const audio = new Audio()
         audio.preload = 'auto'
@@ -329,134 +295,55 @@ export function TheaterMode() {
     })
   }, [selectedProject?.id])
 
-  // Trouver la phrase active selon le temps de lecture
-  const getActivePhrase = () => {
-    if (!currentScene?.narration?.isSynced) return null
-    
-    const introDuration = currentScene.introDuration || 0
-    const relativeTime = currentPlaybackTime - introDuration
-    
-    if (relativeTime < 0) return null
-    
-    return currentScene.narration.phrases.find(
-      (phrase) => relativeTime >= phrase.timeRange.startTime && relativeTime < phrase.timeRange.endTime
-    )
+  // ─── Navigation ───
+  const handleStartShow = (project: MontageProject) => {
+    setSelectedProject(project)
+    setCurrentSceneIndex(0)
+    setCurrentTime(0)
+    setIsPlaying(true)
+    setShowControls(true)
+    // Fullscreen
+    containerRef.current?.requestFullscreen?.().catch(() => {})
   }
 
-  // Export vidéo HD/4K via Mux
-  const handleExportVideo = async (project: MontageProject, e: React.MouseEvent) => {
-    e.stopPropagation() // Empêcher de lancer le spectacle
-    
-    setIsExporting(true)
-    setExportingProjectId(project.id)
-    setExportProgress(10)
-    setExportError(null)
-    setExportResult(null)
-    
-    try {
-      // Préparer les scènes pour l'export
-      const scenes = project.scenes.map((scene) => {
-        // Trouver le premier média de la scène
-        const firstMedia = scene.mediaTracks?.[0]
-        return {
-          mediaUrl: firstMedia?.url || '',
-          duration: scene.duration || 10,
-          text: scene.text,
-        }
-      }).filter(s => s.mediaUrl) // Filtrer les scènes sans média
-      
-      if (scenes.length === 0) {
-        throw new Error('No scene with media found')
-      }
-      
-      // Récupérer l'URL de narration (première scène avec narration)
-      const narrationUrl = project.scenes.find(s => s.narration?.audioUrl)?.narration?.audioUrl
-      
-      setExportProgress(30)
-      
-      // Appeler l'API d'export
-      const response = await fetch('/api/export/video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: project.title,
-          scenes,
-          narrationUrl,
-          resolution: '1080p',
-        }),
-      })
-      
-      setExportProgress(60)
-      
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Export error')
-      }
-      
-      const result = await response.json()
-      setExportProgress(80)
-      
-      // Polling pour vérifier quand la vidéo est prête
-      if (result.status === 'preparing') {
-        let attempts = 0
-        const maxAttempts = 60 // 5 minutes max
-        
-        const checkStatus = async () => {
-          const statusResponse = await fetch(`/api/export/video?assetId=${result.assetId}`)
-          const statusData = await statusResponse.json()
-          
-          if (statusData.status === 'ready') {
-            setExportProgress(100)
-            setExportResult({
-              mp4Url: statusData.mp4Url,
-              playbackId: result.playbackId,
-            })
-            setIsExporting(false)
-          } else if (statusData.status === 'errored') {
-            throw new Error('Encoding error')
-          } else if (attempts < maxAttempts) {
-            attempts++
-            setExportProgress(80 + Math.min(attempts, 18))
-            setTimeout(checkStatus, 5000)
-          } else {
-            throw new Error('Timeout - video taking too long')
-          }
-        }
-        
-        checkStatus()
-      } else {
-        setExportProgress(100)
-        setExportResult({
-          mp4Url: result.mp4Url,
-          playbackId: result.playbackId,
-        })
-        setIsExporting(false)
-      }
-      
-    } catch (error) {
-      console.error('Erreur export vidéo:', error)
-      setExportError(error instanceof Error ? error.message : 'Unknown error')
-      setIsExporting(false)
-      setExportProgress(0)
-    }
-  }
-  
-  // Télécharger la vidéo
-  const handleDownloadVideo = () => {
-    if (exportResult?.mp4Url) {
-      const link = document.createElement('a')
-      link.href = exportResult.mp4Url
-      link.download = t('export.defaultFilename')
-      link.click()
+  const handleExitShow = () => {
+    setIsPlaying(false)
+    cleanupAudio()
+    setSelectedProject(null)
+    setCurrentTime(0)
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {})
     }
   }
 
-  // Vue Bibliothèque
+  const goToPreviousScene = () => {
+    if (currentSceneIndex > 0) setCurrentSceneIndex(i => i - 1)
+  }
+
+  const goToNextScene = () => {
+    if (currentSceneIndex < sceneCount - 1) setCurrentSceneIndex(i => i + 1)
+  }
+
+  // ─── Keyboard ───
+  useEffect(() => {
+    if (!selectedProject) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleExitShow()
+      if (e.key === ' ') { e.preventDefault(); setIsPlaying(p => !p) }
+      if (e.key === 'ArrowRight') goToNextScene()
+      if (e.key === 'ArrowLeft') goToPreviousScene()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedProject, currentSceneIndex, sceneCount])
+
+  // ═══════════════════════════════════════════
+  // VUE BIBLIOTHÈQUE
+  // ═══════════════════════════════════════════
   if (!selectedProject) {
     return (
       <div className="h-full flex flex-col">
-        {/* En-tête */}
-        <motion.header 
+        <motion.header
           className="flex items-center justify-between mb-6"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -466,46 +353,17 @@ export function TheaterMode() {
               <Theater className="w-8 h-8" />
               {t('title')}
             </h1>
-            <p className="text-midnight-300 mt-1">
-              {t('subtitle')}
-            </p>
-          </div>
-
-          {/* Status HomeKit */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => homeKit.isConnected ? homeKit.disconnect() : homeKit.connect()}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl transition-colors',
-                homeKit.isConnected 
-                  ? 'bg-dream-500/20 text-dream-300' 
-                  : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
-              )}
-            >
-              {homeKit.isConnected ? (
-                <>
-                  <Lightbulb className="w-4 h-4" />
-                  {t('homekit.connected')}
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-4 h-4" />
-                  {t('homekit.connect')}
-                </>
-              )}
-            </button>
+            <p className="text-midnight-300 mt-1">{t('subtitle')}</p>
           </div>
         </motion.header>
 
-        {/* Bibliothèque des projets */}
         <div className="flex-1">
           {completedProjects.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {completedProjects.map((project, index) => {
-                // Trouver une image de couverture (premier média de la première scène)
                 const firstMedia = project.scenes[0]?.mediaTracks?.[0]
                 const coverImage = firstMedia?.type === 'image' ? firstMedia.url : undefined
-                
+
                 return (
                   <motion.button
                     key={project.id}
@@ -516,59 +374,20 @@ export function TheaterMode() {
                     transition={{ delay: index * 0.1 }}
                     whileHover={{ scale: 1.02, y: -5 }}
                   >
-                    {/* Couverture */}
                     {coverImage ? (
-                      <img
-                        src={coverImage}
-                        alt={project.title}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
+                      <img src={coverImage} alt={project.title} className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <div className="absolute inset-0 bg-gradient-to-br from-aurora-600 to-dream-700 flex items-center justify-center">
                         <Film className="w-16 h-16 text-white/30" />
                       </div>
                     )}
-
-                    {/* Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                    {/* Badge "Complet" si terminé */}
-                    {project.isComplete && (
-                      <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-dream-500/80 text-white text-xs font-medium">
-                        {t('project.complete')}
-                      </div>
-                    )}
-
-                    {/* Bouton Export Vidéo */}
-                    <button
-                      onClick={(e) => handleExportVideo(project, e)}
-                      disabled={isExporting && exportingProjectId === project.id}
-                      className={cn(
-                        'absolute top-3 left-3 p-2 rounded-full transition-all',
-                        'bg-black/50 hover:bg-aurora-500 text-white/70 hover:text-white',
-                        'opacity-0 group-hover:opacity-100',
-                        isExporting && exportingProjectId === project.id && 'opacity-100 bg-aurora-500'
-                      )}
-                      title={t('export.videoHD')}
-                    >
-                      {isExporting && exportingProjectId === project.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Video className="w-4 h-4" />
-                      )}
-                    </button>
-
-                    {/* Infos */}
                     <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <h3 className="font-display text-lg text-white mb-1">
-                        {project.title}
-                      </h3>
+                      <h3 className="font-display text-lg text-white mb-1">{project.title}</h3>
                       <p className="text-sm text-midnight-300">
-                        {project.scenes.length > 1 ? t('project.sceneCountPlural', { count: project.scenes.length }) : t('project.sceneCount', { count: project.scenes.length })}
+                        {project.scenes.length} {project.scenes.length > 1 ? 'pages' : 'page'}
                       </p>
                     </div>
-
-                    {/* Play overlay */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="w-16 h-16 rounded-full bg-aurora-500/90 flex items-center justify-center">
                         <Play className="w-8 h-8 text-white ml-1" />
@@ -581,364 +400,179 @@ export function TheaterMode() {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Book className="w-24 h-24 text-midnight-700 mb-6" />
-              <h2 className="font-display text-2xl text-white mb-2">
-                {t('library.empty')}
-              </h2>
+              <h2 className="font-display text-2xl text-white mb-2">{t('library.empty')}</h2>
               <p className="text-midnight-400 max-w-md" dangerouslySetInnerHTML={{ __html: t('library.emptyDescription') }} />
             </div>
           )}
         </div>
-        
-        {/* Modal Export Vidéo */}
-        <AnimatePresence>
-          {(isExporting || exportResult || exportError) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-              onClick={() => {
-                if (!isExporting) {
-                  setExportResult(null)
-                  setExportError(null)
-                }
-              }}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="glass-card p-8 max-w-md w-full mx-4"
-              >
-                {/* En cours d'export */}
-                {isExporting && (
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-full bg-aurora-500/20 flex items-center justify-center mx-auto mb-6">
-                      <Loader2 className="w-10 h-10 text-aurora-400 animate-spin" />
-                    </div>
-                    <h3 className="text-xl font-display text-white mb-2">
-                      {t('export.inProgress')}
-                    </h3>
-                    <p className="text-midnight-400 mb-6">
-                      {t('export.creatingVideo')}
-                    </p>
-                    <div className="h-2 bg-midnight-800 rounded-full overflow-hidden mb-2">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-aurora-500 to-dream-500"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${exportProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    </div>
-                    <p className="text-sm text-midnight-400">{exportProgress}%</p>
-                  </div>
-                )}
-                
-                {/* Export réussi */}
-                {exportResult && !isExporting && (
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
-                      <CheckCircle2 className="w-10 h-10 text-emerald-400" />
-                    </div>
-                    <h3 className="text-xl font-display text-white mb-2">
-                      {t('export.videoReady')}
-                    </h3>
-                    <p className="text-midnight-400 mb-6">
-                      {t('export.readyToDownload')}
-                    </p>
-                    <div className="space-y-3">
-                      <button
-                        onClick={handleDownloadVideo}
-                        className="w-full py-3 px-4 bg-aurora-600 hover:bg-aurora-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Download className="w-5 h-5" />
-                        {t('export.downloadMP4')}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setExportResult(null)
-                          setExportingProjectId(null)
-                        }}
-                        className="w-full py-3 px-4 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
-                      >
-                        {t('export.close')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Erreur */}
-                {exportError && !isExporting && (
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-full bg-rose-500/20 flex items-center justify-center mx-auto mb-6">
-                      <X className="w-10 h-10 text-rose-400" />
-                    </div>
-                    <h3 className="text-xl font-display text-white mb-2">
-                      {t('export.oops')}
-                    </h3>
-                    <p className="text-midnight-400 mb-2">
-                      {t('export.errorOccurred')}
-                    </p>
-                    <p className="text-sm text-rose-400 mb-6">
-                      {exportError}
-                    </p>
-                    <button
-                      onClick={() => {
-                        setExportError(null)
-                        setExportingProjectId(null)
-                      }}
-                      className="w-full py-3 px-4 bg-midnight-800 hover:bg-midnight-700 text-white rounded-xl transition-colors"
-                    >
-                      {t('export.close')}
-                    </button>
-                  </div>
-                )}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+        <ModeIntroModal mode="theater" isOpen={isFirstVisit} onClose={markAsSeen} />
       </div>
     )
   }
 
-  // Vue Spectacle (Plein écran) - rendu via Portal pour passer au-dessus de tout
-  const activePhrase = getActivePhrase()
-  
-  // Filtrer les éléments visibles au temps actuel (comme PreviewCanvas)
-  const visibleMedia = (currentScene?.mediaTracks || []).filter(
-    (t) => currentPlaybackTime >= (t.timeRange?.startTime || 0) && 
-           currentPlaybackTime <= (t.timeRange?.endTime || sceneDuration)
-  )
-  const visibleDecorations = (currentScene?.decorationTracks || []).filter(
-    (t) => currentPlaybackTime >= (t.timeRange?.startTime || 0) && 
-           currentPlaybackTime <= (t.timeRange?.endTime || sceneDuration)
-  )
-  const visibleAnimations = (currentScene?.animationTracks || []).filter(
-    (t) => currentPlaybackTime >= (t.timeRange?.startTime || 0) && 
-           currentPlaybackTime <= (t.timeRange?.endTime || sceneDuration)
-  )
+  // ═══════════════════════════════════════════
+  // VUE LECTURE (plein écran via Portal)
+  // ═══════════════════════════════════════════
+  if (!isMounted) return null
 
-  // Rendu via Portal pour s'assurer que le spectacle est au-dessus de tout (y compris la sidebar)
-  const spectacleContent = (
+  const spectacle = (
     <div
       ref={containerRef}
       className="fixed inset-0 bg-black z-[9999]"
       onMouseMove={() => {
         setShowControls(true)
-        clearTimeout(hideControlsTimer.current)
       }}
     >
-      {/* Bouton fermer toujours visible (X en haut à droite) */}
+      {/* Bouton fermer */}
       <button
         onClick={handleExitShow}
-        className="absolute top-4 right-4 z-[10000] w-12 h-12 rounded-full bg-black/60 hover:bg-red-600/80 text-white/80 hover:text-white flex items-center justify-center transition-all backdrop-blur-sm border border-white/20 hover:border-red-500/50 shadow-lg"
-        title={t('show.minimize')}
+        className="absolute top-4 right-4 z-[10001] w-12 h-12 rounded-full bg-black/60 hover:bg-red-600/80 text-white/80 hover:text-white flex items-center justify-center transition-all backdrop-blur-sm border border-white/20"
       >
         <X className="w-6 h-6" />
       </button>
 
-      {/* Scène en cours */}
+      {/* Page en cours — fade out → noir → fade in */}
       <AnimatePresence mode="wait">
         {currentScene && (
           <motion.div
             key={currentScene.id}
             className="absolute inset-0"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
+            animate={{ opacity: 1, transition: { duration: 1.5, delay: 0.8 } }}
+            exit={{ opacity: 0, transition: { duration: 1.5 } }}
           >
-            {/* Médias de fond (images/vidéos) - filtrés par temps */}
-            {visibleMedia.map((media) => (
-              <motion.div 
-                key={media.id} 
-                className="absolute inset-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: media.opacity ?? 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                style={{
-                  left: media.position?.x ? `${media.position.x}%` : 0,
-                  top: media.position?.y ? `${media.position.y}%` : 0,
-                  width: media.position?.width ? `${media.position.width}%` : '100%',
-                  height: media.position?.height ? `${media.position.height}%` : '100%',
-                  transform: media.position?.rotation ? `rotate(${media.position.rotation}deg)` : undefined,
-                  zIndex: media.zIndex || 1,
-                }}
-              >
-                {media.type === 'video' ? (
-                  <video
-                    src={media.url}
-                    className="w-full h-full object-cover"
-                    autoPlay
-                    loop={media.loop}
-                    muted={media.muted !== false}
-                    playsInline
-                  />
-                ) : (
-                  <img
-                    src={media.url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </motion.div>
-            ))}
+            {/* Illustration plein écran — fond flou + image entière */}
+            {(() => {
+              const media = (currentScene.mediaTracks || [])[0]
+              if (!media) return null
+              return (
+                <>
+                  {/* Fond flou (même image, zoomée et floutée) */}
+                  {media.type === 'image' && (
+                    <img
+                      src={media.url}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl brightness-50"
+                    />
+                  )}
+                  {/* Image principale (entière, centrée) */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {media.type === 'video' ? (
+                      <video
+                        src={media.url}
+                        className="max-w-full max-h-full object-contain"
+                        autoPlay
+                        loop={false}
+                        muted
+                        playsInline
+                        onPlay={(e) => {
+                          if (media.playbackRate) {
+                            (e.target as HTMLVideoElement).playbackRate = media.playbackRate
+                          }
+                        }}
+                      />
+                    ) : (
+                      <img src={media.url} alt="" className="max-w-full max-h-full object-contain" />
+                    )}
+                  </div>
+                </>
+              )
+            })()}
 
-            {/* Décorations visibles */}
-            {visibleDecorations.map((deco) => (
-              <motion.div
-                key={deco.id}
-                className="absolute flex items-center justify-center pointer-events-none"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: deco.opacity ?? 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.3 }}
-                style={{
-                  left: `${deco.position?.x || 50}%`,
-                  top: `${deco.position?.y || 50}%`,
-                  width: `${deco.position?.width || 10}%`,
-                  height: `${deco.position?.height || 10}%`,
-                  transform: `translate(-50%, -50%) ${deco.position?.rotation ? `rotate(${deco.position.rotation}deg)` : ''}`,
-                  zIndex: deco.zIndex || 30,
-                }}
-              >
-                {deco.type === 'emoji' && deco.emoji && (
-                  <span 
-                    className="select-none"
-                    style={{ 
-                      fontSize: `min(${(deco.position?.width || 10) * 3}vw, ${(deco.position?.height || 10) * 3}vh)`,
-                      filter: deco.glow?.enabled ? `drop-shadow(0 0 ${deco.glow.intensity || 10}px ${deco.glow.color || '#fff'})` : undefined,
-                    }}
-                  >
-                    {deco.emoji}
-                  </span>
-                )}
-                {deco.type === 'sticker' && deco.assetUrl && (
-                  <img
-                    src={deco.assetUrl}
-                    alt={deco.name}
-                    className="w-full h-full object-contain"
-                  />
-                )}
-              </motion.div>
-            ))}
-
-            {/* Si pas de média visible, afficher un fond par défaut */}
-            {visibleMedia.length === 0 && (
+            {/* Fond par défaut si pas de média */}
+            {(!currentScene.mediaTracks || currentScene.mediaTracks.length === 0) && (
               <div className="absolute inset-0 bg-gradient-to-br from-midnight-900 to-aurora-900" />
             )}
 
             {/* Overlay gradient */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 z-10" />
 
-            {/* Texte de la scène - Mode Karaoké si synchronisé */}
-            <div className="absolute inset-0 flex items-center justify-center p-8">
-              <div className="max-w-4xl text-center">
-                {currentScene.narration?.isSynced ? (
-                  // Mode karaoké : affiche la phrase active
-                  <motion.div
-                    key={activePhrase?.id || 'intro'}
-                    className="text-4xl md:text-5xl lg:text-6xl font-display text-white leading-relaxed"
-                    style={{ textShadow: '2px 2px 20px rgba(0,0,0,0.8)' }}
-                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 1.05 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    {activePhrase?.text || (currentPlaybackTime < (currentScene.introDuration || 0) ? currentScene.title : '')}
-                  </motion.div>
-                ) : (
-                  // Mode normal : affiche tout le texte
-                  <motion.div
-                    className="text-2xl md:text-3xl lg:text-4xl font-display text-white leading-relaxed"
-                    style={{ textShadow: '2px 2px 20px rgba(0,0,0,0.8)' }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                  >
-                    {currentScene.text}
-                  </motion.div>
-                )}
-              </div>
-            </div>
-
-            {/* Animations visibles (filtrées par temps) */}
-            {visibleAnimations.map((animation) => (
-              <motion.div 
-                key={animation.id}
-                className="absolute inset-0 pointer-events-none"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: animation.opacity ?? 0.7 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                style={{
-                  left: animation.position?.x ? `${animation.position.x}%` : 0,
-                  top: animation.position?.y ? `${animation.position.y}%` : 0,
-                  width: animation.position?.width ? `${animation.position.width}%` : '100%',
-                  height: animation.position?.height ? `${animation.position.height}%` : '100%',
-                  zIndex: animation.zIndex || 50,
-                }}
+            {/* Texte de la page */}
+            <div className="absolute inset-0 flex items-end justify-center p-8 pb-32 z-20">
+              <motion.div
+                className="max-w-3xl text-center"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.2 }}
               >
-                {/* Animation particles/effects would be rendered here */}
-                {animation.preset === 'stars' && (
-                  <div className="absolute inset-0 animate-pulse">
-                    <Sparkles className="w-full h-full text-yellow-300/30" />
-                  </div>
-                )}
-              </motion.div>
-            ))}
+                {currentScene.text && (() => {
+                  const phrases = currentScene.text!.match(/[^.!?]+[.!?]+/g)?.map(s => s.trim()).filter(Boolean) || [currentScene.text!]
+                  const narrationDuration = currentScene.narration?.duration || 0
+                  const displayDuration = currentScene.displayDuration || DEFAULT_DISPLAY
 
-            {/* Numéro de scène */}
-            <div className="absolute bottom-8 right-8 text-white/50 font-display text-lg">
-              {currentSceneIndex + 1} / {selectedProject.scenes.length}
+                  const hasNarration = narrationDuration > 0
+                  const totalDuration = hasNarration ? narrationDuration : displayDuration
+                  const elapsed = hasNarration ? currentTime - NARRATION_DELAY : currentTime
+
+                  // En pause → dernière phrase visible
+                  // En lecture → phrase proportionnelle au temps écoulé
+                  const progress = Math.max(0, Math.min(1, elapsed / totalDuration))
+                  const visibleCount = !isPlaying
+                    ? phrases.length
+                    : Math.max(1, Math.ceil(progress * phrases.length))
+                  const currentPhrase = phrases[Math.min(visibleCount, phrases.length) - 1]
+
+                  return currentPhrase ? (
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={visibleCount}
+                        className="text-xl md:text-2xl lg:text-3xl text-white leading-relaxed"
+                        style={{ textShadow: '2px 2px 20px rgba(0,0,0,0.8)' }}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.4 }}
+                      >
+                        {currentPhrase}
+                      </motion.p>
+                    </AnimatePresence>
+                  ) : null
+                })()}
+              </motion.div>
             </div>
 
-            {/* Titre de la scène (en haut) */}
-            <div className="absolute top-8 left-8 text-white/70 font-display text-xl">
-              {currentScene.title}
+            {/* Numéro de page */}
+            <div className="absolute bottom-8 right-8 text-white/40 font-display text-lg z-20">
+              {currentSceneIndex + 1} / {sceneCount}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Contrôles */}
+      {/* Zones de navigation tactile (gauche / droite) */}
+      <div className="absolute inset-y-0 left-0 w-1/5 z-30 cursor-pointer flex items-center justify-start pl-4"
+        onClick={goToPreviousScene}
+      >
+        <div className="opacity-0 hover:opacity-60 transition-opacity">
+          <ChevronLeft className="w-10 h-10 text-white" />
+        </div>
+      </div>
+      <div className="absolute inset-y-0 right-0 w-1/5 z-30 cursor-pointer flex items-center justify-end pr-4"
+        onClick={goToNextScene}
+      >
+        <div className="opacity-0 hover:opacity-60 transition-opacity">
+          <ChevronRight className="w-10 h-10 text-white" />
+        </div>
+      </div>
+
+      {/* Contrôles bas */}
       <AnimatePresence>
         {showControls && (
           <motion.div
-            className="absolute inset-x-0 bottom-0 p-8 bg-gradient-to-t from-black/90 to-transparent"
-            initial={{ opacity: 0, y: 50 }}
+            className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 to-transparent z-40"
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
+            exit={{ opacity: 0, y: 30 }}
           >
-            {/* Barre de progression de la scène */}
-            <div className="flex items-center gap-4 mb-4">
-              <span className="text-white/50 text-sm w-12 text-right">
-                {Math.floor(currentPlaybackTime / 60)}:{String(Math.floor(currentPlaybackTime % 60)).padStart(2, '0')}
-              </span>
-              <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-aurora-500"
-                  animate={{
-                    width: `${(currentPlaybackTime / sceneDuration) * 100}%`,
-                  }}
-                  transition={{ duration: 0.1 }}
-                />
-              </div>
-              <span className="text-white/50 text-sm w-12">
-                {Math.floor(sceneDuration / 60)}:{String(Math.floor(sceneDuration % 60)).padStart(2, '0')}
-              </span>
-            </div>
-
-            {/* Barre de progression globale (scènes) */}
-            <div className="flex items-center gap-2 mb-6">
+            {/* Barre de progression des pages */}
+            <div className="flex items-center gap-2 mb-4">
               {selectedProject.scenes.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentSceneIndex(index)}
                   className={cn(
-                    'flex-1 h-1 rounded-full transition-colors',
+                    'flex-1 h-1.5 rounded-full transition-colors',
                     index === currentSceneIndex
                       ? 'bg-aurora-500'
                       : index < currentSceneIndex
@@ -967,9 +601,7 @@ export function TheaterMode() {
                   disabled={currentSceneIndex === 0}
                   className={cn(
                     'p-3 rounded-full transition-colors',
-                    currentSceneIndex === 0
-                      ? 'text-white/30 cursor-not-allowed'
-                      : 'text-white hover:bg-white/10'
+                    currentSceneIndex === 0 ? 'text-white/30 cursor-not-allowed' : 'text-white hover:bg-white/10'
                   )}
                 >
                   <SkipBack className="w-6 h-6" />
@@ -977,173 +609,51 @@ export function TheaterMode() {
 
                 <button
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className="w-16 h-16 rounded-full bg-aurora-500 text-white flex items-center justify-center hover:bg-aurora-600 transition-colors"
+                  className="w-14 h-14 rounded-full bg-aurora-500 text-white flex items-center justify-center hover:bg-aurora-600 transition-colors"
                 >
-                  {isPlaying ? (
-                    <Pause className="w-8 h-8" />
-                  ) : (
-                    <Play className="w-8 h-8 ml-1" />
-                  )}
+                  {isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7 ml-1" />}
                 </button>
 
                 <button
                   onClick={goToNextScene}
-                  disabled={currentSceneIndex === selectedProject.scenes.length - 1}
+                  disabled={currentSceneIndex >= sceneCount - 1}
                   className={cn(
                     'p-3 rounded-full transition-colors',
-                    currentSceneIndex === selectedProject.scenes.length - 1
-                      ? 'text-white/30 cursor-not-allowed'
-                      : 'text-white hover:bg-white/10'
+                    currentSceneIndex >= sceneCount - 1 ? 'text-white/30 cursor-not-allowed' : 'text-white hover:bg-white/10'
                   )}
                 >
                   <SkipForward className="w-6 h-6" />
                 </button>
               </div>
 
-              {/* Droite - Volume & Settings */}
-              <div className="flex items-center gap-4">
-                {/* Volume */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsMuted(!isMuted)}
-                    className="p-2 rounded-lg text-white hover:bg-white/10"
-                  >
-                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                  </button>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={isMuted ? 0 : volume}
-                    onChange={(e) => {
-                      setVolume(parseInt(e.target.value))
-                      setIsMuted(false)
-                    }}
-                    className="w-24"
-                  />
-                </div>
-
-                {/* HomeKit Status */}
-                {homeKit.isConnected && (
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-dream-500/30 text-dream-300 text-sm">
-                    <Lightbulb className="w-4 h-4" />
-                    {t('controls.lightsSync')}
-                  </div>
-                )}
-
-                {/* Settings */}
+              {/* Droite - Volume */}
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowSettings(!showSettings)}
+                  onClick={() => setIsMuted(!isMuted)}
                   className="p-2 rounded-lg text-white hover:bg-white/10"
                 >
-                  <Settings className="w-5 h-5" />
+                  {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                 </button>
-
-                {/* Fullscreen */}
-                <button
-                  onClick={toggleFullscreen}
-                  className="p-2 rounded-lg text-white hover:bg-white/10"
-                >
-                  {isFullscreen ? (
-                    <Minimize className="w-5 h-5" />
-                  ) : (
-                    <Maximize className="w-5 h-5" />
-                  )}
-                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => {
+                    setVolume(parseInt(e.target.value))
+                    setIsMuted(false)
+                  }}
+                  className="w-24"
+                />
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Panneau Settings */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div
-            className="absolute top-4 right-4 w-72 glass rounded-2xl p-4"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-          >
-            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              {t('settings.title')}
-            </h3>
-
-            <div className="space-y-4">
-              {/* Auto-avance */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-midnight-300">{t('settings.autoAdvance')}</span>
-                <button
-                  onClick={() => setAutoAdvance(!autoAdvance)}
-                  className={cn(
-                    'w-12 h-6 rounded-full transition-colors relative',
-                    autoAdvance ? 'bg-aurora-500' : 'bg-midnight-700'
-                  )}
-                >
-                  <div className={cn(
-                    'w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform',
-                    autoAdvance ? 'translate-x-6' : 'translate-x-0.5'
-                  )} />
-                </button>
-              </div>
-
-              {/* Contrôle des lumières */}
-              {homeKit.isConnected && currentScene && (
-                <div>
-                  <label className="text-sm text-midnight-300 mb-2 block">
-                    {t('settings.lightIntensity')}
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={currentScene.lightTracks?.[0]?.intensity || 80}
-                    onChange={(e) => {
-                      homeKit.setLightBrightness('all', parseInt(e.target.value))
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              )}
-
-              {/* Infos sur la scène */}
-              {currentScene && (
-                <div className="pt-4 border-t border-white/10">
-                  <p className="text-xs text-midnight-400">
-                    {t('settings.sceneProgress', { current: currentSceneIndex + 1, total: selectedProject.scenes.length })}
-                  </p>
-                  {currentScene.narration?.isSynced && (
-                    <p className="text-xs text-dream-300 mt-1">
-                      {t('settings.karaokeSynced')}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Indicateur mentor */}
-      {mentorConnected && controlActive && (
-        <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-aurora-500/30 text-aurora-300 text-sm flex items-center gap-2">
-          <Sparkles className="w-4 h-4" />
-          {t('mentor.inControl')}
-        </div>
-      )}
-      
-      {/* Modale d'introduction - première visite */}
-      <ModeIntroModal
-        mode="theater"
-        isOpen={isFirstVisit}
-        onClose={markAsSeen}
-      />
+      <ModeIntroModal mode="theater" isOpen={isFirstVisit} onClose={markAsSeen} />
     </div>
   )
 
-  // Utiliser un Portal pour rendre au niveau du body (au-dessus de la sidebar)
-  if (!isMounted) return null
-  
-  return createPortal(spectacleContent, document.body)
+  return createPortal(spectacle, document.body)
 }

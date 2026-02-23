@@ -49,9 +49,23 @@ export async function GET(request: NextRequest) {
 
     if (result.status === 'completed' && result.images && result.images.length > 0) {
       const image = result.images[0]
+
+      // Proxy : convertir l'URL fal.media en data URL pour éviter les problèmes réseau/CORS côté client
+      let imageUrl = image.url
+      try {
+        const imgResponse = await fetch(image.url)
+        if (imgResponse.ok) {
+          const buffer = Buffer.from(await imgResponse.arrayBuffer())
+          const contentType = imgResponse.headers.get('content-type') || 'image/png'
+          imageUrl = `data:${contentType};base64,${buffer.toString('base64')}`
+        }
+      } catch (proxyErr) {
+        console.warn('⚠️ Proxy image échoué, URL directe utilisée:', proxyErr)
+      }
+
       return NextResponse.json({
         status: 'completed',
-        imageUrl: image.url,
+        imageUrl,
         width: image.width,
         height: image.height,
         model,
@@ -168,9 +182,22 @@ export async function POST(request: NextRequest) {
     if (result.images && result.images.length > 0) {
       const image = result.images[0]
       console.log(`✅ Image générée directement: ${image.width}x${image.height}`)
+
+      let imageUrl = image.url
+      try {
+        const imgResponse = await fetch(image.url)
+        if (imgResponse.ok) {
+          const buffer = Buffer.from(await imgResponse.arrayBuffer())
+          const contentType = imgResponse.headers.get('content-type') || 'image/png'
+          imageUrl = `data:${contentType};base64,${buffer.toString('base64')}`
+        }
+      } catch {
+        console.warn('⚠️ Proxy image échoué, URL directe utilisée')
+      }
+
       return NextResponse.json({
         status: 'completed',
-        imageUrl: image.url,
+        imageUrl,
         width: image.width,
         height: image.height,
         model,

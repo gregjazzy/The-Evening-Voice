@@ -670,46 +670,6 @@ export async function generateVideoFromImage(
 }
 
 // ============================================
-// VOIX - ElevenLabs via fal.ai
-// ============================================
-
-export interface ElevenLabsVoiceParams {
-  text: string
-  voiceId: string
-  modelId?: string
-}
-
-export interface ElevenLabsVoiceResult {
-  audioUrl: string
-  duration?: number
-}
-
-/**
- * Génère une voix avec ElevenLabs via fal.ai
- * Utilise le modèle multilingual-v2 pour un support multilingue optimal
- */
-export async function generateVoiceElevenLabs(params: ElevenLabsVoiceParams): Promise<ElevenLabsVoiceResult> {
-  ensureFalConfigured()
-  const {
-    text,
-    voiceId,
-  } = params
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await fal.subscribe('fal-ai/elevenlabs/tts/multilingual-v2', {
-    input: {
-      text,
-      voice: voiceId,
-    },
-    logs: true,
-  }) as any
-
-  return {
-    audioUrl: result.data.audio.url,
-  }
-}
-
-// ============================================
 // SYNC - Sync Labs (Lip Sync)
 // ============================================
 

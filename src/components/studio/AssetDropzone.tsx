@@ -28,7 +28,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { useToast } from '@/components/ui/Toast'
 import { removeBackground, isBackgroundRemovalSupported } from '@/lib/background-removal'
-import { cn } from '@/lib/utils'
+import { cn, getThumbnailUrl } from '@/lib/utils'
 import { useTranslations } from '@/lib/i18n/context'
 
 // Résolution minimale pour impression A5 à 300 DPI
@@ -36,6 +36,7 @@ import { useTranslations } from '@/lib/i18n/context'
 // À 300 DPI : 1748 × 2480 pixels
 const MIN_PRINT_WIDTH = 1748
 const MIN_PRINT_HEIGHT = 2480
+
 
 interface AssetDropzoneProps {
   onAssetImported?: (asset: ImportedAsset) => void
@@ -469,9 +470,18 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                         whileTap={{ scale: 0.95 }}
                       >
                         <img
-                          src={asset.cloudUrl || asset.url}
+                          src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
                           alt={asset.name}
                           className="w-full h-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement
+                            if (!img.dataset.fallback) {
+                              img.dataset.fallback = '1'
+                              img.src = asset.cloudUrl || asset.url
+                            }
+                          }}
                         />
                         {/* Overlay au hover */}
                         <div className="absolute inset-0 bg-aurora-500/0 group-hover:bg-aurora-500/20 transition-colors flex items-center justify-center">
@@ -549,18 +559,30 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                     layout
                     title={asset.name}
                   >
-                    {/* Image/Video preview - Priorité à cloudUrl (persiste après rechargement) */}
+                    {/* Image/Video preview - Miniature redimensionnée pour performance */}
                     {asset.type === 'image' && (asset.cloudUrl || asset.url) ? (
-                      <img 
-                        src={asset.cloudUrl || asset.url} 
+                      <img
+                        src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
                         alt={asset.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement
+                          // Fallback : si la miniature échoue, charger l'original
+                          if (!img.dataset.fallback) {
+                            img.dataset.fallback = '1'
+                            img.src = asset.cloudUrl || asset.url
+                          }
+                        }}
                       />
                     ) : asset.type === 'video' && (asset.cloudUrl || asset.url) ? (
-                      <video 
+                      <video
                         src={asset.cloudUrl || asset.url}
                         className="w-full h-full object-cover"
+                        preload="metadata"
                         muted
+                        playsInline
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

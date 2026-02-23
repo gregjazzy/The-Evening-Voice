@@ -50,23 +50,6 @@ export type {
   WritingQuestion,
 } from './prompting-pedagogy'
 
-// ElevenLabs (Voix/Narration)
-export {
-  generateVoice,
-  generatePageNarration,
-  generateNarrationWithFallback,
-  generateAIFriendVoice,
-  generateLunaVoice, // Legacy alias
-  estimateAudioDuration,
-  getAvailableVoices,
-  getNarrationVoices,
-  isElevenLabsAvailable,
-  checkQuota as checkElevenLabsQuota,
-  AVAILABLE_VOICES,
-} from './elevenlabs'
-
-export type { NarrationResult } from './elevenlabs'
-
 // Midjourney (Images)
 export {
   generateImage,
@@ -86,6 +69,4 @@ export {
   waitForVideoGeneration,
 } from './video'
 
-// Types réexportés
-export type { VoiceType } from './elevenlabs'
 

@@ -1,165 +1,147 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useMontageStore, type PhraseTiming, type MontageScene } from '@/store/useMontageStore'
+import { useState, useRef } from 'react'
+import { motion } from 'framer-motion'
+import { useMontageStore, type MontageScene } from '@/store/useMontageStore'
 import { useAppStore } from '@/store/useAppStore'
-import { useMediaUpload } from '@/hooks/useMediaUpload'
-import { useTTS } from '@/hooks/useTTS'
-import { useHighlightStore } from '@/store/useHighlightStore'
-import { Highlightable } from '@/components/ui/Highlightable'
-import { NarrationVoiceSelector } from '@/components/ui/NarrationVoiceSelector'
-import { useTranslations, useLocale } from '@/lib/i18n/context'
-import { TimelineRubans } from './TimelineRubans'
-import { GuidedRecording } from './GuidedRecording'
-import { KaraokePlayer } from './KaraokePlayer'
-import { PreviewCanvas } from './PreviewCanvas'
-import { TrackPropertiesPanel } from './TrackPropertiesPanel'
-import { cn } from '@/lib/utils'
+import { saveMontageProjectToSupabase } from '@/hooks/useSupabaseSync'
+import { useAuthStore } from '@/store/useAuthStore'
+import { useTranslations } from '@/lib/i18n/context'
+import { PageSetupPanel } from './PageSetupPanel'
+import { cn, getThumbnailUrl } from '@/lib/utils'
 import {
   Film,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Play,
-  Pause,
-  Mic,
-  Sparkles,
-  Eye,
-  EyeOff,
   BookOpen,
-  Wand2,
   Trash2,
-  Download,
-  Lightbulb,
-  Layout,
   Loader2,
-  Plus,
   Check,
   Image,
   Volume2,
-  VolumeX,
-  Grid3X3,
-  Layers,
-  PanelLeftClose,
-  PanelLeft,
-  ArrowLeft,
+  Mic,
   Home,
-  X
+  Save,
+  Music,
+  Plus,
 } from 'lucide-react'
 
 // =============================================================================
-// COMPOSANTS UTILITAIRES
+// PAGE THUMBNAIL - Miniature d'une page dans la sidebar
 // =============================================================================
 
-/**
- * Détecte le meilleur format audio supporté
- */
-function getSupportedAudioMimeType(): string {
-  if (typeof MediaRecorder === 'undefined') return 'audio/wav'
-  
-  const formats = [
-    'audio/mp4',
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/ogg',
-    'audio/wav'
-  ]
-  
-  for (const format of formats) {
-    if (MediaRecorder.isTypeSupported(format)) {
-      return format
-    }
-  }
-  
-  return ''
-}
-
-// =============================================================================
-// SCENE CARD - Carte d'une scène (vue simple)
-// =============================================================================
-
-interface SceneCardProps {
+interface PageThumbProps {
   scene: MontageScene
   index: number
   isActive: boolean
+  canDelete: boolean
   onClick: () => void
+  onDelete: () => void
 }
 
-function SceneCard({ scene, index, isActive, onClick }: SceneCardProps) {
-  const t = useTranslations('layout')
-  const hasAudio = !!scene.narration.audioUrl
-  const isSynced = scene.narration.isSynced
-  const hasMedia = scene.mediaTracks.length > 0
-
-  // Calculer le statut
-  const getStatus = () => {
-    if (!hasAudio) return { text: t('montageEditor.voiceTab'), color: 'text-rose-400', bg: 'bg-rose-500/20' }
-    if (!isSynced) return { text: t('montageEditor.syncTab'), color: 'text-amber-400', bg: 'bg-amber-500/20' }
-    if (!hasMedia) return { text: t('montageEditor.mediaTab'), color: 'text-blue-400', bg: 'bg-blue-500/20' }
-    return { text: '✓', color: 'text-emerald-400', bg: 'bg-emerald-500/20' }
-  }
-
-  const status = getStatus()
+function PageThumb({ scene, index, isActive, canDelete, onClick, onDelete }: PageThumbProps) {
+  const hasAudio = !!scene.narration?.audioUrl
+  const hasMusic = (scene.musicTracks?.length || 0) > 0
+  const hasSounds = (scene.soundTracks?.length || 0) > 0
+  const coverMedia = scene.mediaTracks?.[0]
 
   return (
-    <motion.button
-      onClick={onClick}
-      className={cn(
-        'relative p-4 rounded-xl border-2 transition-all w-full text-left',
-        isActive
-          ? 'border-aurora-500 bg-aurora-500/10 shadow-lg shadow-aurora-500/20'
-          : 'border-midnight-700 bg-midnight-800/50 hover:border-midnight-600 hover:bg-midnight-800'
+    <div className="group/thumb relative">
+      <button
+        onClick={onClick}
+        className={cn(
+          'relative w-full rounded-xl overflow-hidden border-2 transition-all',
+          isActive
+            ? 'border-aurora-500 shadow-lg shadow-aurora-500/20'
+            : 'border-midnight-700 hover:border-midnight-500'
+        )}
+      >
+        {/* Miniature */}
+        <div className="aspect-[4/3] bg-midnight-800">
+          {coverMedia?.type === 'image' ? (
+            <img
+              src={getThumbnailUrl(coverMedia.url, 150)}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement
+                if (!img.dataset.fallback) {
+                  img.dataset.fallback = '1'
+                  img.src = coverMedia.url
+                }
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Image className="w-6 h-6 text-midnight-600" />
+            </div>
+          )}
+        </div>
+
+        {/* Numéro */}
+        <div className={cn(
+          'absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
+          isActive ? 'bg-aurora-500 text-white' : 'bg-black/60 text-white/70'
+        )}>
+          {index + 1}
+        </div>
+
+        {/* Indicateurs */}
+        <div className="absolute bottom-1.5 right-1.5 flex gap-1">
+          {hasAudio && <div className="w-4 h-4 rounded-full bg-emerald-500/80 flex items-center justify-center"><Mic className="w-2.5 h-2.5 text-white" /></div>}
+          {hasMusic && <div className="w-4 h-4 rounded-full bg-dream-500/80 flex items-center justify-center"><Music className="w-2.5 h-2.5 text-white" /></div>}
+          {hasSounds && <div className="w-4 h-4 rounded-full bg-pink-500/80 flex items-center justify-center"><Volume2 className="w-2.5 h-2.5 text-white" /></div>}
+        </div>
+
+        {/* Titre */}
+        <div className="p-1.5 bg-midnight-900/90">
+          <p className="text-[10px] text-midnight-300 truncate">
+            {scene.title || `Page ${index + 1}`}
+          </p>
+        </div>
+      </button>
+
+      {/* Bouton supprimer */}
+      {canDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-rose-500/80 text-white flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity z-10"
+        >
+          <Trash2 className="w-2.5 h-2.5" />
+        </button>
       )}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      {/* Numéro */}
-      <div className={cn(
-        'absolute -top-2 -left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
-        isActive ? 'bg-aurora-500 text-white' : 'bg-midnight-700 text-midnight-400'
-      )}>
-        {index + 1}
-      </div>
-
-      {/* Statut */}
-      <div className={cn(
-        'absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-medium',
-        status.bg, status.color
-      )}>
-        {status.text}
-      </div>
-
-      {/* Titre */}
-      <h4 className="font-medium text-sm mb-2 pr-6 truncate">
-        {scene.title || `${t('montageEditor.scene')} ${index + 1}`}
-      </h4>
-
-      {/* Première phrase */}
-      <p className="text-xs text-midnight-400 line-clamp-2">
-        {scene.phrases[0] || scene.text.slice(0, 60)}...
-      </p>
-
-      {/* Indicateurs */}
-      <div className="flex items-center gap-2 mt-3">
-        {hasAudio && <Mic className={cn('w-3 h-3', isSynced ? 'text-emerald-400' : 'text-amber-400')} />}
-        {hasMedia && <Image className="w-3 h-3 text-blue-400" />}
-        {scene.soundTracks.length > 0 && <Volume2 className="w-3 h-3 text-pink-400" />}
-        {scene.lightTracks.length > 0 && <Lightbulb className="w-3 h-3 text-yellow-400" />}
-      </div>
-    </motion.button>
+    </div>
   )
 }
 
 // =============================================================================
-// SCENE SELECTOR - Sélecteur de scènes en haut
+// INSERT BUTTON - Bouton "+" entre les pages
+// =============================================================================
+
+function InsertButton({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="group/insert flex items-center justify-center py-1">
+      <button
+        onClick={onClick}
+        className="flex items-center justify-center w-full h-5 rounded-lg opacity-0 group-hover/insert:opacity-100 hover:!opacity-100 transition-opacity bg-aurora-500/0 hover:bg-aurora-500/20"
+      >
+        <div className="flex items-center gap-1">
+          <div className="h-px w-3 bg-aurora-500/50" />
+          <Plus className="w-3.5 h-3.5 text-aurora-400" />
+          <div className="h-px w-3 bg-aurora-500/50" />
+        </div>
+      </button>
+    </div>
+  )
+}
+
+// =============================================================================
+// SCENE SELECTOR - Navigation rapide entre pages (header)
 // =============================================================================
 
 function SceneSelector() {
   const { currentProject, currentSceneIndex, setCurrentScene } = useMontageStore()
-
   if (!currentProject) return null
 
   return (
@@ -169,50 +151,22 @@ function SceneSelector() {
         disabled={currentSceneIndex === 0}
         className={cn(
           'p-2 rounded-lg transition-colors',
-          currentSceneIndex === 0
-            ? 'text-midnight-600 cursor-not-allowed'
-            : 'text-midnight-400 hover:text-white hover:bg-midnight-800/50'
+          currentSceneIndex === 0 ? 'text-midnight-600 cursor-not-allowed' : 'text-midnight-400 hover:text-white hover:bg-midnight-800/50'
         )}
       >
         <ChevronLeft className="w-5 h-5" />
       </button>
 
-      <div className="flex gap-1">
-        {currentProject.scenes.map((scene, index) => {
-          const hasAudio = !!scene.narration.audioUrl
-          const isSynced = scene.narration.isSynced
-          
-          return (
-            <button
-              key={scene.id}
-              onClick={() => setCurrentScene(index)}
-              className={cn(
-                'w-8 h-8 rounded-lg text-sm font-medium transition-all relative',
-                index === currentSceneIndex
-                  ? 'bg-aurora-500/30 text-aurora-300 ring-2 ring-aurora-500'
-                  : 'bg-midnight-800/50 text-midnight-400 hover:text-white hover:bg-midnight-700/50'
-              )}
-            >
-              {index + 1}
-              {hasAudio && (
-                <span className={cn(
-                  'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-midnight-900',
-                  isSynced ? 'bg-emerald-500' : 'bg-amber-500'
-                )} />
-              )}
-            </button>
-          )
-        })}
-      </div>
+      <span className="text-sm text-midnight-300 font-medium">
+        {currentSceneIndex + 1} / {currentProject.scenes.length}
+      </span>
 
       <button
         onClick={() => setCurrentScene(currentSceneIndex + 1)}
         disabled={currentSceneIndex === currentProject.scenes.length - 1}
         className={cn(
           'p-2 rounded-lg transition-colors',
-          currentSceneIndex === currentProject.scenes.length - 1
-            ? 'text-midnight-600 cursor-not-allowed'
-            : 'text-midnight-400 hover:text-white hover:bg-midnight-800/50'
+          currentSceneIndex === currentProject.scenes.length - 1 ? 'text-midnight-600 cursor-not-allowed' : 'text-midnight-400 hover:text-white hover:bg-midnight-800/50'
         )}
       >
         <ChevronRight className="w-5 h-5" />
@@ -222,1469 +176,40 @@ function SceneSelector() {
 }
 
 // =============================================================================
-// NARRATION PANEL - Enregistrement/TTS de la voix
-// =============================================================================
-
-function NarrationPanel() {
-  const t = useTranslations('layout')
-  const { getCurrentScene, setNarrationAudio, clearNarrationAudio, setPhraseTimings } = useMontageStore()
-  const { narrationVoiceId } = useAppStore()
-  const { upload, isUploading, progress } = useMediaUpload()
-  const locale = useLocale()
-  
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordingTime, setRecordingTime] = useState(0)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [permissionDenied, setPermissionDenied] = useState(false)
-  const [showGuidedRecording, setShowGuidedRecording] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
-  
-  // États pour la voix IA
-  const [showVoiceSelector, setShowVoiceSelector] = useState(false)
-  const [isGeneratingTTS, setIsGeneratingTTS] = useState(false)
-  const [ttsError, setTtsError] = useState<string | null>(null)
-  
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-
-  const scene = getCurrentScene()
-
-  // Pré-initialiser le micro au montage du composant pour éviter le délai de ~3s
-  useEffect(() => {
-    navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
-    }).then(stream => {
-      streamRef.current = stream
-      console.log('🎤 NarrationPanel: micro pré-initialisé')
-    }).catch(err => {
-      console.error('Erreur pré-init micro:', err)
-    })
-
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop())
-      }
-    }
-  }, [])
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-      if (mediaRecorderRef.current?.state === 'recording') {
-        mediaRecorderRef.current.stop()
-      }
-      if (audioRef.current) {
-        audioRef.current.pause()
-      }
-    }
-  }, [])
-
-  // Réinitialiser le statut d'upload
-  useEffect(() => {
-    if (uploadStatus === 'success' || uploadStatus === 'error') {
-      const timer = setTimeout(() => setUploadStatus('idle'), 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [uploadStatus])
-
-  // Démarrer l'enregistrement
-  const startRecording = async () => {
-    setPermissionDenied(false)
-
-    try {
-      // Réutiliser le stream pré-initialisé ou en créer un nouveau
-      let stream = streamRef.current
-      if (!stream || !stream.active) {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
-        })
-        streamRef.current = stream
-      }
-      
-      const mimeType = getSupportedAudioMimeType()
-      const options: MediaRecorderOptions = mimeType ? { mimeType } : {}
-      
-      mediaRecorderRef.current = new MediaRecorder(stream, options)
-      audioChunksRef.current = []
-      
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data)
-      }
-      
-      mediaRecorderRef.current.onstop = async () => {
-        const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm'
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
-        // Ne pas stopper le stream ici - on le garde chaud pour les prochains enregistrements
-        // Le cleanup se fait au démontage du composant
-        
-        if (audioBlob.size === 0) return
-        
-        // Calculer la durée
-        const tempAudio = new Audio(URL.createObjectURL(audioBlob))
-        tempAudio.onloadedmetadata = async () => {
-          const duration = tempAudio.duration
-          
-          setUploadStatus('uploading')
-          
-          try {
-            const result = await upload(audioBlob, { type: 'audio', source: 'upload' })
-            if (result) {
-              setNarrationAudio(result.url, 'recorded', duration)
-              setUploadStatus('success')
-            }
-          } catch {
-            // Fallback: base64 local
-            const reader = new FileReader()
-            reader.onloadend = () => {
-              setNarrationAudio(reader.result as string, 'recorded', duration)
-            }
-            reader.readAsDataURL(audioBlob)
-            setUploadStatus('error')
-          }
-        }
-      }
-      
-      mediaRecorderRef.current.start(100)
-      setIsRecording(true)
-      setRecordingTime(0)
-      
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1)
-      }, 1000)
-      
-    } catch (err) {
-      console.error('Erreur micro:', err)
-      setPermissionDenied(true)
-    }
-  }
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop()
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-    }
-    setIsRecording(false)
-  }
-
-  const playRecording = async () => {
-    if (!scene?.narration.audioUrl) return
-    
-    if (!audioRef.current) {
-      audioRef.current = new Audio(scene.narration.audioUrl)
-      audioRef.current.onended = () => setIsPlaying(false)
-    }
-    
-    if (isPlaying) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
-      setIsPlaying(false)
-    } else {
-      await audioRef.current.play()
-      setIsPlaying(true)
-    }
-  }
-
-  const deleteRecording = () => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current = null
-    }
-    clearNarrationAudio()
-    setIsPlaying(false)
-  }
-
-  const handleGuidedRecordingComplete = (timings: PhraseTiming[], audioUrl: string, duration: number) => {
-    // Sauvegarder l'audio dans la scène
-    setNarrationAudio(audioUrl, 'recorded', duration)
-    // Sauvegarder les timings des phrases
-    setPhraseTimings(timings)
-    setShowGuidedRecording(false)
-  }
-
-  // Générer la narration avec une voix IA (ElevenLabs)
-  // Process harmonisé : ElevenLabs + AssemblyAI pour timestamps précis
-  const generateTTSNarration = async () => {
-    if (!scene?.text) return
-    
-    setIsGeneratingTTS(true)
-    setTtsError(null)
-    setShowVoiceSelector(false)
-    
-    try {
-      // Appeler l'API pour générer l'audio avec timestamps AssemblyAI
-      const response = await fetch('/api/ai/voice/narration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: scene.text,
-          voiceId: narrationVoiceId || undefined,
-          locale: locale,
-          phrases: scene.phrases, // Passer les phrases pour l'alignement
-          withTimestamps: true,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Audio generation error')
-      }
-
-      const data = await response.json()
-      
-      // L'API retourne directement une URL audio (fal.ai héberge le fichier)
-      const audioUrl = data.audioUrl
-      
-      if (!audioUrl) {
-        throw new Error('No audio URL in response')
-      }
-      
-      const introDuration = scene?.introDuration || 0
-      let phraseTimings: PhraseTiming[] = []
-      
-      // Utiliser les timings AssemblyAI si disponibles
-      if (data.timings && data.timings.length > 0) {
-        console.log('✅ Timestamps AssemblyAI reçus:', data.timings.length, 'phrases')
-        
-        phraseTimings = data.timings.map((t: { text: string; index: number; startTime: number; endTime: number }) => ({
-          id: `phrase-${t.index}`,
-          text: scene.phrases[t.index] || t.text,
-          index: t.index,
-          timeRange: {
-            startTime: introDuration + t.startTime,
-            endTime: introDuration + t.endTime,
-          },
-          audioTimeRange: {
-            startTime: t.startTime,
-            endTime: t.endTime,
-          },
-        }))
-      } else {
-        // Fallback: calculer les timings basé sur la durée et le nombre de mots
-        console.log('⚠️ Fallback: timestamps estimés')
-        const phrasesWithIndex = scene.phrases.map((text, index) => ({ text, index }))
-        phraseTimings = createEstimatedPhraseTimings(phrasesWithIndex, data.duration)
-      }
-      
-      // Sauvegarder dans le store
-      setNarrationAudio(audioUrl, 'tts', data.duration)
-      setPhraseTimings(phraseTimings)
-      
-      console.log('✅ Narration générée:', {
-        duration: data.duration,
-        phrases: phraseTimings.length,
-        hasAccurateTimings: data.hasAccurateTimings,
-      })
-      
-    } catch (error) {
-      console.error('Erreur TTS:', error)
-      setTtsError(error instanceof Error ? error.message : 'Erreur inconnue')
-    } finally {
-      setIsGeneratingTTS(false)
-    }
-  }
-  
-  // Convertir base64 en Blob
-  const base64ToBlob = (base64: string, mimeType: string): Blob => {
-    const byteCharacters = atob(base64)
-    const byteNumbers = new Array(byteCharacters.length)
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i)
-    }
-    const byteArray = new Uint8Array(byteNumbers)
-    return new Blob([byteArray], { type: mimeType })
-  }
-  
-  // Créer les PhraseTiming à partir des timestamps de mots
-  const createPhraseTimingsFromWords = (
-    phrases: Array<{ text: string; index: number }>,
-    wordTimestamps: Array<{ word: string; start: number; end: number }>,
-    totalDuration: number
-  ): PhraseTiming[] => {
-    const introDuration = scene?.introDuration || 0
-    let wordIndex = 0
-    
-    return phrases.map((phrase, index) => {
-      const words = phrase.text.split(/\s+/)
-      const startWord = wordTimestamps[wordIndex]
-      const endWordIndex = Math.min(wordIndex + words.length - 1, wordTimestamps.length - 1)
-      const endWord = wordTimestamps[endWordIndex]
-      
-      const timing: PhraseTiming = {
-        id: `phrase-${index}`,
-        text: phrase.text,
-        index: phrase.index,
-        timeRange: {
-          startTime: introDuration + (startWord?.start || 0),
-          endTime: introDuration + (endWord?.end || startWord?.start || 0) + 0.5,
-        },
-        audioTimeRange: {
-          startTime: startWord?.start || 0,
-          endTime: endWord?.end || 0,
-        },
-      }
-      
-      wordIndex += words.length
-      return timing
-    })
-  }
-  
-  // Créer des timings estimés basés sur la durée
-  const createEstimatedPhraseTimings = (
-    phrases: Array<{ text: string; index: number }>,
-    totalDuration: number
-  ): PhraseTiming[] => {
-    const introDuration = scene?.introDuration || 0
-    const totalWords = phrases.reduce((sum, p) => sum + p.text.split(/\s+/).length, 0)
-    const wordsPerSecond = totalWords / totalDuration
-    
-    let currentTime = 0
-    
-    return phrases.map((phrase, index) => {
-      const words = phrase.text.split(/\s+/).length
-      const phraseDuration = words / wordsPerSecond
-      
-      const timing: PhraseTiming = {
-        id: `phrase-${index}`,
-        text: phrase.text,
-        index: phrase.index,
-        timeRange: {
-          startTime: introDuration + currentTime,
-          endTime: introDuration + currentTime + phraseDuration,
-        },
-        audioTimeRange: {
-          startTime: currentTime,
-          endTime: currentTime + phraseDuration,
-        },
-      }
-      
-      currentTime += phraseDuration
-      return timing
-    })
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  if (!scene) return null
-
-  return (
-    <>
-      <div className="glass rounded-xl p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-medium flex items-center gap-2">
-            <Mic className="w-5 h-5 text-aurora-400" />
-            {t('montageEditor.narration.title')}
-          </h3>
-          {scene.narration.isSynced && (
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs flex items-center gap-1">
-              <Check className="w-3 h-3" />
-              {scene.phrases.length} phrases
-            </span>
-          )}
-        </div>
-
-        {/* Messages d'état */}
-        {permissionDenied && (
-          <div className="p-3 rounded-lg bg-rose-500/20 text-rose-300 text-sm">
-            🎤 {t('montageEditor.narration.allowMicAccess')}
-          </div>
-        )}
-        {uploadStatus === 'uploading' && (
-          <div className="p-3 rounded-lg bg-aurora-500/20 text-aurora-300 text-sm flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            {t('montageEditor.narration.uploading')} {progress > 0 && `${progress}%`}
-          </div>
-        )}
-        {isGeneratingTTS && (
-          <div className="p-3 rounded-lg bg-dream-500/20 text-dream-300 text-sm flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            ✨ {t('montageEditor.narration.generatingMagicVoice')}
-          </div>
-        )}
-        {ttsError && (
-          <div className="p-3 rounded-lg bg-rose-500/20 text-rose-300 text-sm">
-            ❌ {ttsError}
-          </div>
-        )}
-
-        {/* Interface d'enregistrement */}
-        {!scene.narration.audioUrl ? (
-          <Highlightable id="montage-record-voice">
-            <div className="grid grid-cols-2 gap-3">
-              {/* Enregistrer sa voix avec synchronisation AssemblyAI */}
-              <motion.button
-                onClick={() => setShowGuidedRecording(true)}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 transition-all"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-aurora-500/30">
-                  <Mic className="w-6 h-6 text-aurora-300" />
-                </div>
-                <span className="text-sm">{t('montageEditor.narration.myVoice')}</span>
-                <span className="text-xs text-midnight-400">{t('montageEditor.narration.autoSync')}</span>
-              </motion.button>
-
-              {/* TTS - Voix IA */}
-              <Highlightable id="montage-narration">
-                <motion.button
-                  onClick={() => setShowVoiceSelector(true)}
-                  disabled={isGeneratingTTS}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 disabled:opacity-50 transition-all"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-dream-500/30">
-                    {isGeneratingTTS ? (
-                      <Loader2 className="w-6 h-6 text-dream-300 animate-spin" />
-                    ) : (
-                      <Wand2 className="w-6 h-6 text-dream-300" />
-                    )}
-                  </div>
-                  <span className="text-sm">{t('montageEditor.narration.aiTells')}</span>
-                  <span className="text-xs text-midnight-400">
-                    {isGeneratingTTS ? t('montageEditor.narration.generating') : t('montageEditor.narration.magicVoice')}
-                  </span>
-                </motion.button>
-              </Highlightable>
-            </div>
-          </Highlightable>
-        ) : (
-          /* Lecteur audio */
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-              <Highlightable id="montage-play">
-                <motion.button
-                  onClick={playRecording}
-                  className={cn(
-                    'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
-                    isPlaying ? 'bg-emerald-500 text-white' : 'bg-emerald-500/30 text-emerald-300'
-                  )}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-                </motion.button>
-              </Highlightable>
-              
-              <div className="flex-1">
-                <p className="font-medium text-emerald-300">🎤 {t('montageEditor.narration.voiceRecorded')}</p>
-                <p className="text-xs text-midnight-400">
-                  {scene.narration.duration.toFixed(1)}s • 
-                  {scene.narration.isSynced
-                    ? ` ${t('montageEditor.narration.phrasesSync', { count: scene.narration.phrases.length })}`
-                    : ` ${t('montageEditor.narration.toSync')}`
-                  }
-                </p>
-              </div>
-              
-              <button
-                onClick={deleteRecording}
-                className="p-2 rounded-lg text-rose-400 hover:bg-rose-500/20 transition-colors"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Bouton sync */}
-            {!scene.narration.isSynced && (
-              <Highlightable id="montage-sync-text">
-                <motion.button
-                  onClick={() => setShowGuidedRecording(true)}
-                  className="w-full p-4 rounded-xl bg-gradient-to-r from-aurora-500/20 to-dream-500/20 text-aurora-300 hover:from-aurora-500/30 hover:to-dream-500/30 flex items-center justify-center gap-3"
-                  whileHover={{ scale: 1.01 }}
-                >
-                  <Sparkles className="w-5 h-5" />
-                  <span className="font-medium">{t('montageEditor.narration.reRecordSync')}</span>
-                </motion.button>
-              </Highlightable>
-            )}
-
-            {scene.narration.isSynced && (
-              <button
-                onClick={() => setShowGuidedRecording(true)}
-                className="w-full p-2 rounded-lg text-midnight-400 hover:text-aurora-300 hover:bg-midnight-800/50 text-sm"
-              >
-                🔄 {t('montageEditor.narration.reRecord')}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Modal GuidedRecording avec AssemblyAI */}
-      <GuidedRecording
-        isOpen={showGuidedRecording}
-        onClose={() => setShowGuidedRecording(false)}
-        onComplete={handleGuidedRecordingComplete}
-      />
-
-      {/* Modal sélection voix IA */}
-      <AnimatePresence>
-        {showVoiceSelector && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={() => setShowVoiceSelector(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="glass rounded-2xl overflow-hidden">
-                {/* Header */}
-                <div className="p-4 border-b border-midnight-700/50 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-dream-500 to-aurora-500 flex items-center justify-center">
-                      <Wand2 className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="font-semibold text-white">{t('montageEditor.voiceSelector.title')}</h2>
-                      <p className="text-xs text-midnight-400">{t('montageEditor.voiceSelector.subtitle')}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowVoiceSelector(false)}
-                    className="p-2 rounded-lg hover:bg-midnight-700/50 text-midnight-400 hover:text-white transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Sélecteur de voix */}
-                <div className="p-4">
-                  <NarrationVoiceSelector locale={locale} />
-                </div>
-
-                {/* Bouton générer */}
-                <div className="p-4 border-t border-midnight-700/50">
-                  <motion.button
-                    onClick={generateTTSNarration}
-                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-dream-500 to-aurora-500 text-white font-medium flex items-center justify-center gap-2"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Sparkles className="w-5 h-5" />
-                    {t('montageEditor.narration.generateNarration')}
-                  </motion.button>
-                  <p className="text-[10px] text-midnight-500 text-center mt-2">
-                    ⚡ {t('montageEditor.narration.generationNote')}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  )
-}
-
-// =============================================================================
-// SCENE STATUS PANEL - État de la scène
-// =============================================================================
-
-function SceneStatusPanel({ onGoToTimeline }: { onGoToTimeline: () => void }) {
-  const t = useTranslations('layout')
-  const { getCurrentScene } = useMontageStore()
-  const scene = getCurrentScene()
-
-  if (!scene) return null
-
-  const hasAudio = !!scene.narration.audioUrl
-  const isSynced = scene.narration.isSynced
-  
-  // Compte des éléments
-  const mediasCount = scene.mediaTracks.length
-  const soundsCount = scene.soundTracks.length
-  const musicCount = scene.musicTracks?.length || 0
-  const lightsCount = scene.lightTracks.length
-  const decorationsCount = scene.decorationTracks?.length || 0
-  const animationsCount = scene.animationTracks?.length || 0
-  const textEffectsCount = scene.textEffectTracks?.length || 0
-  
-  const totalElements = mediasCount + soundsCount + musicCount + lightsCount + decorationsCount + animationsCount + textEffectsCount
-
-  // Calcul du progrès
-  const steps = [
-    { done: hasAudio, label: 'Voix' },
-    { done: isSynced, label: 'Sync' },
-  ]
-  const completedSteps = steps.filter(s => s.done).length
-
-  return (
-    <div className="glass rounded-xl p-4 space-y-4">
-      {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium flex items-center gap-2">
-          📊 {t('montageEditor.sceneStatus.title')}
-        </h3>
-        <span className={cn(
-          'px-2 py-0.5 rounded-full text-xs font-medium',
-          completedSteps === steps.length 
-            ? 'bg-emerald-500/20 text-emerald-300' 
-            : 'bg-amber-500/20 text-amber-300'
-        )}>
-          {completedSteps === steps.length ? `✅ ${t('montageEditor.sceneStatus.ready')}` : `${completedSteps}/${steps.length}`}
-        </span>
-      </div>
-
-      {/* Étapes principales */}
-      <div className="space-y-2">
-        {/* Voix */}
-        <div className={cn(
-          'flex items-center gap-3 p-3 rounded-lg',
-          hasAudio ? 'bg-emerald-500/10' : 'bg-midnight-800/50'
-        )}>
-          <div className={cn(
-            'w-8 h-8 rounded-full flex items-center justify-center',
-            hasAudio ? 'bg-emerald-500/30 text-emerald-300' : 'bg-midnight-700 text-midnight-500'
-          )}>
-            {hasAudio ? <Check className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          </div>
-          <div className="flex-1">
-            <p className={cn('font-medium text-sm', hasAudio ? 'text-emerald-300' : 'text-midnight-400')}>
-              {t('montageEditor.sceneStatus.voice')}
-            </p>
-            <p className="text-xs text-midnight-500">
-              {hasAudio
-                ? t('montageEditor.sceneStatus.voiceRecorded', { duration: scene.narration.duration.toFixed(1) })
-                : t('montageEditor.sceneStatus.voiceEmpty')
-              }
-            </p>
-          </div>
-        </div>
-
-        {/* Synchronisation */}
-        <div className={cn(
-          'flex items-center gap-3 p-3 rounded-lg',
-          isSynced ? 'bg-emerald-500/10' : hasAudio ? 'bg-amber-500/10' : 'bg-midnight-800/30'
-        )}>
-          <div className={cn(
-            'w-8 h-8 rounded-full flex items-center justify-center',
-            isSynced 
-              ? 'bg-emerald-500/30 text-emerald-300' 
-              : hasAudio 
-                ? 'bg-amber-500/30 text-amber-300' 
-                : 'bg-midnight-700/50 text-midnight-600'
-          )}>
-            {isSynced ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-          </div>
-          <div className="flex-1">
-            <p className={cn(
-              'font-medium text-sm', 
-              isSynced ? 'text-emerald-300' : hasAudio ? 'text-amber-300' : 'text-midnight-500'
-            )}>
-              {t('montageEditor.sceneStatus.sync')}
-            </p>
-            <p className="text-xs text-midnight-500">
-              {isSynced
-                ? t('montageEditor.sceneStatus.syncDone', { count: scene.narration.phrases.length })
-                : hasAudio
-                  ? t('montageEditor.sceneStatus.syncInProgress')
-                  : t('montageEditor.sceneStatus.syncWaiting')
-              }
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Résumé des éléments */}
-      <div className="pt-3 border-t border-midnight-700">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-midnight-400">{t('montageEditor.sceneStatus.elementsInTimeline')}</span>
-          <span className="text-xs text-midnight-500">{t('montageEditor.sceneStatus.total', { count: totalElements })}</span>
-        </div>
-        
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { icon: <Image className="w-4 h-4" />, count: mediasCount, label: t('montageEditor.sceneStatus.medias'), color: 'text-blue-400' },
-            { icon: <Volume2 className="w-4 h-4" />, count: soundsCount + musicCount, label: t('montageEditor.sceneStatus.sounds'), color: 'text-pink-400' },
-            { icon: <Lightbulb className="w-4 h-4" />, count: lightsCount, label: t('montageEditor.sceneStatus.lights'), color: 'text-yellow-400' },
-            { icon: <Sparkles className="w-4 h-4" />, count: animationsCount + decorationsCount, label: t('montageEditor.sceneStatus.effects'), color: 'text-purple-400' },
-          ].map((item, i) => (
-            <div 
-              key={i}
-              className={cn(
-                'flex flex-col items-center gap-1 p-2 rounded-lg',
-                item.count > 0 ? 'bg-midnight-800/50' : 'bg-midnight-800/20'
-              )}
-            >
-              <span className={item.count > 0 ? item.color : 'text-midnight-600'}>{item.icon}</span>
-              <span className={cn(
-                'text-lg font-bold',
-                item.count > 0 ? 'text-white' : 'text-midnight-600'
-              )}>
-                {item.count}
-              </span>
-              <span className="text-xs text-midnight-500">{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Bouton Timeline */}
-      <Highlightable id="montage-timeline">
-        <motion.button
-          onClick={onGoToTimeline}
-          disabled={!isSynced}
-          className={cn(
-            'w-full p-4 rounded-xl flex items-center justify-center gap-3 transition-colors',
-            isSynced
-              ? 'bg-gradient-to-r from-aurora-500/20 to-dream-500/20 text-aurora-300 hover:from-aurora-500/30 hover:to-dream-500/30'
-              : 'bg-midnight-800/30 text-midnight-500 cursor-not-allowed'
-          )}
-          whileHover={isSynced ? { scale: 1.01 } : {}}
-        >
-          <Layers className="w-5 h-5" />
-          <span className="font-medium">
-            {isSynced ? t('montageEditor.sceneStatus.goToTimeline') : t('montageEditor.sceneStatus.syncFirst')}
-          </span>
-        </motion.button>
-      </Highlightable>
-    </div>
-  )
-}
-
-// =============================================================================
-// HOOK RECONNAISSANCE VOCALE
-// =============================================================================
-
-interface UseSpeechRecognitionReturn {
-  isListening: boolean
-  isSupported: boolean
-  transcript: string
-  startListening: () => void
-  stopListening: () => void
-  resetTranscript: () => void
-}
-
-function useSpeechRecognition(locale: string = 'fr'): UseSpeechRecognitionReturn {
-  const [isListening, setIsListening] = useState(false)
-  const [transcript, setTranscript] = useState('')
-  const [isSupported, setIsSupported] = useState(true)
-  const recognitionRef = useRef<any>(null)
-  const hasInitialized = useRef(false)
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      setIsSupported(false)
-      return
-    }
-    
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    
-    if (!SpeechRecognition) {
-      setIsSupported(false)
-      return
-    }
-    
-    setIsSupported(true)
-    
-    if (hasInitialized.current) return
-    hasInitialized.current = true
-
-    try {
-      recognitionRef.current = new SpeechRecognition()
-      recognitionRef.current.continuous = true
-      recognitionRef.current.interimResults = true
-      recognitionRef.current.lang = locale === 'fr' ? 'fr-FR' : locale === 'en' ? 'en-US' : 'ru-RU'
-
-      recognitionRef.current.onresult = (event: any) => {
-        let finalTranscript = ''
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i]
-          if (result.isFinal) {
-            finalTranscript += result[0].transcript
-          }
-        }
-        if (finalTranscript) {
-          setTranscript(prev => prev + finalTranscript)
-        }
-      }
-
-      recognitionRef.current.onerror = () => setIsListening(false)
-      recognitionRef.current.onend = () => setIsListening(false)
-    } catch {
-      setIsSupported(false)
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop() } catch {}
-      }
-    }
-  }, [locale])
-
-  const startListening = async () => {
-    if (recognitionRef.current && !isListening) {
-      // Dans Electron, demander la permission du microphone d'abord
-      if (typeof window !== 'undefined' && (window as any).electronAPI?.requestMicrophoneAccess) {
-        try {
-          const granted = await (window as any).electronAPI.requestMicrophoneAccess()
-          if (!granted) {
-            console.error('Permission microphone refusée')
-            return
-          }
-        } catch (err) {
-          console.error('Erreur permission microphone:', err)
-        }
-      }
-      
-      setTranscript('')
-      try {
-        recognitionRef.current.start()
-        setIsListening(true)
-      } catch (err) {
-        console.error('Erreur démarrage reconnaissance vocale:', err)
-      }
-    }
-  }
-
-  const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop()
-      setIsListening(false)
-    }
-  }
-
-  const resetTranscript = () => setTranscript('')
-
-  return { isListening, isSupported, transcript, startListening, stopListening, resetTranscript }
-}
-
-// =============================================================================
-// CHAT IA INTÉGRÉ POUR LE MONTAGE
-// =============================================================================
-
-interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
-}
-
-function MontageAIChat() {
-  const t = useTranslations('layout')
-  const locale = useLocale()
-  const [message, setMessage] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [autoSpeak, setAutoSpeak] = useState(true) // Vocal activé par défaut
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { aiName, aiVoice } = useAppStore()
-  const { highlightMultiple } = useHighlightStore()
-  
-  const displayName = aiName || 'Mon aide'
-  
-  // TTS avec la voix choisie
-  const { speak, stop, isSpeaking, isAvailable: isTTSAvailable } = useTTS(locale as 'fr' | 'en' | 'ru', aiVoice || undefined)
-
-  // Reconnaissance vocale pour parler à l'IA
-  const {
-    isListening,
-    isSupported: isSpeechSupported,
-    transcript,
-    startListening,
-    stopListening,
-    resetTranscript
-  } = useSpeechRecognition(locale)
-
-  // Arrêter la voix et le micro quand on quitte la page
-  useEffect(() => {
-    return () => {
-      stop()
-      stopListening()
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Afficher le transcript en temps réel + auto-envoi
-  useEffect(() => {
-    if (transcript) {
-      setMessage(transcript)
-    }
-  }, [transcript])
-
-  const sendMessageRef1 = useRef<(text: string) => void>(() => {})
-  const prevListeningRef1 = useRef(false)
-  useEffect(() => {
-    if (prevListeningRef1.current && !isListening && transcript.trim()) {
-      resetTranscript()
-      sendMessageRef1.current(transcript.trim())
-    }
-    prevListeningRef1.current = isListening
-  }, [isListening, transcript, resetTranscript])
-
-  // Auto-scroll
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  // Message d'accueil (avec voix)
-  useEffect(() => {
-    if (messages.length === 0) {
-      const welcomeMsg = t('montageEditor.aiChat.welcomeMontage', { name: displayName })
-      setMessages([{
-        role: 'assistant',
-        content: welcomeMsg
-      }])
-      // Lire le message d'accueil
-      if (autoSpeak && isTTSAvailable) {
-        setTimeout(() => speak(welcomeMsg), 500)
-      }
-    }
-  }, [messages.length, displayName, autoSpeak, isTTSAvailable, speak, t])
-
-  const sendMessageDirect = async (text: string) => {
-    if (!text || isLoading) return
-
-    const userMessage = text
-    setMessage('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
-    setIsLoading(true)
-
-    try {
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMessage,
-          context: 'montage',
-          currentMode: 'montage',
-          locale,
-          aiName,
-          userName: useAppStore.getState().userName,
-          chatHistory: messages.slice(-10),
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.text) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.text }])
-        
-        // Déclencher les highlights si présents dans la réponse
-        if (data.highlights && data.highlights.length > 0) {
-          highlightMultiple(data.highlights)
-        }
-        
-        // Lire la réponse à voix haute
-        if (autoSpeak && isTTSAvailable) {
-          speak(data.text)
-        }
-      }
-    } catch (error) {
-      console.error('Erreur chat IA:', error)
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: t('montageEditor.aiChat.errorMessage')
-      }])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const sendMessage = () => sendMessageDirect(message.trim())
-  sendMessageRef1.current = sendMessageDirect
-
-  // Version réduite
-  if (isCollapsed) {
-    return (
-      <motion.button
-        onClick={() => setIsCollapsed(false)}
-        className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-aurora-500/20 to-stardust-500/20 border border-aurora-500/30 hover:from-aurora-500/30 hover:to-stardust-500/30 transition-all"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-aurora-500 to-stardust-500 flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-white" />
-        </div>
-        <span className="text-aurora-300 font-medium text-sm">{displayName}</span>
-        <ChevronDown className="w-4 h-4 text-aurora-400 ml-auto" />
-      </motion.button>
-    )
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex-1 flex flex-col bg-midnight-900/50 rounded-xl border border-aurora-500/20 overflow-hidden min-h-0"
-    >
-      {/* Header */}
-      <div className="p-3 border-b border-midnight-700/50 flex items-center gap-2 flex-shrink-0">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-aurora-500 to-stardust-500 flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-white" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-white text-sm truncate">{displayName}</p>
-          <p className="text-[10px] text-midnight-400">{t('montageEditor.aiChat.helpMontage')}</p>
-        </div>
-        
-        {/* Toggle vocal */}
-        {isTTSAvailable && (
-          <button
-            onClick={() => {
-              if (isSpeaking) stop()
-              setAutoSpeak(!autoSpeak)
-            }}
-            className={cn(
-              'p-1.5 rounded-lg transition-colors',
-              autoSpeak
-                ? 'bg-aurora-500/20 text-aurora-300'
-                : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
-            )}
-            title={autoSpeak ? t('montageEditor.aiChat.disableVoice') : t('montageEditor.aiChat.enableVoice')}
-          >
-            {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
-        )}
-
-        <button
-          onClick={() => setIsCollapsed(true)}
-          className="p-1.5 rounded-lg text-midnight-400 hover:text-white hover:bg-midnight-800 transition-colors"
-        >
-          <ChevronUp className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={cn(
-              'max-w-[90%] p-2 rounded-lg text-xs',
-              msg.role === 'user'
-                ? 'ml-auto bg-aurora-600 text-white rounded-br-sm'
-                : 'bg-midnight-800/80 text-midnight-100 rounded-bl-sm border border-aurora-500/20'
-            )}
-          >
-            <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-          </div>
-        ))}
-        
-        {isLoading && (
-          <div className="flex gap-1 p-2 bg-midnight-800/80 rounded-lg rounded-bl-sm w-fit">
-            {[0, 1, 2].map(i => (
-              <motion.div
-                key={i}
-                className="w-1.5 h-1.5 rounded-full bg-aurora-400"
-                animate={{ y: [0, -3, 0] }}
-                transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-              />
-            ))}
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <form 
-        onSubmit={(e) => { e.preventDefault(); sendMessage() }}
-        className="p-2 border-t border-midnight-700/50 flex flex-col gap-2 flex-shrink-0"
-      >
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={isListening ? t('montageEditor.aiChat.listening') : t('montageEditor.aiChat.placeholder')}
-            className="flex-1 px-2 py-1.5 text-xs text-white placeholder-midnight-500 bg-midnight-800 border border-midnight-700 rounded-lg focus:outline-none focus:border-aurora-500"
-          />
-
-          {/* Bouton micro pour parler */}
-          {isSpeechSupported && (
-            <button
-              type="button"
-              onClick={isListening ? stopListening : startListening}
-              className={cn(
-                'p-1.5 rounded-lg transition-colors',
-                isListening
-                  ? 'bg-rose-500 text-white animate-pulse'
-                  : 'bg-midnight-800 text-midnight-400 hover:text-aurora-300 hover:bg-midnight-700'
-              )}
-              title={isListening ? t('montageEditor.aiChat.stop') : t('montageEditor.aiChat.speak')}
-            >
-              <Mic className="w-4 h-4" />
-            </button>
-          )}
-          
-          <button
-            type="submit"
-            disabled={!message.trim() || isLoading}
-            className={cn(
-              'p-1.5 rounded-lg transition-colors',
-              message.trim() && !isLoading
-                ? 'bg-aurora-500 text-white hover:bg-aurora-600'
-                : 'bg-midnight-800 text-midnight-600'
-            )}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </form>
-    </motion.div>
-  )
-}
-
-// =============================================================================
-// AIDE IA FLOTTANTE POUR LA TIMELINE
-// =============================================================================
-
-function TimelineAIHelp() {
-  const t = useTranslations('layout')
-  const locale = useLocale()
-  const [isOpen, setIsOpen] = useState(false)
-  const [message, setMessage] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { aiName, aiVoice } = useAppStore()
-  const { highlightMultiple } = useHighlightStore()
-  
-  const displayName = aiName || 'Mon aide'
-  
-  // Position du panneau (draggable)
-  const [panelPosition, setPanelPosition] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const dragStartRef = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 })
-  const panelRef = useRef<HTMLDivElement>(null)
-  
-  // TTS
-  const { speak, stop, isSpeaking, isAvailable: isTTSAvailable } = useTTS(locale as 'fr' | 'en' | 'ru', aiVoice || undefined)
-  const [autoSpeak, setAutoSpeak] = useState(true)
-
-  // Reconnaissance vocale
-  const {
-    isListening,
-    isSupported: isSpeechSupported,
-    transcript,
-    startListening,
-    stopListening,
-    resetTranscript
-  } = useSpeechRecognition(locale)
-
-  // Gestion du drag
-  const handleDragStart = (e: React.MouseEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      panelX: panelPosition.x,
-      panelY: panelPosition.y
-    }
-  }
-  
-  useEffect(() => {
-    if (!isDragging) return
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - dragStartRef.current.x
-      const deltaY = e.clientY - dragStartRef.current.y
-      setPanelPosition({
-        x: dragStartRef.current.panelX + deltaX,
-        y: dragStartRef.current.panelY + deltaY
-      })
-    }
-    
-    const handleMouseUp = () => {
-      setIsDragging(false)
-    }
-    
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging])
-  
-  // Reset position quand on ferme
-  useEffect(() => {
-    if (!isOpen) {
-      setPanelPosition({ x: 0, y: 0 })
-    }
-  }, [isOpen])
-  
-  // Arrêter la voix et le micro quand on quitte
-  useEffect(() => {
-    return () => {
-      stop()
-      stopListening()
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Afficher le transcript en temps réel + auto-envoi
-  useEffect(() => {
-    if (transcript) {
-      setMessage(transcript)
-    }
-  }, [transcript])
-
-  const sendMessageRef2 = useRef<(text: string) => void>(() => {})
-  const prevListeningRef2 = useRef(false)
-  useEffect(() => {
-    if (prevListeningRef2.current && !isListening && transcript.trim()) {
-      resetTranscript()
-      sendMessageRef2.current(transcript.trim())
-    }
-    prevListeningRef2.current = isListening
-  }, [isListening, transcript, resetTranscript])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  // Message d'accueil quand on ouvre
-  useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      const welcomeMsg = t('montageEditor.aiChat.welcomeTimeline', { name: displayName })
-      setMessages([{ role: 'assistant', content: welcomeMsg }])
-      if (autoSpeak && isTTSAvailable) {
-        setTimeout(() => speak(welcomeMsg), 300)
-      }
-    }
-  }, [isOpen, messages.length, displayName, autoSpeak, isTTSAvailable, speak, t])
-
-  const sendMessageDirect2 = async (text: string) => {
-    if (!text || isLoading) return
-
-    const userMessage = text
-    setMessage('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
-    setIsLoading(true)
-
-    try {
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMessage,
-          context: 'montage',
-          currentMode: 'montage-timeline',
-          locale,
-          aiName,
-          userName: useAppStore.getState().userName,
-          chatHistory: messages.slice(-10),
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.text) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.text }])
-        
-        if (data.highlights && data.highlights.length > 0) {
-          highlightMultiple(data.highlights)
-        }
-        
-        if (autoSpeak && isTTSAvailable) {
-          speak(data.text)
-        }
-      }
-    } catch (error) {
-      console.error('Erreur chat IA:', error)
-      setMessages(prev => [...prev, { role: 'assistant', content: t('montageEditor.aiChat.errorMessage') }])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const sendMessage = () => sendMessageDirect2(message.trim())
-  sendMessageRef2.current = sendMessageDirect2
-
-  const content = (
-    <>
-      {/* Bouton flottant - fixe en bas à droite */}
-      <motion.button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          'fixed z-[10001] p-4 rounded-full shadow-xl transition-colors bottom-6 right-6',
-          isOpen
-            ? 'bg-midnight-800 text-midnight-400'
-            : 'bg-gradient-to-br from-aurora-500 to-stardust-500 text-white'
-        )}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        animate={isOpen ? {} : { 
-          boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0)', '0 0 0 10px rgba(139, 92, 246, 0.3)', '0 0 0 0 rgba(139, 92, 246, 0)']
-        }}
-        transition={isOpen ? {} : { duration: 2, repeat: Infinity }}
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
-      </motion.button>
-
-      {/* Panneau de chat - draggable */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            ref={panelRef}
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed z-[10001] w-80 max-h-[60vh] flex flex-col bg-midnight-900/95 backdrop-blur-xl rounded-2xl border border-aurora-500/30 shadow-2xl overflow-hidden"
-            style={{
-              bottom: `calc(6rem - ${panelPosition.y}px)`,
-              right: `calc(1.5rem - ${panelPosition.x}px)`,
-            }}
-          >
-            {/* Header - Draggable */}
-            <div 
-              className={cn(
-                "p-3 border-b border-midnight-700/50 flex items-center gap-2",
-                isDragging ? "cursor-grabbing" : "cursor-grab"
-              )}
-              onMouseDown={handleDragStart}
-            >
-              {/* Icône grip pour indiquer le drag */}
-              <div className="flex flex-col gap-0.5 mr-1">
-                <div className="flex gap-0.5">
-                  <div className="w-1 h-1 rounded-full bg-midnight-500" />
-                  <div className="w-1 h-1 rounded-full bg-midnight-500" />
-                </div>
-                <div className="flex gap-0.5">
-                  <div className="w-1 h-1 rounded-full bg-midnight-500" />
-                  <div className="w-1 h-1 rounded-full bg-midnight-500" />
-                </div>
-              </div>
-              
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-aurora-500 to-stardust-500 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-white text-sm">{displayName}</p>
-                <p className="text-[10px] text-midnight-400">{t('montageEditor.aiChat.helpTimeline')} • {t('montageEditor.aiChat.dragToMove')}</p>
-              </div>
-              
-              {isTTSAvailable && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); if (isSpeaking) stop(); setAutoSpeak(!autoSpeak) }}
-                  className={cn(
-                    'p-1.5 rounded-lg transition-colors',
-                    autoSpeak ? 'bg-aurora-500/20 text-aurora-300' : 'bg-midnight-800/50 text-midnight-400'
-                  )}
-                >
-                  {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                </button>
-              )}
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2 text-sm min-h-[200px]">
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'max-w-[90%] p-2 rounded-lg',
-                    msg.role === 'user'
-                      ? 'ml-auto bg-aurora-600 text-white rounded-br-sm'
-                      : 'bg-midnight-800/80 text-midnight-100 rounded-bl-sm border border-aurora-500/20'
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              ))}
-              
-              {isLoading && (
-                <div className="flex gap-1 p-2 bg-midnight-800/80 rounded-lg w-fit">
-                  {[0, 1, 2].map(i => (
-                    <motion.div
-                      key={i}
-                      className="w-1.5 h-1.5 rounded-full bg-aurora-400"
-                      animate={{ y: [0, -3, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-                    />
-                  ))}
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <form onSubmit={(e) => { e.preventDefault(); sendMessage() }} className="p-2 border-t border-midnight-700/50 flex flex-col gap-2">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder={isListening ? t('montageEditor.aiChat.listening') : t('montageEditor.aiChat.placeholder')}
-                  className="flex-1 px-2 py-1.5 text-xs text-white placeholder-midnight-500 bg-midnight-800 border border-midnight-700 rounded-lg focus:outline-none focus:border-aurora-500"
-                />
-
-                {isSpeechSupported && (
-                  <button
-                    type="button"
-                    onClick={isListening ? stopListening : startListening}
-                    className={cn(
-                      'p-1.5 rounded-lg transition-colors',
-                      isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-midnight-800 text-midnight-400 hover:text-aurora-300'
-                    )}
-                  >
-                    <Mic className="w-4 h-4" />
-                  </button>
-                )}
-                
-                <button
-                  type="submit"
-                  disabled={!message.trim() || isLoading}
-                  className={cn(
-                    'p-1.5 rounded-lg transition-colors',
-                    message.trim() && !isLoading
-                      ? 'bg-aurora-500 text-white' 
-                      : 'bg-midnight-800 text-midnight-600'
-                  )}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  )
-  
-  // Toujours rendre via un portal pour être au-dessus de tout (y compris Timeline plein écran)
-  if (typeof document !== 'undefined') {
-    return createPortal(content, document.body)
-  }
-  
-  return null
-}
-
-// =============================================================================
-// COMPOSANT PRINCIPAL
+// MONTAGE EDITOR - Vue par page simplifiée
 // =============================================================================
 
 export function MontageEditor() {
   const t = useTranslations('layout')
-  const { currentProject, currentSceneIndex, getCurrentScene, setCurrentScene, viewMode, setViewMode, closeProject } = useMontageStore()
+  const { currentProject, currentSceneIndex, getCurrentScene, setCurrentScene, closeProject, insertScene, deleteScene } = useMontageStore()
   const { stories } = useAppStore()
   const { projects, loadProject, deleteProject, createProject } = useMontageStore()
 
-  const [showPlayer, setShowPlayer] = useState(false)
-  const [showPreview, setShowPreview] = useState(true)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const { profile } = useAuthStore()
   const scene = getCurrentScene()
 
-  // Si pas de projet, écran de sélection
+  // Sauvegarde manuelle
+  const handleSave = async () => {
+    const freshProject = useMontageStore.getState().currentProject
+    if (!freshProject || !profile?.id) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    setSaveStatus('saving')
+    try {
+      const success = await Promise.race([
+        saveMontageProjectToSupabase(freshProject, profile.id),
+        new Promise<false>((resolve) => setTimeout(() => resolve(false), 8000)),
+      ])
+      setSaveStatus(success ? 'success' : 'error')
+    } catch {
+      setSaveStatus('error')
+    } finally {
+      saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 3000)
+    }
+  }
+
+  // ═══ ÉCRAN DE SÉLECTION DE PROJET ═══
   if (!currentProject) {
     return (
       <div className="h-full flex items-center justify-center p-8">
@@ -1698,7 +223,7 @@ export function MontageEditor() {
               <Film className="w-10 h-10 text-aurora-400" />
             </div>
             <h2 className="font-display text-2xl text-white mb-2">{t('montageEditor.title')}</h2>
-            <p className="text-midnight-300">{t('montageEditor.subtitle')} ✨</p>
+            <p className="text-midnight-300">{t('montageEditor.subtitle')}</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -1708,7 +233,7 @@ export function MontageEditor() {
                 <Film className="w-4 h-4" />
                 {t('montageEditor.continueProject')}
               </h3>
-              
+
               {projects.length > 0 ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {projects.map((project) => (
@@ -1719,7 +244,7 @@ export function MontageEditor() {
                       >
                         <p className="font-medium text-aurora-300">{project.title}</p>
                         <p className="text-xs text-midnight-400 mt-1">
-                          {t('montageEditor.scenesCount', { count: project.scenes.length })} • {project.isComplete ? `✅ ${t('montageEditor.completed')}` : `🔧 ${t('montageEditor.inProgress')}`}
+                          {t('montageEditor.scenesCount', { count: project.scenes.length })}
                         </p>
                       </button>
                       <button
@@ -1748,12 +273,12 @@ export function MontageEditor() {
                 <BookOpen className="w-4 h-4" />
                 {t('montageEditor.newProject')}
               </h3>
-              
+
               {stories.length > 0 ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {stories.map((story) => {
                     const existing = projects.find(p => p.storyId === story.id)
-                    
+
                     return (
                       <motion.button
                         key={story.id}
@@ -1761,46 +286,33 @@ export function MontageEditor() {
                           if (existing) {
                             loadProject(existing.id)
                           } else {
-                            // TOUJOURS récupérer depuis localStorage (Supabase sync bugué)
-                            let pagesWithContent: Array<{id: string, title?: string, content?: string, order?: number, pageType?: string}> = []
+                            // Récupérer pages depuis localStorage
+                            let pagesWithContent: Array<{id: string, title?: string, content?: string, order?: number, pageType?: string, images?: { url: string; type?: 'image' | 'video' }[], backgroundMedia?: { url: string; type?: 'image' | 'video' }}> = []
                             try {
                               const localData = JSON.parse(localStorage.getItem('lavoixdusoir-storage') || '{}')
                               const localStory = localData.state?.stories?.find((s: { id: string }) => s.id === story.id)
-                              if (localStory?.pages?.length > 0) {
-                                pagesWithContent = localStory.pages
-                                console.log('📖 Pages récupérées depuis localStorage:', pagesWithContent.length)
-                              }
-                            } catch (e) {
-                              console.error('Erreur localStorage:', e)
-                            }
+                              if (localStory?.pages?.length > 0) pagesWithContent = localStory.pages
+                            } catch {}
 
-                            // Fallback sur story.pages si localStorage vide
-                            if (pagesWithContent.length === 0) {
-                              pagesWithContent = story.pages
-                              console.log('📖 Fallback sur story.pages:', pagesWithContent.length)
-                            }
+                            if (pagesWithContent.length === 0) pagesWithContent = story.pages
 
                             const pages = pagesWithContent
+                              .filter(p => p.pageType !== 'back-cover')
                               .map((p, idx) => {
-                                // Pour la couverture (front-cover), utiliser le titre de l'histoire comme texte
                                 const isCover = p.pageType === 'front-cover'
-                                const text = p.content || (isCover ? story.title : '')
                                 return {
                                   id: p.id,
                                   title: isCover ? story.title : t('montageEditor.sceneTitle', { index: (p.order ?? idx) + 1 }),
-                                  text,
+                                  text: p.content || (isCover ? story.title : ''),
+                                  images: p.images,
+                                  backgroundMedia: p.backgroundMedia,
                                 }
                               })
-                              .filter(p => p.text.trim().length > 0) // Filtrer les pages vides
-                            
-                            // Ne pas créer si aucune page avec du contenu
+
                             if (pages.length === 0) {
-                              console.error('❌ Impossible de créer le projet : aucune page avec du contenu')
                               alert(t('montageEditor.noContentAlert'))
                               return
                             }
-                            
-                            console.log('🎬 Création projet avec pages:', pages.map(p => ({ id: p.id.slice(0,8), textLen: p.text.length })))
                             createProject(story.id, story.title, pages)
                           }
                         }}
@@ -1841,38 +353,24 @@ export function MontageEditor() {
     )
   }
 
+  // ═══ VUE PAR PAGE ═══
   return (
-    <div className="h-full flex flex-col gap-4">
+    <div className="h-full flex flex-col gap-2">
       {/* En-tête */}
       <motion.header
-        className="flex items-center justify-between"
+        className="flex items-center justify-between shrink-0"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center gap-4">
-          {/* Bouton Retour - visible en mode Timeline */}
-          {viewMode === 'timeline' ? (
-            <motion.button
-              onClick={() => setViewMode('cards')}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors"
-              whileHover={{ x: -2 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="text-sm font-medium">{t('montageEditor.back')}</span>
-            </motion.button>
-          ) : (
-            <motion.button
-              onClick={closeProject}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors"
-              whileHover={{ scale: 0.98 }}
-              whileTap={{ scale: 0.95 }}
-              title={t('montageEditor.closeProject')}
-            >
-              <Home className="w-5 h-5" />
-            </motion.button>
-          )}
-          
+          <motion.button
+            onClick={closeProject}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-midnight-800/50 text-midnight-300 hover:text-white hover:bg-midnight-700/50 transition-colors"
+            whileTap={{ scale: 0.95 }}
+          >
+            <Home className="w-5 h-5" />
+          </motion.button>
+
           <div>
             <h1 className="font-display text-2xl text-aurora-300 flex items-center gap-3">
               <Film className="w-7 h-7" />
@@ -1884,211 +382,113 @@ export function MontageEditor() {
 
         <div className="flex items-center gap-4">
           <SceneSelector />
-          
-          {/* Toggle vue */}
-          <Highlightable id="montage-view-cards">
-            <div className="flex rounded-lg bg-midnight-800/50 p-1">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={cn(
-                  'px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors',
-                  viewMode === 'cards' ? 'bg-aurora-500/30 text-aurora-300' : 'text-midnight-400 hover:text-white'
-                )}
-              >
-                <Grid3X3 className="w-4 h-4" />
-                {t('montageEditor.cards')}
-              </button>
-              <button
-                onClick={() => setViewMode('timeline')}
-                className={cn(
-                  'px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors',
-                  viewMode === 'timeline' ? 'bg-aurora-500/30 text-aurora-300' : 'text-midnight-400 hover:text-white'
-                )}
-              >
-                <Layers className="w-4 h-4" />
-                {t('montageEditor.timeline')}
-              </button>
-            </div>
-          </Highlightable>
 
-          <button 
-            onClick={() => setShowPlayer(true)}
-            disabled={!scene?.narration.isSynced}
+          {/* Bouton Sauvegarder */}
+          <motion.button
+            onClick={handleSave}
+            disabled={saveStatus === 'saving'}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl transition-colors',
-              scene?.narration.isSynced
-                ? 'bg-aurora-500/20 text-aurora-300 hover:bg-aurora-500/30'
-                : 'bg-midnight-800/50 text-midnight-500 cursor-not-allowed'
+              'flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all',
+              saveStatus === 'success'
+                ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50'
+                : saveStatus === 'error'
+                ? 'bg-rose-500/30 text-rose-200 border border-rose-500/50'
+                : 'bg-gradient-to-r from-aurora-500/30 to-dream-500/30 text-white border border-aurora-500/40 hover:from-aurora-500/40 hover:to-dream-500/40'
             )}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <Eye className="w-4 h-4" />
-            {t('montageEditor.read')}
-          </button>
+            {saveStatus === 'saving' ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : saveStatus === 'success' ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saveStatus === 'error' ? t('montageEditor.retry') : t('montageEditor.save')}
+          </motion.button>
         </div>
       </motion.header>
 
-      {/* Contenu principal */}
-      <div className="flex-1 overflow-hidden">
-        {viewMode === 'cards' ? (
-          /* VUE CARTES */
-          <div className="grid grid-cols-12 gap-4 h-full">
-            {/* Colonne scènes + Chat IA */}
-            <div className="col-span-3 flex flex-col gap-4 overflow-hidden">
-              {/* Liste des scènes */}
-              <Highlightable id="montage-scenes">
-                <div className="flex-shrink-0">
-                  <h3 className="text-sm text-midnight-400 font-medium mb-2">{t('montageEditor.scenes')}</h3>
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {currentProject.scenes.map((s, index) => (
-                      index === 0 ? (
-                        <Highlightable key={s.id} id="montage-scene-card">
-                          <SceneCard
-                            scene={s}
-                            index={index}
-                            isActive={index === currentSceneIndex}
-                            onClick={() => setCurrentScene(index)}
-                          />
-                        </Highlightable>
-                      ) : (
-                        <SceneCard
-                          key={s.id}
-                          scene={s}
-                          index={index}
-                          isActive={index === currentSceneIndex}
-                          onClick={() => setCurrentScene(index)}
-                        />
-                      )
-                    ))}
-                  </div>
-                </div>
-              </Highlightable>
-              
-              {/* Chat IA intégré */}
-              <Highlightable id="montage-ai-chat">
-                <MontageAIChat />
-              </Highlightable>
-            </div>
-
-            {/* Colonne narration + texte */}
-            <div className="col-span-5 flex flex-col gap-4 overflow-y-auto">
-              {scene && (
-                <>
-                  {/* Texte de la scène */}
-                  <div className="glass rounded-xl p-4">
-                    <h3 className="font-medium mb-3 flex items-center gap-2">
-                      <BookOpen className="w-5 h-5 text-amber-400" />
-                      {t('montageEditor.textScene', { index: currentSceneIndex + 1 })}
-                    </h3>
-                    <div className="space-y-2">
-                      {(scene.phrases || []).map((phrase, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            'p-3 rounded-lg text-sm',
-                            scene.narration.isSynced && scene.narration.phrases[i]
-                              ? 'bg-emerald-500/10 border border-emerald-500/30'
-                              : 'bg-midnight-800/50'
-                          )}
-                        >
-                          <span className="text-midnight-500 mr-2">{i + 1}.</span>
-                          {phrase}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <NarrationPanel />
-                </>
+      {/* Contenu principal : sidebar pages + zone config */}
+      <div className="flex-1 overflow-hidden flex gap-3">
+        {/* Sidebar gauche : miniatures des pages */}
+        <div className="w-24 md:w-28 lg:w-32 shrink-0 overflow-y-auto scrollbar-thin pr-1">
+          {currentProject.scenes.map((s, index) => (
+            <div key={s.id}>
+              {/* Bouton insérer avant la première page */}
+              {index === 0 && (
+                <InsertButton onClick={() => insertScene(-1)} />
               )}
-            </div>
 
-            {/* Colonne état de la scène */}
-            <div className="col-span-4 flex flex-col gap-4 overflow-y-auto">
-              <SceneStatusPanel onGoToTimeline={() => setViewMode('timeline')} />
+              <PageThumb
+                scene={s}
+                index={index}
+                isActive={index === currentSceneIndex}
+                canDelete={currentProject.scenes.length > 1}
+                onClick={() => setCurrentScene(index)}
+                onDelete={() => {
+                  if (confirm('Supprimer cette page ?')) deleteScene(index)
+                }}
+              />
+
+              {/* Bouton insérer après chaque page */}
+              <InsertButton onClick={() => insertScene(index)} />
             </div>
-          </div>
-        ) : (
-          /* VUE TIMELINE */
-          <div className="h-full flex flex-col gap-4 relative">
-            {/* Résumé de la scène */}
-            {scene && (
-              <div className="glass rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium flex items-center gap-2">
-                    {t('montageEditor.sceneTitle', { index: currentSceneIndex + 1 })}: {scene.title}
-                  </h3>
-                  <span className="text-sm text-midnight-400">
-                    {scene.duration > 0 ? `${scene.duration.toFixed(1)}s` : t('montageEditor.durationNotDefined')}
-                  </span>
+          ))}
+        </div>
+
+        {/* Zone principale */}
+        {scene && (
+          <div className="flex-1 flex md:flex-row flex-col gap-3 min-h-0 overflow-hidden">
+            {/* Aperçu de la page */}
+            <div className="md:flex-1 shrink-0 min-h-0 flex flex-col">
+              <div className="glass rounded-xl overflow-hidden flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 bg-midnight-900 relative min-h-0">
+                  {scene.mediaTracks?.[0] ? (
+                    scene.mediaTracks[0].type === 'video' ? (
+                      <video
+                        key={`${scene.mediaTracks[0].url}-${scene.mediaTracks[0].playbackRate ?? 1}`}
+                        src={scene.mediaTracks[0].url}
+                        className="absolute inset-0 w-full h-full object-contain"
+                        autoPlay
+                        muted
+                        playsInline
+                        onPlay={(e) => {
+                          const rate = scene.mediaTracks[0]?.playbackRate
+                          if (rate) (e.target as HTMLVideoElement).playbackRate = rate
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={getThumbnailUrl(scene.mediaTracks[0].url, 800)}
+                        alt={scene.title}
+                        className="absolute inset-0 w-full h-full object-contain"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement
+                          if (!img.dataset.fallback) {
+                            img.dataset.fallback = '1'
+                            img.src = scene.mediaTracks[0].url
+                          }
+                        }}
+                      />
+                    )
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Image className="w-16 h-16 text-midnight-700" />
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm text-midnight-400 line-clamp-2">{scene.text}</p>
               </div>
-            )}
-
-            {/* Prévisualisation + Timeline */}
-            <div className={cn(
-              "grid gap-4",
-              showPreview ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
-            )}>
-              {/* Canvas de prévisualisation (rétractable) */}
-              <AnimatePresence mode="wait">
-                {showPreview ? (
-                  <motion.div
-                    key="preview"
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="relative"
-                  >
-                    {/* Bouton pour réduire */}
-                    <button
-                      onClick={() => setShowPreview(false)}
-                      className="absolute -right-2 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-midnight-800 border border-midnight-600 text-midnight-400 hover:text-white hover:border-midnight-500 transition-colors shadow-lg"
-                      title={t('preview.reducePreview')}
-                    >
-                      <PanelLeftClose className="w-4 h-4" />
-                    </button>
-                    <PreviewCanvas />
-                  </motion.div>
-                ) : (
-                  <motion.button
-                    key="preview-collapsed"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setShowPreview(true)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-midnight-800/50 border border-midnight-700 text-midnight-400 hover:text-white hover:border-midnight-600 transition-colors self-start"
-                    title={t('preview.showPreview')}
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span className="text-sm">{t('montageEditor.previewLabel')}</span>
-                    <PanelLeft className="w-4 h-4" />
-                  </motion.button>
-                )}
-              </AnimatePresence>
-              
-              {/* Timeline des rubans */}
-              <TimelineRubans />
             </div>
-            
-            {/* Panneau de propriétés déplaçable (quand un élément est sélectionné) */}
-            <TrackPropertiesPanel />
-            
-            {/* Bouton d'aide IA flottant */}
-            <TimelineAIHelp />
+
+            {/* Panel de configuration (narration + musique + sons) */}
+            <div className="md:w-72 lg:w-80 xl:w-96 shrink-0 overflow-y-auto scrollbar-thin min-h-0">
+              <PageSetupPanel />
+            </div>
           </div>
         )}
       </div>
-
-      {/* Modal Karaoke Player */}
-      {scene && (
-        <KaraokePlayer
-          isOpen={showPlayer}
-          onClose={() => setShowPlayer(false)}
-          scene={scene}
-        />
-      )}
     </div>
   )
 }

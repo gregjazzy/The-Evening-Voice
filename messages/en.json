@@ -679,6 +679,9 @@
       "whatDoYouWantToCreate": "What do you want to create?",
       "whatDoYouWantToCreateHighlight": "✨ What do you want to create?",
       "describePlaceholder": "Describe your image...",
+      "describeVideoPlaceholder": "Describe your video... What happens in the scene?",
+      "referenceImage": "Reference image (optional)",
+      "chooseFromCreations": "Choose from my creations",
       "continueDescription": "Keep describing...",
       "characters": "characters",
       "validateDescription": "Validate my description ✓",
@@ -1405,7 +1408,54 @@
         "welcomeTimeline": "Hi! I'm {name}! You're on the Timeline! This is where you decorate your story. What would you like to know?"
       },
       "previewLabel": "Preview",
-      "closeProject": "Close project"
+      "save": "Save",
+      "retry": "Retry",
+      "saveError": "Save failed. Check your connection and try again.",
+      "closeProject": "Close project",
+      "pageSetup": {
+        "text": {
+          "title": "Text",
+          "placeholder": "Write the text for this page..."
+        },
+        "media": {
+          "title": "Image / Video",
+          "choose": "Choose an image or video",
+          "replace": "Replace",
+          "delete": "Delete",
+          "speed": "Speed"
+        },
+        "narration": {
+          "title": "Narration",
+          "micPermission": "Allow microphone access in your browser settings.",
+          "uploading": "Uploading...",
+          "record": "Record my voice",
+          "stop": "Stop ({time})",
+          "chooseVoice": "Choose a voice",
+          "noText": "No text on this page",
+          "generating": "Generating...",
+          "generateWith": "Generate with {name}",
+          "chooseFirst": "Choose a voice first",
+          "sourceGenerated": "Generated voice",
+          "sourceRecorded": "Recorded voice"
+        },
+        "duration": {
+          "label": "Display duration",
+          "sublabel": "Time before moving to the next page",
+          "unit": "sec"
+        },
+        "music": {
+          "title": "Background music",
+          "add": "Add music",
+          "applyFromHere": "From here on",
+          "applyAll": "All pages"
+        },
+        "effects": {
+          "title": "Sound effects",
+          "start": "Start (s)",
+          "end": "End (s)",
+          "add": "Add an effect"
+        }
+      }
     },
     "preview": {
       "title": "Preview",
@@ -1965,7 +2015,9 @@
       "fadeIn": "Fade In",
       "fadeOut": "Fade Out",
       "element": "Element",
-      "tts": "🤖 TTS"
+      "tts": "🤖 TTS",
+      "mediaZoom": "Image Zoom",
+      "resetSize": "Reset (100%)"
     },
     "guidedRecording": {
       "syncRecording": "Synchronized Recording",

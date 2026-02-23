@@ -18,7 +18,7 @@ import {
 import { useStudioStore, type ImportedAsset } from '@/store/useStudioStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { useTranslations } from '@/lib/i18n/context'
-import { cn } from '@/lib/utils'
+import { cn, getThumbnailUrl } from '@/lib/utils'
 
 type MediaType = 'image' | 'video' | 'audio' | 'all'
 
@@ -427,9 +427,16 @@ export function MediaPicker({
                 <div className="flex items-center gap-3">
                   {selectedAsset.type === 'image' && selectedAsset.url && (
                     <img
-                      src={selectedAsset.url}
+                      src={getThumbnailUrl(selectedAsset.cloudUrl || selectedAsset.url, 100)}
                       alt=""
                       className="w-12 h-12 rounded-lg object-cover"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement
+                        if (!img.dataset.fallback) {
+                          img.dataset.fallback = '1'
+                          img.src = selectedAsset.cloudUrl || selectedAsset.url
+                        }
+                      }}
                     />
                   )}
                   <div>
@@ -492,10 +499,22 @@ function AssetCard({
       whileTap={{ scale: 0.98 }}
     >
       {asset.type === 'image' && asset.url && (
-        <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
+        <img
+          src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
+          alt={asset.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={(e) => {
+            const img = e.target as HTMLImageElement
+            if (!img.dataset.fallback) {
+              img.dataset.fallback = '1'
+              img.src = asset.cloudUrl || asset.url
+            }
+          }}
+        />
       )}
       {asset.type === 'video' && asset.url && (
-        <video src={asset.url} className="w-full h-full object-cover" muted />
+        <video src={asset.cloudUrl || asset.url} className="w-full h-full object-cover" muted />
       )}
 
       {/* Overlay au hover */}

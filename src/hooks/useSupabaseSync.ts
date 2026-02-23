@@ -196,26 +196,59 @@ function useDebouncedCallback<T extends (...args: any[]) => any>(
   )
 }
 
-// Fonction utilitaire pour sauvegarder un projet de montage (hors hook)
-async function saveMontageProjectToSupabase(project: MontageProject, profileId: string) {
-  const projectData = {
-    id: project.id,
-    profile_id: profileId,
-    story_id: project.storyId || null,
-    title: project.title,
-    scenes: project.scenes,
-    is_complete: project.isComplete,
-    created_at: toISOStringSafe(project.createdAt),
-    updated_at: toISOStringSafe(project.updatedAt),
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await supabase.from('montage_projects').upsert(projectData as any)
+// Lock pour éviter les sauvegardes montage concurrentes
+let _montageSaving = false
 
-  if (error) {
-    console.error('Erreur sauvegarde montage project:', error)
-    return false
+// Fonction utilitaire pour sauvegarder un projet de montage (exportée pour usage direct)
+// Passe par /api/montage/save qui utilise le service role key → bypass RLS
+export async function saveMontageProjectToSupabase(project: MontageProject, profileId: string) {
+  if (_montageSaving) {
+    console.log('💾 Sauvegarde montage déjà en cours, ignoré')
+    return true
   }
-  return true
+  _montageSaving = true
+
+  try {
+    let scenesClone
+    try {
+      scenesClone = JSON.parse(JSON.stringify(project.scenes))
+    } catch (serErr) {
+      console.error('❌ Erreur sérialisation scenes:', serErr)
+      return false
+    }
+
+    console.log(`💾 Sauvegarde montage "${project.title}" (${project.scenes.length} scènes)...`)
+
+    const response = await fetch('/api/montage/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project: {
+          id: project.id,
+          storyId: project.storyId || null,
+          title: project.title,
+          scenes: scenesClone,
+          isComplete: project.isComplete,
+          createdAt: toISOStringSafe(project.createdAt),
+        },
+        profileId,
+      }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      console.error('❌ Erreur sauvegarde montage:', err.error)
+      return false
+    }
+
+    console.log(`✅ Montage "${project.title}" sauvegardé`)
+    return true
+  } catch (err) {
+    console.error('❌ Exception sauvegarde montage:', err)
+    return false
+  } finally {
+    _montageSaving = false
+  }
 }
 
 // Fonction utilitaire pour sauvegarder la progression Studio (hors hook)
@@ -232,28 +265,22 @@ async function saveStudioProgressToSupabase(
     badges: StudioBadge[]
   }
 ) {
-  const progressData = {
-    profile_id: profileId,
-    image_level: data.imageLevel,
-    image_creations_in_level: data.imageCreationsInLevel,
-    image_total_creations: data.imageTotalCreations,
-    video_level: data.videoLevel,
-    video_creations_in_level: data.videoCreationsInLevel,
-    video_total_creations: data.videoTotalCreations,
-    creations: data.creations,
-    badges: data.badges,
-    updated_at: new Date().toISOString(),
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await supabase.from('studio_progress').upsert(progressData as any, {
-    onConflict: 'profile_id',
-  })
-
-  if (error) {
-    console.error('Erreur sauvegarde studio progress:', error)
+  try {
+    const response = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'studio-progress', profileId, data }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Erreur' }))
+      console.error('Erreur sauvegarde studio progress:', err.error)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error('Erreur sauvegarde studio progress:', err)
     return false
   }
-  return true
 }
 
 // Détecte les URLs temporaires (blob: ou fal.ai CDN) dans les pages
@@ -673,45 +700,39 @@ export function useSupabaseSync() {
 
       if (!montageError && montageData) {
         const typedMontageData = montageData as unknown as DbMontageProject[]
-        let needsMigrationSave = false
         
         const supabaseProjects = typedMontageData.map((p) => {
-          // Migration: convertir les anciennes données de phrases en nouveau format
-          const scenes = (p.scenes as MontageProject['scenes']).map((scene) => {
-            if (scene.narration?.phrases && scene.narration.phrases.length > 0) {
-              const introDuration = scene.introDuration || 0
-              const migratedPhrases = scene.narration.phrases.map((phrase) => {
-                // Si audioTimeRange n'existe pas, c'est l'ancien format
-                if (!phrase.audioTimeRange) {
-                  needsMigrationSave = true
-                  console.log(`   🔄 Migration phrase "${phrase.text?.substring(0, 20)}..." vers format absolu`)
-                  return {
-                    ...phrase,
-                    // audioTimeRange = timing original dans l'audio (inchangé)
-                    audioTimeRange: {
-                      startTime: phrase.timeRange.startTime,
-                      endTime: phrase.timeRange.endTime,
-                    },
-                    // timeRange = position ABSOLUE sur la timeline (ajouter intro)
-                    timeRange: {
-                      startTime: introDuration + phrase.timeRange.startTime,
-                      endTime: introDuration + phrase.timeRange.endTime,
-                    },
-                  }
-                }
-                return phrase
-              })
-              return {
-                ...scene,
-                narration: {
-                  ...scene.narration,
-                  phrases: migratedPhrases,
-                },
-              }
+          // Migration: nettoyer les anciennes données (animationTracks, introDuration, etc.)
+          const scenes = (p.scenes as any[]).map((scene: any) => {
+            // Simplifier la narration (supprimer ttsVoice, isSynced)
+            const narration = scene.narration ? {
+              id: scene.narration.id,
+              audioUrl: scene.narration.audioUrl,
+              source: scene.narration.source || 'recorded',
+              duration: scene.narration.duration || 0,
+              phrases: (scene.narration.phrases || []).map((ph: any) => ({
+                id: ph.id,
+                text: ph.text,
+                index: ph.index,
+                timeRange: ph.timeRange,
+              })),
+              volume: scene.narration.volume,
+            } : { id: '', source: 'recorded' as const, duration: 0, phrases: [] }
+
+            return {
+              id: scene.id,
+              bookPageId: scene.bookPageId,
+              title: scene.title,
+              text: scene.text,
+              phrases: scene.phrases || [],
+              duration: scene.duration || 0,
+              narration,
+              mediaTracks: scene.mediaTracks || [],
+              musicTracks: scene.musicTracks || [],
+              soundTracks: scene.soundTracks || [],
             }
-            return scene
           })
-          
+
           return {
             id: p.id,
             storyId: p.story_id || '',
@@ -720,6 +741,7 @@ export function useSupabaseSync() {
             isComplete: p.is_complete,
             createdAt: new Date(p.created_at),
             updatedAt: new Date(p.updated_at),
+            defaultMusicVolume: (p as any).default_music_volume ?? 30,
           }
         }) as MontageProject[]
         
@@ -727,20 +749,15 @@ export function useSupabaseSync() {
         useMontageStore.setState({ projects: supabaseProjects })
         console.log(`   ✅ ${supabaseProjects.length} projets de montage chargés depuis Supabase (source unique)`)
         
-        // Sauvegarder les migrations si nécessaire
-        if (needsMigrationSave) {
-          console.log(`   🔄 Sauvegarde des migrations...`)
-          for (const project of supabaseProjects) {
-            await saveMontageProjectToSupabase(project, profile.id)
-          }
-        }
       } else if (montageError) {
         console.error('Erreur chargement montage projects:', montageError)
-        useMontageStore.setState({ projects: [] })
-        console.log(`   ⚠️ Erreur Supabase, projets vidés`)
+        // NE PAS vider les projets locaux en cas d'erreur réseau
+        console.log(`   ⚠️ Erreur Supabase, projets locaux conservés`)
       } else {
-        // Pas de projets dans Supabase
-        useMontageStore.setState({ projects: [] })
+        // Pas de projets dans Supabase — vider seulement si on n'a rien localement
+        if (useMontageStore.getState().projects.length === 0) {
+          useMontageStore.setState({ projects: [] })
+        }
         console.log('   ℹ️ Aucun projet de montage dans Supabase')
       }
 
@@ -878,42 +895,50 @@ export function useSupabaseSync() {
   // Sauvegarder une entrée de journal
   const saveDiaryEntry = useCallback(async (entry: DiaryEntry) => {
     if (!profile?.id) return
-
-    const diaryData = {
-      id: entry.id,
-      profile_id: profile.id,
-      content: entry.content,
-      mood: entry.mood,
-      memory_image_url: entry.memoryImage,
-      audio_url: entry.audioUrl,
-      created_at: toISOStringSafe(entry.date),
-      updated_at: new Date().toISOString(),
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await supabase.from('diary_entries').upsert(diaryData as any)
-
-    if (error) {
-      console.error('Erreur sauvegarde diary:', error)
+    try {
+      const response = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'diary',
+          profileId: profile.id,
+          data: {
+            id: entry.id,
+            content: entry.content,
+            mood: entry.mood,
+            memoryImage: entry.memoryImage,
+            audioUrl: entry.audioUrl,
+            createdAt: toISOStringSafe(entry.date),
+          },
+        }),
+      })
+      if (!response.ok) console.error('Erreur sauvegarde diary:', await response.text())
+    } catch (err) {
+      console.error('Erreur sauvegarde diary:', err)
     }
   }, [profile?.id])
 
   // Sauvegarder un message chat
   const saveChatMessage = useCallback(async (message: ChatMessage) => {
     if (!profile?.id) return
-
-    const chatData = {
-      id: message.id,
-      profile_id: profile.id,
-      role: message.role,
-      content: message.content,
-      context_type: 'diary',
-      created_at: toISOStringSafe(message.timestamp),
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await supabase.from('chat_messages').upsert(chatData as any)
-
-    if (error) {
-      console.error('Erreur sauvegarde chat:', error)
+    try {
+      const response = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'chat',
+          profileId: profile.id,
+          data: {
+            id: message.id,
+            role: message.role,
+            content: message.content,
+            createdAt: toISOStringSafe(message.timestamp),
+          },
+        }),
+      })
+      if (!response.ok) console.error('Erreur sauvegarde chat:', await response.text())
+    } catch (err) {
+      console.error('Erreur sauvegarde chat:', err)
     }
   }, [profile?.id])
 
@@ -932,34 +957,42 @@ export function useSupabaseSync() {
   // Sauvegarder le contexte émotionnel
   const saveEmotionalContext = useCallback(async (context: string[]) => {
     if (!profile?.id) return
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const client = supabase as any
-    const { error } = await client
-      .from('profiles')
-      .update({ emotional_context: context })
-      .eq('id', profile.id)
-
-    if (error) {
-      console.error('Erreur sauvegarde emotional_context:', error)
+    try {
+      const response = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'profile-context',
+          profileId: profile.id,
+          data: { context },
+        }),
+      })
+      if (!response.ok) console.error('Erreur sauvegarde emotional_context:', await response.text())
+    } catch (err) {
+      console.error('Erreur sauvegarde emotional_context:', err)
     }
   }, [profile?.id])
 
   // Sauvegarder le nom personnalisé de l'IA
   const saveAiName = useCallback(async (name: string) => {
     if (!profile?.id) return
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const client = supabase as any
-    const { error } = await client
-      .from('profiles')
-      .update({ ai_name: name })
-      .eq('id', profile.id)
-
-    if (error) {
-      console.error('Erreur sauvegarde ai_name:', error)
-    } else {
-      console.log(`   ✅ Nom de l'IA sauvegardé: ${name}`)
+    try {
+      const response = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'profile-ainame',
+          profileId: profile.id,
+          data: { name },
+        }),
+      })
+      if (response.ok) {
+        console.log(`   ✅ Nom de l'IA sauvegardé: ${name}`)
+      } else {
+        console.error('Erreur sauvegarde ai_name:', await response.text())
+      }
+    } catch (err) {
+      console.error('Erreur sauvegarde ai_name:', err)
     }
   }, [profile?.id])
 
@@ -1198,9 +1231,13 @@ export function useSupabaseSync() {
         // Détecter les projets MODIFIÉS (sauvegarde debounced)
         for (const project of state.projects) {
           const prevProject = prevState.projects.find(p => p.id === project.id)
-          if (prevProject && project.updatedAt.getTime() !== prevProject.updatedAt.getTime()) {
-            debouncedSaveMontageProject(project)
-            console.log(`   📤 Projet montage "${project.title}" en cours de sauvegarde...`)
+          if (prevProject) {
+            // Comparer updatedAt de manière robuste (Date ou string)
+            const currentTime = project.updatedAt instanceof Date ? project.updatedAt.getTime() : new Date(project.updatedAt).getTime()
+            const prevTime = prevProject.updatedAt instanceof Date ? prevProject.updatedAt.getTime() : new Date(prevProject.updatedAt).getTime()
+            if (currentTime !== prevTime) {
+              debouncedSaveMontageProject(project)
+            }
           }
         }
       }

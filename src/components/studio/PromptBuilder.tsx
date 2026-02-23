@@ -33,7 +33,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { useToast } from '@/components/ui/Toast'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
-import { cn } from '@/lib/utils'
+import { cn, getThumbnailUrl } from '@/lib/utils'
 
 // Options de style avec icônes et couleurs
 const styleOptions: { id: StyleType; labelKey: string; emoji: string; color: string }[] = [
@@ -743,8 +743,10 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   // 🎨 Génération directe via fal.ai (niveaux 1-2)
   const locale = useLocale()
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedAsset, setGeneratedAsset] = useState<{ url: string; type: 'image' } | null>(null)
+  const [generatedAsset, setGeneratedAsset] = useState<{ url: string; type: 'image' | 'video' } | null>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null)
+  const [showImagePicker, setShowImagePicker] = useState(false)
 
   // Satisfaction flow state
   const [satisfactionAnswer, setSatisfactionAnswer] = useState<'yes' | 'no' | null>(null)
@@ -927,6 +929,104 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       }
   }
     
+  // 🎬 Génération vidéo via fal.ai Kling
+  const handleDirectGenerateVideo = async () => {
+    if (!currentKit || isGenerating) return
+
+    setIsGenerating(true)
+    setGenerationError(null)
+    setGeneratedAsset(null)
+
+    try {
+      const requestBody: Record<string, unknown> = {
+        prompt: currentKit.subject,
+        duration: '5',
+      }
+      if (referenceImageUrl) {
+        requestBody.imageUrl = referenceImageUrl
+      }
+
+      console.log('🎬 Envoi requête vidéo:', requestBody)
+
+      const response = await fetch('/api/ai/video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      })
+
+      let data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur de génération vidéo')
+      }
+
+      // Polling pour attendre la completion
+      if (data.status === 'pending' && data.jobId) {
+        console.log('⏳ Job vidéo en attente, polling...', data.jobId)
+
+        const maxPolls = 120 // 120 x 3s = 6 min (vidéo prend plus longtemps)
+        const pollInterval = 3000
+
+        for (let i = 0; i < maxPolls; i++) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval))
+
+          const statusUrl = `/api/ai/video?jobId=${encodeURIComponent(data.jobId)}&hasImage=${!!referenceImageUrl}`
+          const statusResponse = await fetch(statusUrl)
+          const statusData = await statusResponse.json()
+
+          console.log(`🔍 Poll vidéo ${i + 1}/${maxPolls}:`, statusData.status)
+
+          if (statusData.status === 'completed' && statusData.videoUrl) {
+            data = statusData
+            break
+          }
+
+          if (statusData.status === 'failed') {
+            throw new Error(statusData.error || 'La génération vidéo a échoué')
+          }
+        }
+
+        if (data.status !== 'completed') {
+          throw new Error('Timeout - la génération vidéo prend trop de temps')
+        }
+      }
+
+      const videoUrl = data.videoUrl
+      if (!videoUrl) {
+        throw new Error('Pas d\'URL vidéo reçue')
+      }
+
+      console.log('✅ Vidéo générée:', videoUrl)
+      setGeneratedAsset({ url: videoUrl, type: 'video' })
+
+      const assetName = (currentKit.subject?.substring(0, 30) || 'Vidéo') + '...'
+
+      addImportedAsset({
+        name: assetName,
+        url: videoUrl,
+        type: 'video',
+        file: null,
+        source: 'midjourney',
+        promptUsed: currentKit.subject,
+        projectId: currentStory?.id,
+      })
+    } catch (error) {
+      console.error('Erreur génération vidéo:', error)
+      setGenerationError(error instanceof Error ? error.message : 'Erreur inconnue')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  // Dispatch vers image ou vidéo
+  const handleGenerate = () => {
+    if (currentCreationType === 'video') {
+      handleDirectGenerateVideo()
+    } else {
+      handleDirectGenerate()
+    }
+  }
+
   // 🛡️ La modération est gérée par l'IA-Amie dans le chat (pas d'API séparée)
   
   // No level gating — all features always available
@@ -1036,10 +1136,9 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   useEffect(() => {
     if (!currentKit) return
 
-    const creationType = 'image' as const
     const detected = detectElementsInText(
       currentKit.subject + ' ' + (currentKit.subjectDetails || ''),
-      creationType
+      currentCreationType || 'image'
     )
     setDetectedElements(detected)
   }, [currentKit?.subject, currentKit?.subjectDetails, currentCreationType])
@@ -1065,14 +1164,80 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         <textarea
           value={currentKit.subject}
           onChange={(e) => updateKit({ subject: e.target.value })}
-          placeholder={t('promptBuilderUI.describePlaceholder')}
+          placeholder={currentCreationType === 'video' ? t('promptBuilderUI.describeVideoPlaceholder') : t('promptBuilderUI.describePlaceholder')}
           className="w-full h-28 resize-none rounded-xl p-4 text-white placeholder:text-midnight-400 bg-midnight-900/50 focus:ring-2 focus:ring-aurora-500/50 focus:outline-none transition-all"
           data-mentor-target="studio-subject"
         />
 
+        {/* Image de référence — uniquement pour les vidéos */}
+        {currentCreationType === 'video' && (
+          <div className="mt-4">
+            <label className="text-sm text-midnight-300 mb-2 block">
+              {t('promptBuilderUI.referenceImage')}
+            </label>
+            {referenceImageUrl ? (
+              <div className="relative inline-block">
+                <img
+                  src={referenceImageUrl}
+                  alt="Reference"
+                  className="w-32 h-32 object-cover rounded-xl border-2 border-aurora-500/30"
+                />
+                <button
+                  onClick={() => setReferenceImageUrl(null)}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600"
+                >
+                  x
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setShowImagePicker(!showImagePicker)}
+                  className="px-4 py-2 rounded-xl bg-midnight-800/50 text-midnight-200 hover:bg-midnight-700/50 hover:text-white transition-colors text-sm"
+                >
+                  {t('promptBuilderUI.chooseFromCreations')}
+                </button>
+              </div>
+            )}
+            {showImagePicker && importedAssets.filter(a => a.type === 'image').length > 0 && (
+              <div className="mt-3 grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 rounded-xl bg-midnight-900/50">
+                {importedAssets.filter(a => a.type === 'image').map((asset) => (
+                  <button
+                    key={asset.id}
+                    onClick={() => {
+                      setReferenceImageUrl(asset.cloudUrl || asset.url)
+                      setShowImagePicker(false)
+                    }}
+                    className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-aurora-500 transition-all"
+                  >
+                    <img
+                      src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
+                      alt={asset.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement
+                        if (!img.dataset.fallback) {
+                          img.dataset.fallback = '1'
+                          img.src = asset.cloudUrl || asset.url
+                        }
+                      }}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+            {showImagePicker && importedAssets.filter(a => a.type === 'image').length === 0 && (
+              <p className="mt-2 text-xs text-midnight-400">
+                {t('promptBuilderUI.noImagesYet')}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Bouton Générer — directement après la description */}
         <motion.button
-          onClick={handleDirectGenerate}
+          onClick={handleGenerate}
           disabled={isGenerating || !complete}
           className={cn(
             'w-full mt-4 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all',
@@ -1093,7 +1258,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           ) : (
             <>
               <Wand2 className="w-6 h-6" />
-              {t('promptBuilderUI.createMyImage')}
+              {currentCreationType === 'video' ? t('promptBuilderUI.createMyVideo') : t('promptBuilderUI.createMyImage')}
             </>
           )}
         </motion.button>
@@ -1117,11 +1282,22 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             animate={{ opacity: 1, scale: 1 }}
           >
             <div className="rounded-xl overflow-hidden border-2 border-dream-500/50">
-              <img
-                src={generatedAsset.url}
-                alt="Image générée"
-                className="w-full h-auto min-h-[200px] bg-midnight-800"
-              />
+              {generatedAsset.type === 'video' ? (
+                <video
+                  src={generatedAsset.url}
+                  controls
+                  autoPlay
+                  loop
+                  muted
+                  className="w-full h-auto min-h-[200px] bg-midnight-800"
+                />
+              ) : (
+                <img
+                  src={generatedAsset.url}
+                  alt="Image générée"
+                  className="w-full h-auto min-h-[200px] bg-midnight-800"
+                />
+              )}
             </div>
 
             {/* Satisfaction check — "Does it match what you wanted?" */}

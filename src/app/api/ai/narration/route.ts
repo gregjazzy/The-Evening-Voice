@@ -1,122 +1,62 @@
-/**
- * API Route - Génération de narration (ElevenLabs via fal.ai)
- * 
- * POST /api/ai/narration
- * 
- * Génère une narration audio via ElevenLabs (fal.ai).
- * Si fal.ai échoue ou n'est pas configuré, retourne les infos
- * pour que le client utilise Apple Voice (TTS système).
- */
-
 import { NextRequest, NextResponse } from 'next/server'
-import { generateVoiceElevenLabs, isFalAvailable } from '@/lib/ai/fal'
-import { getNarrationVoices, type VoiceType } from '@/lib/ai/elevenlabs'
 
-// Voix par défaut selon le type
-const DEFAULT_VOICES: Record<string, string> = {
-  narrator: 'kwhMCf63M8O3rCfnQ3oQ', // La Conteuse (FR)
-  young_girl: 'FvmvwvObRqIHojkEGh5N',
-  young_boy: '5Qfm4RqcAer0xoyWtoHC',
-  grandma: 'M9RTtrzRACmbUzsEMq8p',
-  grandpa: '1wg2wOjdEWKA7yQD8Kca',
-}
+const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1'
 
-interface NarrationRequestBody {
-  text: string
-  voiceType?: VoiceType
-  voiceId?: string
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body: NarrationRequestBody = await request.json()
-    const { text, voiceType = 'narrator', voiceId } = body
-
-    if (!text || text.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Le texte est requis' },
-        { status: 400 }
-      )
-    }
-
-    // Limiter la longueur du texte (sécurité + coût)
-    const maxLength = 5000
-    if (text.length > maxLength) {
-      return NextResponse.json(
-        { error: `Le texte est trop long (max ${maxLength} caractères)` },
-        { status: 400 }
-      )
-    }
-
-    // Si fal.ai n'est pas configuré, fallback Apple Voice
-    if (!isFalAvailable()) {
-      console.log('⚠️ fal.ai non configuré, fallback Apple Voice')
-      return NextResponse.json({
-        source: 'apple_fallback',
-        audioBase64: null,
-        text,
-        voiceType,
-        estimatedDuration: Math.ceil(text.length / 15), // ~15 chars/sec
-      })
-    }
-
-    // Sélectionner la voix
-    const selectedVoiceId = voiceId || DEFAULT_VOICES[voiceType] || DEFAULT_VOICES.narrator
-
-    console.log('🎤 Génération narration ElevenLabs via fal.ai:', { voiceType, voiceId: selectedVoiceId })
-
-    try {
-      const result = await generateVoiceElevenLabs({
-        text,
-        voiceId: selectedVoiceId,
-      })
-
-      return NextResponse.json({
-        source: 'elevenlabs',
-        audioUrl: result.audioUrl,
-        audioMimeType: 'audio/mpeg',
-        text,
-        voiceType,
-        estimatedDuration: Math.ceil(text.length / 15),
-      })
-    } catch (genError) {
-      console.error('❌ Erreur génération ElevenLabs:', genError)
-      // Fallback Apple Voice
-      return NextResponse.json({
-        source: 'apple_fallback',
-        audioBase64: null,
-        text,
-        voiceType,
-        estimatedDuration: Math.ceil(text.length / 15),
-      })
-    }
-
-  } catch (error) {
-    console.error('Erreur API narration:', error)
-    return NextResponse.json(
-      { 
-        error: 'Erreur lors de la génération de la narration',
-        source: 'apple_fallback',
-      },
-      { status: 500 }
-    )
+export async function POST(req: NextRequest) {
+  const apiKey = process.env.ELEVENLABS_API_KEY
+  if (!apiKey) {
+    return NextResponse.json({ error: 'ElevenLabs non configuré' }, { status: 500 })
   }
-}
 
-/**
- * GET /api/ai/narration
- * 
- * Retourne la liste des voix disponibles pour la narration
- */
-export async function GET() {
+  const { text, voiceId } = await req.json()
+
+  if (!text || !voiceId) {
+    return NextResponse.json({ error: 'text et voiceId requis' }, { status: 400 })
+  }
+
+  // Limite de sécurité (ElevenLabs facture au caractère)
+  if (text.length > 5000) {
+    return NextResponse.json({ error: 'Texte trop long (max 5000 caractères)' }, { status: 400 })
+  }
+
   try {
-    const voices = getNarrationVoices()
-    return NextResponse.json({ voices })
+    const response = await fetch(`${ELEVENLABS_API_URL}/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.6,
+          similarity_boost: 0.8,
+          style: 0.4,
+          use_speaker_boost: true,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: { message: response.statusText } }))
+      return NextResponse.json(
+        { error: error.detail?.message || 'Erreur ElevenLabs' },
+        { status: response.status }
+      )
+    }
+
+    const audioBuffer = await response.arrayBuffer()
+
+    return new NextResponse(audioBuffer, {
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': String(audioBuffer.byteLength),
+      },
+    })
   } catch (error) {
-    console.error('Erreur récupération voix:', error)
-    return NextResponse.json(
-      { error: 'Erreur lors de la récupération des voix' },
-      { status: 500 }
-    )
+    console.error('Erreur génération narration:', error)
+    return NextResponse.json({ error: 'Erreur génération' }, { status: 500 })
   }
 }

@@ -30,6 +30,23 @@ export function getGreeting(): string {
   return 'Bonsoir'
 }
 
+/**
+ * Transforme une URL Supabase Storage en URL de miniature redimensionnée.
+ * Utilise le endpoint /render/image/ de Supabase (image transformation).
+ * Pour les URLs non-Supabase (R2, blob:, data:), retourne l'URL originale.
+ */
+export function getThumbnailUrl(url: string, width = 200): string {
+  if (!url) return url
+  const supabaseObjectPattern = /\/storage\/v1\/object\/public\//
+  if (supabaseObjectPattern.test(url)) {
+    return url.replace(
+      '/storage/v1/object/public/',
+      '/storage/v1/render/image/public/'
+    ) + `?width=${width}&resize=contain&quality=75`
+  }
+  return url
+}
+
 export function getMoodEmoji(mood?: string): string {
   switch (mood) {
     case 'happy':

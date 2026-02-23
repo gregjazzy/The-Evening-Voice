@@ -35,6 +35,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import {
   usePublishStore,
   BOOK_FORMATS,
+  findBookFormat,
   COVER_TYPES,
   GELATO_PAPER_OPTIONS,
   GELATO_LAMINATION_OPTIONS,
@@ -46,7 +47,7 @@ import { exportToPDF } from '@/lib/export/pdf'
 import { usePdfExport } from '@/hooks/usePdfExport'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
-import { cn } from '@/lib/utils'
+import { cn, getThumbnailUrl } from '@/lib/utils'
 
 // ============================================================================
 // COMPOSANT : Étapes de navigation
@@ -192,7 +193,7 @@ function SelectStoryStep() {
           {selectedStory.bookFormat && (
             <p className="text-sm text-aurora-400 flex items-center gap-2">
               <Check className="w-4 h-4" />
-              {t('selectStory.format', { format: (locale === 'fr' ? BOOK_FORMATS.find(f => f.id === selectedStory.bookFormat)?.nameFr : BOOK_FORMATS.find(f => f.id === selectedStory.bookFormat)?.name) || '' })}
+              {t('selectStory.format', { format: (locale === 'fr' ? findBookFormat(selectedStory.bookFormat).nameFr : findBookFormat(selectedStory.bookFormat).name) })}
             </p>
           )}
           <button
@@ -454,7 +455,7 @@ function SummarySubStep({
     estimatedPrice,
   } = usePublishStore()
 
-  const currentFormat = BOOK_FORMATS.find(f => f.id === selectedFormat)
+  const currentFormat = findBookFormat(selectedFormat)
   const currentCover = COVER_TYPES.find(c => c.type === coverType)
   const currentPaper = GELATO_PAPER_OPTIONS.find(p => p.id === paperType)
   const currentLamination = GELATO_LAMINATION_OPTIONS.find(l => l.id === lamination)
@@ -1088,9 +1089,18 @@ function DesignCoverStep() {
                         whileTap={{ scale: 0.98 }}
                       >
                         <img
-                          src={img.url}
+                          src={getThumbnailUrl(img.url, 200)}
                           alt={`Image ${index + 1}`}
                           className="w-full h-full object-cover"
+                          loading="lazy"
+                          data-original={img.url}
+                          onError={(e) => {
+                            const el = e.target as HTMLImageElement
+                            if (!el.dataset.fallback) {
+                              el.dataset.fallback = '1'
+                              el.src = el.dataset.original || ''
+                            }
+                          }}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1120,7 +1130,7 @@ function DesignCoverStep() {
 function PreviewStep() {
   const t = useTranslations('publish')
   const { selectedStory, selectedFormat, cover, setCurrentStep } = usePublishStore()
-  const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
+  const format = findBookFormat(selectedFormat)
   
   const [currentPage, setCurrentPage] = useState(0)
   const [showSafeZones, setShowSafeZones] = useState(true)
@@ -1455,7 +1465,7 @@ function QualityCheckStep() {
     setCurrentStep,
   } = usePublishStore()
   
-  const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
+  const format = findBookFormat(selectedFormat)
   const [isUpscaling, setIsUpscaling] = useState(false)
   const [upscaleProgress, setUpscaleProgress] = useState<Record<string, 'pending' | 'done' | 'error'>>({})
   
@@ -1611,10 +1621,19 @@ function QualityCheckStep() {
                 key={img.imageId}
                 className="relative rounded-lg overflow-hidden bg-midnight-800/50 aspect-square"
               >
-                <img 
-                  src={img.url} 
+                <img
+                  src={getThumbnailUrl(img.url, 200)}
                   alt={`Page ${img.pageIndex + 1}`}
                   className="w-full h-full object-cover"
+                  loading="lazy"
+                  data-original={img.url}
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement
+                    if (!el.dataset.fallback) {
+                      el.dataset.fallback = '1'
+                      el.src = el.dataset.original || ''
+                    }
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 <div className="absolute bottom-2 left-2 right-2">
@@ -1753,7 +1772,7 @@ function OrderStep() {
   
   const { user } = useAuthStore()
   
-  const format = BOOK_FORMATS.find(f => f.id === selectedFormat)
+  const format = findBookFormat(selectedFormat)
   const [showExportSuccess, setShowExportSuccess] = useState(false)
   const [showAddressForm, setShowAddressForm] = useState(false)
   const [localExportProgress, setLocalExportProgress] = useState(0)

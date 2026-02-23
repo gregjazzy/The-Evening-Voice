@@ -65,11 +65,11 @@ import { useAppStore, type Story, type BookFormat } from '@/store/useAppStore'
 import { useHighlightStore } from '@/store/useHighlightStore'
 import { useTTS } from '@/hooks/useTTS'
 import { STORY_TEMPLATES, type StoryStructure } from '@/lib/ai/prompting-pedagogy'
-import { cn } from '@/lib/utils'
+import { cn, getThumbnailUrl } from '@/lib/utils'
 import { MediaPicker } from '@/components/editor/MediaPicker'
 import { Highlightable } from '@/components/ui/Highlightable'
 import { VoiceSelector } from '@/components/ui/VoiceSelector'
-import { BOOK_FORMATS, type BookFormatConfig } from '@/store/usePublishStore'
+import { BOOK_FORMATS, findBookFormat, type BookFormatConfig } from '@/store/usePublishStore'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { useSaveStatus, triggerManualSave } from '@/hooks/useSupabaseSync'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -3385,9 +3385,9 @@ function Overview({ pages, currentPage, onPageSelect, onClose }: OverviewProps) 
               
               {/* Miniature */}
               {page.image ? (
-                <div 
+                <div
                   className="w-full h-16 rounded bg-cover bg-center"
-                  style={{ backgroundImage: `url(${page.image})` }}
+                  style={{ backgroundImage: `url(${getThumbnailUrl(page.image, 150)})` }}
                 />
               ) : page.content ? (
                 <div className="w-full h-16 rounded bg-midnight-700/50 p-2 overflow-hidden">
@@ -3449,8 +3449,8 @@ function CoverEditor({
   onBackgroundAdd,
 }: CoverEditorProps) {
   const t = useTranslations('writing')
-  const formatConfig = BOOK_FORMATS.find(f => f.id === bookFormat)
-  const formatRatio = formatConfig ? formatConfig.widthMm / formatConfig.heightMm : 1
+  const formatConfig = findBookFormat(bookFormat)
+  const formatRatio = formatConfig.widthMm / formatConfig.heightMm
 
   const title = coverType === 'front' ? `📕 ${t('frontCover')}` : `📖 ${t('backCover')}`
   const placeholder = coverType === 'front'
@@ -5238,8 +5238,7 @@ interface WritingAreaProps {
 
 // Helper pour obtenir le ratio du format
 function getFormatRatio(bookFormat: BookFormat = 'portrait-a5'): number {
-  const format = BOOK_FORMATS.find(f => f.id === bookFormat)
-  if (!format) return 0.7 // Portrait par défaut (A5)
+  const format = findBookFormat(bookFormat)
   return format.widthMm / format.heightMm
 }
 
@@ -5339,7 +5338,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   // Pages are always rendered at fixed canonical dimensions (500px width).
   // A CSS transform: scale() wrapper fits them into the available viewport.
   // ========================================================================
-  const formatConfig = BOOK_FORMATS.find(f => f.id === bookFormat)
+  const formatConfig = findBookFormat(bookFormat)
   const canonicalDims = getCanonicalDimensions(bookFormat)
   const pagePad = getPagePaddingPx(bookFormat)
   const SPINE_WIDTH = CANONICAL_SPINE_WIDTH
@@ -7946,8 +7945,7 @@ export function BookMode() {
     const storyForExport = buildStoryForExport()
     if (!storyForExport || !currentStory) return
 
-    const storyFormat = currentStory.bookFormat || 'portrait-a5'
-    const formatConfig = BOOK_FORMATS.find(f => f.id === storyFormat) || BOOK_FORMATS[0]
+    const formatConfig = findBookFormat(currentStory.bookFormat || 'portrait-a5')
 
     const result = await exportToPdf(storyForExport as any, {
       format: formatConfig,
@@ -7965,8 +7963,7 @@ export function BookMode() {
     const storyForExport = buildStoryForExport()
     if (!storyForExport || !currentStory) return
 
-    const storyFormat = currentStory.bookFormat || 'portrait-a5'
-    const formatConfig = BOOK_FORMATS.find(f => f.id === storyFormat) || BOOK_FORMATS[0]
+    const formatConfig = findBookFormat(currentStory.bookFormat || 'portrait-a5')
 
     await debugPreviewPdf(storyForExport as any, {
       format: formatConfig,
@@ -8456,7 +8453,7 @@ export function BookMode() {
     
     // Vérifier la résolution de l'image pour l'impression (uniquement pour les images)
     if (type === 'image' && currentStory?.bookFormat) {
-      const format = BOOK_FORMATS.find(f => f.id === currentStory.bookFormat)
+      const format = findBookFormat(currentStory.bookFormat)
       if (format) {
         try {
           // Charger l'image pour obtenir ses dimensions

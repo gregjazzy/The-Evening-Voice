@@ -679,6 +679,9 @@
       "whatDoYouWantToCreate": "Что ты хочешь создать?",
       "whatDoYouWantToCreateHighlight": "✨ Что ты хочешь создать?",
       "describePlaceholder": "Опиши своё изображение...",
+      "describeVideoPlaceholder": "Опиши своё видео... Что происходит в сцене?",
+      "referenceImage": "Исходное изображение (необязательно)",
+      "chooseFromCreations": "Выбрать из моих работ",
       "continueDescription": "Продолжай описание...",
       "characters": "символов",
       "validateDescription": "Подтвердить описание ✓",
@@ -1405,7 +1408,54 @@
         "welcomeTimeline": "Привет! Я {name}! Ты на таймлайне! Здесь ты украшаешь свою историю. Что хочешь узнать?"
       },
       "previewLabel": "Предпросмотр",
-      "closeProject": "Закрыть проект"
+      "save": "Сохранить",
+      "retry": "Повторить",
+      "saveError": "Сохранение не удалось. Проверьте подключение и попробуйте снова.",
+      "closeProject": "Закрыть проект",
+      "pageSetup": {
+        "text": {
+          "title": "Текст",
+          "placeholder": "Написать текст для этой страницы..."
+        },
+        "media": {
+          "title": "Изображение / Видео",
+          "choose": "Выбрать изображение или видео",
+          "replace": "Заменить",
+          "delete": "Удалить",
+          "speed": "Скорость"
+        },
+        "narration": {
+          "title": "Озвучка",
+          "micPermission": "Разрешите доступ к микрофону в настройках браузера.",
+          "uploading": "Загрузка...",
+          "record": "Записать мой голос",
+          "stop": "Остановить ({time})",
+          "chooseVoice": "Выбрать голос",
+          "noText": "На этой странице нет текста",
+          "generating": "Генерация...",
+          "generateWith": "Сгенерировать голосом {name}",
+          "chooseFirst": "Сначала выберите голос",
+          "sourceGenerated": "Сгенерированный голос",
+          "sourceRecorded": "Записанный голос"
+        },
+        "duration": {
+          "label": "Длительность показа",
+          "sublabel": "Время до перехода на следующую страницу",
+          "unit": "сек"
+        },
+        "music": {
+          "title": "Фоновая музыка",
+          "add": "Добавить музыку",
+          "applyFromHere": "Отсюда и далее",
+          "applyAll": "Все страницы"
+        },
+        "effects": {
+          "title": "Звуковые эффекты",
+          "start": "Начало (с)",
+          "end": "Конец (с)",
+          "add": "Добавить эффект"
+        }
+      }
     },
     "preview": {
       "title": "Предпросмотр",
@@ -1965,7 +2015,9 @@
       "fadeIn": "Fade In",
       "fadeOut": "Fade Out",
       "element": "Элемент",
-      "tts": "🤖 TTS"
+      "tts": "🤖 TTS",
+      "mediaZoom": "Масштаб изображения",
+      "resetSize": "Сброс (100%)"
     },
     "guidedRecording": {
       "syncRecording": "Синхронная запись",
