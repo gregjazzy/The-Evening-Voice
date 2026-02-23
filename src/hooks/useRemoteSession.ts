@@ -312,8 +312,10 @@ export function useRemoteSession() {
     })
   }, [state.localVideoStream])
 
-  // Se connecter automatiquement au montage
+  // Se connecter automatiquement SEULEMENT dans Electron (pas sur le web)
   useEffect(() => {
+    const isElectron = typeof window !== 'undefined' && !!window.electronAPI
+    if (!isElectron) return // Pas de WebSocket Supabase Realtime sur le web
     connect()
     return () => {
       disconnect()
