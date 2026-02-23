@@ -56,10 +56,12 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
   // État pour le feedback visuel après import
   const [justImported, setJustImported] = useState<string | null>(null)
   
-  // Filtrer les assets par projet actuel et avec une URL valide
-  // Les URLs blob (blob:http://...) ne survivent pas au rechargement de page
+  // Filtrer les assets visuels (images + vidéos) par projet actuel
+  // Exclut les audio (pas de preview visuelle) et les blob: URLs
   const projectAssets = useMemo(() => {
     return importedAssets.filter(a => {
+      // Exclure les fichiers audio (pas de preview visuelle)
+      if (a.type === 'audio') return false
       // Doit appartenir au projet actuel ou être sans projet
       const belongsToProject = !a.projectId || a.projectId === currentStory?.id
       // Doit avoir une URL valide (cloudUrl ou URL non-blob)
@@ -68,10 +70,10 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
     })
   }, [importedAssets, currentStory?.id])
   
-  // Images disponibles pour le modal (même filtre que PromptBuilder pour cohérence)
-  const availableImagesForModal = useMemo(() => {
-    return importedAssets.filter(a => 
-      a.type === 'image' && 
+  // Images et vidéos disponibles pour le modal (exclut les audio)
+  const availableMediaForModal = useMemo(() => {
+    return importedAssets.filter(a =>
+      (a.type === 'image' || a.type === 'video') &&
       (a.cloudUrl || (a.url && !a.url.startsWith('blob:'))) &&
       (!a.projectId || a.projectId === currentStory?.id)
     )
@@ -430,26 +432,26 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
             {/* Contenu scrollable */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
               
-              {/* Section 1 : Mes images existantes (priorité visuelle) */}
-              {availableImagesForModal.length > 0 && (
+              {/* Section 1 : Mes créations existantes (images + vidéos) */}
+              {availableMediaForModal.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                     <Image className="w-4 h-4 text-aurora-400" />
-                    {t('assetDropzone.selectExisting', { count: String(availableImagesForModal.length) })}
+                    {t('assetDropzone.selectExisting', { count: String(availableMediaForModal.length) })}
                   </h3>
                   <p className="text-xs text-midnight-400 mb-3">
                     {t('assetDropzone.clickToUse')}
                   </p>
                   <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-64 overflow-y-auto pr-1">
-                    {availableImagesForModal.map((asset) => (
+                    {availableMediaForModal.map((asset) => (
                       <motion.button
                         key={asset.id}
                         onClick={() => {
                           // Si mode vidéo, sélectionner comme image source
                           if (currentCreationType === 'video') {
-                            updateKit({ 
+                            updateKit({
                               sourceImageUrl: asset.cloudUrl || asset.url,
-                              sourceImageId: asset.id 
+                              sourceImageId: asset.id
                             })
                             // Marquer l'étape "choose_image" comme complétée
                             if (!completedSteps.includes('choose_image')) {
@@ -463,30 +465,51 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                             completeStep('import')
                           }
                           setShowImportModal(false)
-                          toast.success('✅ Image sélectionnée !', asset.name.slice(0, 20))
+                          toast.success(asset.type === 'video' ? '✅ Vidéo sélectionnée !' : '✅ Image sélectionnée !', asset.name.slice(0, 20))
                         }}
                         className="relative aspect-square rounded-xl overflow-hidden border-2 border-midnight-700 hover:border-aurora-500 transition-all group"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <img
-                          src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
-                          alt={asset.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          decoding="async"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement
-                            if (!img.dataset.fallback) {
-                              img.dataset.fallback = '1'
-                              img.src = asset.cloudUrl || asset.url
-                            }
-                          }}
-                        />
+                        {asset.type === 'image' ? (
+                          <img
+                            src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
+                            alt={asset.name}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement
+                              if (!img.dataset.fallback) {
+                                img.dataset.fallback = '1'
+                                img.src = asset.cloudUrl || asset.url
+                              }
+                            }}
+                          />
+                        ) : (
+                          <>
+                            <video
+                              src={`${asset.cloudUrl || asset.url}#t=0.1`}
+                              className="w-full h-full object-cover"
+                              preload="metadata"
+                              muted
+                              playsInline
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-stardust-500/20 to-midnight-800 -z-10">
+                              <Video className="w-6 h-6 text-stardust-400/60" />
+                            </div>
+                          </>
+                        )}
                         {/* Overlay au hover */}
                         <div className="absolute inset-0 bg-aurora-500/0 group-hover:bg-aurora-500/20 transition-colors flex items-center justify-center">
                           <Check className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
                         </div>
+                        {/* Badge vidéo */}
+                        {asset.type === 'video' && (
+                          <div className="absolute bottom-1 left-1 p-1 rounded bg-midnight-900/80">
+                            <Video className="w-3 h-3 text-stardust-400" />
+                          </div>
+                        )}
                         {/* Badge cloud */}
                         {asset.cloudUrl && (
                           <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-dream-500/80 flex items-center justify-center">
@@ -499,8 +522,8 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                 </div>
               )}
 
-              {/* Message si aucune image */}
-              {availableImagesForModal.length === 0 && (
+              {/* Message si aucun média */}
+              {availableMediaForModal.length === 0 && (
                 <div className="text-center py-6 px-4 rounded-xl bg-midnight-800/30 border border-midnight-700">
                   <Image className="w-10 h-10 text-midnight-500 mx-auto mb-2" />
                   <p className="text-midnight-400 text-sm">
@@ -577,13 +600,19 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
                         }}
                       />
                     ) : asset.type === 'video' && (asset.cloudUrl || asset.url) ? (
-                      <video
-                        src={asset.cloudUrl || asset.url}
-                        className="w-full h-full object-cover"
-                        preload="metadata"
-                        muted
-                        playsInline
-                      />
+                      <>
+                        <video
+                          src={`${asset.cloudUrl || asset.url}#t=0.1`}
+                          className="w-full h-full object-cover"
+                          preload="metadata"
+                          muted
+                          playsInline
+                        />
+                        {/* Fallback visuel si la vidéo ne charge pas sa frame */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-stardust-500/20 to-midnight-800 -z-10">
+                          <Video className="w-6 h-6 text-stardust-400/60" />
+                        </div>
+                      </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Icon className="w-8 h-8 text-midnight-400" />
