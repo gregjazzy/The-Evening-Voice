@@ -500,11 +500,12 @@ async function getPreloadedImage(challengeId: string): Promise<string | null> {
 
 // Polling pour attendre qu'un job de génération d'image soit terminé
 async function pollImageJob(jobId: string, model?: string): Promise<string> {
-  const maxPolls = 60 // 60 x 2s = 2 min
-  const pollInterval = 2000
+  const maxPolls = 80 // 80 x 1.5s = 2 min
+  const pollInterval = 1500
 
   for (let i = 0; i < maxPolls; i++) {
-    await new Promise(resolve => setTimeout(resolve, pollInterval))
+    // Premier poll après 3s (fal.ai ne finit jamais en moins), puis 1.5s
+    await new Promise(resolve => setTimeout(resolve, i === 0 ? 3000 : pollInterval))
 
     const statusUrl = `/api/ai/image?jobId=${encodeURIComponent(jobId)}&model=${encodeURIComponent(model || 'nano-banana')}`
     const statusResponse = await fetch(statusUrl)
@@ -570,6 +571,7 @@ export function ChallengeMode() {
         body: JSON.stringify({
           prompt: challenge.targetPrompt,
           aspectRatio: '1:1',
+          resolution: '1K', // Défis : 1K suffit (affiché ~400px)
         }),
       })
 
@@ -656,6 +658,7 @@ export function ChallengeMode() {
         body: JSON.stringify({
           prompt: currentPrompt,
           aspectRatio: '1:1',
+          resolution: '1K', // Défis : 1K suffit (affiché ~400px)
         }),
       })
 

@@ -53,7 +53,10 @@ export async function GET(request: NextRequest) {
       // Proxy : convertir l'URL fal.media en data URL pour éviter les problèmes réseau/CORS côté client
       let imageUrl = image.url
       try {
-        const imgResponse = await fetch(image.url)
+        const proxyController = new AbortController()
+        const proxyTimeout = setTimeout(() => proxyController.abort(), 8000) // 8s max
+        const imgResponse = await fetch(image.url, { signal: proxyController.signal })
+        clearTimeout(proxyTimeout)
         if (imgResponse.ok) {
           const buffer = Buffer.from(await imgResponse.arrayBuffer())
           const contentType = imgResponse.headers.get('content-type') || 'image/png'
@@ -99,12 +102,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { 
+    const {
       description,  // Idée principale (fallback)
       prompt: fullPrompt, // Prompt complet généré par le kit (prioritaire)
-      style = 'magique', 
+      style = 'magique',
       ambiance = 'jour',
       aspectRatio,
+      resolution, // '1K' | '2K' | '4K' — si fourni, override le défaut
       model = 'nano-banana', // Modèle par défaut: Nano Banana Pro
       // Nouveaux paramètres pour PuLID (consistance personnage)
       referenceImageUrl,  // Si fourni, utilise PuLID
@@ -160,12 +164,13 @@ export async function POST(request: NextRequest) {
     console.log(`🎨 Soumission job ${model.toUpperCase()}:`, prompt.substring(0, 150) + '...')
 
     // Soumettre le job (retourne immédiatement avec jobId)
+    const finalResolution = resolution || '2K' // Défaut 2K pour le studio, 1K pour les défis
     const result = await generateImageFlux({
       prompt,
       aspectRatio: finalAspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '2:3' | '3:2',
       numImages: 1,
       model: model as 'flux' | 'recraft' | 'nano-banana',
-      resolution: '2K',
+      resolution: finalResolution as '1K' | '2K' | '4K',
     })
 
     // Retourner le jobId pour que le client puisse poll
