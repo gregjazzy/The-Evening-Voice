@@ -22,16 +22,22 @@ export function ChildRemoteStatus() {
     remoteVideoStream,
     localVideoStream,
     role,
+    connect,
   } = useRemoteSession()
+
+  // Connecter au signaling seulement si pertinent (enfant + Electron)
+  useEffect(() => {
+    if (isElectron && role !== 'mentor') {
+      connect()
+    }
+  }, [isElectron, role, connect])
 
   // Ne rien afficher si :
   // - C'est un mentor
   // - Pas dans Electron
-  // - Pas de connexion active ou en cours (évite l'affichage permanent de "Connexion...")
+  // - Pas de connexion active ou en cours
   const isBeingWatched = connectedPeer !== null && connectionState === 'connected'
-  
-  // Ne montrer l'indicateur que si une connexion est établie ou si on est surveillé
-  // Sinon ça affiche "Connexion..." en permanence sans raison
+
   if (role === 'mentor' || !isElectron) return null
   if (!isConnected && !isBeingWatched) return null
 

@@ -312,15 +312,12 @@ export function useRemoteSession() {
     })
   }, [state.localVideoStream])
 
-  // Se connecter automatiquement SEULEMENT dans Electron (pas sur le web)
+  // Cleanup au démontage (la connexion est initiée par le composant via connect())
   useEffect(() => {
-    const isElectron = typeof window !== 'undefined' && !!window.electronAPI
-    if (!isElectron) return // Pas de WebSocket Supabase Realtime sur le web
-    connect()
     return () => {
       disconnect()
     }
-  }, []) // Intentionnellement vide pour ne s'exécuter qu'une fois
+  }, [])
 
   return {
     ...state,

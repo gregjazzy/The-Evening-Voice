@@ -42,6 +42,11 @@ export function RemoteControlPanel() {
   const screenRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Connecter au signaling quand le panel est monté
+  useEffect(() => {
+    connect()
+  }, [connect])
+
   // Attacher le stream d'écran
   useEffect(() => {
     if (screenRef.current && remoteScreenStream) {
