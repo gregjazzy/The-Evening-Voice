@@ -17,12 +17,13 @@ import {
   Sparkles
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { LanguageSwitcher } from './LanguageSwitcher'
+import { useLocale, type Locale } from '@/lib/i18n/context'
 import { AINameModal } from './AINameModal'
 
 export function UserMenu() {
   const t = useTranslations('nav')
   const tAuth = useTranslations('auth')
+  const locale = useLocale()
   const router = useRouter()
   const { user, profile, signOut } = useAuthStore()
   const { aiName } = useAppStore()
@@ -188,9 +189,32 @@ export function UserMenu() {
                 </div>
               </div>
 
-              {/* Sélecteur de langue */}
-              <div className="px-4 py-2 border-b border-aurora-700/50">
-                <LanguageSwitcher />
+              {/* Sélecteur de langue — inline */}
+              <div className="px-4 py-2 border-b border-aurora-700/50 flex items-center gap-2">
+                {([['fr', '🇫🇷'], ['en', '🇬🇧'], ['ru', '🇷🇺']] as const).map(([loc, flag]) => (
+                  <button
+                    key={loc}
+                    onClick={() => {
+                      setIsOpen(false)
+                      const segments = window.location.pathname.split('/')
+                      const locales = ['fr', 'en', 'ru']
+                      if (locales.includes(segments[1])) {
+                        segments[1] = loc
+                      } else {
+                        segments.splice(1, 0, loc)
+                      }
+                      window.location.href = segments.join('/')
+                    }}
+                    className={cn(
+                      'text-2xl p-1.5 rounded-lg transition-all',
+                      locale === loc
+                        ? 'bg-aurora-500/30 ring-2 ring-aurora-500/50 scale-110'
+                        : 'opacity-60 hover:opacity-100 hover:bg-aurora-800/50'
+                    )}
+                  >
+                    {flag}
+                  </button>
+                ))}
               </div>
 
               {/* Nom de l'IA (pour les enfants) */}
