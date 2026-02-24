@@ -5344,7 +5344,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
   const SPINE_WIDTH = CANONICAL_SPINE_WIDTH
 
   // The canonical spread is 2 pages side by side + spine
-  const canonicalSpreadWidth = canonicalDims.width * 2 + SPINE_WIDTH
+  // Pour le spread 0 (couverture), on n'affiche qu'une seule page
+  const isCoverSpread = leftPageIndex === undefined
+  const canonicalSpreadWidth = isCoverSpread ? canonicalDims.width : (canonicalDims.width * 2 + SPINE_WIDTH)
   const canonicalSpreadHeight = canonicalDims.height
 
   // Ref to the viewport container that we observe for sizing
@@ -6326,7 +6328,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             {/* Ombre du livre */}
             <div className="absolute -bottom-4 left-4 right-4 h-8 bg-black/30 blur-xl rounded-full" />
           
-          {/* PAGE GAUCHE (page d'écriture) — canonical fixed width */}
+          {/* PAGE GAUCHE (page d'écriture) — masquée si couverture */}
           <div
             ref={leftPageContainerRef}
             data-page-side="left"
@@ -6338,6 +6340,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               borderRadius: '8px 0 0 8px',
               boxShadow: 'inset -20px 0 30px -20px rgba(0,0,0,0.15)',
               overflow: 'hidden',
+              display: isCoverSpread ? 'none' : undefined,
             }}
           >
             {/* Clip pour le contenu interne */}
@@ -6758,12 +6761,13 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
 
           </div>
 
-          {/* RELIURE CENTRALE */}
-          <div 
+          {/* RELIURE CENTRALE — masquée si couverture */}
+          <div
             className="relative z-10 w-4 flex-shrink-0"
             style={{
               background: 'linear-gradient(90deg, #d4a574 0%, #c9956a 30%, #8b6914 50%, #c9956a 70%, #d4a574 100%)',
               boxShadow: '0 0 15px rgba(0,0,0,0.3)',
+              display: isCoverSpread ? 'none' : undefined,
             }}
           >
             {/* Lignes de reliure */}
@@ -6783,17 +6787,29 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             style={{
               width: `${canonicalDims.width}px`,
               background: getPageColorStyles(bookColor).background,
-              borderRadius: '0 8px 8px 0',
-              boxShadow: 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
+              borderRadius: isCoverSpread ? '8px' : '0 8px 8px 0',
+              boxShadow: isCoverSpread ? '0 4px 30px rgba(0,0,0,0.3)' : 'inset 20px 0 30px -20px rgba(0,0,0,0.1)',
               overflow: 'hidden',
             }}
           >
             {/* Clip pour le contenu interne */}
             <div className="absolute inset-0 overflow-hidden rounded-r-lg pointer-events-none" style={{ zIndex: 0 }} />
-            
+
+            {/* Badge COUVERTURE visible en haut */}
+            {isCoverSpread && (
+              <div
+                data-pdf-hide="true"
+                className="absolute top-3 left-0 right-0 z-30 flex justify-center pointer-events-none"
+              >
+                <span className="px-4 py-1.5 rounded-full bg-amber-600/90 text-white text-xs font-bold uppercase tracking-widest shadow-lg">
+                  {t('frontCover')}
+                </span>
+              </div>
+            )}
+
             {/* Overlay zones de sécurité pour l'impression */}
             {showSafeZones && <SafeZoneOverlay format={formatConfig} side="right" />}
-            
+
             {/* Fond de page droite (image ou vidéo) */}
             {page?.backgroundMedia && (
               editingBackgroundPage === 'right' ? (
@@ -9537,8 +9553,8 @@ export function BookMode() {
                     }}
                     className={cn(
                       'flex items-center gap-1.5 px-3 py-2 text-sm transition-all',
-                      // Arrondi selon position dans le spread (complet si zoom)
-                      currentZoomedPage !== null 
+                      // Arrondi selon position dans le spread (complet si zoom ou couverture)
+                      (currentZoomedPage !== null || page.pageType === 'front-cover' || page.pageType === 'back-cover')
                         ? 'rounded-xl'
                         : (isLeftOfSpread ? 'rounded-l-xl' : 'rounded-r-xl'),
                       // Highlight si page active
@@ -9549,7 +9565,11 @@ export function BookMode() {
                       isActive && pages.length > 1 && 'pr-7'
                     )}
                   >
-                    <span className="font-semibold">{index + 1}</span>
+                    <span className="font-semibold">
+                      {page.pageType === 'front-cover' ? `📕`
+                        : page.pageType === 'back-cover' ? `📗`
+                        : index + 1}
+                    </span>
                     {/* Point de couleur du chapitre */}
                     {chapter && (
                       <div 
