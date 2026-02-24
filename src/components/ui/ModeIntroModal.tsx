@@ -11,7 +11,7 @@ import {
   Palette,
   Film,
   Theater,
-  Printer,
+  ShoppingBag,
   Target,
   ArrowRight,
   Check,
@@ -87,7 +87,7 @@ const MODE_CONTENT: Record<ModeType, ModeIntroContent> = {
     accentColor: "golden"
   },
   publish: {
-    icon: <Printer className="w-12 h-12" />,
+    icon: <ShoppingBag className="w-12 h-12" />,
     objectives: ['objective0', 'objective1', 'objective2'],
     levels: [
       { title: 'level0Title', description: 'level0Desc' },

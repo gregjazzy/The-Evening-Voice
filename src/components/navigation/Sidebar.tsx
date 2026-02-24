@@ -12,7 +12,7 @@ import {
   Link2,
   Wifi,
   Monitor,
-  Printer,
+  ShoppingBag,
   Shield,
   Users,
   Lock,
@@ -75,7 +75,7 @@ const navItems: NavItem[] = [
   {
     id: 'publish',
     highlightId: 'nav-publier',
-    icon: <Printer className="w-5 h-5 lg:w-6 lg:h-6" />,
+    icon: <ShoppingBag className="w-5 h-5 lg:w-6 lg:h-6" />,
     labelKey: 'publish'
   },
 ]

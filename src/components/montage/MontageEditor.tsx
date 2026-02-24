@@ -18,6 +18,7 @@ import {
   Loader2,
   Check,
   Image,
+  Video,
   Volume2,
   Mic,
   Home,
@@ -72,6 +73,19 @@ function PageThumb({ scene, index, isActive, canDelete, onClick, onDelete }: Pag
                 }
               }}
             />
+          ) : coverMedia?.type === 'video' ? (
+            <div className="relative w-full h-full">
+              <video
+                src={`${coverMedia.url}#t=0.1`}
+                preload="metadata"
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-aurora-500/10 to-midnight-800 -z-10">
+                <Video className="w-6 h-6 text-midnight-500" />
+              </div>
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Image className="w-6 h-6 text-midnight-600" />

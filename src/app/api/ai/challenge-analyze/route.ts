@@ -16,6 +16,8 @@ interface AnalysisRequest {
   originalPromptFr: string
   difficulty: number
   locale?: string
+  challengeType?: 'reproduce' | 'variations'
+  variationInstruction?: string
 }
 
 interface AnalysisResponse {
@@ -135,6 +137,203 @@ ${difficulty >= 2 ? '- Промпт менее 10 слов: максимум 50 
   return rules[locale] || rules.fr
 }
 
+function getVariationScoringRules(locale: string, difficulty: number): string {
+  const rules: Record<string, Record<number, string>> = {
+    fr: {
+      1: `BARÈME VARIATION NIVEAU 1 (Découverte) :
+- Transformation demandée mentionnée dans le prompt = 40 pts
+- Sujet original conservé = +20 pts
+- Détails supplémentaires = +20 pts
+- Prompt complet décrivant bien la scène modifiée = jusqu'à 100 pts`,
+      2: `BARÈME VARIATION NIVEAU 2 (Facile) :
+- Transformation demandée clairement décrite = 35 pts
+- Sujet original conservé avec détails = +20 pts
+- Style ou ambiance mentionnés = +20 pts
+- Prompt complet et précis = +25 pts`,
+      3: `BARÈME VARIATION NIVEAU 3 (Intermédiaire) :
+- Transformation seule = 25 pts maximum
+- Transformation + sujet original bien décrit = peut atteindre 50+ pts
+- Style artistique demandé + détails de la transformation = peut atteindre 80+ pts`,
+      4: `BARÈME VARIATION NIVEAU 4 (Avancé) :
+- Transformation seule = 20 pts maximum
+- Ambiance/atmosphère de la nouvelle scène obligatoire pour dépasser 50 pts
+- Prompt complet (transformation + sujet + ambiance + détails) pour 75+ pts`,
+      5: `BARÈME VARIATION NIVEAU 5 (Expert) :
+- Transformation seule = 15 pts maximum
+- Il faut transformation + sujet + style + ambiance + détails + cohérence pour dépasser 60 pts
+- Seul un prompt très complet décrivant précisément la scène transformée peut atteindre 80+ pts`,
+    },
+    en: {
+      1: `VARIATION SCORING LEVEL 1 (Discovery):
+- Requested transformation mentioned in prompt = 40 pts
+- Original subject preserved = +20 pts
+- Additional details = +20 pts
+- Complete prompt describing modified scene = up to 100 pts`,
+      2: `VARIATION SCORING LEVEL 2 (Easy):
+- Requested transformation clearly described = 35 pts
+- Original subject preserved with details = +20 pts
+- Style or mood mentioned = +20 pts
+- Complete and precise prompt = +25 pts`,
+      3: `VARIATION SCORING LEVEL 3 (Intermediate):
+- Transformation alone = 25 pts max
+- Transformation + original subject well described = can reach 50+ pts
+- Requested art style + transformation details = can reach 80+ pts`,
+      4: `VARIATION SCORING LEVEL 4 (Advanced):
+- Transformation alone = 20 pts max
+- Mood/atmosphere of the new scene required to exceed 50 pts
+- Complete prompt (transformation + subject + mood + details) for 75+ pts`,
+      5: `VARIATION SCORING LEVEL 5 (Expert):
+- Transformation alone = 15 pts max
+- Need transformation + subject + style + mood + details + coherence to exceed 60 pts
+- Only a very complete prompt precisely describing the transformed scene can reach 80+ pts`,
+    },
+    ru: {
+      1: `ШКАЛА ВАРИАЦИИ УРОВЕНЬ 1 (Знакомство):
+- Требуемое преобразование упомянуто в промпте = 40 баллов
+- Оригинальный предмет сохранён = +20 баллов
+- Дополнительные детали = +20 баллов
+- Полный промпт описывающий изменённую сцену = до 100 баллов`,
+      2: `ШКАЛА ВАРИАЦИИ УРОВЕНЬ 2 (Лёгкий):
+- Требуемое преобразование чётко описано = 35 баллов
+- Оригинальный предмет сохранён с деталями = +20 баллов
+- Упомянут стиль или настроение = +20 баллов
+- Полный и точный промпт = +25 баллов`,
+      3: `ШКАЛА ВАРИАЦИИ УРОВЕНЬ 3 (Средний):
+- Только преобразование = максимум 25 баллов
+- Преобразование + оригинальный предмет хорошо описан = может достичь 50+ баллов
+- Запрошенный художественный стиль + детали преобразования = может достичь 80+ баллов`,
+      4: `ШКАЛА ВАРИАЦИИ УРОВЕНЬ 4 (Продвинутый):
+- Только преобразование = максимум 20 баллов
+- Атмосфера/настроение новой сцены обязательны для 50+ баллов
+- Полный промпт (преобразование + предмет + настроение + детали) для 75+ баллов`,
+      5: `ШКАЛА ВАРИАЦИИ УРОВЕНЬ 5 (Эксперт):
+- Только преобразование = максимум 15 баллов
+- Нужны преобразование + предмет + стиль + настроение + детали + связность для 60+ баллов
+- Только очень полный промпт, точно описывающий преобразованную сцену, может достичь 80+ баллов`,
+    },
+  }
+
+  return (rules[locale] || rules.fr)[difficulty] || (rules[locale] || rules.fr)[1]
+}
+
+function getVariationAnalysisPrompt(locale: string, difficulty: number, userPrompt: string, originalPrompt: string, originalPromptFr: string, variationInstruction: string): string {
+  const scoringRules = getVariationScoringRules(locale, difficulty)
+  const lengthRules = getPromptLengthRules(locale, difficulty, userPrompt)
+
+  if (locale === 'en') {
+    return `You are a kind teacher helping a child aged 6-10 learn the art of "prompting" (giving instructions to an AI to create images).
+
+The child is participating in a VARIATION challenge of level ${difficulty}/5.
+The goal is NOT to reproduce the image, but to TRANSFORM it following a specific instruction.
+
+**IMAGE 1 (LEFT)**: The ORIGINAL image (starting point).
+**IMAGE 2 (RIGHT)**: The image the child generated with their prompt (should be a variation).
+
+**Variation instruction**: "${variationInstruction}"
+**Child's prompt**: "${userPrompt}"
+**Original prompt for the starting image**: "${originalPrompt}"
+
+ANALYZE both images and respond in JSON with this EXACT structure:
+{
+  "score": <number between 0 and 100>,
+  "feedback": "<2-3 encouraging and constructive sentences, adapted for a child>",
+  "strengths": ["<what the child did well>", "<another positive point>"],
+  "improvements": ["<simple improvement suggestion>"],
+  "promptTips": ["<concrete tip to improve the prompt>"]
+}
+
+${scoringRules}
+
+${lengthRules}
+
+RULES:
+- ALWAYS be encouraging and positive
+- Use simple language suitable for children
+- The score must evaluate how well the child's PROMPT describes the requested TRANSFORMATION
+- Check if the child mentioned the transformation AND kept the original subject
+- Give CONCRETE and ACTIONABLE tips to help the child write a better variation prompt
+- Maximum 2-3 items per list
+- No emoji in texts
+
+Respond ONLY with the JSON, without markdown or explanation.`
+  }
+
+  if (locale === 'ru') {
+    return `Ты добрый учитель, помогающий ребёнку 6-10 лет освоить искусство "промптинга" (давать инструкции ИИ для создания изображений).
+
+Ребёнок участвует в челлендже ВАРИАЦИИ уровня ${difficulty}/5.
+Цель — НЕ воспроизвести изображение, а ТРАНСФОРМИРОВАТЬ его по конкретной инструкции.
+
+**ИЗОБРАЖЕНИЕ 1 (СЛЕВА)**: ОРИГИНАЛЬНОЕ изображение (начальная точка).
+**ИЗОБРАЖЕНИЕ 2 (СПРАВА)**: Изображение, которое ребёнок сгенерировал с помощью своего промпта (должно быть вариацией).
+
+**Инструкция по вариации**: "${variationInstruction}"
+**Промпт ребёнка**: "${userPrompt}"
+**Оригинальный промпт для начального изображения**: "${originalPrompt}"
+
+ПРОАНАЛИЗИРУЙ оба изображения и ответь в JSON с ТОЧНОЙ структурой:
+{
+  "score": <число от 0 до 100>,
+  "feedback": "<2-3 ободряющих и конструктивных предложения, адаптированных для ребёнка>",
+  "strengths": ["<что ребёнок сделал хорошо>", "<ещё один положительный момент>"],
+  "improvements": ["<простое предложение по улучшению>"],
+  "promptTips": ["<конкретный совет по улучшению промпта>"]
+}
+
+${scoringRules}
+
+${lengthRules}
+
+ПРАВИЛА:
+- ВСЕГДА будь ободряющим и позитивным
+- Используй простой язык, подходящий для детей
+- Оценка должна оценивать, насколько хорошо ПРОМПТ ребёнка описывает запрошенную ТРАНСФОРМАЦИЮ
+- Проверь, упомянул ли ребёнок трансформацию И сохранил ли оригинальный предмет
+- Давай КОНКРЕТНЫЕ и ВЫПОЛНИМЫЕ советы для улучшения промпта вариации
+- Максимум 2-3 элемента в списке
+- Без эмодзи в текстах
+
+Ответь ТОЛЬКО JSON, без markdown или объяснений.`
+  }
+
+  // Default: French
+  return `Tu es un professeur bienveillant qui aide un enfant de 6-10 ans à apprendre l'art du "prompting" (donner des instructions à une IA pour créer des images).
+
+L'enfant participe à un défi de VARIATION de niveau ${difficulty}/5.
+Le but n'est PAS de reproduire l'image, mais de la TRANSFORMER en suivant une consigne précise.
+
+**IMAGE 1 (À GAUCHE)** : L'image ORIGINALE (point de départ).
+**IMAGE 2 (À DROITE)** : L'image que l'enfant a générée avec son prompt (doit être une variation).
+
+**Consigne de variation** : "${variationInstruction}"
+**Prompt de l'enfant** : "${userPrompt}"
+**Prompt original de l'image de départ** : "${originalPrompt}"
+
+ANALYSE les deux images et réponds en JSON avec cette structure EXACTE :
+{
+  "score": <nombre entre 0 et 100>,
+  "feedback": "<2-3 phrases encourageantes et constructives, adaptées à un enfant>",
+  "strengths": ["<ce que l'enfant a bien fait>", "<autre point positif>"],
+  "improvements": ["<suggestion d'amélioration simple>"],
+  "promptTips": ["<conseil concret pour améliorer le prompt>"]
+}
+
+${scoringRules}
+
+${lengthRules}
+
+RÈGLES :
+- Sois TOUJOURS encourageant et positif
+- Utilise un langage simple adapté aux enfants
+- Le score doit évaluer à quel point le PROMPT de l'enfant décrit bien la TRANSFORMATION demandée
+- Vérifie si l'enfant a mentionné la transformation ET conservé le sujet original
+- Donne des conseils CONCRETS et ACTIONNABLES pour aider l'enfant à écrire un meilleur prompt de variation
+- Maximum 2-3 éléments par liste
+- Pas d'emoji dans les textes
+
+Réponds UNIQUEMENT avec le JSON, sans markdown ni explication.`
+}
+
 function getAnalysisPrompt(locale: string, difficulty: number, userPrompt: string, originalPrompt: string, originalPromptFr: string): string {
   const scoringRules = getScoringRules(locale, difficulty)
   const lengthRules = getPromptLengthRules(locale, difficulty, userPrompt)
@@ -250,7 +449,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication.`
 export async function POST(request: NextRequest) {
   try {
     const body: AnalysisRequest = await request.json()
-    const { targetImageUrl, resultImageUrl, userPrompt, originalPrompt, originalPromptFr, difficulty, locale = 'fr' } = body
+    const { targetImageUrl, resultImageUrl, userPrompt, originalPrompt, originalPromptFr, difficulty, locale = 'fr', challengeType, variationInstruction } = body
 
     if (!targetImageUrl || !resultImageUrl || !userPrompt) {
       return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
@@ -270,7 +469,10 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
 
-    const prompt = getAnalysisPrompt(locale, difficulty, userPrompt, originalPrompt, originalPromptFr)
+    // Utiliser le prompt adapté selon le type de défi
+    const prompt = challengeType === 'variations' && variationInstruction
+      ? getVariationAnalysisPrompt(locale, difficulty, userPrompt, originalPrompt, originalPromptFr, variationInstruction)
+      : getAnalysisPrompt(locale, difficulty, userPrompt, originalPrompt, originalPromptFr)
 
     const result = await model.generateContent([
       prompt,

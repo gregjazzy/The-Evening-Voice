@@ -22,6 +22,8 @@ import {
   Loader2,
   Download,
   ShoppingCart,
+  ShoppingBag,
+  Gift,
   ArrowLeft,
   Book,
   Ruler,
@@ -48,6 +50,108 @@ import { usePdfExport } from '@/hooks/usePdfExport'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { cn, getThumbnailUrl } from '@/lib/utils'
+import { useToast } from '@/components/ui/Toast'
+
+// ============================================================================
+// COMPOSANT : Page d'accueil Boutique
+// ============================================================================
+
+function ShopHome() {
+  const t = useTranslations('publish')
+  const toast = useToast()
+  const { setCurrentStep } = usePublishStore()
+
+  const categories = [
+    {
+      key: 'printing' as const,
+      icon: BookOpen,
+      gradient: 'from-emerald-500 to-teal-600',
+      glowColor: 'shadow-emerald-500/25',
+      bgHover: 'hover:bg-emerald-500/10',
+      ringColor: 'ring-emerald-500/50',
+      iconBg: 'bg-emerald-500/20',
+      iconColor: 'text-emerald-400',
+      onClick: () => setCurrentStep('select-story'),
+    },
+    {
+      key: 'credits' as const,
+      icon: Sparkles,
+      gradient: 'from-violet-500 to-purple-600',
+      glowColor: 'shadow-violet-500/25',
+      bgHover: 'hover:bg-violet-500/10',
+      ringColor: 'ring-violet-500/50',
+      iconBg: 'bg-violet-500/20',
+      iconColor: 'text-violet-400',
+      onClick: () => toast.info(t('shop.credits.comingSoon')),
+    },
+    {
+      key: 'gifts' as const,
+      icon: Gift,
+      gradient: 'from-pink-500 to-rose-600',
+      glowColor: 'shadow-pink-500/25',
+      bgHover: 'hover:bg-pink-500/10',
+      ringColor: 'ring-pink-500/50',
+      iconBg: 'bg-pink-500/20',
+      iconColor: 'text-pink-400',
+      onClick: () => toast.info(t('shop.gifts.comingSoon')),
+    },
+  ]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="max-w-4xl mx-auto"
+    >
+      <div className="text-center mb-10">
+        <h2 className="text-3xl font-display text-white mb-2">
+          {t('shop.title')}
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {categories.map((cat) => {
+          const Icon = cat.icon
+          return (
+            <motion.button
+              key={cat.key}
+              onClick={cat.onClick}
+              className={cn(
+                'glass-card p-8 text-center transition-all cursor-pointer relative group',
+                cat.bgHover
+              )}
+              whileHover={{ scale: 1.04, y: -6 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <div className={cn(
+                'w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center',
+                cat.iconBg
+              )}>
+                <Icon className={cn('w-8 h-8', cat.iconColor)} />
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {t(`shop.${cat.key}.title`)}
+              </h3>
+              <p className="text-sm text-midnight-400">
+                {t(`shop.${cat.key}.description`)}
+              </p>
+              {cat.key !== 'printing' && (
+                <span className="inline-block mt-3 px-3 py-1 text-xs font-medium text-midnight-400 bg-midnight-800/80 rounded-full">
+                  {t(`shop.${cat.key}.comingSoon`)}
+                </span>
+              )}
+              <div className={cn(
+                'absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity ring-1',
+                cat.ringColor
+              )} />
+            </motion.button>
+          )
+        })}
+      </div>
+    </motion.div>
+  )
+}
 
 // ============================================================================
 // COMPOSANT : Étapes de navigation
@@ -63,7 +167,9 @@ const STEP_IDS: { id: PublishStep; labelKey: string; icon: React.ReactNode }[] =
 function StepIndicator({ currentStep }: { currentStep: PublishStep }) {
   const t = useTranslations('publish')
   const currentIndex = STEP_IDS.findIndex(s => s.id === currentStep)
-  
+
+  if (currentStep === 'shop-home') return null
+
   return (
     <div className="flex items-center justify-center gap-2 py-4">
       {STEP_IDS.map((step, index) => {
@@ -2353,18 +2459,30 @@ function OrderStep() {
 
 export function PublishMode() {
   const t = useTranslations('publish')
-  const { currentStep, reset } = usePublishStore()
-  
+  const { currentStep, setCurrentStep, reset } = usePublishStore()
+
   // Modale d'introduction (première visite)
   const { isFirstVisit, markAsSeen } = useFirstVisit('publish')
-  
+
   // Reset au montage
   useEffect(() => {
     return () => {
       // Ne pas reset si on navigue juste entre les étapes
     }
   }, [])
-  
+
+  const handleBack = () => {
+    if (currentStep === 'shop-home') {
+      reset()
+      useAppStore.getState().setCurrentMode('book')
+    } else if (currentStep === 'select-story') {
+      setCurrentStep('shop-home')
+    } else {
+      reset()
+      useAppStore.getState().setCurrentMode('book')
+    }
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
@@ -2372,34 +2490,32 @@ export function PublishMode() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                reset()
-                useAppStore.getState().setCurrentMode('book')
-              }}
+              onClick={handleBack}
               className="p-2 rounded-full hover:bg-midnight-800/50 text-midnight-400 hover:text-white transition-all"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-2xl font-display text-white flex items-center gap-2">
-              <Printer className="w-6 h-6 text-aurora-400" />
+              <ShoppingBag className="w-6 h-6 text-aurora-400" />
               {t('mainTitle')}
             </h1>
           </div>
         </div>
-        
+
         <StepIndicator currentStep={currentStep} />
       </div>
-      
+
       {/* Contenu */}
       <div className="flex-1 overflow-y-auto px-6 py-8">
         <AnimatePresence mode="wait">
+          {currentStep === 'shop-home' && <ShopHome key="home" />}
           {currentStep === 'select-story' && <SelectStoryStep key="select" />}
           {currentStep === 'choose-format' && <ChooseFormatStep key="format" />}
           {currentStep === 'quality-check' && <QualityCheckStep key="quality" />}
           {currentStep === 'order' && <OrderStep key="order" />}
         </AnimatePresence>
       </div>
-      
+
       {/* Modale d'introduction - première visite */}
       <ModeIntroModal
         mode="publish"

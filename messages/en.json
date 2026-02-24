@@ -25,7 +25,7 @@
     "challenge": "Challenges",
     "layout": "Layout",
     "theater": "Theater",
-    "publish": "Publish",
+    "publish": "Shop",
     "collab": "Collab",
     "settings": "Settings",
     "logout": "Logout",
@@ -2613,7 +2613,13 @@
     "encouragement2": "One more success and you unlock the next level!"
   },
   "publish": {
-    "mainTitle": "Publish my book",
+    "mainTitle": "My Shop",
+    "shop": {
+      "title": "What do you want to do?",
+      "printing": { "title": "Print my book", "description": "Turn your story into a real book" },
+      "credits": { "title": "AI Credits", "description": "Generate more images and videos", "comingSoon": "Coming soon" },
+      "gifts": { "title": "Gifts", "description": "Poster, t-shirt, mug... with your illustrations", "comingSoon": "Coming soon" }
+    },
     "steps": {
       "story": "Story",
       "options": "Options",
@@ -2878,9 +2884,9 @@
       "reward": "You'll experience the magic of seeing your stories come to life on the big screen!"
     },
     "publish": {
-      "title": "The Magic Printing Press",
-      "subtitle": "Turn your stories into real books",
-      "description": "Amazing! Here, you can turn your digital story into a real book that you can hold in your hands, give as a gift, or keep preciously in your library.",
+      "title": "The Magic Shop",
+      "subtitle": "Turn your stories into real objects",
+      "description": "Amazing! Here, you can turn your story into a real book, a poster, a t-shirt or even a gift for your grandparents!",
       "objective0": "Choose the perfect format for your book",
       "objective1": "Check that everything is ready for printing",
       "objective2": "Order a real printed book",

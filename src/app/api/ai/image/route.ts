@@ -1,25 +1,28 @@
 /**
- * API Route - Génération d'images via fal.ai
- * 
- * Modèles supportés :
- * - Nano Banana Pro : Génération standard (défaut)
- * - PuLID : Génération avec personnage de référence (si referenceImageUrl fourni)
- * 
- * Architecture polling pour éviter le timeout Netlify (10s) :
- * - POST : Soumet le job à fal.ai, retourne { jobId, status: 'pending' } immédiatement
- * - GET : Vérifie le status d'un job, retourne l'image quand prête
+ * API Route - Génération d'images
+ *
+ * Backend principal : Google Gemini API (direct, pas de polling)
+ * Fallback : fal.ai pour les cas spéciaux (Redux img2img)
+ *
+ * Flow Gemini :
+ * - POST : Appelle Gemini → retourne { status: 'completed', imageUrl } directement
+ * - Pas de polling nécessaire (base64 dans la réponse)
+ *
+ * Flow fal.ai (Redux / img2img uniquement) :
+ * - POST : Soumet le job → retourne { jobId, status: 'pending' }
+ * - GET : Vérifie le status d'un job fal.ai
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { generateImageGemini, isGeminiImageAvailable } from '@/lib/ai/gemini-image'
 import {
-  generateImageFlux,
   generateImageRedux,
   checkImageJobStatus,
   checkReduxJobStatus,
   isFalAvailable
 } from '@/lib/ai/fal'
 
-// GET - Vérifier le status d'un job
+// GET - Vérifier le status d'un job fal.ai (polling legacy pour Redux/img2img)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -41,9 +44,9 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`🔍 Checking job status: ${jobId} (model: ${model})`)
-    
+
     // Utiliser le bon checker selon le modèle
-    const result = model === 'flux-img2img' 
+    const result = model === 'flux-img2img'
       ? await checkReduxJobStatus(jobId)
       : await checkImageJobStatus(jobId, model)
 
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
       let imageUrl = image.url
       try {
         const proxyController = new AbortController()
-        const proxyTimeout = setTimeout(() => proxyController.abort(), 8000) // 8s max
+        const proxyTimeout = setTimeout(() => proxyController.abort(), 8000)
         const imgResponse = await fetch(image.url, { signal: proxyController.signal })
         clearTimeout(proxyTimeout)
         if (imgResponse.ok) {
@@ -84,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     // Encore en cours
     return NextResponse.json({
-      status: result.status, // 'pending' ou 'processing'
+      status: result.status,
       jobId,
       model,
     })
@@ -98,27 +101,24 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Soumettre un nouveau job de génération
+// POST - Générer une image
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
-      description,  // Idée principale (fallback)
-      prompt: fullPrompt, // Prompt complet généré par le kit (prioritaire)
+      description,
+      prompt: fullPrompt,
       style = 'magique',
       ambiance = 'jour',
       aspectRatio,
-      resolution, // '1K' | '2K' | '4K' — si fourni, override le défaut
-      model = 'nano-banana', // Modèle par défaut: Nano Banana Pro
-      // Nouveaux paramètres pour PuLID (consistance personnage)
-      referenceImageUrl,  // Si fourni, utilise PuLID
-      characterDescription,  // "le dragon bleu"
+      resolution,
+      model = 'nano-banana',
+      // Paramètres pour Redux (consistance personnage) — reste sur fal.ai
+      referenceImageUrl,
+      characterDescription,
     } = body
-    
-    // Format par défaut : 3:4 portrait (pour impression livre)
-    const finalAspectRatio = aspectRatio || '3:4'
 
-    // Utiliser le prompt complet si disponible, sinon la description
+    const finalAspectRatio = aspectRatio || '3:4'
     const promptText = fullPrompt || description
 
     if (!promptText || promptText.length < 3) {
@@ -128,18 +128,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!isFalAvailable()) {
-      return NextResponse.json(
-        { error: 'Clé API fal.ai non configurée' },
-        { status: 500 }
-      )
-    }
-
-    // 🔄 Si une image de référence est fournie, utiliser Flux Redux
-    // Fonctionne avec TOUT : humains, animaux, créatures, objets
+    // 🔄 Image de référence → Flux Redux via fal.ai (pas encore supporté par Gemini direct)
     if (referenceImageUrl) {
+      if (!isFalAvailable()) {
+        return NextResponse.json(
+          { error: 'Clé API fal.ai non configurée (nécessaire pour img2img)' },
+          { status: 500 }
+        )
+      }
+
       console.log(`🔄 Mode Flux Redux activé - personnage/style de référence`)
-      
+
       const result = await generateImageRedux({
         prompt: promptText,
         referenceImageUrl,
@@ -157,60 +156,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 🍌 Sinon, utiliser Nano Banana Pro (comportement par défaut)
-    // Prompt envoyé tel quel — pas de transformation
+    // 🎨 Génération standard → Google Gemini 3 Pro Image (direct, même modèle que nano-banana)
+    if (!isGeminiImageAvailable()) {
+      return NextResponse.json(
+        { error: 'Clé API Google Gemini non configurée' },
+        { status: 500 }
+      )
+    }
+
+    const finalResolution = resolution || '2K'
     const prompt = promptText
 
-    console.log(`🎨 Soumission job ${model.toUpperCase()}:`, prompt.substring(0, 150) + '...')
+    console.log(`🎨 Gemini 3 Pro Image (direct) - ${finalResolution}:`, prompt.substring(0, 150) + '...')
 
-    // Soumettre le job (retourne immédiatement avec jobId)
-    const finalResolution = resolution || '2K' // Défaut 2K pour le studio, 1K pour les défis
-    const result = await generateImageFlux({
+    const result = await generateImageGemini({
       prompt,
       aspectRatio: finalAspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '2:3' | '3:2',
-      numImages: 1,
-      model: model as 'flux' | 'recraft' | 'nano-banana',
       resolution: finalResolution as '1K' | '2K' | '4K',
     })
 
-    // Retourner le jobId pour que le client puisse poll
-    if (result.jobId) {
-      console.log(`📋 Job soumis: ${result.jobId}`)
-      return NextResponse.json({
-        status: 'pending',
-        jobId: result.jobId,
-        model: result.model || model,
-      })
-    }
-
-    // Cas où le résultat est retourné directement (modèles autres que nano-banana)
-    if (result.images && result.images.length > 0) {
-      const image = result.images[0]
-      console.log(`✅ Image générée directement: ${image.width}x${image.height}`)
-
-      let imageUrl = image.url
-      try {
-        const imgResponse = await fetch(image.url)
-        if (imgResponse.ok) {
-          const buffer = Buffer.from(await imgResponse.arrayBuffer())
-          const contentType = imgResponse.headers.get('content-type') || 'image/png'
-          imageUrl = `data:${contentType};base64,${buffer.toString('base64')}`
-        }
-      } catch {
-        console.warn('⚠️ Proxy image échoué, URL directe utilisée')
-      }
-
+    if (result.status === 'completed' && result.imageUrl) {
+      console.log(`✅ Image Gemini générée: ${result.width}x${result.height}`)
       return NextResponse.json({
         status: 'completed',
-        imageUrl,
-        width: image.width,
-        height: image.height,
-        model,
+        imageUrl: result.imageUrl,
+        width: result.width,
+        height: result.height,
+        model: 'gemini',
       })
     }
 
+    // Échec Gemini
     return NextResponse.json(
-      { error: 'Résultat inattendu de la génération' },
+      { error: result.error || 'Échec de la génération Gemini' },
       { status: 500 }
     )
   } catch (error: unknown) {
@@ -222,4 +200,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

@@ -126,7 +126,7 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
   'nav-challenge': { label: 'Défis', description: 'Le mode pour s\'entraîner au prompting avec des défis', mode: 'navigation' },
   'nav-montage': { label: 'Montage', description: 'Le mode pour assembler ton histoire avec sons et musique', mode: 'navigation' },
   'nav-theatre': { label: 'Théâtre', description: 'Le mode pour regarder ton histoire terminée', mode: 'navigation' },
-  'nav-publier': { label: 'Publier', description: 'Le mode pour imprimer ton livre', mode: 'navigation' },
+  'nav-publier': { label: 'Boutique', description: 'La boutique pour imprimer ton livre et créer des objets', mode: 'navigation' },
   
   // Écriture
   'book-add-image': { label: 'Ajouter image', description: 'Le bouton pour ajouter une image sur ta page', mode: 'ecriture' },

@@ -381,7 +381,7 @@ CORRESPONDANCE QUESTIONS → ÉLÉMENTS :
 | centrer / aligner | [HIGHLIGHT:book-text-align] |
 | couleur du livre / couleur des pages | [HIGHLIGHT:book-color] |
 | interligne / espace entre les lignes / espacement | [HIGHLIGHT:book-line-spacing] |
-| imprimer / impression / PDF / télécharger mon livre | [HIGHLIGHT:export-pdf-button] puis [HIGHLIGHT:nav-publier] |
+| imprimer / impression / PDF / télécharger mon livre / boutique | [HIGHLIGHT:export-pdf-button] puis [HIGHLIGHT:nav-publier] |
 
 EXEMPLES :
 
@@ -395,7 +395,7 @@ Enfant : "Comment changer l'espace entre les lignes ?"
 Toi : "Clique sur le bouton qui brille pour changer l'espacement ! [HIGHLIGHT:book-line-spacing]"
 
 Enfant : "Comment imprimer mon livre ?"
-Toi : "Appuie sur ce bouton pour télécharger ton livre ! [HIGHLIGHT:export-pdf-button] Ensuite va dans Publier pour l'imprimer ! [HIGHLIGHT:nav-publier]"`,
+Toi : "Appuie sur ce bouton pour télécharger ton livre ! [HIGHLIGHT:export-pdf-button] Ensuite va dans la Boutique pour l'imprimer ! [HIGHLIGHT:nav-publier]"`,
 
     en: `${basePrompt}
 
@@ -432,7 +432,7 @@ QUESTION → ELEMENT MAPPING:
 | center / align | [HIGHLIGHT:book-text-align] |
 | book color / page color | [HIGHLIGHT:book-color] |
 | line spacing / space between lines | [HIGHLIGHT:book-line-spacing] |
-| print / printing / PDF / download my book | [HIGHLIGHT:export-pdf-button] then [HIGHLIGHT:nav-publier] |
+| print / printing / PDF / download my book / shop | [HIGHLIGHT:export-pdf-button] then [HIGHLIGHT:nav-publier] |
 
 EXAMPLES:
 
@@ -446,7 +446,7 @@ Child: "How do I change the space between lines?"
 You: "Click the glowing button to change the spacing! [HIGHLIGHT:book-line-spacing]"
 
 Child: "How do I print my book?"
-You: "Press the glowing download button! [HIGHLIGHT:export-pdf-button] Then go to the glowing Publish tab! [HIGHLIGHT:nav-publier]"`,
+You: "Press the glowing download button! [HIGHLIGHT:export-pdf-button] Then go to the glowing Shop tab! [HIGHLIGHT:nav-publier]"`,
 
     ru: `${basePrompt}
 
@@ -483,7 +483,7 @@ You: "Press the glowing download button! [HIGHLIGHT:export-pdf-button] Then go t
 | центрировать / выровнять | [HIGHLIGHT:book-text-align] |
 | цвет книги / цвет страниц | [HIGHLIGHT:book-color] |
 | межстрочный интервал / расстояние между строками | [HIGHLIGHT:book-line-spacing] |
-| печать / напечатать / PDF / скачать книгу | [HIGHLIGHT:export-pdf-button] затем [HIGHLIGHT:nav-publier] |
+| печать / напечатать / PDF / скачать книгу / магазин | [HIGHLIGHT:export-pdf-button] затем [HIGHLIGHT:nav-publier] |
 
 ПРИМЕРЫ:
 
@@ -497,7 +497,7 @@ You: "Press the glowing download button! [HIGHLIGHT:export-pdf-button] Then go t
 Ты: "Нажми на светящуюся кнопку, чтобы изменить интервал! [HIGHLIGHT:book-line-spacing]"
 
 Ребёнок: "Как напечатать мою книгу?"
-Ты: "Нажми на эту кнопку, чтобы скачать книгу! [HIGHLIGHT:export-pdf-button] Потом перейди в Публикацию, чтобы напечатать! [HIGHLIGHT:nav-publier]"`
+Ты: "Нажми на эту кнопку, чтобы скачать книгу! [HIGHLIGHT:export-pdf-button] Потом перейди в Магазин, чтобы напечатать! [HIGHLIGHT:nav-publier]"`
   }
 
   return prompts[locale]

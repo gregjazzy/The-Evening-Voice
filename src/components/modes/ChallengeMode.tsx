@@ -699,6 +699,8 @@ export function ChallengeMode() {
             originalPromptFr: activeChallenge.targetPromptFr,
             difficulty: activeChallenge.difficulty,
             locale,
+            challengeType: activeChallenge.type,
+            variationInstruction: activeChallenge.variationInstruction,
           }),
         })
 

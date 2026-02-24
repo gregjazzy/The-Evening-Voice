@@ -553,146 +553,124 @@ export function AssetDropzone({ onAssetImported, showDropzone = true, showGaller
       {/* Grille des assets importés - seulement si showGallery=true */}
       {showGallery && projectAssets.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-sm text-midnight-400 uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Image className="w-4 h-4 text-aurora-400" />
             {t('assetDropzone.importedFiles', { count: String(projectAssets.length) })}
-          </h4>
+          </h3>
           
-          {/* Grille de miniatures - scrollable si beaucoup d'images */}
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-48 overflow-y-auto pr-1">
-            <AnimatePresence>
-              {projectAssets.map((asset) => {
-                const Icon = getAssetIcon(asset.type)
-                
-                const isNewlyImported = justImported === asset.id
-                
-                return (
-                  <motion.div
-                    key={asset.id}
-                    className={cn(
-                      "relative aspect-square rounded-lg overflow-hidden bg-midnight-800 group cursor-pointer",
-                      isNewlyImported && "ring-2 ring-dream-400 ring-offset-2 ring-offset-midnight-900"
-                    )}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ 
-                      opacity: 1, 
-                      scale: isNewlyImported ? [1, 1.05, 1] : 1,
-                    }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={isNewlyImported ? { duration: 0.5 } : undefined}
-                    layout
-                    title={asset.name}
-                  >
-                    {/* Image/Video preview - Miniature redimensionnée pour performance */}
-                    {asset.type === 'image' && (asset.cloudUrl || asset.url) ? (
-                      <img
-                        src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
-                        alt={asset.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement
-                          // Fallback : si la miniature échoue, charger l'original
-                          if (!img.dataset.fallback) {
-                            img.dataset.fallback = '1'
-                            img.src = asset.cloudUrl || asset.url
-                          }
-                        }}
+          {/* Grille de miniatures - même style que la modale */}
+          <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 gap-2 overflow-y-auto pr-1" style={{ maxHeight: '280px' }}>
+            {projectAssets.map((asset) => {
+              const Icon = getAssetIcon(asset.type)
+              const isNewlyImported = justImported === asset.id
+
+              return (
+                <div
+                  key={asset.id}
+                  className={cn(
+                    "relative rounded-xl overflow-hidden border-2 border-midnight-700 hover:border-aurora-500 bg-midnight-800 group cursor-pointer transition-all",
+                    isNewlyImported && "ring-2 ring-dream-400 ring-offset-2 ring-offset-midnight-900"
+                  )}
+                  style={{ paddingBottom: '100%' }}
+                  title={asset.name}
+                >
+                  {/* Image/Video preview */}
+                  {asset.type === 'image' && (asset.cloudUrl || asset.url) ? (
+                    <img
+                      src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
+                      alt={asset.name}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement
+                        if (!img.dataset.fallback) {
+                          img.dataset.fallback = '1'
+                          img.src = asset.cloudUrl || asset.url
+                        }
+                      }}
+                    />
+                  ) : asset.type === 'video' && (asset.cloudUrl || asset.url) ? (
+                    <>
+                      <video
+                        src={`${asset.cloudUrl || asset.url}#t=0.1`}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        preload="metadata"
+                        muted
+                        playsInline
                       />
-                    ) : asset.type === 'video' && (asset.cloudUrl || asset.url) ? (
-                      <>
-                        <video
-                          src={`${asset.cloudUrl || asset.url}#t=0.1`}
-                          className="w-full h-full object-cover"
-                          preload="metadata"
-                          muted
-                          playsInline
-                        />
-                        {/* Fallback visuel si la vidéo ne charge pas sa frame */}
-                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-stardust-500/20 to-midnight-800 -z-10">
-                          <Video className="w-6 h-6 text-stardust-400/60" />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Icon className="w-8 h-8 text-midnight-400" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-stardust-500/20 to-midnight-800 -z-10">
+                        <Video className="w-6 h-6 text-stardust-400/60" />
                       </div>
-                    )}
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Icon className="w-8 h-8 text-midnight-400" />
+                    </div>
+                  )}
 
-                    {/* Indicateur de statut (coin) */}
-                    {isNewlyImported && (
-                      <motion.div 
-                        className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-dream-500 text-white text-[10px] font-bold"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                      >
-                        ✓ Nouveau
-                      </motion.div>
-                    )}
-                    {!isNewlyImported && asset.isUploading && (
-                      <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80">
-                        <Loader2 className="w-3 h-3 text-aurora-400 animate-spin" />
-                      </div>
-                    )}
-                    {!isNewlyImported && upscalingId === asset.id && (
-                      <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80">
-                        <ZoomIn className="w-3 h-3 text-dream-400 animate-pulse" />
-                      </div>
-                    )}
-                    {!isNewlyImported && asset.cloudUrl && !asset.isUploading && upscalingId !== asset.id && (
-                      <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80">
-                        <Cloud className="w-3 h-3 text-emerald-400" />
-                      </div>
-                    )}
+                  {/* Indicateur de statut (coin) */}
+                  {isNewlyImported && (
+                    <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-dream-500 text-white text-[10px] font-bold z-10">
+                      ✓ Nouveau
+                    </div>
+                  )}
+                  {!isNewlyImported && asset.isUploading && (
+                    <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80 z-10">
+                      <Loader2 className="w-3 h-3 text-aurora-400 animate-spin" />
+                    </div>
+                  )}
+                  {!isNewlyImported && upscalingId === asset.id && (
+                    <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80 z-10">
+                      <ZoomIn className="w-3 h-3 text-dream-400 animate-pulse" />
+                    </div>
+                  )}
+                  {!isNewlyImported && asset.cloudUrl && !asset.isUploading && upscalingId !== asset.id && (
+                    <div className="absolute top-1 left-1 p-1 rounded-full bg-midnight-900/80 z-10">
+                      <Cloud className="w-3 h-3 text-emerald-400" />
+                    </div>
+                  )}
 
-                    {/* Overlay au survol avec actions */}
-                    <div className="absolute inset-0 bg-midnight-900/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                      {/* Bouton détourage */}
-                      {asset.type === 'image' && canRemoveBackground && (
-                        <motion.button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleRemoveBackground(asset)
-                          }}
-                          disabled={removingBgId !== null}
-                          className="p-2 rounded-lg bg-aurora-500/30 text-aurora-300 hover:bg-aurora-500/50 transition-colors"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          title={t('assetDropzone.removeBg')}
-                        >
-                          {removingBgId === asset.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Eraser className="w-4 h-4" />
-                          )}
-                        </motion.button>
-                      )}
-                      
-                      {/* Bouton supprimer */}
-                      <motion.button
+                  {/* Overlay au survol avec actions */}
+                  <div className="absolute inset-0 bg-midnight-900/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 z-20">
+                    {asset.type === 'image' && canRemoveBackground && (
+                      <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          removeImportedAsset(asset.id)
+                          handleRemoveBackground(asset)
                         }}
-                        className="p-2 rounded-lg bg-rose-500/30 text-rose-300 hover:bg-rose-500/50 transition-colors"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        title={t('assetDropzone.delete')}
+                        disabled={removingBgId !== null}
+                        className="p-2 rounded-lg bg-aurora-500/30 text-aurora-300 hover:bg-aurora-500/50 transition-colors"
+                        title={t('assetDropzone.removeBg')}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </motion.button>
-                    </div>
-
-                    {/* Badge vidéo */}
-                    {asset.type === 'video' && (
-                      <div className="absolute bottom-1 right-1 p-1 rounded bg-midnight-900/80">
-                        <Video className="w-3 h-3 text-stardust-400" />
-                      </div>
+                        {removingBgId === asset.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Eraser className="w-4 h-4" />
+                        )}
+                      </button>
                     )}
-                  </motion.div>
-                )
-              })}
-            </AnimatePresence>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeImportedAsset(asset.id)
+                      }}
+                      className="p-2 rounded-lg bg-rose-500/30 text-rose-300 hover:bg-rose-500/50 transition-colors"
+                      title={t('assetDropzone.delete')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Badge vidéo */}
+                  {asset.type === 'video' && (
+                    <div className="absolute bottom-1 right-1 p-1 rounded bg-midnight-900/80 z-10">
+                      <Video className="w-3 h-3 text-stardust-400" />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

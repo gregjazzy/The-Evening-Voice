@@ -225,7 +225,7 @@ export interface ShippingAddress {
 // ÉTAT DU STORE
 // ============================================================================
 
-export type PublishStep = 'select-story' | 'choose-format' | 'quality-check' | 'order'
+export type PublishStep = 'shop-home' | 'select-story' | 'choose-format' | 'quality-check' | 'order'
 
 interface PublishState {
   // Étape courante
@@ -322,7 +322,7 @@ const DEFAULT_SHIPPING_ADDRESS: ShippingAddress = {
 
 export const usePublishStore = create<PublishState>((set, get) => ({
   // État initial
-  currentStep: 'select-story',
+  currentStep: 'shop-home',
   selectedStory: null,
   selectedFormat: 'square-21',
   coverType: 'softcover',
@@ -346,7 +346,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   isOrdering: false,
   orderResult: null,
   orderError: null,
-  
+
   // Actions
   setCurrentStep: (step) => set({ currentStep: step }),
   
@@ -771,7 +771,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   },
   
   reset: () => set({
-    currentStep: 'select-story',
+    currentStep: 'shop-home',
     selectedStory: null,
     selectedFormat: 'square-21',
     coverType: 'softcover',

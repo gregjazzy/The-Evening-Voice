@@ -230,7 +230,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const showDetailsSection = false
   const showFormatButtons = false
 
-  const { addImportedAsset } = useStudioStore()
+  const { addImportedAsset, updateAsset } = useStudioStore()
   const { user } = useAuthStore()
   const { uploadFromUrl, isUploading: isUploadingToCloud } = useMediaUpload()
   const toast = useToast()
@@ -911,7 +911,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
 
       const assetName = (currentKit.subject?.substring(0, 30) || 'Image') + '...'
 
-      addImportedAsset({
+      const assetId = addImportedAsset({
         name: assetName,
         url: assetUrl,
         type: 'image',
@@ -919,8 +919,30 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         source: 'midjourney',
         promptUsed: currentKit.subject,
         projectId: currentStory?.id,
+        isUploading: true,
       })
-      
+
+      // Upload automatique vers Supabase en arrière-plan
+      uploadFromUrl(assetUrl, {
+        type: 'image',
+        source: 'midjourney',
+        storyId: currentStory?.id,
+      }).then((result) => {
+        if (result) {
+          updateAsset(assetId, {
+            cloudUrl: result.url,
+            assetId: result.assetId,
+            isUploading: false,
+          })
+          console.log('☁️ Image sauvegardée dans Supabase:', result.url)
+        } else {
+          updateAsset(assetId, { isUploading: false, uploadError: 'Upload échoué' })
+        }
+      }).catch((err) => {
+        console.error('❌ Erreur upload Supabase:', err)
+        updateAsset(assetId, { isUploading: false, uploadError: err.message })
+      })
+
       } catch (error) {
       console.error('Erreur génération fal.ai:', error)
       setGenerationError(error instanceof Error ? error.message : 'Erreur inconnue')
@@ -1001,7 +1023,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
 
       const assetName = (currentKit.subject?.substring(0, 30) || 'Vidéo') + '...'
 
-      addImportedAsset({
+      const videoAssetId = addImportedAsset({
         name: assetName,
         url: videoUrl,
         type: 'video',
@@ -1009,6 +1031,28 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         source: 'midjourney',
         promptUsed: currentKit.subject,
         projectId: currentStory?.id,
+        isUploading: true,
+      })
+
+      // Upload automatique vers le cloud (R2 pour vidéos) en arrière-plan
+      uploadFromUrl(videoUrl, {
+        type: 'video',
+        source: 'midjourney',
+        storyId: currentStory?.id,
+      }).then((result) => {
+        if (result) {
+          updateAsset(videoAssetId, {
+            cloudUrl: result.url,
+            assetId: result.assetId,
+            isUploading: false,
+          })
+          console.log('☁️ Vidéo sauvegardée dans le cloud:', result.url)
+        } else {
+          updateAsset(videoAssetId, { isUploading: false, uploadError: 'Upload échoué' })
+        }
+      }).catch((err) => {
+        console.error('❌ Erreur upload cloud:', err)
+        updateAsset(videoAssetId, { isUploading: false, uploadError: err.message })
       })
     } catch (error) {
       console.error('Erreur génération vidéo:', error)
@@ -1281,7 +1325,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <div className="rounded-xl overflow-hidden border-2 border-dream-500/50">
+            <div className="rounded-xl overflow-hidden border-2 border-dream-500/50 max-h-[400px] flex items-center justify-center bg-midnight-800">
               {generatedAsset.type === 'video' ? (
                 <video
                   src={generatedAsset.url}
@@ -1289,13 +1333,13 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                   autoPlay
                   loop
                   muted
-                  className="w-full h-auto min-h-[200px] bg-midnight-800"
+                  className="w-full h-auto max-h-[400px] object-contain"
                 />
               ) : (
                 <img
                   src={generatedAsset.url}
                   alt="Image générée"
-                  className="w-full h-auto min-h-[200px] bg-midnight-800"
+                  className="w-full h-auto max-h-[400px] object-contain"
                 />
               )}
             </div>

@@ -253,21 +253,22 @@ export function TheaterMode() {
     }
   }, [currentSceneIndex, isPlaying, selectedProject?.id])
 
-  // ─── Volume update ───
+  // ─── Volume update (réagit aussi aux changements de volume par piste) ───
+  const sceneMusicVolume = currentScene?.musicTracks?.[0]?.volume
+  const sceneNarrationVolume = currentScene?.narration?.volume
   useEffect(() => {
     const vol = isMuted ? 0 : volume / 100
     if (narrationRef.current) {
-      narrationRef.current.volume = vol * (currentScene?.narration?.volume ?? 1)
+      narrationRef.current.volume = vol * (sceneNarrationVolume ?? 1)
     }
     if (musicRef.current) {
-      const musicTrack = currentScene?.musicTracks?.[0]
       const defaultVol = (selectedProject?.defaultMusicVolume ?? 30) / 100
-      musicRef.current.volume = vol * (musicTrack?.volume ?? defaultVol)
+      musicRef.current.volume = vol * (sceneMusicVolume ?? defaultVol)
     }
     soundRefs.current.forEach(audio => {
       audio.volume = vol * 0.7
     })
-  }, [volume, isMuted])
+  }, [volume, isMuted, sceneMusicVolume, sceneNarrationVolume])
 
   // ─── Auto-hide contrôles ───
   useEffect(() => {

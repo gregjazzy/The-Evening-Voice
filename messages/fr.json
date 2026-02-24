@@ -25,7 +25,7 @@
     "challenge": "Défis",
     "layout": "Montage",
     "theater": "Théâtre",
-    "publish": "Publier",
+    "publish": "Boutique",
     "collab": "Collab",
     "settings": "Paramètres",
     "logout": "Déconnexion",
@@ -2613,7 +2613,13 @@
     "encouragement2": "Encore une réussite et tu débloques le niveau suivant !"
   },
   "publish": {
-    "mainTitle": "Publier mon livre",
+    "mainTitle": "Ma Boutique",
+    "shop": {
+      "title": "Que veux-tu faire ?",
+      "printing": { "title": "Imprimer mon livre", "description": "Transforme ton histoire en vrai livre" },
+      "credits": { "title": "Crédits IA", "description": "Pour générer plus d'images et de vidéos", "comingSoon": "Bientôt disponible" },
+      "gifts": { "title": "Cadeaux", "description": "Poster, t-shirt, mug... avec tes illustrations", "comingSoon": "Bientôt disponible" }
+    },
     "steps": {
       "story": "Histoire",
       "options": "Options",
@@ -2878,9 +2884,9 @@
       "reward": "Tu vivras la magie de voir tes histoires prendre vie sur grand écran !"
     },
     "publish": {
-      "title": "L'Imprimerie Magique",
-      "subtitle": "Transforme tes histoires en vrais livres",
-      "description": "Incroyable ! Ici, tu peux transformer ton histoire numérique en un vrai livre que tu pourras tenir dans tes mains, offrir ou garder précieusement dans ta bibliothèque.",
+      "title": "La Boutique Magique",
+      "subtitle": "Transforme tes histoires en vrais objets",
+      "description": "Incroyable ! Ici, tu peux transformer ton histoire en un vrai livre, un poster, un t-shirt ou même un cadeau pour tes grands-parents !",
       "objective0": "Choisir le format parfait pour ton livre",
       "objective1": "Vérifier que tout est prêt pour l'impression",
       "objective2": "Commander un vrai livre imprimé",
