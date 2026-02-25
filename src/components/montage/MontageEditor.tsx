@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useMontageStore, type MontageScene } from '@/store/useMontageStore'
 import { useAppStore } from '@/store/useAppStore'
@@ -25,6 +25,8 @@ import {
   Save,
   Music,
   Plus,
+  Play,
+  Pause,
 } from 'lucide-react'
 
 // =============================================================================
@@ -36,14 +38,17 @@ interface PageThumbProps {
   index: number
   isActive: boolean
   canDelete: boolean
+  isPlaying?: boolean
   onClick: () => void
   onDelete: () => void
+  onPlayToggle?: () => void
 }
 
-function PageThumb({ scene, index, isActive, canDelete, onClick, onDelete }: PageThumbProps) {
+function PageThumb({ scene, index, isActive, canDelete, isPlaying, onClick, onDelete, onPlayToggle }: PageThumbProps) {
   const hasAudio = !!scene.narration?.audioUrl
   const hasMusic = (scene.musicTracks?.length || 0) > 0
   const hasSounds = (scene.soundTracks?.length || 0) > 0
+  const hasAnyAudio = hasAudio || hasMusic || hasSounds
   const coverMedia = scene.mediaTracks?.[0]
 
   return (
@@ -52,9 +57,11 @@ function PageThumb({ scene, index, isActive, canDelete, onClick, onDelete }: Pag
         onClick={onClick}
         className={cn(
           'relative w-full rounded-xl overflow-hidden border-2 transition-all',
-          isActive
-            ? 'border-aurora-500 shadow-lg shadow-aurora-500/20'
-            : 'border-midnight-700 hover:border-midnight-500'
+          isPlaying
+            ? 'border-aurora-400 shadow-lg shadow-aurora-500/30 animate-pulse'
+            : isActive
+              ? 'border-aurora-500 shadow-lg shadow-aurora-500/20'
+              : 'border-midnight-700 hover:border-midnight-500'
         )}
       >
         {/* Miniature */}
@@ -90,6 +97,27 @@ function PageThumb({ scene, index, isActive, canDelete, onClick, onDelete }: Pag
             <div className="w-full h-full flex items-center justify-center">
               <Image className="w-6 h-6 text-midnight-600" />
             </div>
+          )}
+
+          {/* Bouton Play/Pause overlay */}
+          {hasAnyAudio && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPlayToggle?.() }}
+              className={cn(
+                'absolute inset-0 flex items-center justify-center transition-opacity z-10',
+                isPlaying ? 'opacity-100' : 'opacity-0 group-hover/thumb:opacity-100'
+              )}
+            >
+              <div className={cn(
+                'w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors',
+                isPlaying ? 'bg-aurora-500/90' : 'bg-black/60 hover:bg-aurora-500/80'
+              )}>
+                {isPlaying
+                  ? <Pause className="w-3.5 h-3.5 text-white" />
+                  : <Play className="w-3.5 h-3.5 text-white ml-0.5" />
+                }
+              </div>
+            </button>
           )}
         </div>
 
@@ -203,6 +231,95 @@ export function MontageEditor() {
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
   const { profile } = useAuthStore()
   const scene = getCurrentScene()
+
+  // ─── Mini lecteur audio par scène ───
+  const [playingSceneId, setPlayingSceneId] = useState<string | null>(null)
+  const narrationAudioRef = useRef<HTMLAudioElement | null>(null)
+  const musicAudioRef = useRef<HTMLAudioElement | null>(null)
+  const sfxAudiosRef = useRef<HTMLAudioElement[]>([])
+  const sceneTimersRef = useRef<NodeJS.Timeout[]>([])
+
+  const stopSceneAudio = useCallback(() => {
+    narrationAudioRef.current?.pause()
+    narrationAudioRef.current = null
+    musicAudioRef.current?.pause()
+    musicAudioRef.current = null
+    sfxAudiosRef.current.forEach(a => a.pause())
+    sfxAudiosRef.current = []
+    sceneTimersRef.current.forEach(t => clearTimeout(t))
+    sceneTimersRef.current = []
+    setPlayingSceneId(null)
+  }, [])
+
+  const playSceneAudio = useCallback((targetScene: MontageScene) => {
+    // Stop current
+    stopSceneAudio()
+    setPlayingSceneId(targetScene.id)
+
+    const NARRATION_DELAY = 1000 // 1s delay before narration
+    const MUSIC_FADE_STEPS = 20
+    const MUSIC_FADE_MS = 1000
+
+    // Narration
+    if (targetScene.narration?.audioUrl) {
+      const narration = new Audio(targetScene.narration.audioUrl)
+      narration.volume = targetScene.narration.volume ?? 1
+      narrationAudioRef.current = narration
+      narration.onended = () => stopSceneAudio()
+      const t = setTimeout(() => narration.play().catch(() => {}), NARRATION_DELAY)
+      sceneTimersRef.current.push(t)
+    }
+
+    // Music
+    const musicTrack = targetScene.musicTracks?.[0]
+    if (musicTrack?.url) {
+      const music = new Audio(musicTrack.url)
+      const targetVol = musicTrack.volume ?? 0.3
+      music.volume = 0
+      music.loop = musicTrack.loop !== false
+      musicAudioRef.current = music
+      music.play().catch(() => {})
+      // Fade in
+      let step = 0
+      const fadeIn = setInterval(() => {
+        step++
+        if (musicAudioRef.current === music) {
+          music.volume = Math.min(targetVol, targetVol * (step / MUSIC_FADE_STEPS))
+        }
+        if (step >= MUSIC_FADE_STEPS) clearInterval(fadeIn)
+      }, MUSIC_FADE_MS / MUSIC_FADE_STEPS)
+    }
+
+    // SFX
+    targetScene.soundTracks?.forEach((sfx) => {
+      const startAt = sfx.timeRange?.startTime || 0
+      const t = setTimeout(() => {
+        const audio = new Audio(sfx.url)
+        audio.volume = sfx.volume ?? 0.7
+        if (sfx.loop) audio.loop = true
+        sfxAudiosRef.current.push(audio)
+        audio.play().catch(() => {})
+        const endAt = sfx.timeRange?.endTime
+        if (endAt && endAt > startAt) {
+          const stopT = setTimeout(() => audio.pause(), (endAt - startAt) * 1000)
+          sceneTimersRef.current.push(stopT)
+        }
+      }, startAt * 1000)
+      sceneTimersRef.current.push(t)
+    })
+
+    // Auto-stop if no narration
+    if (!targetScene.narration?.audioUrl) {
+      const dur = (targetScene.displayDuration || 5) * 1000
+      const t = setTimeout(() => stopSceneAudio(), dur)
+      sceneTimersRef.current.push(t)
+    }
+  }, [stopSceneAudio])
+
+  // Cleanup on unmount or project change
+  useEffect(() => {
+    return () => stopSceneAudio()
+  }, [currentProject?.id, stopSceneAudio])
 
   // Sauvegarde manuelle
   const handleSave = async () => {
@@ -441,9 +558,14 @@ export function MontageEditor() {
                 index={index}
                 isActive={index === currentSceneIndex}
                 canDelete={currentProject.scenes.length > 1}
+                isPlaying={playingSceneId === s.id}
                 onClick={() => setCurrentScene(index)}
                 onDelete={() => {
                   if (confirm('Supprimer cette page ?')) deleteScene(index)
+                }}
+                onPlayToggle={() => {
+                  if (playingSceneId === s.id) stopSceneAudio()
+                  else playSceneAudio(s)
                 }}
               />
 
