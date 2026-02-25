@@ -17,6 +17,8 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
+  Maximize,
+  Minimize,
 } from 'lucide-react'
 import { useMontageStore, type MontageProject } from '@/store/useMontageStore'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
@@ -41,6 +43,22 @@ export function TheaterMode() {
   const [isMuted, setIsMuted] = useState(false)
   const [autoAdvance, setAutoAdvance] = useState(true)
   const [currentTime, setCurrentTime] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  // Track fullscreen changes (user can exit with Escape)
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {})
+    } else {
+      containerRef.current?.requestFullscreen?.().catch(() => {})
+    }
+  }, [])
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null)
@@ -665,8 +683,8 @@ export function TheaterMode() {
                 </button>
               </div>
 
-              {/* Droite - Volume */}
-              <div className="flex items-center gap-2">
+              {/* Droite - Volume + Plein écran */}
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsMuted(!isMuted)}
                   className="p-2 rounded-lg text-white hover:bg-white/10"
@@ -684,6 +702,13 @@ export function TheaterMode() {
                   }}
                   className="w-24"
                 />
+                <button
+                  onClick={toggleFullscreen}
+                  className="p-2 rounded-lg text-white hover:bg-white/10 transition-colors"
+                  title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+                >
+                  {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                </button>
               </div>
             </div>
           </motion.div>
