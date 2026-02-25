@@ -493,6 +493,37 @@ export function MontageEditor() {
                       <Image className="w-16 h-16 text-midnight-700" />
                     </div>
                   )}
+                  {/* Text boxes */}
+                  {scene.textBoxes?.map((tb) => (
+                    <div
+                      key={tb.id}
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: `${tb.position.x}%`,
+                        top: `${tb.position.y}%`,
+                        width: `${tb.position.width}%`,
+                        minHeight: `${tb.position.height}%`,
+                        transform: tb.rotation ? `rotate(${tb.rotation}deg)` : undefined,
+                        zIndex: tb.zIndex,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: tb.style.fontFamily,
+                          fontSize: `${Math.max(8, tb.style.fontSize * 0.4)}px`,
+                          color: tb.style.color,
+                          textAlign: tb.style.textAlign,
+                          fontWeight: tb.style.isBold ? 'bold' : 'normal',
+                          fontStyle: tb.style.isItalic ? 'italic' : 'normal',
+                          backgroundColor: tb.style.backgroundColor
+                            ? `rgba(${parseInt(tb.style.backgroundColor.slice(1, 3), 16)}, ${parseInt(tb.style.backgroundColor.slice(3, 5), 16)}, ${parseInt(tb.style.backgroundColor.slice(5, 7), 16)}, ${tb.style.backgroundOpacity || 0.8})`
+                            : 'transparent',
+                          padding: '2px 4px',
+                        }}
+                        dangerouslySetInnerHTML={{ __html: tb.content }}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
