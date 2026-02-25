@@ -4779,33 +4779,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
           </button>
       </div>
       
-                {/* Bouton Transparent — séparé et bien visible */}
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => applyColor('transparent')}
-                  className="w-full mb-2 flex items-center gap-2 px-2 py-1.5 rounded-lg border border-midnight-600 hover:border-aurora-400 hover:bg-midnight-800 transition-all"
-                >
-                  <span
-                    className="w-5 h-5 rounded-sm flex-shrink-0"
-                    style={{ background: 'repeating-conic-gradient(#ccc 0% 25%, #888 0% 50%) 50%/6px 6px', border: '1px solid #888' }}
-                  />
-                  <span className="text-xs text-midnight-300">Transparent</span>
-                </button>
-
-                <div className="space-y-1">
-                  {/* Gris */}
-                  <div className="flex gap-0.5">
-                    {['#ffffff', '#d4d4d4', '#a3a3a3', '#737373', '#525252', '#262626', '#000000'].map((color) => (
-                      <button
-                        key={color}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => applyColor(color)}
-                        className="w-5 h-5 rounded-sm transition-all hover:scale-110 hover:ring-1 hover:ring-white/50"
-                        style={{ backgroundColor: color, border: ['#ffffff', '#d4d4d4'].includes(color) ? '1px solid #525252' : '1px solid #404040' }}
-                      />
-                    ))}
-                  </div>
-                  {/* Couleurs */}
+                <div className="space-y-0.5">
                   {[
                     ['#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c', '#7f1d1d'],
                     ['#fed7aa', '#fdba74', '#fb923c', '#f97316', '#ea580c', '#c2410c', '#7c2d12'],
@@ -4815,6 +4789,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                     ['#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e3a8a'],
                     ['#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9', '#4c1d95'],
                     ['#fbcfe8', '#f9a8d4', '#f472b6', '#ec4899', '#db2777', '#be185d', '#831843'],
+                    ['#ffffff', '#d4d4d4', '#a3a3a3', '#737373', '#525252', '#262626', '#000000'],
                   ].map((row, rowIndex) => (
                     <div key={rowIndex} className="flex gap-0.5">
                       {row.map((color) => (
@@ -4823,11 +4798,25 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => applyColor(color)}
                           className="w-5 h-5 rounded-sm transition-all hover:scale-110 hover:ring-1 hover:ring-white/50"
-                          style={{ backgroundColor: color }}
+                          style={{ backgroundColor: color, border: color === '#ffffff' || color === '#d4d4d4' ? '1px solid #525252' : color === '#000000' || color === '#262626' || color === '#525252' ? '1px solid #555' : 'none' }}
                         />
                       ))}
                     </div>
                   ))}
+                  {/* Transparent — dernière ligne */}
+                  <div className="flex gap-0.5 mt-1">
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => applyColor('transparent')}
+                      className="flex items-center gap-1.5 px-1 py-0.5 rounded-sm transition-all hover:ring-1 hover:ring-white/50 hover:bg-midnight-800"
+                    >
+                      <span
+                        className="w-5 h-5 rounded-sm flex-shrink-0"
+                        style={{ background: 'repeating-conic-gradient(#ccc 0% 25%, #888 0% 50%) 50%/6px 6px', border: '1px solid #888' }}
+                      />
+                      <span className="text-[10px] text-midnight-400">Transparent</span>
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </>
