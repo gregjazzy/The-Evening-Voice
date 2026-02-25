@@ -504,15 +504,15 @@ export function TheaterMode() {
                     <img
                       src={media.url}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl brightness-50"
+                      className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl brightness-[0.65]"
                     />
                   )}
-                  {/* Image principale (entière, centrée) */}
+                  {/* Image principale (légèrement zoomée, centrée) */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     {media.type === 'video' ? (
                       <video
                         src={media.url}
-                        className="max-w-full max-h-full object-contain"
+                        className="max-w-full max-h-full object-contain scale-105"
                         autoPlay
                         loop={false}
                         muted
@@ -524,7 +524,7 @@ export function TheaterMode() {
                         }}
                       />
                     ) : (
-                      <img src={media.url} alt="" className="max-w-full max-h-full object-contain" />
+                      <img src={media.url} alt="" className="max-w-full max-h-full object-contain scale-105" />
                     )}
                   </div>
                 </>
