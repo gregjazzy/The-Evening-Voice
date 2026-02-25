@@ -1306,7 +1306,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               </div>
             )}
             {showImagePicker && importedAssets.filter(a => a.type === 'image').length > 0 && (
-              <div className="mt-3 grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 rounded-xl bg-midnight-900/50">
+              <div className="mt-3 grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-64 overflow-y-auto p-2 rounded-xl bg-midnight-900/50">
                 {importedAssets.filter(a => a.type === 'image').map((asset) => (
                   <button
                     key={asset.id}
@@ -1314,13 +1314,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
                       setReferenceImageUrl(asset.cloudUrl || asset.url)
                       setShowImagePicker(false)
                     }}
-                    className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-aurora-500 transition-all"
+                    className="relative aspect-square rounded-xl overflow-hidden border-2 border-midnight-700 hover:border-aurora-500 transition-all"
                   >
                     <img
                       src={getThumbnailUrl(asset.cloudUrl || asset.url, 200)}
                       alt={asset.name}
-                      className="w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-cover"
                       loading="lazy"
+                      decoding="async"
                       onError={(e) => {
                         const img = e.target as HTMLImageElement
                         if (!img.dataset.fallback) {
