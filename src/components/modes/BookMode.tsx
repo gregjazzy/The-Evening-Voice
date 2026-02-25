@@ -4779,25 +4779,31 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
           </button>
       </div>
       
+                {/* Bouton Transparent — séparé et bien visible */}
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyColor('transparent')}
+                  className="w-full mb-2 flex items-center gap-2 px-2 py-1.5 rounded-lg border border-midnight-600 hover:border-aurora-400 hover:bg-midnight-800 transition-all"
+                >
+                  <span
+                    className="w-5 h-5 rounded-sm flex-shrink-0"
+                    style={{ background: 'repeating-conic-gradient(#ccc 0% 25%, #888 0% 50%) 50%/6px 6px', border: '1px solid #888' }}
+                  />
+                  <span className="text-xs text-midnight-300">Transparent</span>
+                </button>
+
                 <div className="space-y-1">
-                  {/* Transparent + Gris */}
+                  {/* Gris */}
                   <div className="flex gap-0.5">
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => applyColor('transparent')}
-                      className="w-5 h-5 rounded-sm transition-all hover:scale-110 hover:ring-1 hover:ring-white/50 relative overflow-hidden"
-                      style={{ background: 'repeating-conic-gradient(#ccc 0% 25%, #888 0% 50%) 50%/6px 6px', border: '1px solid #888' }}
-                      title="Transparent"
-                    />
-                    {['#ffffff', '#a3a3a3', '#737373', '#525252', '#262626', '#000000'].map((color) => (
-          <button
+                    {['#ffffff', '#d4d4d4', '#a3a3a3', '#737373', '#525252', '#262626', '#000000'].map((color) => (
+                      <button
                         key={color}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => applyColor(color)}
                         className="w-5 h-5 rounded-sm transition-all hover:scale-110 hover:ring-1 hover:ring-white/50"
-                        style={{ backgroundColor: color, border: color === '#ffffff' ? '1px solid #525252' : 'none' }}
-          />
-        ))}
+                        style={{ backgroundColor: color, border: ['#ffffff', '#d4d4d4'].includes(color) ? '1px solid #525252' : '1px solid #404040' }}
+                      />
+                    ))}
                   </div>
                   {/* Couleurs */}
                   {[
