@@ -42,6 +42,7 @@ const nextConfig = {
       'onnxruntime-node',
       'onnxruntime-common',
       'ffmpeg-static',
+      'stripe',
     ],
   },
   
