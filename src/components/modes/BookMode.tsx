@@ -2341,6 +2341,14 @@ function DraggableTextBox({ textBox, onPositionChange, onContentChange, onStyleC
                 <div className="flex-1">
                   <label className="text-[11px] uppercase tracking-wider text-midnight-400 mb-1.5 block">{t('editor.color')}</label>
                   <div className="flex gap-1 flex-wrap">
+                    <button
+                      onClick={() => onStyleChange(textBox.id, { ...textBox.style, color: 'transparent' })}
+                      className={cn(
+                        "w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center",
+                        textBox.style.color === 'transparent' ? "border-aurora-400 scale-125" : "border-midnight-600 hover:border-midnight-400"
+                      )}
+                      style={{ background: 'repeating-conic-gradient(#555 0% 25%, transparent 0% 50%) 50%/8px 8px' }}
+                    />
                     {['#3d3426', '#000000', '#ffffff', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
                       <button
                         key={color}
@@ -4743,8 +4751,15 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
       </div>
       
                 <div className="space-y-1">
-                  {/* Gris */}
+                  {/* Transparent + Gris */}
                   <div className="flex gap-0.5">
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => applyColor('transparent')}
+                      className="w-5 h-5 rounded-sm transition-all hover:scale-110 hover:ring-1 hover:ring-white/50"
+                      style={{ background: 'repeating-conic-gradient(#555 0% 25%, transparent 0% 50%) 50%/8px 8px', border: '1px solid #525252' }}
+                      title="Transparent"
+                    />
                     {['#ffffff', '#e5e5e5', '#a3a3a3', '#737373', '#525252', '#262626', '#000000'].map((color) => (
           <button
                         key={color}
