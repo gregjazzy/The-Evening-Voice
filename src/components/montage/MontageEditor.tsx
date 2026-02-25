@@ -224,25 +224,31 @@ export function MontageEditor() {
   const musicAudioRef = useRef<HTMLAudioElement | null>(null)
   const sfxAudiosRef = useRef<HTMLAudioElement[]>([])
   const sceneTimersRef = useRef<NodeJS.Timeout[]>([])
+  const sceneIntervalsRef = useRef<NodeJS.Timeout[]>([])
+  const stoppedRef = useRef(false)
 
   const stopSceneAudio = useCallback(() => {
+    stoppedRef.current = true
     narrationAudioRef.current?.pause()
     narrationAudioRef.current = null
     musicAudioRef.current?.pause()
     musicAudioRef.current = null
-    sfxAudiosRef.current.forEach(a => a.pause())
+    sfxAudiosRef.current.forEach(a => { a.pause(); a.src = '' })
     sfxAudiosRef.current = []
     sceneTimersRef.current.forEach(t => clearTimeout(t))
     sceneTimersRef.current = []
+    sceneIntervalsRef.current.forEach(i => clearInterval(i))
+    sceneIntervalsRef.current = []
     setPlayingSceneId(null)
   }, [])
 
   const playSceneAudio = useCallback((targetScene: MontageScene) => {
     // Stop current
     stopSceneAudio()
+    stoppedRef.current = false
     setPlayingSceneId(targetScene.id)
 
-    const NARRATION_DELAY = 1000 // 1s delay before narration
+    const NARRATION_DELAY = 1000
     const MUSIC_FADE_STEPS = 20
     const MUSIC_FADE_MS = 1000
 
@@ -252,7 +258,9 @@ export function MontageEditor() {
       narration.volume = targetScene.narration.volume ?? 1
       narrationAudioRef.current = narration
       narration.onended = () => stopSceneAudio()
-      const t = setTimeout(() => narration.play().catch(() => {}), NARRATION_DELAY)
+      const t = setTimeout(() => {
+        if (!stoppedRef.current) narration.play().catch(() => {})
+      }, NARRATION_DELAY)
       sceneTimersRef.current.push(t)
     }
 
@@ -265,21 +273,25 @@ export function MontageEditor() {
       music.loop = musicTrack.loop !== false
       musicAudioRef.current = music
       music.play().catch(() => {})
-      // Fade in
+      // Fade in — tracked for cleanup
       let step = 0
       const fadeIn = setInterval(() => {
         step++
-        if (musicAudioRef.current === music) {
-          music.volume = Math.min(targetVol, targetVol * (step / MUSIC_FADE_STEPS))
+        if (stoppedRef.current || musicAudioRef.current !== music) {
+          clearInterval(fadeIn)
+          return
         }
+        music.volume = Math.min(targetVol, targetVol * (step / MUSIC_FADE_STEPS))
         if (step >= MUSIC_FADE_STEPS) clearInterval(fadeIn)
       }, MUSIC_FADE_MS / MUSIC_FADE_STEPS)
+      sceneIntervalsRef.current.push(fadeIn)
     }
 
     // SFX
     targetScene.soundTracks?.forEach((sfx) => {
       const startAt = sfx.timeRange?.startTime || 0
       const t = setTimeout(() => {
+        if (stoppedRef.current) return
         const audio = new Audio(sfx.url)
         audio.volume = sfx.volume ?? 0.7
         if (sfx.loop) audio.loop = true
@@ -287,7 +299,7 @@ export function MontageEditor() {
         audio.play().catch(() => {})
         const endAt = sfx.timeRange?.endTime
         if (endAt && endAt > startAt) {
-          const stopT = setTimeout(() => audio.pause(), (endAt - startAt) * 1000)
+          const stopT = setTimeout(() => { audio.pause(); audio.src = '' }, (endAt - startAt) * 1000)
           sceneTimersRef.current.push(stopT)
         }
       }, startAt * 1000)
