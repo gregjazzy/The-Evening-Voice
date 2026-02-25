@@ -23,6 +23,7 @@ export interface Database {
           preferred_style: string
           ai_name: string | null // Nom personnalisé de l'IA
           emotional_context: Json
+          credit_balance: number
           created_at: string
           updated_at: string
         }
@@ -39,6 +40,7 @@ export interface Database {
           preferred_style?: string
           ai_name?: string | null
           emotional_context?: Json
+          credit_balance?: number
           created_at?: string
           updated_at?: string
         }
@@ -55,6 +57,7 @@ export interface Database {
           preferred_style?: string
           ai_name?: string | null
           emotional_context?: Json
+          credit_balance?: number
           created_at?: string
           updated_at?: string
         }
@@ -341,6 +344,79 @@ export interface Database {
           error_message?: string | null
           started_at?: string | null
           completed_at?: string | null
+          created_at?: string
+        }
+      }
+      orders: {
+        Row: {
+          id: string
+          profile_id: string | null
+          stripe_session_id: string | null
+          order_type: 'book' | 'credits'
+          status: 'pending' | 'paid' | 'fulfilled' | 'failed' | 'refunded'
+          book_data: Json | null
+          gelato_order_id: string | null
+          credits_amount: number | null
+          amount_total: number
+          currency: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id?: string | null
+          stripe_session_id?: string | null
+          order_type: 'book' | 'credits'
+          status?: 'pending' | 'paid' | 'fulfilled' | 'failed' | 'refunded'
+          book_data?: Json | null
+          gelato_order_id?: string | null
+          credits_amount?: number | null
+          amount_total?: number
+          currency?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string | null
+          stripe_session_id?: string | null
+          order_type?: 'book' | 'credits'
+          status?: 'pending' | 'paid' | 'fulfilled' | 'failed' | 'refunded'
+          book_data?: Json | null
+          gelato_order_id?: string | null
+          credits_amount?: number | null
+          amount_total?: number
+          currency?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      credit_transactions: {
+        Row: {
+          id: string
+          profile_id: string
+          amount: number
+          balance_after: number
+          reason: string
+          reference_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          amount: number
+          balance_after: number
+          reason: string
+          reference_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          amount?: number
+          balance_after?: number
+          reason?: string
+          reference_id?: string | null
           created_at?: string
         }
       }

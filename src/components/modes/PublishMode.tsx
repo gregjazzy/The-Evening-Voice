@@ -30,6 +30,12 @@ import {
   DollarSign,
   Lock,
   Info,
+  Trash2,
+  Coffee,
+  Frame,
+  Mail,
+  Plus,
+  Minus,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useStudioStore } from '@/store/useStudioStore'
@@ -51,6 +57,9 @@ import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { cn, getThumbnailUrl } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
+import { CREDIT_PACKS, calculateBookPrice, DERIVATIVE_PRICES } from '@/lib/stripe-config'
+import { DERIVATIVE_PRODUCTS, getDerivativeProduct, getDerivativeDisplayName, type DerivativeProductType } from '@/lib/gelato'
+import type { CartItem } from '@/store/usePublishStore'
 
 // ============================================================================
 // COMPOSANT : Page d'accueil Boutique
@@ -59,7 +68,7 @@ import { useToast } from '@/components/ui/Toast'
 function ShopHome() {
   const t = useTranslations('publish')
   const toast = useToast()
-  const { setCurrentStep } = usePublishStore()
+  const { setCurrentStep, setShopFlow } = usePublishStore()
 
   const categories = [
     {
@@ -71,7 +80,10 @@ function ShopHome() {
       ringColor: 'ring-emerald-500/50',
       iconBg: 'bg-emerald-500/20',
       iconColor: 'text-emerald-400',
-      onClick: () => setCurrentStep('select-story'),
+      onClick: () => {
+        setShopFlow('book')
+        setCurrentStep('select-story')
+      },
     },
     {
       key: 'credits' as const,
@@ -82,7 +94,7 @@ function ShopHome() {
       ringColor: 'ring-violet-500/50',
       iconBg: 'bg-violet-500/20',
       iconColor: 'text-violet-400',
-      onClick: () => toast.info(t('shop.credits.comingSoon')),
+      onClick: () => setCurrentStep('credits'),
     },
     {
       key: 'gifts' as const,
@@ -93,7 +105,10 @@ function ShopHome() {
       ringColor: 'ring-pink-500/50',
       iconBg: 'bg-pink-500/20',
       iconColor: 'text-pink-400',
-      onClick: () => toast.info(t('shop.gifts.comingSoon')),
+      onClick: () => {
+        setShopFlow('derivatives')
+        setCurrentStep('select-story')
+      },
     },
   ]
 
@@ -136,11 +151,7 @@ function ShopHome() {
               <p className="text-sm text-midnight-400">
                 {t(`shop.${cat.key}.description`)}
               </p>
-              {cat.key !== 'printing' && (
-                <span className="inline-block mt-3 px-3 py-1 text-xs font-medium text-midnight-400 bg-midnight-800/80 rounded-full">
-                  {t(`shop.${cat.key}.comingSoon`)}
-                </span>
-              )}
+              {/* Gifts coming soon badge removed — now active */}
               <div className={cn(
                 'absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity ring-1',
                 cat.ringColor
@@ -168,7 +179,7 @@ function StepIndicator({ currentStep }: { currentStep: PublishStep }) {
   const t = useTranslations('publish')
   const currentIndex = STEP_IDS.findIndex(s => s.id === currentStep)
 
-  if (currentStep === 'shop-home') return null
+  if (currentStep === 'shop-home' || currentStep === 'credits') return null
 
   return (
     <div className="flex items-center justify-center gap-2 py-4">
@@ -214,7 +225,7 @@ function SelectStoryStep() {
   const t = useTranslations('publish')
   const locale = useLocale()
   const { stories } = useAppStore()
-  const { selectedStory, setSelectedStory, setCurrentStep } = usePublishStore()
+  const { selectedStory, setSelectedStory, setCurrentStep, shopFlow } = usePublishStore()
   
   // Permettre les livres avec au moins 1 page (on peut toujours compléter plus tard)
   const completedStories = stories.filter(s => s.pages.length >= 1)
@@ -304,15 +315,19 @@ function SelectStoryStep() {
           )}
           <button
             onClick={() => {
-              // Appliquer le format de l'histoire si défini
-              if (selectedStory.bookFormat) {
-                usePublishStore.getState().setSelectedFormat(selectedStory.bookFormat as any)
+              if (shopFlow === 'derivatives') {
+                setCurrentStep('select-derivative')
+              } else {
+                // Appliquer le format de l'histoire si défini
+                if (selectedStory.bookFormat) {
+                  usePublishStore.getState().setSelectedFormat(selectedStory.bookFormat as any)
+                }
+                setCurrentStep('choose-format')
               }
-              setCurrentStep('choose-format')
             }}
             className="inline-flex items-center gap-2 text-lg px-8 py-3 rounded-xl bg-gradient-to-r from-aurora-500 to-aurora-700 text-white font-semibold hover:from-aurora-400 hover:to-aurora-600 transition-all shadow-lg shadow-aurora-500/25"
           >
-            {t('selectStory.chooseOptions')}
+            {shopFlow === 'derivatives' ? t('selectStory.chooseGift') : t('selectStory.chooseOptions')}
             <ChevronRight className="w-5 h-5" />
           </button>
         </motion.div>
@@ -1253,13 +1268,14 @@ function PreviewStep() {
   const displayWidth = displayHeight * formatRatio
   
   // Couleur de fond de page selon le bookColor de l'histoire
-  const bookColor = selectedStory.bookColor || 'cream'
-  const pageBackground = {
+  const bookColor = ((selectedStory as any).bookColor as string) || 'cream'
+  const pageBackgrounds: Record<string, string> = {
     cream: 'linear-gradient(135deg, #FFFEF5 0%, #FDF8E8 50%, #F5EFD5 100%)',
     white: 'linear-gradient(135deg, #FFFFFF 0%, #FAFAFA 50%, #F5F5F5 100%)',
     aged: 'linear-gradient(135deg, #F5E6D3 0%, #E8D5BE 50%, #D4C4A8 100%)',
     parchment: 'linear-gradient(135deg, #F4E4BC 0%, #E8D4A0 50%, #D4C080 100%)',
-  }[bookColor] || 'linear-gradient(135deg, #FFFEF5 0%, #FDF8E8 50%, #F5EFD5 100%)'
+  }
+  const pageBackground = pageBackgrounds[bookColor] || pageBackgrounds.cream
   
   // Rendu d'une page individuelle avec tous ses éléments
   const renderPage = (pageIndex: number, side: 'left' | 'right') => {
@@ -1868,19 +1884,13 @@ function OrderStep() {
     isLoadingQuote,
     quoteError,
     fetchGelatoQuote,
-    shippingAddress,
-    updateShippingAddress,
-    isOrdering,
     orderResult,
-    orderError,
-    placeGelatoOrder,
   } = usePublishStore()
-  
+
   const { user } = useAuthStore()
-  
+
   const format = findBookFormat(selectedFormat)
   const [showExportSuccess, setShowExportSuccess] = useState(false)
-  const [showAddressForm, setShowAddressForm] = useState(false)
   const [localExportProgress, setLocalExportProgress] = useState(0)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
@@ -1888,7 +1898,15 @@ function OrderStep() {
   
   // Hook pour l'export PDF par capture d'écran
   const pdfExport = usePdfExport()
-  
+
+  // Prix de vente calculé (inclut marge + livraison)
+  const sellingPriceFormatted = gelatoQuote
+    ? (calculateBookPrice(
+        coverType === 'hardcover' ? 'hardcover' : 'softcover',
+        gelatoQuote.productPrice + gelatoQuote.shippingPrice
+      ) / 100).toFixed(2)
+    : null
+
   // Charger le devis Gelato au montage (une seule fois)
   // Note: on n'appelle pas si quoteError existe pour éviter une boucle infinie
   useEffect(() => {
@@ -1964,11 +1982,37 @@ function OrderStep() {
     URL.revokeObjectURL(url)
   }
   
-  const handlePlaceOrder = async () => {
-    const success = await placeGelatoOrder()
-    if (success) {
-      setShowAddressForm(false)
+  const [addedToCart, setAddedToCart] = useState(false)
+
+  const handleAddToCart = () => {
+    if (!selectedStory || !gelatoQuote || !pdfUrl) return
+
+    const store = usePublishStore.getState()
+    const item: CartItem = {
+      id: crypto.randomUUID(),
+      type: 'book',
+      productUid: '', // resolved at checkout via format/coverType
+      priceCents: calculateBookPrice(
+        coverType === 'hardcover' ? 'hardcover' : 'softcover',
+        gelatoQuote.productPrice + gelatoQuote.shippingPrice
+      ),
+      quantity: 1,
+      label: selectedStory.title || 'Mon livre',
+      imageUrls: [],
+      bookData: {
+        format: selectedFormat,
+        coverType,
+        paperType,
+        lamination,
+        pageCount: selectedStory.pages.length,
+        pdfUrl,
+        pdfFilePath: store.pdfFilePath || '',
+        gelatoQuote,
+      },
     }
+
+    store.addToCart(item)
+    setAddedToCart(true)
   }
   
   // Calculer la progression totale (génération + upload)
@@ -2096,20 +2140,14 @@ function OrderStep() {
               </div>
             ) : gelatoQuote ? (
               <>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-midnight-400">{t('order.printing')}</span>
-                  <span className="text-white">{gelatoQuote.productPrice.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-midnight-400">{t('order.shippingCountry', { country: gelatoQuote.fulfillmentCountry })}</span>
-                  <span className="text-white">{gelatoQuote.shippingPrice.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between text-lg border-t border-midnight-700 pt-2">
-                  <span className="text-white font-medium">{t('order.total')}</span>
-                  <span className="text-aurora-400 font-bold">{gelatoQuote.totalPrice.toFixed(2)}€</span>
+                <div className="flex justify-between text-lg">
+                  <span className="text-white font-medium">{t('order.bookPrice')}</span>
+                  <span className="text-aurora-400 font-bold">
+                    {sellingPriceFormatted}€
+                  </span>
                 </div>
                 <p className="text-xs text-midnight-500 mt-1">
-                  🚚 {t('order.estimatedDelivery', { min: gelatoQuote.estimatedDelivery.min, max: gelatoQuote.estimatedDelivery.max })}
+                  🚚 {t('order.shippingIncluded')} — {t('order.estimatedDelivery', { min: gelatoQuote.estimatedDelivery.min, max: gelatoQuote.estimatedDelivery.max })}
                 </p>
               </>
             ) : quoteError ? (
@@ -2172,15 +2210,7 @@ function OrderStep() {
                 <CheckCircle2 className="w-5 h-5" />
                 <span>{t('order.pdfReady')}</span>
               </div>
-              {pdfBlob && (
-                <button
-                  onClick={handleDownloadPdf}
-                  className="w-full py-2 px-4 bg-midnight-800/50 hover:bg-midnight-700/50 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                >
-                  <Download className="w-4 h-4" />
-                  {t('order.downloadCopy')}
-                </button>
-              )}
+              {/* PDF téléchargement désactivé — le PDF est réservé à l'impression */}
             </div>
           ) : (
             <button
@@ -2200,40 +2230,66 @@ function OrderStep() {
           )}
         </div>
         
-        {/* Commander impression Gelato */}
+        {/* Ajouter au panier */}
         <div className="glass-card p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-dream-500/20 flex items-center justify-center">
-              <Package className="w-6 h-6 text-dream-400" />
+              <ShoppingCart className="w-6 h-6 text-dream-400" />
             </div>
             <div>
-              <h4 className="text-white font-medium">{t('order.orderPrint')}</h4>
-              <p className="text-xs text-midnight-400">{t('order.orderPrintDesc')}</p>
+              <h4 className="text-white font-medium">{t('order.addToCartTitle')}</h4>
+              <p className="text-xs text-midnight-400">{t('order.addToCartDesc')}</p>
             </div>
           </div>
-          
+
           {!showExportSuccess ? (
             <div className="text-center py-3">
               <p className="text-midnight-400 text-sm mb-2">
-                👈 {t('order.preparePdfFirst')}
+                {t('order.preparePdfFirst')}
               </p>
               <p className="text-xs text-midnight-500">
                 {t('order.pdfRequiredDesc')}
               </p>
             </div>
+          ) : addedToCart ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-green-400 justify-center">
+                <CheckCircle2 className="w-5 h-5" />
+                <span>{t('order.addedToCart')}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    usePublishStore.getState().setShopFlow(null)
+                    setCurrentStep('shop-home')
+                  }}
+                  className="flex-1 py-2.5 px-3 bg-midnight-700 hover:bg-midnight-600 text-white rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  {t('order.continueShopping')}
+                </button>
+                <button
+                  onClick={() => setCurrentStep('cart')}
+                  className="flex-1 py-2.5 px-3 bg-dream-600 hover:bg-dream-500 text-white rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  {t('order.viewCart')}
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               <button
-                onClick={() => setShowAddressForm(true)}
+                onClick={handleAddToCart}
                 disabled={!gelatoQuote || isLoadingQuote || !pdfUrl}
                 className="w-full py-3 px-4 bg-dream-600 hover:bg-dream-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart className="w-4 h-4" />
-                {t('order.orderButton')} {gelatoQuote ? `(${gelatoQuote.totalPrice.toFixed(2)}€)` : ''}
+                {t('order.addToCart')} {gelatoQuote ? `(${sellingPriceFormatted}€)` : ''}
               </button>
-              
+
               <p className="text-xs text-midnight-500 text-center mt-2">
-                🖨️ {t('order.printedByGelato')}
+                {t('order.printedByGelato')}
               </p>
             </>
           )}
@@ -2257,198 +2313,906 @@ function OrderStep() {
         </button>
       </div>
       
-      {/* Modal formulaire adresse */}
-      <AnimatePresence>
-        {showAddressForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowAddressForm(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="glass-card p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+    </motion.div>
+  )
+}
+
+// ============================================================================
+// ÉTAPE : Sélection produit dérivé
+// ============================================================================
+
+const DERIVATIVE_ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
+  Coffee,
+  Frame,
+  Mail,
+  Palette,
+}
+
+function SelectDerivativeStep() {
+  const t = useTranslations('publish')
+  const locale = useLocale()
+  const { setCurrentStep, setSelectedDerivativeType, selectedStory } = usePublishStore()
+
+  if (!selectedStory) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="max-w-4xl mx-auto"
+    >
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-display text-white mb-2">
+          {t('derivatives.title')}
+        </h2>
+        <p className="text-midnight-300">
+          {t('derivatives.description')}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {DERIVATIVE_PRODUCTS.map((product) => {
+          const Icon = DERIVATIVE_ICON_MAP[product.icon] || Gift
+          const name = locale === 'en' ? product.nameEn : locale === 'ru' ? product.nameRu : product.nameFr
+          const desc = locale === 'en' ? product.descriptionEn : locale === 'ru' ? product.descriptionRu : product.descriptionFr
+
+          return (
+            <motion.button
+              key={product.type}
+              onClick={() => {
+                setSelectedDerivativeType(product.type)
+                setCurrentStep('choose-illustration')
+              }}
+              className="glass-card p-6 text-center transition-all hover:bg-pink-500/10 relative group"
+              whileHover={{ scale: 1.04, y: -4 }}
+              whileTap={{ scale: 0.97 }}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-display text-white">
-                  📦 {t('order.shippingAddress')}
-                </h3>
-                <button
-                  onClick={() => setShowAddressForm(false)}
-                  className="p-2 rounded-full hover:bg-midnight-700/50 text-midnight-400 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+              <div className="w-14 h-14 rounded-full bg-pink-500/20 mx-auto mb-4 flex items-center justify-center">
+                <Icon className="w-7 h-7 text-pink-400" />
               </div>
-              
-              <div className="space-y-4">
-                {/* Prénom / Nom */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-midnight-400 mb-1">{t('order.firstName')}</label>
-                    <input
-                      type="text"
-                      value={shippingAddress.firstName}
-                      onChange={(e) => updateShippingAddress({ firstName: e.target.value })}
-                      className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-midnight-400 mb-1">{t('order.lastName')}</label>
-                    <input
-                      type="text"
-                      value={shippingAddress.lastName}
-                      onChange={(e) => updateShippingAddress({ lastName: e.target.value })}
-                      className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                    />
-                  </div>
-                </div>
-                
-                {/* Adresse */}
-                <div>
-                  <label className="block text-xs text-midnight-400 mb-1">{t('order.address')}</label>
-                  <input
-                    type="text"
-                    value={shippingAddress.addressLine1}
-                    onChange={(e) => updateShippingAddress({ addressLine1: e.target.value })}
-                    placeholder={t('order.addressPlaceholder')}
-                    className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-xs text-midnight-400 mb-1">{t('order.addressComplement')}</label>
-                  <input
-                    type="text"
-                    value={shippingAddress.addressLine2 || ''}
-                    onChange={(e) => updateShippingAddress({ addressLine2: e.target.value })}
-                    placeholder={t('order.complementPlaceholder')}
-                    className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                  />
-                </div>
-                
-                {/* Ville / Code postal */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-midnight-400 mb-1">{t('order.postCode')}</label>
-                    <input
-                      type="text"
-                      value={shippingAddress.postCode}
-                      onChange={(e) => updateShippingAddress({ postCode: e.target.value })}
-                      className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-midnight-400 mb-1">{t('order.city')}</label>
-                    <input
-                      type="text"
-                      value={shippingAddress.city}
-                      onChange={(e) => updateShippingAddress({ city: e.target.value })}
-                      className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                    />
-                  </div>
-                </div>
-                
-                {/* Pays */}
-                <div>
-                  <label className="block text-xs text-midnight-400 mb-1">{t('order.country')}</label>
-                  <select
-                    value={shippingAddress.country}
-                    onChange={(e) => {
-                      updateShippingAddress({ country: e.target.value })
-                      // Recharger le devis avec le nouveau pays
-                      setTimeout(() => fetchGelatoQuote(), 100)
-                    }}
-                    className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                  >
-                    <option value="FR">🇫🇷 France</option>
-                    <option value="BE">🇧🇪 Belgique</option>
-                    <option value="CH">🇨🇭 Suisse</option>
-                    <option value="CA">🇨🇦 Canada</option>
-                    <option value="DE">🇩🇪 Allemagne</option>
-                    <option value="ES">🇪🇸 Espagne</option>
-                    <option value="IT">🇮🇹 Italie</option>
-                    <option value="GB">🇬🇧 Royaume-Uni</option>
-                    <option value="US">🇺🇸 États-Unis</option>
-                  </select>
-                </div>
-                
-                {/* Email / Téléphone */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-midnight-400 mb-1">{t('order.email')}</label>
-                    <input
-                      type="email"
-                      value={shippingAddress.email}
-                      onChange={(e) => updateShippingAddress({ email: e.target.value })}
-                      className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-midnight-400 mb-1">{t('order.phone')}</label>
-                    <input
-                      type="tel"
-                      value={shippingAddress.phone || ''}
-                      onChange={(e) => updateShippingAddress({ phone: e.target.value })}
-                      className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
-                    />
-                  </div>
-                </div>
-                
-                {/* Erreur */}
-                {orderError && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <p className="text-red-400 text-sm">{orderError}</p>
-                  </div>
+              <h3 className="text-base font-semibold text-white mb-1">{name}</h3>
+              <p className="text-xs text-midnight-400 mb-3 line-clamp-2">{desc}</p>
+              <div className="text-lg font-bold text-aurora-400">
+                {(product.sellingPriceCents / 100).toFixed(2)}€
+              </div>
+              {product.requiresCredit && (
+                <span className="inline-block mt-2 px-2 py-0.5 text-xs text-violet-400 bg-violet-500/10 rounded-full">
+                  1 {t('derivatives.credit')}
+                </span>
+              )}
+              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity ring-1 ring-pink-500/50" />
+            </motion.button>
+          )
+        })}
+      </div>
+
+      <div className="mt-8 flex justify-center">
+        <button
+          onClick={() => setCurrentStep('select-story')}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          {t('nav.back')}
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+// ============================================================================
+// ÉTAPE : Choix d'illustration
+// ============================================================================
+
+function getStoryIllustrations(story: any): { url: string; pageIndex: number }[] {
+  const illustrations: { url: string; pageIndex: number }[] = []
+  const seen = new Set<string>()
+
+  story.pages?.forEach((page: any, pageIndex: number) => {
+    // Skip cover pages
+    if (page.pageType === 'front-cover' || page.pageType === 'back-cover') return
+
+    // Multi-image format
+    if (page.images?.length) {
+      for (const img of page.images) {
+        if (img.url && !seen.has(img.url)) {
+          seen.add(img.url)
+          illustrations.push({ url: img.url, pageIndex })
+        }
+      }
+    }
+
+    // Legacy single image
+    if (page.image && !seen.has(page.image)) {
+      seen.add(page.image)
+      illustrations.push({ url: page.image, pageIndex })
+    }
+
+    // Background media (images only)
+    if (page.backgroundMedia?.url && page.backgroundMedia.type === 'image' && !seen.has(page.backgroundMedia.url)) {
+      seen.add(page.backgroundMedia.url)
+      illustrations.push({ url: page.backgroundMedia.url, pageIndex })
+    }
+  })
+
+  return illustrations
+}
+
+function ChooseIllustrationStep() {
+  const t = useTranslations('publish')
+  const locale = useLocale()
+  const {
+    selectedStory,
+    selectedDerivativeType,
+    selectedIllustrations,
+    setSelectedIllustrations,
+    setCurrentStep,
+    addToCart,
+  } = usePublishStore()
+
+  if (!selectedStory || !selectedDerivativeType) return null
+
+  const product = getDerivativeProduct(selectedDerivativeType)
+  if (!product) return null
+
+  const illustrations = getStoryIllustrations(selectedStory)
+  const isMultiSelect = product.maxIllustrations > 1 || product.maxIllustrations === -1
+  const maxSelect = product.maxIllustrations === -1 ? illustrations.length : product.maxIllustrations
+  const isColoringBook = selectedDerivativeType === 'coloring-book'
+
+  // Auto-select all for coloring book
+  useEffect(() => {
+    if (isColoringBook) {
+      setSelectedIllustrations(illustrations.map(i => i.url))
+    }
+  }, [isColoringBook]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleIllustration = (url: string) => {
+    if (isColoringBook) return // Can't deselect for coloring book
+
+    if (isMultiSelect) {
+      if (selectedIllustrations.includes(url)) {
+        setSelectedIllustrations(selectedIllustrations.filter(u => u !== url))
+      } else if (selectedIllustrations.length < maxSelect) {
+        setSelectedIllustrations([...selectedIllustrations, url])
+      }
+    } else {
+      setSelectedIllustrations([url])
+    }
+  }
+
+  const [isGeneratingColoring, setIsGeneratingColoring] = useState(false)
+  const [coloringProgress, setColoringProgress] = useState('')
+
+  const handleAddToCart = async () => {
+    if (selectedIllustrations.length === 0) return
+
+    const name = getDerivativeDisplayName(selectedDerivativeType, locale)
+
+    // Coloring book: generate PDF via AI first
+    if (isColoringBook) {
+      setIsGeneratingColoring(true)
+      setColoringProgress(t('coloring.converting'))
+
+      try {
+        const response = await fetch('/api/ai/coloring', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageUrls: selectedIllustrations,
+            storyTitle: selectedStory?.title,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!data.success) {
+          throw new Error(data.error || 'Échec génération coloriage')
+        }
+
+        const item: CartItem = {
+          id: crypto.randomUUID(),
+          type: selectedDerivativeType,
+          productUid: product.gelatoProductUid,
+          priceCents: product.sellingPriceCents,
+          quantity: 1,
+          label: name,
+          imageUrls: [...selectedIllustrations],
+          coloringBookPdfUrl: data.pdfUrl,
+        }
+
+        addToCart(item)
+        setSelectedIllustrations([])
+        setIsGeneratingColoring(false)
+        setCurrentStep('cart')
+      } catch (err) {
+        console.error('Coloring book error:', err)
+        setColoringProgress(err instanceof Error ? err.message : 'Erreur')
+        setIsGeneratingColoring(false)
+      }
+      return
+    }
+
+    // Other derivatives: add directly
+    const item: CartItem = {
+      id: crypto.randomUUID(),
+      type: selectedDerivativeType,
+      productUid: product.gelatoProductUid,
+      priceCents: product.sellingPriceCents,
+      quantity: 1,
+      label: name,
+      imageUrls: [...selectedIllustrations],
+    }
+
+    addToCart(item)
+    setSelectedIllustrations([])
+    setCurrentStep('cart')
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="max-w-4xl mx-auto"
+    >
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-display text-white mb-2">
+          {t('illustrations.title')}
+        </h2>
+        <p className="text-midnight-300">
+          {isColoringBook
+            ? t('illustrations.coloringDesc')
+            : isMultiSelect
+              ? t('illustrations.multiSelectDesc', { max: maxSelect })
+              : t('illustrations.singleSelectDesc')
+          }
+        </p>
+      </div>
+
+      {illustrations.length === 0 ? (
+        <div className="glass-card p-12 text-center">
+          <ImageIcon className="w-16 h-16 text-midnight-500 mx-auto mb-4" />
+          <h3 className="text-xl text-white mb-2">{t('illustrations.empty')}</h3>
+          <p className="text-midnight-400">{t('illustrations.emptyDesc')}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+          {illustrations.map((illus, idx) => {
+            const isSelected = selectedIllustrations.includes(illus.url)
+            return (
+              <motion.button
+                key={illus.url}
+                onClick={() => toggleIllustration(illus.url)}
+                className={cn(
+                  'relative aspect-square rounded-xl overflow-hidden group transition-all',
+                  isSelected ? 'ring-2 ring-aurora-500 scale-[0.97]' : 'hover:ring-1 hover:ring-midnight-500',
+                  isColoringBook && 'pointer-events-none'
                 )}
-                
-                {/* Prix total */}
-                {gelatoQuote && (
-                  <div className="p-4 bg-aurora-500/10 border border-aurora-500/20 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-white font-medium">{t('order.totalToPay')}</span>
-                      <span className="text-2xl font-bold text-aurora-400">
-                        {gelatoQuote.totalPrice.toFixed(2)}€
-                      </span>
+                whileHover={!isColoringBook ? { scale: 1.02 } : {}}
+                whileTap={!isColoringBook ? { scale: 0.98 } : {}}
+              >
+                <img
+                  src={getThumbnailUrl(illus.url, 200)}
+                  alt={`Illustration ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  data-original={illus.url}
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement
+                    if (!el.dataset.fallback) {
+                      el.dataset.fallback = '1'
+                      el.src = el.dataset.original || ''
+                    }
+                  }}
+                />
+                {isSelected && (
+                  <div className="absolute inset-0 bg-aurora-500/20 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-aurora-500 flex items-center justify-center">
+                      <Check className="w-5 h-5 text-white" />
                     </div>
-                    <p className="text-xs text-aurora-400/70 mt-1">
-                      {t('order.deliveryIn', { min: gelatoQuote.estimatedDelivery.min, max: gelatoQuote.estimatedDelivery.max })}
-                    </p>
                   </div>
                 )}
-                
-                {/* Bouton commander */}
-                <button
-                  onClick={handlePlaceOrder}
-                  disabled={isOrdering || !gelatoQuote}
-                  className="w-full py-3 px-4 bg-dream-600 hover:bg-dream-500 text-white rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isOrdering ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {t('order.ordering')}
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-5 h-5" />
-                      {t('order.confirmOrder')}
-                    </>
-                  )}
-                </button>
-                
-                <p className="text-xs text-midnight-500 text-center">
-                  🔒 {t('order.securePayment')}
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <span className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
+                  p.{illus.pageIndex + 1}
+                </span>
+              </motion.button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Coloring book generation progress */}
+      {isGeneratingColoring && (
+        <div className="mt-6 glass-card p-6 text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-aurora-400 mx-auto mb-3" />
+          <p className="text-white font-medium mb-1">{t('coloring.generatingTitle')}</p>
+          <p className="text-sm text-midnight-400">{coloringProgress}</p>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="mt-8 flex items-center justify-between">
+        <button
+          onClick={() => {
+            setSelectedIllustrations([])
+            setCurrentStep('select-derivative')
+          }}
+          disabled={isGeneratingColoring}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all disabled:opacity-50"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          {t('nav.back')}
+        </button>
+
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-midnight-400">
+            {selectedIllustrations.length}/{maxSelect} {t('illustrations.selected')}
+          </span>
+          <button
+            onClick={handleAddToCart}
+            disabled={selectedIllustrations.length === 0 || isGeneratingColoring}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold hover:from-pink-400 hover:to-rose-500 transition-all shadow-lg shadow-pink-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGeneratingColoring ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t('coloring.generating')}
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-4 h-4" />
+                {t('order.addToCart')} ({(product.sellingPriceCents / 100).toFixed(2)}€)
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ============================================================================
+// ÉTAPE : Panier
+// ============================================================================
+
+function CartStep() {
+  const t = useTranslations('publish')
+  const locale = useLocale()
+  const {
+    cart,
+    removeFromCart,
+    updateCartItemQuantity,
+    clearCart,
+    setCurrentStep,
+    shippingAddress,
+    updateShippingAddress,
+    cartShippingCost,
+    isCalculatingShipping,
+  } = usePublishStore()
+
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+
+  // Sub-total (somme des prix × quantité)
+  const subtotalCents = cart.reduce((sum, item) => sum + item.priceCents * (item.quantity || 1), 0)
+
+  // Le panier contient-il un livre ? Si oui, livraison gratuite
+  const hasBook = cart.some(item => item.type === 'book')
+
+  // Coût livraison en cents (0 si un livre est dans le panier)
+  const shippingCents = hasBook ? 0 : (cartShippingCost ? Math.round(cartShippingCost * 100) : null)
+
+  // Total
+  const totalCents = subtotalCents + (shippingCents || 0)
+
+  const isAddressComplete = shippingAddress.firstName && shippingAddress.lastName &&
+    shippingAddress.addressLine1 && shippingAddress.city &&
+    shippingAddress.postCode && shippingAddress.email
+
+  // Calculate shipping when country changes and cart has no book
+  useEffect(() => {
+    if (hasBook || !shippingAddress.country || cart.length === 0) return
+
+    const store = usePublishStore.getState()
+    store.setIsCalculatingShipping(true)
+
+    fetch('/api/gelato/shipping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: cart,
+        shippingAddress: { country: shippingAddress.country },
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          store.setCartShippingCost(data.shippingCost)
+        }
+      })
+      .catch(() => {})
+      .finally(() => store.setIsCalculatingShipping(false))
+  }, [hasBook, shippingAddress.country, cart.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCheckout = async () => {
+    if (!isAddressComplete || cart.length === 0) return
+
+    setIsRedirectingToStripe(true)
+    setCheckoutError(null)
+
+    try {
+      const response = await fetch('/api/stripe/checkout/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cartItems: cart,
+          shippingAddress,
+          shippingCostCents: shippingCents || 0,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error(data.error || 'Erreur création session paiement')
+      }
+    } catch (error) {
+      console.error('Erreur Stripe checkout:', error)
+      setIsRedirectingToStripe(false)
+      setCheckoutError(error instanceof Error ? error.message : 'Erreur de paiement')
+    }
+  }
+
+  if (cart.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-2xl mx-auto text-center"
+      >
+        <div className="glass-card p-12">
+          <ShoppingCart className="w-16 h-16 text-midnight-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-display text-white mb-2">{t('cart.empty')}</h2>
+          <p className="text-midnight-400 mb-6">{t('cart.emptyDesc')}</p>
+          <button
+            onClick={() => setCurrentStep('shop-home')}
+            className="btn-primary"
+          >
+            {t('order.continueShopping')}
+          </button>
+        </div>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="max-w-3xl mx-auto"
+    >
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-display text-white mb-2">
+          {t('cart.title')}
+        </h2>
+        <p className="text-midnight-300">{t('cart.description')}</p>
+      </div>
+
+      {/* Articles */}
+      <div className="space-y-3 mb-6">
+        {cart.map((item) => (
+          <div key={item.id} className="glass-card p-4 flex items-center gap-4">
+            {/* Thumbnail */}
+            <div className="w-14 h-14 rounded-lg bg-midnight-800 flex-shrink-0 overflow-hidden">
+              {item.imageUrls[0] ? (
+                <img src={getThumbnailUrl(item.imageUrls[0], 100)} alt="" className="w-full h-full object-cover" />
+              ) : item.type === 'book' ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Book className="w-6 h-6 text-aurora-400" />
+                </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Gift className="w-6 h-6 text-pink-400" />
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <h4 className="text-white font-medium truncate">{item.label}</h4>
+              <p className="text-xs text-midnight-400">
+                {item.type === 'book'
+                  ? t('cart.bookItem')
+                  : getDerivativeDisplayName(item.type as DerivativeProductType, locale)
+                }
+              </p>
+            </div>
+
+            {/* Quantity */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => updateCartItemQuantity(item.id, (item.quantity || 1) - 1)}
+                className="w-7 h-7 rounded-full bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <span className="w-8 text-center text-white text-sm font-medium">{item.quantity || 1}</span>
+              <button
+                onClick={() => updateCartItemQuantity(item.id, (item.quantity || 1) + 1)}
+                className="w-7 h-7 rounded-full bg-midnight-800 hover:bg-midnight-700 text-midnight-300 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Price + Remove */}
+            <div className="text-right flex-shrink-0 flex items-center gap-3">
+              <span className="text-aurora-400 font-semibold">{((item.priceCents * (item.quantity || 1)) / 100).toFixed(2)}€</span>
+              <button
+                onClick={() => removeFromCart(item.id)}
+                className="p-1.5 rounded-full hover:bg-red-500/20 text-midnight-500 hover:text-red-400 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Sous-total + livraison */}
+      <div className="glass-card p-5 mb-6">
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-midnight-400">{t('cart.subtotal')}</span>
+            <span className="text-white">{(subtotalCents / 100).toFixed(2)}€</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-midnight-400">{t('cart.shipping')}</span>
+            <span className="text-white">
+              {hasBook
+                ? t('cart.shippingFree')
+                : isCalculatingShipping
+                  ? <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> {t('cart.shippingCalculating')}</span>
+                  : shippingCents !== null
+                    ? `${(shippingCents / 100).toFixed(2)}€`
+                    : t('cart.shippingCalculated')
+              }
+            </span>
+          </div>
+          <div className="border-t border-midnight-700 pt-2 mt-2 flex justify-between text-lg">
+            <span className="text-white font-medium">{t('cart.total')}</span>
+            <span className="text-aurora-400 font-bold">{(totalCents / 100).toFixed(2)}€</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Adresse de livraison */}
+      <div className="glass-card p-5 mb-6">
+        <h3 className="text-lg font-medium text-white mb-4">{t('order.shippingAddress')}</h3>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-midnight-400 mb-1">{t('order.firstName')}</label>
+              <input
+                type="text"
+                value={shippingAddress.firstName}
+                onChange={(e) => updateShippingAddress({ firstName: e.target.value })}
+                className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-midnight-400 mb-1">{t('order.lastName')}</label>
+              <input
+                type="text"
+                value={shippingAddress.lastName}
+                onChange={(e) => updateShippingAddress({ lastName: e.target.value })}
+                className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-midnight-400 mb-1">{t('order.address')}</label>
+            <input
+              type="text"
+              value={shippingAddress.addressLine1}
+              onChange={(e) => updateShippingAddress({ addressLine1: e.target.value })}
+              placeholder={t('order.addressPlaceholder')}
+              className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-midnight-400 mb-1">{t('order.addressComplement')}</label>
+            <input
+              type="text"
+              value={shippingAddress.addressLine2 || ''}
+              onChange={(e) => updateShippingAddress({ addressLine2: e.target.value })}
+              placeholder={t('order.complementPlaceholder')}
+              className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-midnight-400 mb-1">{t('order.postCode')}</label>
+              <input
+                type="text"
+                value={shippingAddress.postCode}
+                onChange={(e) => updateShippingAddress({ postCode: e.target.value })}
+                className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-midnight-400 mb-1">{t('order.city')}</label>
+              <input
+                type="text"
+                value={shippingAddress.city}
+                onChange={(e) => updateShippingAddress({ city: e.target.value })}
+                className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-midnight-400 mb-1">{t('order.country')}</label>
+            <select
+              value={shippingAddress.country}
+              onChange={(e) => updateShippingAddress({ country: e.target.value })}
+              className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+            >
+              <option value="FR">France</option>
+              <option value="BE">Belgique</option>
+              <option value="CH">Suisse</option>
+              <option value="CA">Canada</option>
+              <option value="DE">Allemagne</option>
+              <option value="ES">Espagne</option>
+              <option value="IT">Italie</option>
+              <option value="GB">Royaume-Uni</option>
+              <option value="US">États-Unis</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-midnight-400 mb-1">{t('order.email')}</label>
+              <input
+                type="email"
+                value={shippingAddress.email}
+                onChange={(e) => updateShippingAddress({ email: e.target.value })}
+                className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-midnight-400 mb-1">{t('order.phone')}</label>
+              <input
+                type="tel"
+                value={shippingAddress.phone || ''}
+                onChange={(e) => updateShippingAddress({ phone: e.target.value })}
+                className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Erreur */}
+      {checkoutError && (
+        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg mb-6">
+          <p className="text-red-400 text-sm">{checkoutError}</p>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setCurrentStep('shop-home')}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          {t('order.continueShopping')}
+        </button>
+
+        <button
+          onClick={handleCheckout}
+          disabled={!isAddressComplete || isRedirectingToStripe || cart.length === 0}
+          className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-dream-500 to-dream-700 text-white font-semibold hover:from-dream-400 hover:to-dream-600 transition-all shadow-lg shadow-dream-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isRedirectingToStripe ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              {t('order.redirectingToStripe')}
+            </>
+          ) : (
+            <>
+              <Lock className="w-5 h-5" />
+              {t('cart.pay')} ({(totalCents / 100).toFixed(2)}€)
+            </>
+          )}
+        </button>
+      </div>
+
+      <p className="text-xs text-midnight-500 text-center mt-4">
+        {t('order.securePayment')}
+      </p>
+    </motion.div>
+  )
+}
+
+// ============================================================================
+// ÉTAPE : Confirmation après paiement Stripe
+// ============================================================================
+
+function CheckoutSuccessStep() {
+  const t = useTranslations('publish')
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-2xl mx-auto text-center"
+    >
+      <div className="glass-card p-12">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', delay: 0.2 }}
+        >
+          <CheckCircle2 className="w-24 h-24 text-green-400 mx-auto mb-6" />
+        </motion.div>
+
+        <h2 className="text-3xl font-display text-white mb-4">
+          {t('checkoutSuccess.title')}
+        </h2>
+
+        <p className="text-midnight-300 mb-8 leading-relaxed">
+          {t('checkoutSuccess.description')}
+        </p>
+
+        <div className="bg-midnight-800/50 rounded-xl p-5 mb-8 text-left space-y-3">
+          <div className="flex items-start gap-3">
+            <Package className="w-5 h-5 text-aurora-400 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-midnight-300">{t('checkoutSuccess.productionInfo')}</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <Mail className="w-5 h-5 text-aurora-400 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-midnight-300">{t('checkoutSuccess.emailInfo')}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={() => {
+              usePublishStore.getState().reset()
+              usePublishStore.getState().setCurrentStep('shop-home')
+            }}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            {t('checkoutSuccess.continueShopping')}
+          </button>
+          <button
+            onClick={() => {
+              usePublishStore.getState().reset()
+              useAppStore.getState().setCurrentMode('book')
+            }}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-aurora-500 to-aurora-700 text-white font-semibold hover:from-aurora-400 hover:to-aurora-600 transition-all"
+          >
+            <BookOpen className="w-4 h-4" />
+            {t('checkoutSuccess.backToStories')}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ============================================================================
+// ÉTAPE : Boutique de crédits IA
+// ============================================================================
+
+function CreditsShopStep() {
+  const t = useTranslations('publish')
+  const locale = useLocale()
+  const { setCurrentStep } = usePublishStore()
+  const [isRedirecting, setIsRedirecting] = useState(false)
+
+  const pack = CREDIT_PACKS[0]
+
+  const handleBuyPack = async () => {
+    setIsRedirecting(true)
+
+    try {
+      const response = await fetch('/api/stripe/checkout/credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId: pack.id }),
+      })
+
+      const data = await response.json()
+
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error(data.error || 'Erreur')
+      }
+    } catch (error) {
+      console.error('Erreur Stripe checkout credits:', error)
+      setIsRedirecting(false)
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="max-w-md mx-auto"
+    >
+      <div className="text-center mb-10">
+        <h2 className="text-3xl font-display text-white mb-2">
+          {t('creditsShop.title')}
+        </h2>
+        <p className="text-midnight-300">
+          {t('creditsShop.description')}
+        </p>
+      </div>
+
+      <motion.div
+        className="glass-card p-8 text-center relative ring-2 ring-violet-500 bg-violet-500/5"
+        whileHover={{ scale: 1.02, y: -4 }}
+      >
+        <div className="text-5xl mb-4">
+          {locale === 'fr' ? '🎨' : '🎨'}
+        </div>
+
+        <h3 className="text-3xl font-bold text-white mb-1">
+          {pack.credits} {t('creditsShop.credits', { count: pack.credits })}
+        </h3>
+        <p className="text-sm text-midnight-400 mb-6">
+          {t('creditsShop.perCredit', { price: `${(pack.price / 100 / pack.credits).toFixed(2)}€` })}
+        </p>
+
+        <div className="text-4xl font-bold text-aurora-400 mb-6">
+          {(pack.price / 100).toFixed(2)}€
+        </div>
+
+        <button
+          onClick={handleBuyPack}
+          disabled={isRedirecting}
+          className={cn(
+            'w-full py-4 px-6 rounded-xl font-semibold transition-all flex items-center justify-center gap-2',
+            'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-400 hover:to-purple-500 text-lg',
+            isRedirecting && 'opacity-50 cursor-not-allowed'
+          )}
+        >
+          {isRedirecting ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              {t('order.redirectingToStripe')}
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5" />
+              {t('creditsShop.buyPack')}
+            </>
+          )}
+        </button>
+      </motion.div>
+
+      <div className="mt-8 flex justify-center">
+        <button
+          onClick={() => setCurrentStep('shop-home')}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          {t('nav.back')}
+        </button>
+      </div>
     </motion.div>
   )
 }
@@ -2459,7 +3223,7 @@ function OrderStep() {
 
 export function PublishMode() {
   const t = useTranslations('publish')
-  const { currentStep, setCurrentStep, reset } = usePublishStore()
+  const { currentStep, setCurrentStep, reset, cart } = usePublishStore()
 
   // Modale d'introduction (première visite)
   const { isFirstVisit, markAsSeen } = useFirstVisit('publish')
@@ -2476,6 +3240,15 @@ export function PublishMode() {
       reset()
       useAppStore.getState().setCurrentMode('book')
     } else if (currentStep === 'select-story') {
+      setCurrentStep('shop-home')
+    } else if (currentStep === 'select-derivative') {
+      setCurrentStep('select-story')
+    } else if (currentStep === 'choose-illustration') {
+      setCurrentStep('select-derivative')
+    } else if (currentStep === 'cart') {
+      setCurrentStep('shop-home')
+    } else if (currentStep === 'checkout-success') {
+      reset()
       setCurrentStep('shop-home')
     } else {
       reset()
@@ -2500,6 +3273,21 @@ export function PublishMode() {
               {t('mainTitle')}
             </h1>
           </div>
+
+          {/* Cart badge */}
+          {cart.length > 0 && currentStep !== 'cart' && (
+            <motion.button
+              onClick={() => setCurrentStep('cart')}
+              className="relative p-2.5 rounded-full bg-midnight-800/80 hover:bg-midnight-700/80 text-white transition-all"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <ShoppingCart className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-aurora-500 text-white text-xs flex items-center justify-center font-bold">
+                {cart.length}
+              </span>
+            </motion.button>
+          )}
         </div>
 
         <StepIndicator currentStep={currentStep} />
@@ -2513,6 +3301,11 @@ export function PublishMode() {
           {currentStep === 'choose-format' && <ChooseFormatStep key="format" />}
           {currentStep === 'quality-check' && <QualityCheckStep key="quality" />}
           {currentStep === 'order' && <OrderStep key="order" />}
+          {currentStep === 'select-derivative' && <SelectDerivativeStep key="derivative" />}
+          {currentStep === 'choose-illustration' && <ChooseIllustrationStep key="illustration" />}
+          {currentStep === 'cart' && <CartStep key="cart" />}
+          {currentStep === 'checkout-success' && <CheckoutSuccessStep key="success" />}
+          {currentStep === 'credits' && <CreditsShopStep key="credits" />}
         </AnimatePresence>
       </div>
 

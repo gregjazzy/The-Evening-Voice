@@ -70,13 +70,20 @@
       "invalidEmail": "Invalid email",
       "passwordTooShort": "Password must be at least 6 characters",
       "passwordMismatch": "Passwords don't match",
-      "invalidCredentials": "Incorrect name or password",
+      "invalidCredentials": "Incorrect email or password",
       "emailInUse": "This email is already in use",
       "fillAllFields": "Fill in all fields!",
       "selectRole": "Choose who you are!",
       "nameNotFound": "No account found with this name",
       "multipleName": "Multiple accounts have this name, contact administrator",
+      "emailNotConfirmed": "Your email has not been confirmed yet. Check your inbox.",
       "generic": "An error occurred"
+    },
+    "confirmEmail": {
+      "title": "Check your email",
+      "description": "A confirmation email has been sent to:",
+      "checkSpam": "If you can't find it, check your spam folder.",
+      "backToLogin": "Back to login"
     }
   },
   "diary": {
@@ -2617,7 +2624,7 @@
     "shop": {
       "title": "What do you want to do?",
       "printing": { "title": "Print my book", "description": "Turn your story into a real book" },
-      "credits": { "title": "AI Credits", "description": "Generate more images and videos", "comingSoon": "Coming soon" },
+      "credits": { "title": "AI Credits", "description": "Generate more images and videos" },
       "gifts": { "title": "Gifts", "description": "Poster, t-shirt, mug... with your illustrations", "comingSoon": "Coming soon" }
     },
     "steps": {
@@ -2637,7 +2644,8 @@
       "createdAt": "Created on {date}",
       "selected": "Selected",
       "format": "Format: {format}",
-      "chooseOptions": "Choose options"
+      "chooseOptions": "Choose options",
+      "chooseGift": "Choose a gift"
     },
     "chooseFormat": {
       "title": "Print options",
@@ -2746,6 +2754,8 @@
       "paper": "Paper",
       "finish": "Finish",
       "calculatingPrice": "Calculating price...",
+      "bookPrice": "Book price",
+      "shippingIncluded": "Shipping included",
       "printing": "Printing",
       "shippingCountry": "Shipping ({country})",
       "total": "Total",
@@ -2782,11 +2792,79 @@
       "deliveryIn": "Delivery in {min}-{max} days",
       "ordering": "Ordering...",
       "confirmOrder": "Confirm order",
-      "securePayment": "Secure payment • Delivery by Gelato",
+      "securePayment": "Secure payment via Stripe",
       "successTitle": "Order placed!",
       "successDesc": "Your book is being prepared. You'll receive a confirmation email.",
       "orderNumber": "Order number",
-      "status": "Status"
+      "status": "Status",
+      "redirectingToStripe": "Redirecting to payment...",
+      "payWithStripe": "Pay with Stripe",
+      "addToCart": "Add to cart",
+      "addToCartTitle": "Add to cart",
+      "addToCartDesc": "Add this book to your cart",
+      "addedToCart": "Added to cart!",
+      "continueShopping": "Continue shopping",
+      "viewCart": "View cart"
+    },
+    "creditsShop": {
+      "title": "AI Credits",
+      "description": "Each credit lets you generate one illustration with AI",
+      "credits": "credits",
+      "buyPack": "Buy 60 credits",
+      "perCredit": "{price} / credit",
+      "balance": "{count} credits",
+      "noCredits": "No credits left",
+      "insufficientCredits": "You're out of credits. Buy a pack to keep creating!",
+      "buyCredits": "Buy credits",
+      "creditsRemaining": "{count} credits remaining",
+      "videoCost": "A video costs 3 credits",
+      "notEnoughForVideo": "A video costs {cost} credits (you have {balance})"
+    },
+    "derivatives": {
+      "title": "Custom gifts",
+      "description": "Choose a gift with your story's illustrations",
+      "credit": "AI credit"
+    },
+    "illustrations": {
+      "title": "Choose your illustrations",
+      "singleSelectDesc": "Select your favorite illustration",
+      "multiSelectDesc": "Select up to {max} illustrations",
+      "coloringDesc": "All illustrations will be converted to coloring pages",
+      "empty": "No illustrations",
+      "emptyDesc": "This story has no illustrations yet. Add images in Writing mode.",
+      "selected": "selected"
+    },
+    "coloring": {
+      "converting": "Converting illustrations to coloring pages…",
+      "generatingTitle": "Creating coloring book",
+      "generating": "Generating…"
+    },
+    "cart": {
+      "title": "My cart",
+      "description": "Review your order before paying",
+      "empty": "Empty cart",
+      "emptyDesc": "Add a book or gifts from the shop",
+      "bookItem": "Printed book",
+      "subtotal": "Subtotal",
+      "shipping": "Shipping",
+      "shippingFree": "Free (included with book)",
+      "shippingCalculating": "Calculating...",
+      "shippingCalculated": "Calculated at checkout",
+      "total": "Total",
+      "pay": "Pay"
+    },
+    "checkoutSuccess": {
+      "title": "Order confirmed!",
+      "description": "Thank you for your order! Your payment has been received and your order is being prepared.",
+      "productionInfo": "Your order will be produced and shipped within 5 to 7 business days.",
+      "emailInfo": "You will receive a confirmation email with tracking information.",
+      "continueShopping": "Continue shopping",
+      "backToStories": "Back to my stories"
+    },
+    "stripe": {
+      "checkoutSuccess": "Payment successful!",
+      "checkoutCancelled": "Payment cancelled",
+      "processingOrder": "Your order is being processed..."
     },
     "nav": {
       "back": "Back",

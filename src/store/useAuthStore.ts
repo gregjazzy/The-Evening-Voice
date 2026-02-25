@@ -163,7 +163,8 @@ export const useAuthStore = create<AuthState>()(
             email,
             password,
             options: {
-              data: { name, role }
+              data: { name, role },
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
             }
           })
 
@@ -177,6 +178,24 @@ export const useAuthStore = create<AuthState>()(
             return { error: 'Erreur lors de la création du compte' }
           }
 
+          // Si pas de session, l'email n'est pas encore confirmé
+          // Ne pas mettre le user dans le store (sinon redirect automatique)
+          if (!authData.session) {
+            set({ isLoading: false })
+            // Créer le profil via l'API serveur (service role, pas besoin de session)
+            try {
+              await fetch('/api/auth/update-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: authData.user.id, name, role }),
+              })
+            } catch (e) {
+              console.error('❌ Création profil échouée:', e)
+            }
+            return { error: null }
+          }
+
+          // Session existe (email auto-confirmé ou déjà confirmé)
           // Vérifier si le trigger Supabase a déjà créé un profil
           const { data: existingProfiles } = await db
             .from('profiles')
@@ -188,7 +207,6 @@ export const useAuthStore = create<AuthState>()(
 
           if (profile) {
             // Le trigger a créé le profil — forcer le bon nom via l'API serveur
-            // (le client peut échouer si la session n'est pas encore prête)
             if (profile.name !== name) {
               try {
                 await fetch('/api/auth/update-profile', {
@@ -202,7 +220,7 @@ export const useAuthStore = create<AuthState>()(
               profile = { ...profile, name, role }
             }
           } else {
-            // Pas de trigger — créer le profil via l'API serveur (plus fiable que le client)
+            // Pas de trigger — créer le profil via l'API serveur
             try {
               await fetch('/api/auth/update-profile', {
                 method: 'POST',
@@ -212,7 +230,6 @@ export const useAuthStore = create<AuthState>()(
             } catch (e) {
               console.error('❌ Création profil échouée, fallback client:', e)
             }
-            // Relire le profil
             const { data: refreshed } = await db
               .from('profiles')
               .select('*')

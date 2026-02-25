@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { useAuthStore } from '@/store/useAuthStore'
-import { Sparkles, Lock, Eye, EyeOff, ArrowRight, User } from 'lucide-react'
+import { Sparkles, Lock, Eye, EyeOff, ArrowRight, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 
@@ -19,8 +19,7 @@ export default function LoginPage() {
 
   const { signIn, isLoading, user } = useAuthStore()
 
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,51 +31,36 @@ export default function LoginPage() {
     }
   }, [user, router, redirect])
 
+  // Afficher erreur si retour callback en échec
+  useEffect(() => {
+    if (searchParams.get('error') === 'auth_error') {
+      setError(t('errors.generic'))
+    }
+  }, [searchParams, t])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    const trimmedFirst = firstName.trim()
-    const trimmedLast = lastName.trim()
+    const trimmedEmail = email.trim().toLowerCase()
 
-    if (!trimmedFirst || !trimmedLast || !password) {
+    if (!trimmedEmail || !password) {
       setError(t('errors.fillAllFields'))
       return
     }
 
-    const fullName = `${trimmedFirst} ${trimmedLast}`
+    const { error: signInError } = await signIn(trimmedEmail, password)
 
-    // Chercher l'email via l'API lookup
-    try {
-      const lookupRes = await fetch('/api/auth/lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: fullName }),
-      })
-
-      if (!lookupRes.ok) {
-        const data = await lookupRes.json()
-        if (data.error === 'not_found') {
-          setError(t('errors.nameNotFound'))
-        } else if (data.error === 'multiple_matches') {
-          setError(t('errors.multipleName'))
-        } else {
-          setError(t('errors.generic'))
-        }
-        return
-      }
-
-      const { email } = await lookupRes.json()
-
-      const { error: signInError } = await signIn(email, password)
-
-      if (signInError) {
+    if (signInError) {
+      if (signInError.includes('Invalid login') || signInError.includes('invalid_credentials')) {
         setError(t('errors.invalidCredentials'))
+      } else if (signInError.includes('Email not confirmed')) {
+        setError(t('errors.emailNotConfirmed'))
       } else {
-        router.push(redirect)
+        setError(t('errors.generic'))
       }
-    } catch {
-      setError(t('errors.generic'))
+    } else {
+      router.push(redirect)
     }
   }
 
@@ -173,40 +157,22 @@ export default function LoginPage() {
 
         {/* Formulaire */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Prénom */}
+          {/* Email */}
           <div>
-            <label htmlFor="firstName" className="block text-aurora-300 text-sm font-semibold mb-2">
-              {t('firstName')}
+            <label htmlFor="email" className="block text-aurora-300 text-sm font-semibold mb-2">
+              {t('email')}
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-aurora-400" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-aurora-400" />
               <input
-                id="firstName"
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="input-field w-full" style={{ paddingLeft: '2.75rem' }}
-                placeholder={t('firstNamePlaceholder')}
-                autoComplete="given-name"
-              />
-            </div>
-          </div>
-
-          {/* Nom */}
-          <div>
-            <label htmlFor="lastName" className="block text-aurora-300 text-sm font-semibold mb-2">
-              {t('lastName')}
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-aurora-400" />
-              <input
-                id="lastName"
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="input-field w-full" style={{ paddingLeft: '2.75rem' }}
-                placeholder={t('lastNamePlaceholder')}
-                autoComplete="family-name"
+                placeholder="nom@exemple.com"
+                autoComplete="email"
+                autoFocus
               />
             </div>
           </div>

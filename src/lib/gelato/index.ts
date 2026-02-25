@@ -29,3 +29,10 @@ export {
   GELATO_LAMINATION_OPTIONS,
   buildGelatoProductUid,
 } from './types'
+export {
+  DERIVATIVE_PRODUCTS,
+  getDerivativeProduct,
+  getDerivativeDisplayName,
+  type DerivativeProductType,
+  type DerivativeProduct,
+} from './derivatives'

@@ -70,13 +70,20 @@
       "invalidEmail": "Email invalide",
       "passwordTooShort": "Le mot de passe doit faire au moins 6 caractères",
       "passwordMismatch": "Les mots de passe ne correspondent pas",
-      "invalidCredentials": "Nom ou mot de passe incorrect",
+      "invalidCredentials": "Email ou mot de passe incorrect",
       "emailInUse": "Cet email est déjà utilisé",
       "fillAllFields": "Remplis tous les champs !",
       "selectRole": "Choisis qui tu es !",
       "nameNotFound": "Aucun compte trouvé avec ce nom",
       "multipleName": "Plusieurs comptes ont ce nom, contacte l'administrateur",
+      "emailNotConfirmed": "Ton email n'a pas encore été confirmé. Vérifie ta boîte mail.",
       "generic": "Une erreur est survenue"
+    },
+    "confirmEmail": {
+      "title": "Vérifie ta boîte mail",
+      "description": "Un email de confirmation a été envoyé à :",
+      "checkSpam": "Si tu ne le trouves pas, vérifie tes spams.",
+      "backToLogin": "Retour à la connexion"
     }
   },
   "diary": {
@@ -2617,7 +2624,7 @@
     "shop": {
       "title": "Que veux-tu faire ?",
       "printing": { "title": "Imprimer mon livre", "description": "Transforme ton histoire en vrai livre" },
-      "credits": { "title": "Crédits IA", "description": "Pour générer plus d'images et de vidéos", "comingSoon": "Bientôt disponible" },
+      "credits": { "title": "Crédits IA", "description": "Pour générer plus d'images et de vidéos" },
       "gifts": { "title": "Cadeaux", "description": "Poster, t-shirt, mug... avec tes illustrations", "comingSoon": "Bientôt disponible" }
     },
     "steps": {
@@ -2637,7 +2644,8 @@
       "createdAt": "Créé le {date}",
       "selected": "Sélectionné",
       "format": "Format : {format}",
-      "chooseOptions": "Choisir les options"
+      "chooseOptions": "Choisir les options",
+      "chooseGift": "Choisir un cadeau"
     },
     "chooseFormat": {
       "title": "Options d'impression",
@@ -2746,6 +2754,8 @@
       "paper": "Papier",
       "finish": "Finition",
       "calculatingPrice": "Calcul du prix...",
+      "bookPrice": "Prix du livre",
+      "shippingIncluded": "Livraison incluse",
       "printing": "Impression",
       "shippingCountry": "Livraison ({country})",
       "total": "Total",
@@ -2782,11 +2792,79 @@
       "deliveryIn": "Livraison en {min}-{max} jours",
       "ordering": "Commande en cours...",
       "confirmOrder": "Confirmer la commande",
-      "securePayment": "Paiement sécurisé • Livraison par Gelato",
+      "securePayment": "Paiement sécurisé via Stripe",
       "successTitle": "Commande passée !",
       "successDesc": "Ton livre est en cours de préparation. Tu recevras un email de confirmation.",
       "orderNumber": "N° de commande",
-      "status": "Statut"
+      "status": "Statut",
+      "redirectingToStripe": "Redirection vers le paiement...",
+      "payWithStripe": "Payer avec Stripe",
+      "addToCart": "Ajouter au panier",
+      "addToCartTitle": "Ajouter au panier",
+      "addToCartDesc": "Ajoute ce livre à ton panier",
+      "addedToCart": "Ajouté au panier !",
+      "continueShopping": "Continuer mes achats",
+      "viewCart": "Voir le panier"
+    },
+    "creditsShop": {
+      "title": "Crédits IA",
+      "description": "Chaque crédit te permet de générer une illustration avec l'IA",
+      "credits": "crédits",
+      "buyPack": "Acheter 60 crédits",
+      "perCredit": "{price} / crédit",
+      "balance": "{count} crédits",
+      "noCredits": "Plus de crédits",
+      "insufficientCredits": "Tu n'as plus de crédits. Achète un pack pour continuer à créer !",
+      "buyCredits": "Acheter des crédits",
+      "creditsRemaining": "{count} crédits restants",
+      "videoCost": "Une vidéo coûte 3 crédits",
+      "notEnoughForVideo": "Une vidéo coûte {cost} crédits (tu en as {balance})"
+    },
+    "derivatives": {
+      "title": "Cadeaux personnalisés",
+      "description": "Choisis un cadeau avec les illustrations de ton histoire",
+      "credit": "crédit IA"
+    },
+    "illustrations": {
+      "title": "Choisis tes illustrations",
+      "singleSelectDesc": "Sélectionne l'illustration que tu préfères",
+      "multiSelectDesc": "Sélectionne jusqu'à {max} illustrations",
+      "coloringDesc": "Toutes les illustrations seront converties en coloriage",
+      "empty": "Pas d'illustrations",
+      "emptyDesc": "Cette histoire n'a pas encore d'illustrations. Ajoute des images dans le mode Écriture.",
+      "selected": "sélectionnée(s)"
+    },
+    "coloring": {
+      "converting": "Conversion des illustrations en coloriage…",
+      "generatingTitle": "Création du livre de coloriage",
+      "generating": "Génération en cours…"
+    },
+    "cart": {
+      "title": "Mon panier",
+      "description": "Vérifie ta commande avant de payer",
+      "empty": "Panier vide",
+      "emptyDesc": "Ajoute un livre ou des cadeaux depuis la boutique",
+      "bookItem": "Livre imprimé",
+      "subtotal": "Sous-total",
+      "shipping": "Livraison",
+      "shippingFree": "Offerte (incluse avec le livre)",
+      "shippingCalculating": "Calcul en cours...",
+      "shippingCalculated": "Calculée au paiement",
+      "total": "Total",
+      "pay": "Payer"
+    },
+    "checkoutSuccess": {
+      "title": "Commande confirmée !",
+      "description": "Merci pour ta commande ! Ton paiement a bien été reçu et ta commande est en cours de préparation.",
+      "productionInfo": "Ta commande sera produite et expédiée sous 5 à 7 jours ouvrés.",
+      "emailInfo": "Tu recevras un email de confirmation avec le suivi de livraison.",
+      "continueShopping": "Continuer mes achats",
+      "backToStories": "Retour à mes histoires"
+    },
+    "stripe": {
+      "checkoutSuccess": "Paiement réussi !",
+      "checkoutCancelled": "Paiement annulé",
+      "processingOrder": "Ta commande est en cours de traitement..."
     },
     "nav": {
       "back": "Retour",

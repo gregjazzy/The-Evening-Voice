@@ -70,13 +70,20 @@
       "invalidEmail": "Неверная почта",
       "passwordTooShort": "Пароль должен быть не менее 6 символов",
       "passwordMismatch": "Пароли не совпадают",
-      "invalidCredentials": "Неверное имя или пароль",
+      "invalidCredentials": "Неверная почта или пароль",
       "emailInUse": "Эта почта уже используется",
       "fillAllFields": "Заполни все поля!",
       "selectRole": "Выбери кто ты!",
       "nameNotFound": "Аккаунт с таким именем не найден",
       "multipleName": "Несколько аккаунтов с таким именем, обратитесь к администратору",
+      "emailNotConfirmed": "Почта ещё не подтверждена. Проверь входящие.",
       "generic": "Произошла ошибка"
+    },
+    "confirmEmail": {
+      "title": "Проверь почту",
+      "description": "Письмо с подтверждением отправлено на:",
+      "checkSpam": "Если не нашёл, проверь папку «Спам».",
+      "backToLogin": "Вернуться к входу"
     }
   },
   "diary": {
@@ -2617,7 +2624,7 @@
     "shop": {
       "title": "Что ты хочешь сделать?",
       "printing": { "title": "Напечатать книгу", "description": "Преврати историю в настоящую книгу" },
-      "credits": { "title": "Кредиты ИИ", "description": "Генерируй больше картинок и видео", "comingSoon": "Скоро" },
+      "credits": { "title": "Кредиты ИИ", "description": "Генерируй больше картинок и видео" },
       "gifts": { "title": "Подарки", "description": "Постер, футболка, кружка... с твоими рисунками", "comingSoon": "Скоро" }
     },
     "steps": {
@@ -2637,7 +2644,8 @@
       "createdAt": "Создано {date}",
       "selected": "Выбрано",
       "format": "Формат: {format}",
-      "chooseOptions": "Выбрать параметры"
+      "chooseOptions": "Выбрать параметры",
+      "chooseGift": "Выбрать подарок"
     },
     "chooseFormat": {
       "title": "Параметры печати",
@@ -2746,6 +2754,8 @@
       "paper": "Бумага",
       "finish": "Отделка",
       "calculatingPrice": "Расчёт цены...",
+      "bookPrice": "Цена книги",
+      "shippingIncluded": "Доставка включена",
       "printing": "Печать",
       "shippingCountry": "Доставка ({country})",
       "total": "Итого",
@@ -2782,11 +2792,79 @@
       "deliveryIn": "Доставка за {min}-{max} дней",
       "ordering": "Оформление заказа...",
       "confirmOrder": "Подтвердить заказ",
-      "securePayment": "Безопасная оплата • Доставка через Gelato",
+      "securePayment": "Безопасная оплата через Stripe",
       "successTitle": "Заказ оформлен!",
       "successDesc": "Твоя книга готовится. Ты получишь письмо с подтверждением.",
       "orderNumber": "Номер заказа",
-      "status": "Статус"
+      "status": "Статус",
+      "redirectingToStripe": "Перенаправление на оплату...",
+      "payWithStripe": "Оплатить через Stripe",
+      "addToCart": "В корзину",
+      "addToCartTitle": "В корзину",
+      "addToCartDesc": "Добавь эту книгу в корзину",
+      "addedToCart": "Добавлено в корзину!",
+      "continueShopping": "Продолжить покупки",
+      "viewCart": "Перейти в корзину"
+    },
+    "creditsShop": {
+      "title": "Кредиты ИИ",
+      "description": "Каждый кредит позволяет сгенерировать одну иллюстрацию с ИИ",
+      "credits": "кредитов",
+      "buyPack": "Купить 60 кредитов",
+      "perCredit": "{price} / кредит",
+      "balance": "{count} кредитов",
+      "noCredits": "Кредиты закончились",
+      "insufficientCredits": "У тебя закончились кредиты. Купи пакет, чтобы продолжить создавать!",
+      "buyCredits": "Купить кредиты",
+      "creditsRemaining": "{count} кредитов осталось",
+      "videoCost": "Видео стоит 3 кредита",
+      "notEnoughForVideo": "Видео стоит {cost} кредитов (у тебя {balance})"
+    },
+    "derivatives": {
+      "title": "Подарки",
+      "description": "Выбери подарок с иллюстрациями из истории",
+      "credit": "кредит ИИ"
+    },
+    "illustrations": {
+      "title": "Выбери иллюстрации",
+      "singleSelectDesc": "Выбери любимую иллюстрацию",
+      "multiSelectDesc": "Выбери до {max} иллюстраций",
+      "coloringDesc": "Все иллюстрации будут превращены в раскраски",
+      "empty": "Нет иллюстраций",
+      "emptyDesc": "В этой истории пока нет иллюстраций. Добавь их в режиме Письма.",
+      "selected": "выбрано"
+    },
+    "coloring": {
+      "converting": "Конвертация иллюстраций в раскраски…",
+      "generatingTitle": "Создание книги-раскраски",
+      "generating": "Генерация…"
+    },
+    "cart": {
+      "title": "Моя корзина",
+      "description": "Проверь заказ перед оплатой",
+      "empty": "Корзина пуста",
+      "emptyDesc": "Добавь книгу или подарки из магазина",
+      "bookItem": "Печатная книга",
+      "subtotal": "Подитог",
+      "shipping": "Доставка",
+      "shippingFree": "Бесплатно (включена в книгу)",
+      "shippingCalculating": "Расчёт...",
+      "shippingCalculated": "Рассчитывается при оплате",
+      "total": "Итого",
+      "pay": "Оплатить"
+    },
+    "checkoutSuccess": {
+      "title": "Заказ подтверждён!",
+      "description": "Спасибо за заказ! Оплата получена, и заказ готовится к отправке.",
+      "productionInfo": "Заказ будет изготовлен и отправлен в течение 5-7 рабочих дней.",
+      "emailInfo": "Ты получишь письмо с подтверждением и номером отслеживания.",
+      "continueShopping": "Продолжить покупки",
+      "backToStories": "Вернуться к историям"
+    },
+    "stripe": {
+      "checkoutSuccess": "Оплата прошла успешно!",
+      "checkoutCancelled": "Оплата отменена",
+      "processingOrder": "Твой заказ обрабатывается..."
     },
     "nav": {
       "back": "Назад",

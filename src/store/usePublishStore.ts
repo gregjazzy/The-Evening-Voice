@@ -1,7 +1,8 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { Story } from './useAppStore'
 import { exportToPDF, checkImageQuality, type ImageQualityResult } from '@/lib/export/pdf'
-import type { GelatoPaperType, GelatoLamination } from '@/lib/gelato'
+import type { GelatoPaperType, GelatoLamination, DerivativeProductType } from '@/lib/gelato'
 import { GELATO_PAPER_OPTIONS, GELATO_LAMINATION_OPTIONS } from '@/lib/gelato'
 
 // ============================================================================
@@ -41,9 +42,9 @@ export const BOOK_FORMATS: BookFormatConfig[] = [
     bleedMm: 3,
     safeZoneMm: 5,
     spineMarginMm: 10,
-    minPages: 20,
+    minPages: 30,
     maxPages: 120,
-    priceEstimate: '15-25€',
+    priceEstimate: '34,99€',
     recommended: true,
     icon: '📕',
   },
@@ -56,9 +57,9 @@ export const BOOK_FORMATS: BookFormatConfig[] = [
     bleedMm: 3,
     safeZoneMm: 5,
     spineMarginMm: 10,
-    minPages: 20,
+    minPages: 30,
     maxPages: 80,
-    priceEstimate: '20-35€',
+    priceEstimate: '49,99€',
     recommended: false,
     icon: '📗',
   },
@@ -71,9 +72,9 @@ export const BOOK_FORMATS: BookFormatConfig[] = [
     bleedMm: 3,
     safeZoneMm: 5,
     spineMarginMm: 12,
-    minPages: 24,
+    minPages: 30,
     maxPages: 200,
-    priceEstimate: '15-25€',
+    priceEstimate: '34,99€',
     recommended: false,
     icon: '📘',
   },
@@ -86,9 +87,9 @@ export const BOOK_FORMATS: BookFormatConfig[] = [
     bleedMm: 3,
     safeZoneMm: 5,
     spineMarginMm: 12,
-    minPages: 24,
+    minPages: 30,
     maxPages: 100,
-    priceEstimate: '15-25€',
+    priceEstimate: '34,99€',
     recommended: false,
     icon: '📓',
   },
@@ -225,16 +226,69 @@ export interface ShippingAddress {
 // ÉTAT DU STORE
 // ============================================================================
 
-export type PublishStep = 'shop-home' | 'select-story' | 'choose-format' | 'quality-check' | 'order'
+export type PublishStep =
+  | 'shop-home' | 'select-story' | 'choose-format' | 'design-cover' | 'preview'
+  | 'quality-check' | 'order' | 'credits'
+  | 'select-derivative' | 'choose-illustration' | 'cart' | 'checkout-success'
+
+// ============================================================================
+// PANIER
+// ============================================================================
+
+export interface CartItem {
+  id: string                       // UUID unique
+  type: 'book' | DerivativeProductType
+  productUid: string               // UID Gelato
+  priceCents: number               // Prix de vente unitaire (sans port)
+  quantity: number                 // Quantité (défaut 1)
+  label: string                    // Nom affiché
+  imageUrls: string[]              // Illustrations sélectionnées
+  // Spécifique livre :
+  bookData?: {
+    format: BookFormat
+    coverType: CoverType
+    paperType: string
+    lamination: string
+    pageCount: number
+    pdfUrl: string
+    pdfFilePath: string
+    gelatoQuote: GelatoQuoteResult
+  }
+  // Spécifique coloriage :
+  coloringBookPdfUrl?: string
+}
 
 interface PublishState {
   // Étape courante
   currentStep: PublishStep
   setCurrentStep: (step: PublishStep) => void
-  
+
   // Histoire sélectionnée
   selectedStory: Story | null
   setSelectedStory: (story: Story | null) => void
+
+  // Panier
+  cart: CartItem[]
+  addToCart: (item: CartItem) => void
+  removeFromCart: (id: string) => void
+  updateCartItemQuantity: (id: string, quantity: number) => void
+  clearCart: () => void
+  cartShippingCost: number | null   // Coût livraison Gelato en euros (sans marge)
+  isCalculatingShipping: boolean
+  setCartShippingCost: (cost: number | null) => void
+  setIsCalculatingShipping: (v: boolean) => void
+
+  // Flow en cours (livre ou dérivés)
+  shopFlow: 'book' | 'derivatives' | null
+  setShopFlow: (flow: 'book' | 'derivatives' | null) => void
+
+  // Produit dérivé en cours de configuration
+  selectedDerivativeType: DerivativeProductType | null
+  setSelectedDerivativeType: (type: DerivativeProductType | null) => void
+
+  // Illustrations sélectionnées pour produit dérivé
+  selectedIllustrations: string[]
+  setSelectedIllustrations: (urls: string[]) => void
   
   // Format choisi
   selectedFormat: BookFormat
@@ -320,10 +374,18 @@ const DEFAULT_SHIPPING_ADDRESS: ShippingAddress = {
   phone: '',
 }
 
-export const usePublishStore = create<PublishState>((set, get) => ({
+export const usePublishStore = create<PublishState>()(persist((set, get) => ({
   // État initial
   currentStep: 'shop-home',
   selectedStory: null,
+
+  // Panier
+  cart: [],
+  cartShippingCost: null,
+  isCalculatingShipping: false,
+  shopFlow: null,
+  selectedDerivativeType: null,
+  selectedIllustrations: [],
   selectedFormat: 'square-21',
   coverType: 'softcover',
   paperType: '170-gsm-coated-silk' as GelatoPaperType,
@@ -349,7 +411,29 @@ export const usePublishStore = create<PublishState>((set, get) => ({
 
   // Actions
   setCurrentStep: (step) => set({ currentStep: step }),
-  
+
+  // Panier actions
+  addToCart: (item) => set((state) => ({
+    cart: [...state.cart, item],
+  })),
+  removeFromCart: (id) => set((state) => ({
+    cart: state.cart.filter(i => i.id !== id),
+    // Reset shipping quand le panier change
+    cartShippingCost: null,
+  })),
+  updateCartItemQuantity: (id, quantity) => set((state) => ({
+    cart: quantity <= 0
+      ? state.cart.filter(i => i.id !== id)
+      : state.cart.map(i => i.id === id ? { ...i, quantity } : i),
+    cartShippingCost: null,
+  })),
+  clearCart: () => set({ cart: [], cartShippingCost: null }),
+  setCartShippingCost: (cost) => set({ cartShippingCost: cost }),
+  setIsCalculatingShipping: (v) => set({ isCalculatingShipping: v }),
+  setShopFlow: (flow) => set({ shopFlow: flow }),
+  setSelectedDerivativeType: (type) => set({ selectedDerivativeType: type }),
+  setSelectedIllustrations: (urls) => set({ selectedIllustrations: urls }),
+
   setSelectedStory: (story) => set({ 
     selectedStory: story,
     // Pré-remplir le format depuis l'histoire si disponible
@@ -430,7 +514,8 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     
     // 3. Vérifier la résolution des images (VRAIE vérification DPI)
     let lowDpiCount = 0
-    for (const [pageIndex, page] of story.pages.entries()) {
+    for (let pageIndex = 0; pageIndex < story.pages.length; pageIndex++) {
+      const page = story.pages[pageIndex]
       // Vérifier les images sur la page
       if (page.images) {
         for (const img of page.images) {
@@ -773,6 +858,14 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   reset: () => set({
     currentStep: 'shop-home',
     selectedStory: null,
+    // Panier
+    cart: [],
+    cartShippingCost: null,
+    isCalculatingShipping: false,
+    shopFlow: null,
+    selectedDerivativeType: null,
+    selectedIllustrations: [],
+    // Livre
     selectedFormat: 'square-21',
     coverType: 'softcover',
     paperType: '170-gsm-coated-silk' as GelatoPaperType,
@@ -795,5 +888,12 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     isOrdering: false,
     orderResult: null,
     orderError: null,
+  }),
+}), {
+  name: 'lvds-cart',
+  // Ne persister que le panier et l'adresse — pas l'état transitoire
+  partialize: (state) => ({
+    cart: state.cart,
+    shippingAddress: state.shippingAddress,
   }),
 }))

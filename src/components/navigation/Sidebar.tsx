@@ -25,6 +25,7 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { useAppStore, type AppMode } from '@/store/useAppStore'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useMentorStore } from '@/store/useMentorStore'
 import { useAdminStore } from '@/store/useAdminStore'
 import { ConnectionModal } from '@/components/mentor/ConnectionModal'
@@ -84,6 +85,7 @@ export function Sidebar() {
   const t = useTranslations('nav')
   const { currentMode, setCurrentMode, currentStory, stories, setCurrentStory, deleteStory } = useAppStore()
   const { isConnected, role, connectedUsers, disconnect } = useMentorStore()
+  const { profile } = useAuthStore()
   const { isSuperAdmin, userFamilyInfo } = useAdminStore()
   const [showConnectionModal, setShowConnectionModal] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
@@ -257,6 +259,25 @@ export function Sidebar() {
             )}
           </AnimatePresence>
         </div>
+
+        {/* Credit balance badge */}
+        {profile && (profile as any).credit_balance !== undefined && (
+          <motion.div
+            className="w-full px-2 lg:px-3 mb-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className={cn(
+              'w-full px-2 py-1.5 rounded-lg flex items-center justify-center gap-1 text-xs',
+              (profile as any).credit_balance > 0
+                ? 'bg-violet-500/15 text-violet-300 border border-violet-500/20'
+                : 'bg-midnight-800/50 text-midnight-500 border border-midnight-700/50'
+            )}>
+              <Sparkles className="w-3 h-3" />
+              <span className="font-medium">{(profile as any).credit_balance ?? 0}</span>
+            </div>
+          </motion.div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 flex flex-col gap-1 lg:gap-2 w-full px-2 lg:px-3">
