@@ -504,7 +504,7 @@ export function TheaterMode() {
                     <img
                       src={media.url}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl brightness-[0.65]"
+                      className="absolute inset-0 w-full h-full object-cover scale-150 blur-lg brightness-[0.55]"
                     />
                   )}
                   {/* Image principale (légèrement zoomée, centrée) */}
@@ -512,7 +512,7 @@ export function TheaterMode() {
                     {media.type === 'video' ? (
                       <video
                         src={media.url}
-                        className="max-w-full max-h-full object-contain scale-105"
+                        className="max-w-full max-h-full object-contain scale-[1.15]"
                         autoPlay
                         loop={false}
                         muted
@@ -524,7 +524,7 @@ export function TheaterMode() {
                         }}
                       />
                     ) : (
-                      <img src={media.url} alt="" className="max-w-full max-h-full object-contain scale-105" />
+                      <img src={media.url} alt="" className="max-w-full max-h-full object-contain scale-[1.15]" />
                     )}
                   </div>
                 </>
