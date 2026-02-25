@@ -4295,19 +4295,48 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
   // Appliquer une couleur au texte sélectionné ou au curseur
   const applyColor = (color: string) => {
     isFormattingRef.current = true
-    
+
     // Vérifier s'il y a une sélection
     const selection = window.getSelection()
     const hasSelection = selection && selection.rangeCount > 0 && !selection.isCollapsed
-    
+
     if (hasSelection) {
-      // Sélection active : utiliser execCommand
-      document.execCommand('foreColor', false, color)
+      if (color === 'transparent') {
+        // execCommand('foreColor') ne supporte pas 'transparent'
+        // → on wrap manuellement la sélection dans un span
+        const range = selection!.getRangeAt(0)
+        const fragment = range.extractContents()
+        // Retirer les couleurs existantes des éléments enfants
+        const tempDiv = document.createElement('div')
+        tempDiv.appendChild(fragment)
+        tempDiv.querySelectorAll('font[color]').forEach(el => {
+          el.replaceWith(...Array.from(el.childNodes))
+        })
+        tempDiv.querySelectorAll('[style]').forEach(el => {
+          (el as HTMLElement).style.color = ''
+        })
+        const span = document.createElement('span')
+        span.style.color = 'transparent'
+        span.innerHTML = tempDiv.innerHTML
+        range.insertNode(span)
+        // Replacer le curseur après le span
+        selection!.removeAllRanges()
+        const newRange = document.createRange()
+        newRange.selectNodeContents(span)
+        newRange.collapse(false)
+        selection!.addRange(newRange)
+        // Déclencher un événement input
+        const editor = span.closest?.('[contenteditable="true"]')
+        editor?.dispatchEvent(new Event('input', { bubbles: true }))
+      } else {
+        // Sélection active : utiliser execCommand
+        document.execCommand('foreColor', false, color)
+      }
     } else {
       // Pas de sélection : insérer un span stylé au curseur (comportement Word)
       insertStyledSpanAtCursor({ color })
     }
-    
+
     setLastUsedColor(color)
     setShowColors(false)
     setTimeout(() => { isFormattingRef.current = false }, 50)
@@ -4760,7 +4789,7 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                       style={{ background: 'repeating-conic-gradient(#ccc 0% 25%, #888 0% 50%) 50%/6px 6px', border: '1px solid #888' }}
                       title="Transparent"
                     />
-                    {['#ffffff', '#e5e5e5', '#a3a3a3', '#737373', '#525252', '#262626', '#000000'].map((color) => (
+                    {['#ffffff', '#a3a3a3', '#737373', '#525252', '#262626', '#000000'].map((color) => (
           <button
                         key={color}
                         onMouseDown={(e) => e.preventDefault()}

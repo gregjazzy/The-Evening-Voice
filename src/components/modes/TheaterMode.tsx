@@ -17,11 +17,13 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-react'
 import { useMontageStore, type MontageProject } from '@/store/useMontageStore'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { cn } from '@/lib/utils'
 import { useTranslations } from '@/lib/i18n/context'
+import { useVideoExport } from '@/hooks/useVideoExport'
 
 export function TheaterMode() {
   const { isFirstVisit, markAsSeen } = useFirstVisit('theater')
@@ -31,6 +33,14 @@ export function TheaterMode() {
   useEffect(() => { setIsMounted(true) }, [])
 
   const { projects } = useMontageStore()
+  const {
+    isExporting,
+    progress: exportProgress,
+    currentScene: exportCurrentScene,
+    totalScenes: exportTotalScenes,
+    startExport,
+    cancelExport,
+  } = useVideoExport()
 
   // États du théâtre
   const [selectedProject, setSelectedProject] = useState<MontageProject | null>(null)
@@ -366,35 +376,51 @@ export function TheaterMode() {
                 const coverImage = firstMedia?.type === 'image' ? firstMedia.url : undefined
 
                 return (
-                  <motion.button
+                  <motion.div
                     key={project.id}
-                    onClick={() => handleStartShow(project)}
                     className="group relative aspect-[3/4] rounded-2xl overflow-hidden glass hover:ring-2 hover:ring-aurora-500 transition-all"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                     whileHover={{ scale: 1.02, y: -5 }}
                   >
-                    {coverImage ? (
-                      <img src={coverImage} alt={project.title} className="absolute inset-0 w-full h-full object-cover" />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-aurora-600 to-dream-700 flex items-center justify-center">
-                        <Film className="w-16 h-16 text-white/30" />
+                    <button
+                      onClick={() => handleStartShow(project)}
+                      className="absolute inset-0 w-full h-full"
+                    >
+                      {coverImage ? (
+                        <img src={coverImage} alt={project.title} className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-aurora-600 to-dream-700 flex items-center justify-center">
+                          <Film className="w-16 h-16 text-white/30" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-4 text-left">
+                        <h3 className="font-display text-lg text-white mb-1">{project.title}</h3>
+                        <p className="text-sm text-midnight-300">
+                          {project.scenes.length} {project.scenes.length > 1 ? 'pages' : 'page'}
+                        </p>
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <h3 className="font-display text-lg text-white mb-1">{project.title}</h3>
-                      <p className="text-sm text-midnight-300">
-                        {project.scenes.length} {project.scenes.length > 1 ? 'pages' : 'page'}
-                      </p>
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="w-16 h-16 rounded-full bg-aurora-500/90 flex items-center justify-center">
-                        <Play className="w-8 h-8 text-white ml-1" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-16 h-16 rounded-full bg-aurora-500/90 flex items-center justify-center">
+                          <Play className="w-8 h-8 text-white ml-1" />
+                        </div>
                       </div>
-                    </div>
-                  </motion.button>
+                    </button>
+                    {/* Export video button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        startExport(project)
+                      }}
+                      disabled={isExporting}
+                      className="absolute top-3 right-3 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-aurora-500/80 text-white/70 hover:text-white flex items-center justify-center transition-all backdrop-blur-sm border border-white/20 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                      title="Exporter en vidéo"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                  </motion.div>
                 )
               })}
             </div>
@@ -406,6 +432,30 @@ export function TheaterMode() {
             </div>
           )}
         </div>
+
+        {/* Export progress overlay */}
+        {isExporting && (
+          <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <Film className="w-12 h-12 text-aurora-500 mx-auto animate-pulse" />
+              <p className="text-white text-xl">Export en cours...</p>
+              <p className="text-midnight-400">Scène {exportCurrentScene}/{exportTotalScenes}</p>
+              <div className="w-64 h-2 bg-midnight-800 rounded-full overflow-hidden mx-auto">
+                <div
+                  className="h-full bg-aurora-500 transition-all duration-300"
+                  style={{ width: `${exportProgress}%` }}
+                />
+              </div>
+              <p className="text-midnight-500 text-sm">{Math.round(exportProgress)}%</p>
+              <button
+                onClick={cancelExport}
+                className="text-red-400 hover:text-red-300 text-sm mt-2 transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
 
         <ModeIntroModal mode="theater" isOpen={isFirstVisit} onClose={markAsSeen} />
       </div>
