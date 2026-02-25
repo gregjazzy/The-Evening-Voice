@@ -301,7 +301,7 @@ export function MontageEditor() {
                             loadProject(existing.id)
                           } else {
                             // Récupérer pages depuis localStorage
-                            let pagesWithContent: Array<{id: string, title?: string, content?: string, order?: number, pageType?: string, images?: { url: string; type?: 'image' | 'video' }[], backgroundMedia?: { url: string; type?: 'image' | 'video' }}> = []
+                            let pagesWithContent: Array<{id: string, title?: string, content?: string, order?: number, pageType?: string, images?: { url: string; type?: 'image' | 'video' }[], backgroundMedia?: { url: string; type?: 'image' | 'video' }, textBoxes?: any[]}> = []
                             try {
                               const localData = JSON.parse(localStorage.getItem('lavoixdusoir-storage') || '{}')
                               const localStory = localData.state?.stories?.find((s: { id: string }) => s.id === story.id)
@@ -320,6 +320,7 @@ export function MontageEditor() {
                                   text: p.content || (isCover ? story.title : ''),
                                   images: p.images,
                                   backgroundMedia: p.backgroundMedia,
+                                  textBoxes: (p as any).textBoxes,
                                 }
                               })
 

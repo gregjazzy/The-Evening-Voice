@@ -539,6 +539,40 @@ export function TheaterMode() {
             {/* Overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 z-10" />
 
+            {/* Text boxes */}
+            {currentScene.textBoxes?.map((tb) => (
+              <div
+                key={tb.id}
+                className="absolute z-15"
+                style={{
+                  left: `${tb.position.x}%`,
+                  top: `${tb.position.y}%`,
+                  width: `${tb.position.width}%`,
+                  minHeight: `${tb.position.height}%`,
+                  transform: tb.rotation ? `rotate(${tb.rotation}deg)` : undefined,
+                  zIndex: tb.zIndex + 10,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: tb.style.fontFamily,
+                    fontSize: `${tb.style.fontSize}px`,
+                    color: tb.style.color,
+                    textAlign: tb.style.textAlign,
+                    fontWeight: tb.style.isBold ? 'bold' : 'normal',
+                    fontStyle: tb.style.isItalic ? 'italic' : 'normal',
+                    lineHeight: tb.style.lineSpacing === 'tight' ? 1.2 : tb.style.lineSpacing === 'relaxed' ? 1.8 : typeof tb.style.lineSpacing === 'number' ? tb.style.lineSpacing : 1.5,
+                    backgroundColor: tb.style.backgroundColor
+                      ? `rgba(${parseInt(tb.style.backgroundColor.slice(1, 3), 16)}, ${parseInt(tb.style.backgroundColor.slice(3, 5), 16)}, ${parseInt(tb.style.backgroundColor.slice(5, 7), 16)}, ${tb.style.backgroundOpacity || 0.8})`
+                      : 'transparent',
+                    padding: '8px',
+                    textShadow: tb.style.color !== 'transparent' ? '1px 1px 8px rgba(0,0,0,0.7)' : 'none',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: tb.content }}
+                />
+              </div>
+            ))}
+
             {/* Texte de la page */}
             <div className="absolute inset-0 flex items-end justify-center p-8 pb-32 z-20">
               <motion.div

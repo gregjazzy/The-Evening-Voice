@@ -119,6 +119,25 @@ export interface MusicTrack {
 /**
  * Une page/scène du livre
  */
+export interface SceneTextBox {
+  id: string
+  content: string
+  position: { x: number; y: number; width: number; height: number }
+  style: {
+    fontFamily: string
+    fontSize: number
+    color: string
+    backgroundColor?: string
+    backgroundOpacity?: number
+    textAlign: 'left' | 'center' | 'right'
+    isBold?: boolean
+    isItalic?: boolean
+    lineSpacing?: 'tight' | 'normal' | 'relaxed' | number
+  }
+  zIndex: number
+  rotation?: number
+}
+
 export interface MontageScene {
   id: string
   bookPageId: string
@@ -130,6 +149,7 @@ export interface MontageScene {
   mediaTracks: MediaTrack[]
   musicTracks: MusicTrack[]
   soundTracks: SoundTrack[]
+  textBoxes?: SceneTextBox[]
   displayDuration?: number  // Durée d'affichage en secondes (pour pages sans narration)
 }
 
@@ -199,7 +219,7 @@ interface MontageState {
   projects: MontageProject[]
 
   // === ACTIONS PROJET ===
-  createProject: (storyId: string, title: string, pages: { id: string; title: string; text: string; images?: { url: string; type?: 'image' | 'video' }[]; backgroundMedia?: { url: string; type?: 'image' | 'video' } }[]) => MontageProject
+  createProject: (storyId: string, title: string, pages: { id: string; title: string; text: string; images?: { url: string; type?: 'image' | 'video' }[]; backgroundMedia?: { url: string; type?: 'image' | 'video' }; textBoxes?: SceneTextBox[] }[]) => MontageProject
   loadProject: (projectId: string) => void
   closeProject: () => void
   updateProject: (updates: Partial<MontageProject>) => void
@@ -297,6 +317,7 @@ export const useMontageStore = create<MontageState>()(
           mediaTracks,
           musicTracks: [],
           soundTracks: [],
+          textBoxes: page.textBoxes,
         }
       })
 
