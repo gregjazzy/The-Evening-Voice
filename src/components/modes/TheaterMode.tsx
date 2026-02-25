@@ -461,12 +461,12 @@ export function TheaterMode() {
                       className="absolute inset-0 w-full h-full object-cover scale-150 blur-lg brightness-[0.55]"
                     />
                   )}
-                  {/* Image principale (légèrement zoomée, centrée) */}
-                  <div className="absolute inset-0 flex items-center justify-center">
+                  {/* Image principale — remplit davantage l'écran */}
+                  <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
                     {media.type === 'video' ? (
                       <video
                         src={media.url}
-                        className="max-w-full max-h-full object-contain scale-[1.15]"
+                        className="w-[115%] h-[115%] object-contain"
                         autoPlay
                         loop={false}
                         muted
@@ -478,7 +478,7 @@ export function TheaterMode() {
                         }}
                       />
                     ) : (
-                      <img src={media.url} alt="" className="max-w-full max-h-full object-contain scale-[1.15]" />
+                      <img src={media.url} alt="" className="w-[115%] h-[115%] object-contain" />
                     )}
                   </div>
                 </>
