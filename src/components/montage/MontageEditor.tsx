@@ -51,6 +51,14 @@ function PageThumb({ scene, index, isActive, canDelete, isPlaying, onClick, onDe
   const hasAnyAudio = hasAudio || hasMusic || hasSounds
   const coverMedia = scene.mediaTracks?.[0]
 
+  // Durée de la scène (même calcul que TheaterMode)
+  const sceneDuration = hasAudio && scene.narration.duration > 0
+    ? 3 + scene.narration.duration + 5  // NARRATION_DELAY + duration + LINGER_AFTER
+    : scene.displayDuration || 5
+  const durationStr = sceneDuration >= 60
+    ? `${Math.floor(sceneDuration / 60)}:${String(Math.round(sceneDuration % 60)).padStart(2, '0')}`
+    : `${Math.round(sceneDuration)}s`
+
   return (
     <div className="group/thumb relative">
       <button
@@ -138,6 +146,11 @@ function PageThumb({ scene, index, isActive, canDelete, isPlaying, onClick, onDe
           isActive ? 'bg-aurora-500 text-white' : 'bg-black/60 text-white/70'
         )}>
           {index + 1}
+        </div>
+
+        {/* Durée */}
+        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/60 text-[9px] font-medium text-white/80">
+          {durationStr}
         </div>
 
         {/* Indicateurs */}
