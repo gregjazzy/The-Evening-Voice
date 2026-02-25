@@ -12,6 +12,8 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { calculateBookPrice, DERIVATIVE_PRICES, type DerivativeType } from '@/lib/stripe-config'
 
+export const dynamic = 'force-dynamic'
+
 // Service role client for inserting pending orders
 const supabaseAdmin = createSupabaseClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

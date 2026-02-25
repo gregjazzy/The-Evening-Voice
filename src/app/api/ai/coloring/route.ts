@@ -12,6 +12,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { PDFDocument } from 'pdf-lib'
 
+export const dynamic = 'force-dynamic'
+
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 const GEMINI_MODEL = 'gemini-3-pro-image-preview'
 

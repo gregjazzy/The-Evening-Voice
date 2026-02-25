@@ -208,7 +208,10 @@ interface PromptBuilderProps {
 
 export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const t = useTranslations('studio')
+  const tPublish = useTranslations('publish')
   const { currentStory } = useAppStore()
+  const { profile } = useAuthStore()
+  const creditBalance = (profile as any)?.credit_balance ?? 0
   
   const {
     currentKit,
@@ -813,11 +816,11 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
   const handleDirectGenerate = async () => {
     // 'complete' sera vérifié via le bouton disabled
     if (!currentKit || isGenerating) return
-    
+
     setIsGenerating(true)
     setGenerationError(null)
     setGeneratedAsset(null)
-    
+
     try {
       const endpoint = '/api/ai/image'
 
@@ -827,10 +830,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
         carre: '1:1',
       }
 
+      // Get profile ID for credit check
+      const profileId = useAuthStore.getState().profile?.id
+
       const requestBody = {
         description: currentKit.subject,
         aspectRatio: formatMap[currentKit.format || 'portrait'] || '3:4',
         prompt: currentKit.subject, // Prompt brut de l'enfant, tel quel
+        profileId, // For credit deduction
       }
       
       console.log('🚀 Envoi requête génération:', {
@@ -861,7 +868,20 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       }
       
       if (!response.ok) {
+        if (data.code === 'INSUFFICIENT_CREDITS') {
+          throw new Error(tPublish('creditsShop.insufficientCredits') || 'Plus de crédits IA disponibles')
+        }
         throw new Error(data.error || 'Erreur de génération')
+      }
+
+      // Update local credit balance after successful generation
+      if (data.newBalance !== undefined) {
+        const currentProfile = useAuthStore.getState().profile
+        if (currentProfile) {
+          useAuthStore.setState({
+            profile: { ...currentProfile, credit_balance: data.newBalance } as any
+          })
+        }
       }
 
       console.log('📦 Données reçues du serveur:', JSON.stringify(data, null, 2))
@@ -963,6 +983,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       const requestBody: Record<string, unknown> = {
         prompt: currentKit.subject,
         duration: '5',
+        profileId: profile?.id,
       }
       if (referenceImageUrl) {
         requestBody.imageUrl = referenceImageUrl
@@ -979,7 +1000,22 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
       let data = await response.json()
 
       if (!response.ok) {
+        if (data.code === 'INSUFFICIENT_CREDITS') {
+          setGenerationError(tPublish('creditsShop.insufficientCredits'))
+          setIsGenerating(false)
+          return
+        }
         throw new Error(data.error || 'Erreur de génération vidéo')
+      }
+
+      // Update credit balance
+      if (data.newBalance !== undefined) {
+        const currentProfile = useAuthStore.getState().profile
+        if (currentProfile) {
+          useAuthStore.setState({
+            profile: { ...currentProfile, credit_balance: data.newBalance } as any
+          })
+        }
       }
 
       // Polling pour attendre la completion
@@ -1004,11 +1040,37 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           }
 
           if (statusData.status === 'failed') {
+            // Rembourser les crédits vidéo
+            if (profile?.id) {
+              fetch('/api/ai/refund', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profileId: profile.id, amount: 3, reason: 'refund_failed_video' }),
+              }).then(res => res.json()).then(d => {
+                if (d.newBalance !== undefined) {
+                  const p = useAuthStore.getState().profile
+                  if (p) useAuthStore.setState({ profile: { ...p, credit_balance: d.newBalance } as any })
+                }
+              }).catch(() => {})
+            }
             throw new Error(statusData.error || 'La génération vidéo a échoué')
           }
         }
 
         if (data.status !== 'completed') {
+          // Rembourser les crédits vidéo (timeout)
+          if (profile?.id) {
+            fetch('/api/ai/refund', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ profileId: profile.id, amount: 3, reason: 'refund_timeout_video' }),
+            }).then(res => res.json()).then(d => {
+              if (d.newBalance !== undefined) {
+                const p = useAuthStore.getState().profile
+                if (p) useAuthStore.setState({ profile: { ...p, credit_balance: d.newBalance } as any })
+              }
+            }).catch(() => {})
+          }
           throw new Error('Timeout - la génération vidéo prend trop de temps')
         }
       }
@@ -1279,20 +1341,73 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           </div>
         )}
 
-        {/* Bouton Générer — directement après la description */}
+        {/* Credit counter */}
+        {(() => {
+          const creditCost = currentCreationType === 'video' ? 3 : 1
+          const hasEnough = creditBalance >= creditCost
+          return (
+            <motion.div
+              key={creditBalance}
+              initial={{ scale: 1.15 }}
+              animate={{ scale: 1 }}
+              className={cn(
+                'mt-4 p-4 rounded-xl text-center',
+                hasEnough
+                  ? 'bg-violet-500/10 border border-violet-500/20'
+                  : 'bg-amber-500/10 border border-amber-500/20'
+              )}
+            >
+              {hasEnough ? (
+                <>
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <Sparkles className="w-5 h-5 text-violet-400" />
+                    <span className="text-2xl font-bold text-white">{creditBalance}</span>
+                    <Sparkles className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <p className="text-sm text-violet-300">
+                    {tPublish('creditsShop.creditsRemaining', { count: creditBalance })}
+                  </p>
+                  {currentCreationType === 'video' && (
+                    <p className="mt-2 text-sm text-amber-300 font-medium">
+                      {tPublish('creditsShop.videoCost')}
+                    </p>
+                  )}
+                </>
+              ) : profile ? (
+                <>
+                  <p className="text-lg font-semibold text-amber-300 mb-1">{tPublish('creditsShop.noCredits')}</p>
+                  {currentCreationType === 'video' && creditBalance > 0 && (
+                    <p className="text-sm text-amber-300/70 mb-2">
+                      {tPublish('creditsShop.notEnoughForVideo', { cost: 3, balance: creditBalance })}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => {
+                      useAppStore.getState().setCurrentMode('publish')
+                    }}
+                    className="px-4 py-2 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-400 transition-colors"
+                  >
+                    {tPublish('creditsShop.buyCredits')}
+                  </button>
+                </>
+              ) : null}
+            </motion.div>
+          )
+        })()}
+
         <motion.button
           onClick={handleGenerate}
-          disabled={isGenerating || !complete}
+          disabled={isGenerating || !complete || (creditBalance < (currentCreationType === 'video' ? 3 : 1) && !!profile)}
           className={cn(
-            'w-full mt-4 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all',
+            'w-full mt-3 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all',
             isGenerating
               ? 'bg-aurora-500/50 text-white cursor-wait'
-              : !complete
+              : (!complete || (creditBalance < (currentCreationType === 'video' ? 3 : 1) && !!profile))
                 ? 'bg-midnight-700 text-midnight-400 cursor-not-allowed'
                 : 'bg-gradient-to-r from-aurora-500 to-dream-500 text-white hover:from-aurora-600 hover:to-dream-600'
           )}
-          whileHover={!isGenerating && complete ? { scale: 1.02 } : {}}
-          whileTap={!isGenerating && complete ? { scale: 0.98 } : {}}
+          whileHover={!isGenerating && complete && creditBalance >= (currentCreationType === 'video' ? 3 : 1) ? { scale: 1.02 } : {}}
+          whileTap={!isGenerating && complete && creditBalance >= (currentCreationType === 'video' ? 3 : 1) ? { scale: 0.98 } : {}}
         >
           {isGenerating ? (
             <>

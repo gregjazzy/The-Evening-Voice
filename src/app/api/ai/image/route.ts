@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { generateImageGemini, isGeminiImageAvailable } from '@/lib/ai/gemini-image'
 import {
   generateImageRedux,
@@ -21,6 +22,12 @@ import {
   checkReduxJobStatus,
   isFalAvailable
 } from '@/lib/ai/fal'
+
+// Supabase service client for credit operations
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 // GET - Vérifier le status d'un job fal.ai (polling legacy pour Redux/img2img)
 export async function GET(request: NextRequest) {
@@ -103,6 +110,10 @@ export async function GET(request: NextRequest) {
 
 // POST - Générer une image
 export async function POST(request: NextRequest) {
+  let profileId: string | undefined
+  let creditDeducted = false
+  let newBalance: number | undefined
+
   try {
     const body = await request.json()
     const {
@@ -116,8 +127,11 @@ export async function POST(request: NextRequest) {
       // Paramètres pour Redux (consistance personnage) — reste sur fal.ai
       referenceImageUrl,
       characterDescription,
+      // Credit system
+      profileId: bodyProfileId,
     } = body
 
+    profileId = bodyProfileId
     const finalAspectRatio = aspectRatio || '3:4'
     const promptText = fullPrompt || description
 
@@ -126,6 +140,34 @@ export async function POST(request: NextRequest) {
         { error: 'Description requise (minimum 3 caractères)' },
         { status: 400 }
       )
+    }
+
+    // 💰 Credit check & deduction
+    if (profileId) {
+      const { data: creditResult, error: creditError } = await supabase.rpc('deduct_credits', {
+        p_profile_id: profileId,
+        p_amount: 1,
+      })
+
+      if (creditError) {
+        console.error('Credit deduction error:', creditError)
+        return NextResponse.json(
+          { error: 'Erreur système de crédits', code: 'CREDIT_ERROR' },
+          { status: 500 }
+        )
+      }
+
+      const result = creditResult?.[0]
+      if (!result?.success) {
+        return NextResponse.json(
+          { error: 'Crédits insuffisants', code: 'INSUFFICIENT_CREDITS' },
+          { status: 402 }
+        )
+      }
+
+      newBalance = result.new_balance
+      creditDeducted = true
+      console.log(`💰 Credit deducted. New balance: ${newBalance}`)
     }
 
     // 🔄 Image de référence → Flux Redux via fal.ai (pas encore supporté par Gemini direct)
@@ -152,6 +194,7 @@ export async function POST(request: NextRequest) {
           status: 'pending',
           jobId: result.jobId,
           model: 'flux-img2img',
+          newBalance,
         })
       }
     }
@@ -183,15 +226,28 @@ export async function POST(request: NextRequest) {
         width: result.width,
         height: result.height,
         model: 'gemini',
+        newBalance,
       })
     }
 
-    // Échec Gemini
+    // Échec Gemini → rembourser le crédit
+    if (creditDeducted && profileId) {
+      console.log('💸 Remboursement crédit (échec Gemini)')
+      await supabase.rpc('add_credits', { p_profile_id: profileId, p_amount: 1, p_reason: 'refund_failed_generation', p_reference_id: null })
+      newBalance = (newBalance ?? 0) + 1
+    }
     return NextResponse.json(
-      { error: result.error || 'Échec de la génération Gemini' },
+      { error: result.error || 'Échec de la génération Gemini', newBalance },
       { status: 500 }
     )
   } catch (error: unknown) {
+    // Rembourser en cas d'erreur inattendue
+    if (creditDeducted && profileId) {
+      console.log('💸 Remboursement crédit (erreur inattendue)')
+      try {
+        await supabase.rpc('add_credits', { p_profile_id: profileId, p_amount: 1, p_reason: 'refund_error', p_reference_id: null })
+      } catch { /* best effort refund */ }
+    }
     console.error('Erreur API image:', error)
     const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la génération de l\'image'
     return NextResponse.json(

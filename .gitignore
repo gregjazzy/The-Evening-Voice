@@ -37,3 +37,4 @@ dist-electron/
 
 # Local Netlify folder
 .netlify
+.env.netlify
