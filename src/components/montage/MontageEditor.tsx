@@ -99,6 +99,17 @@ function PageThumb({ scene, index, isActive, canDelete, isPlaying, onClick, onDe
             </div>
           )}
 
+          {/* Texte de la scène */}
+          {scene.text && (
+            <div className="absolute inset-0 flex items-end pointer-events-none">
+              <div className="w-full bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1.5 pt-4">
+                <p className="text-[7px] leading-tight text-white/80 line-clamp-3">
+                  {scene.text}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Bouton Play/Pause overlay */}
           {hasAnyAudio && (
             <button
