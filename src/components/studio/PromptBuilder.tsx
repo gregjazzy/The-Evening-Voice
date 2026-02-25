@@ -1282,18 +1282,33 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               {t('promptBuilderUI.referenceImage')}
             </label>
             {referenceImageUrl ? (
-              <div className="relative inline-block">
-                <img
-                  src={referenceImageUrl}
-                  alt="Reference"
-                  className="w-32 h-32 object-cover rounded-xl border-2 border-aurora-500/30"
-                />
-                <button
-                  onClick={() => setReferenceImageUrl(null)}
-                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600"
-                >
-                  x
-                </button>
+              <div className="flex gap-4 items-start">
+                {/* Image sélectionnée */}
+                <div className="relative flex-shrink-0">
+                  <img
+                    src={referenceImageUrl}
+                    alt="Reference"
+                    className="w-32 h-32 object-cover rounded-xl border-2 border-aurora-500/30"
+                  />
+                  <button
+                    onClick={() => setReferenceImageUrl(null)}
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600"
+                  >
+                    x
+                  </button>
+                </div>
+                {/* Description de la scène */}
+                <div className="flex-1 min-w-0">
+                  <label className="text-xs text-midnight-400 mb-1 block">
+                    {t('promptBuilderUI.describeScene') || 'Décris la scène à animer'}
+                  </label>
+                  <textarea
+                    value={currentKit.subject}
+                    onChange={(e) => updateKit({ subject: e.target.value })}
+                    placeholder={t('promptBuilderUI.describeVideoPlaceholder')}
+                    className="w-full h-24 resize-none rounded-xl p-3 text-sm text-white placeholder:text-midnight-500 bg-midnight-900/50 border border-midnight-700/50 focus:border-aurora-500/50 focus:ring-1 focus:ring-aurora-500/30 focus:outline-none transition-all"
+                  />
+                </div>
               </div>
             ) : (
               <div className="flex gap-2 flex-wrap">
