@@ -1,5 +1,5 @@
 [build]
-  command = "npm install --include=dev && echo '--- DEBUG: checking stripe ---' && ls node_modules/stripe/package.json && node -e \"console.log('stripe version:', require('stripe/package.json').version)\" && npm run build"
+  command = "npm ci && npm run build"
   publish = ".next"
 
 [build.environment]
