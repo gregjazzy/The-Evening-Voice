@@ -202,44 +202,6 @@ function InsertButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-// =============================================================================
-// SCENE SELECTOR - Navigation rapide entre pages (header)
-// =============================================================================
-
-function SceneSelector() {
-  const { currentProject, currentSceneIndex, setCurrentScene } = useMontageStore()
-  if (!currentProject) return null
-
-  return (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => setCurrentScene(currentSceneIndex - 1)}
-        disabled={currentSceneIndex === 0}
-        className={cn(
-          'p-2 rounded-lg transition-colors',
-          currentSceneIndex === 0 ? 'text-midnight-600 cursor-not-allowed' : 'text-midnight-400 hover:text-white hover:bg-midnight-800/50'
-        )}
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-
-      <span className="text-sm text-midnight-300 font-medium">
-        {currentSceneIndex + 1} / {currentProject.scenes.length}
-      </span>
-
-      <button
-        onClick={() => setCurrentScene(currentSceneIndex + 1)}
-        disabled={currentSceneIndex === currentProject.scenes.length - 1}
-        className={cn(
-          'p-2 rounded-lg transition-colors',
-          currentSceneIndex === currentProject.scenes.length - 1 ? 'text-midnight-600 cursor-not-allowed' : 'text-midnight-400 hover:text-white hover:bg-midnight-800/50'
-        )}
-      >
-        <ChevronRight className="w-5 h-5" />
-      </button>
-    </div>
-  )
-}
 
 // =============================================================================
 // MONTAGE EDITOR - Vue par page simplifiée
@@ -537,8 +499,6 @@ export function MontageEditor() {
         </div>
 
         <div className="flex items-center gap-4">
-          <SceneSelector />
-
           {/* Bouton Sauvegarder */}
           <motion.button
             onClick={handleSave}
@@ -604,7 +564,35 @@ export function MontageEditor() {
           <div className="flex-1 flex md:flex-row flex-col gap-3 min-h-0 overflow-hidden">
             {/* Aperçu de la page */}
             <div className="md:flex-1 shrink-0 min-h-0 flex flex-col">
-              <div className="glass rounded-xl overflow-hidden flex-1 min-h-0 flex flex-col">
+              <div className="glass rounded-xl overflow-hidden flex-1 min-h-0 flex flex-col relative">
+                {/* Flèche gauche */}
+                <button
+                  onClick={() => setCurrentScene(currentSceneIndex - 1)}
+                  disabled={currentSceneIndex === 0}
+                  className={cn(
+                    'absolute left-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full transition-all',
+                    currentSceneIndex === 0
+                      ? 'text-midnight-700 cursor-not-allowed'
+                      : 'text-midnight-400 hover:text-white hover:bg-midnight-800/60 backdrop-blur-sm'
+                  )}
+                >
+                  <ChevronLeft className="w-7 h-7" />
+                </button>
+
+                {/* Flèche droite */}
+                <button
+                  onClick={() => setCurrentScene(currentSceneIndex + 1)}
+                  disabled={currentSceneIndex === currentProject.scenes.length - 1}
+                  className={cn(
+                    'absolute right-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full transition-all',
+                    currentSceneIndex === currentProject.scenes.length - 1
+                      ? 'text-midnight-700 cursor-not-allowed'
+                      : 'text-midnight-400 hover:text-white hover:bg-midnight-800/60 backdrop-blur-sm'
+                  )}
+                >
+                  <ChevronRight className="w-7 h-7" />
+                </button>
+
                 <div className="flex-1 bg-midnight-900 relative min-h-0">
                   {scene.mediaTracks?.[0] ? (
                     scene.mediaTracks[0].type === 'video' ? (
