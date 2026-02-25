@@ -4756,8 +4756,8 @@ function FormatBar({ style, onStyleChange, activePageIndex, showLines = true, on
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => applyColor('transparent')}
-                      className="w-5 h-5 rounded-sm transition-all hover:scale-110 hover:ring-1 hover:ring-white/50"
-                      style={{ background: 'repeating-conic-gradient(#555 0% 25%, transparent 0% 50%) 50%/8px 8px', border: '1px solid #525252' }}
+                      className="w-5 h-5 rounded-sm transition-all hover:scale-110 hover:ring-1 hover:ring-white/50 relative overflow-hidden"
+                      style={{ background: 'repeating-conic-gradient(#ccc 0% 25%, #888 0% 50%) 50%/6px 6px', border: '1px solid #888' }}
                       title="Transparent"
                     />
                     {['#ffffff', '#e5e5e5', '#a3a3a3', '#737373', '#525252', '#262626', '#000000'].map((color) => (
