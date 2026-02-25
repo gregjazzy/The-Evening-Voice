@@ -65,10 +65,11 @@ const nextConfig = {
       },
     })
     
-    // Exclure @imgly/background-removal côté serveur
+    // Exclure les packages serveur-only du bundle Webpack
     if (isServer) {
       config.externals = config.externals || []
       config.externals.push('@imgly/background-removal')
+      config.externals.push('stripe')
     }
     
     return config
