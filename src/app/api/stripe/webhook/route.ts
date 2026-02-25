@@ -11,6 +11,9 @@ import { stripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import type Stripe from 'stripe'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 // Use service role for webhook operations (no user session)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
