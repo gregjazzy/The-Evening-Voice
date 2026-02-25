@@ -314,10 +314,28 @@ export function MontageEditor() {
     }
   }, [stopSceneAudio])
 
-  // Cleanup on unmount or project change
+  // Cleanup on project change
   useEffect(() => {
     return () => stopSceneAudio()
   }, [currentProject?.id, stopSceneAudio])
+
+  // Cleanup on unmount (always)
+  useEffect(() => {
+    return () => {
+      // Force stop everything — refs are stable across renders
+      narrationAudioRef.current?.pause()
+      narrationAudioRef.current = null
+      musicAudioRef.current?.pause()
+      musicAudioRef.current = null
+      sfxAudiosRef.current.forEach(a => { a.pause(); a.src = '' })
+      sfxAudiosRef.current = []
+      sceneTimersRef.current.forEach(t => clearTimeout(t))
+      sceneTimersRef.current = []
+      sceneIntervalsRef.current.forEach(i => clearInterval(i))
+      sceneIntervalsRef.current = []
+      stoppedRef.current = true
+    }
+  }, [])
 
   // Sauvegarde manuelle
   const handleSave = async () => {
