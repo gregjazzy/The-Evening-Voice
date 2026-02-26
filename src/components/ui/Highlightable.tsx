@@ -16,6 +16,8 @@ interface HighlightableProps {
   labelPosition?: 'center' | 'left' | 'right'
   /** Callback quand l'élément est cliqué pendant qu'il brille */
   onHighlightClick?: () => void
+  /** Mode subtil : bordure fine + pas de particules ni label (pour les grands éléments) */
+  subtle?: boolean
 }
 
 /**
@@ -33,6 +35,7 @@ export function Highlightable({
   fill = false,
   labelPosition = 'center',
   onHighlightClick,
+  subtle = false,
 }: HighlightableProps) {
   const t = useTranslations('common')
   // Sélection RÉACTIVE - le composant se re-render quand activeHighlights change
@@ -96,6 +99,24 @@ export function Highlightable({
 
       {/* Effet de surbrillance */}
       {showPulse ? (
+        subtle ? (
+          /* Mode subtil : juste une bordure fine pulsante, pas de particules ni label */
+          <motion.div
+            key={`border-subtle-${id}`}
+            className="absolute inset-0 rounded-2xl pointer-events-none z-[9998]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.4, 0.8, 0.4] }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            style={{
+              border: `2px solid ${color}`,
+              boxShadow: `0 0 12px ${color}30`,
+            }}
+          />
+        ) : (
         <>
           {/* Glow externe pulsant */}
           <motion.div
@@ -164,6 +185,7 @@ export function Highlightable({
             </motion.div>
           </motion.div>
         </>
+        )
       ) : null}
     </div>
   )

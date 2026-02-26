@@ -213,7 +213,7 @@ export function StudioMode() {
               {/* Progression globale */}
               <div className={cn('grid grid-cols-2 gap-6 mb-8', !currentStory && 'opacity-40 pointer-events-none')}>
                 {creationTypes.map((type) => (
-                  <Highlightable key={type.id} id={type.id === 'image' ? 'studio-type-image' : 'studio-type-video'}>
+                  <Highlightable key={type.id} id={type.id === 'image' ? 'studio-type-image' : 'studio-type-video'} subtle>
                     <motion.button
                       onClick={() => handleSelectType(type.id)}
                       className="relative glass rounded-3xl p-8 text-left hover:border-aurora-500/30 transition-all group overflow-hidden w-full"
