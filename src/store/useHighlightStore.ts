@@ -52,6 +52,7 @@ export type HighlightableElement =
   | 'studio-chat'
   | 'studio-guide'
   | 'studio-generate-button'
+  | 'studio-reference-image'
   // Montage - Vue Cartes
   | 'montage-timeline'
   | 'montage-add-media'
@@ -166,6 +167,7 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
   'studio-chat': { label: 'Chat IA', description: 'L\'endroit où tu parles avec moi pour avoir de l\'aide', mode: 'studio' },
   'studio-guide': { label: 'Guide', description: 'Les étapes à suivre pour créer ton image', mode: 'studio' },
   'studio-generate-button': { label: 'Bouton Créer', description: 'Le bouton pour lancer la création de ton image ou vidéo', mode: 'studio' },
+  'studio-reference-image': { label: 'Image de référence', description: 'Le bouton pour choisir une image de référence pour ta vidéo', mode: 'studio' },
   
   // Montage
   'montage-timeline': { label: 'Timeline', description: 'La ligne du temps où tu places tes éléments', mode: 'montage' },

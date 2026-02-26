@@ -1315,12 +1315,14 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
               </div>
             ) : (
               <div className="flex gap-2 flex-wrap">
+                <Highlightable id="studio-reference-image" subtle>
                 <button
                   onClick={() => setShowImagePicker(!showImagePicker)}
                   className="px-4 py-2 rounded-xl bg-midnight-800/50 text-midnight-200 hover:bg-midnight-700/50 hover:text-white transition-colors text-sm"
                 >
                   {t('promptBuilderUI.chooseFromCreations')}
                 </button>
+                </Highlightable>
               </div>
             )}
             {showImagePicker && importedAssets.filter(a => a.type === 'image').length > 0 && (
