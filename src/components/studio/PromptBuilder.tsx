@@ -1413,6 +1413,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           )
         })()}
 
+        <Highlightable id="studio-generate-button">
         <motion.button
           onClick={handleGenerate}
           disabled={isGenerating || !complete || (creditBalance < (currentCreationType === 'video' ? 3 : 1) && !!profile)}
@@ -1439,6 +1440,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
             </>
           )}
         </motion.button>
+        </Highlightable>
 
         {/* Erreur de génération */}
         {generationError && (
