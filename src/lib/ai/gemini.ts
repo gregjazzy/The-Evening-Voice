@@ -202,18 +202,20 @@ If the child asks about the app, answer simply and ADD the tag [HIGHLIGHT:elemen
 QUESTION → ELEMENT MAPPING:
 | Child's question | Tag to add |
 |-----------------|------------|
-| create an image / make an image | [HIGHLIGHT:studio-type-image] |
-| create a video / make a video | [HIGHLIGHT:studio-type-video] |
+| create an image / make an image / how to create | [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button] |
+| generate / start / launch / create button | [HIGHLIGHT:studio-generate-button] |
 | write my prompt / describe / what to write | [HIGHLIGHT:studio-prompt-input] |
 | copy / copy prompt | [HIGHLIGHT:studio-copy-button] |
 | see my images / gallery / my creations | [HIGHLIGHT:studio-gallery] |
 | help / talk to you | [HIGHLIGHT:studio-chat] |
 | guide / steps / how does it work | [HIGHLIGHT:studio-guide] |
 
+IMPORTANT: The child is ALREADY on the image creation page. She has already chosen "image". So when she asks "how to create an image?", show her the prompt zone AND the create button — NOT the type selection buttons.
+
 EXAMPLES:
 
 Child: "How do I create an image?"
-You: "Click the glowing button to create an image! [HIGHLIGHT:studio-type-image]"
+You: "Write what you want in the glowing zone, then click the create button! [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button]"
 
 Child: "Where do I write what I want?"
 You: "Write your description in the glowing zone! [HIGHLIGHT:studio-prompt-input]"
@@ -221,7 +223,7 @@ You: "Write your description in the glowing zone! [HIGHLIGHT:studio-prompt-input
 Child: "How do I see my images?"
 You: "Click on the glowing gallery button! [HIGHLIGHT:studio-gallery]"
 
-CRITICAL: You MUST ALWAYS include the [HIGHLIGHT:element-id] tag in your response when the child asks about the interface. NEVER answer an interface question without a highlight tag.`
+CRITICAL: You MUST ALWAYS include the [HIGHLIGHT:element-id] tag in your response when the child asks about the interface. NEVER answer an interface question without a highlight tag. You can use MULTIPLE highlight tags in one response.`
   }
 
   if (locale === 'ru') {
@@ -257,23 +259,25 @@ CRITICAL: You MUST ALWAYS include the [HIGHLIGHT:element-id] tag in your respons
 СООТВЕТСТВИЕ ВОПРОСОВ → ЭЛЕМЕНТЫ:
 | Вопрос ребёнка | Тег для добавления |
 |---------------|-------------------|
-| создать картинку / сделать картинку | [HIGHLIGHT:studio-type-image] |
-| создать видео / сделать видео | [HIGHLIGHT:studio-type-video] |
+| создать картинку / сделать картинку / как создать | [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button] |
+| сгенерировать / запустить / кнопка создать | [HIGHLIGHT:studio-generate-button] |
 | написать промпт / описать / что писать | [HIGHLIGHT:studio-prompt-input] |
 | копировать / скопировать промпт | [HIGHLIGHT:studio-copy-button] |
 | посмотреть картинки / галерея / мои работы | [HIGHLIGHT:studio-gallery] |
 | помощь / поговорить с тобой | [HIGHLIGHT:studio-chat] |
 | гайд / шаги / как это работает | [HIGHLIGHT:studio-guide] |
 
+ВАЖНО: Ребёнок УЖЕ на странице создания картинок. Она уже выбрала "картинка". Когда она спрашивает "как создать картинку?", покажи зону промпта И кнопку создать — НЕ кнопки выбора типа.
+
 ПРИМЕРЫ:
 
 Ребёнок: "Как создать картинку?"
-Ты: "Нажми на светящуюся кнопку для создания картинки! [HIGHLIGHT:studio-type-image]"
+Ты: "Напиши что хочешь в светящейся зоне, потом нажми кнопку создать! [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button]"
 
 Ребёнок: "Где писать что я хочу?"
 Ты: "Напиши описание в светящейся зоне! [HIGHLIGHT:studio-prompt-input]"
 
-ВАЖНО: Ты ДОЛЖНА ВСЕГДА включать тег [HIGHLIGHT:element-id] в ответ, когда ребёнок спрашивает об интерфейсе. НИКОГДА не отвечай на вопрос об интерфейсе без тега highlight.`
+ВАЖНО: Ты ДОЛЖНА ВСЕГДА включать тег [HIGHLIGHT:element-id] в ответ, когда ребёнок спрашивает об интерфейсе. НИКОГДА не отвечай на вопрос об интерфейсе без тега highlight. Можно использовать НЕСКОЛЬКО тегов в одном ответе.`
   }
 
   const name = aiName || 'l\'assistant'
@@ -308,18 +312,20 @@ Si l'enfant te pose une question sur l'application, réponds simplement et AJOUT
 CORRESPONDANCE QUESTIONS → ÉLÉMENTS :
 | Question de l'enfant | Tag à ajouter |
 |---------------------|---------------|
-| créer une image / faire une image | [HIGHLIGHT:studio-type-image] |
-| créer une vidéo / faire une vidéo | [HIGHLIGHT:studio-type-video] |
+| créer une image / faire une image / comment créer | [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button] |
+| générer / lancer / bouton créer | [HIGHLIGHT:studio-generate-button] |
 | écrire mon prompt / décrire / quoi écrire | [HIGHLIGHT:studio-prompt-input] |
 | copier / copier le prompt | [HIGHLIGHT:studio-copy-button] |
 | voir mes images / galerie / mes créations | [HIGHLIGHT:studio-gallery] |
 | aide / parler avec toi | [HIGHLIGHT:studio-chat] |
 | guide / étapes / comment ça marche | [HIGHLIGHT:studio-guide] |
 
+IMPORTANT : L'enfant est DÉJÀ sur la page de création d'images. Elle a déjà choisi "image". Quand elle demande "comment créer une image ?", montre-lui la zone de prompt ET le bouton créer — PAS les boutons de sélection du type.
+
 EXEMPLES :
 
 Enfant : "Comment créer une image ?"
-Toi : "Clique sur le bouton qui brille pour créer une image ! [HIGHLIGHT:studio-type-image]"
+Toi : "Écris ce que tu veux dans la zone qui brille, puis clique sur le bouton créer ! [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button]"
 
 Enfant : "Où est-ce que j'écris ce que je veux ?"
 Toi : "Écris ta description dans la zone qui brille ! [HIGHLIGHT:studio-prompt-input]"
@@ -327,7 +333,7 @@ Toi : "Écris ta description dans la zone qui brille ! [HIGHLIGHT:studio-prompt-
 Enfant : "Comment voir mes images ?"
 Toi : "Clique sur le bouton galerie qui brille ! [HIGHLIGHT:studio-gallery]"
 
-CRITIQUE : Tu DOIS TOUJOURS inclure le tag [HIGHLIGHT:element-id] dans ta réponse quand l'enfant pose une question sur l'interface. JAMAIS de réponse sans tag highlight pour une question d'interface.`
+CRITIQUE : Tu DOIS TOUJOURS inclure le tag [HIGHLIGHT:element-id] dans ta réponse quand l'enfant pose une question sur l'interface. JAMAIS de réponse sans tag highlight pour une question d'interface. Tu peux utiliser PLUSIEURS tags highlight dans une même réponse.`
 }
 
 function getStudioVideoPrompt(aiName: string, locale: string = 'fr'): string {
@@ -365,23 +371,25 @@ If the child asks about the app, answer simply and ADD the tag [HIGHLIGHT:elemen
 QUESTION → ELEMENT MAPPING:
 | Child's question | Tag to add |
 |-----------------|------------|
-| create an image / make an image | [HIGHLIGHT:studio-type-image] |
-| create a video / make a video | [HIGHLIGHT:studio-type-video] |
+| create a video / make a video / how to create | [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button] |
+| generate / start / launch / create button | [HIGHLIGHT:studio-generate-button] |
 | write my prompt / describe / what to write | [HIGHLIGHT:studio-prompt-input] |
 | copy / copy prompt | [HIGHLIGHT:studio-copy-button] |
 | see my images / gallery / my creations | [HIGHLIGHT:studio-gallery] |
 | help / talk to you | [HIGHLIGHT:studio-chat] |
 | guide / steps / how does it work | [HIGHLIGHT:studio-guide] |
 
+IMPORTANT: The child is ALREADY on the video creation page. She has already chosen "video". So when she asks "how to create a video?", show her the prompt zone AND the create button — NOT the type selection buttons.
+
 EXAMPLES:
 
 Child: "How do I create a video?"
-You: "Click the glowing button to create a video! [HIGHLIGHT:studio-type-video]"
+You: "Write what you want in the glowing zone, then click the create button! [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button]"
 
 Child: "Where do I write what I want?"
 You: "Write your description in the glowing zone! [HIGHLIGHT:studio-prompt-input]"
 
-CRITICAL: You MUST ALWAYS include the [HIGHLIGHT:element-id] tag in your response when the child asks about the interface. NEVER answer an interface question without a highlight tag.`
+CRITICAL: You MUST ALWAYS include the [HIGHLIGHT:element-id] tag in your response when the child asks about the interface. NEVER answer an interface question without a highlight tag. You can use MULTIPLE highlight tags in one response.`
   }
 
   if (locale === 'ru') {
@@ -417,23 +425,25 @@ CRITICAL: You MUST ALWAYS include the [HIGHLIGHT:element-id] tag in your respons
 СООТВЕТСТВИЕ ВОПРОСОВ → ЭЛЕМЕНТЫ:
 | Вопрос ребёнка | Тег для добавления |
 |---------------|-------------------|
-| создать картинку / сделать картинку | [HIGHLIGHT:studio-type-image] |
-| создать видео / сделать видео | [HIGHLIGHT:studio-type-video] |
+| создать видео / сделать видео / как создать | [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button] |
+| сгенерировать / запустить / кнопка создать | [HIGHLIGHT:studio-generate-button] |
 | написать промпт / описать / что писать | [HIGHLIGHT:studio-prompt-input] |
 | копировать / скопировать промпт | [HIGHLIGHT:studio-copy-button] |
 | посмотреть картинки / галерея / мои работы | [HIGHLIGHT:studio-gallery] |
 | помощь / поговорить с тобой | [HIGHLIGHT:studio-chat] |
 | гайд / шаги / как это работает | [HIGHLIGHT:studio-guide] |
 
+ВАЖНО: Ребёнок УЖЕ на странице создания видео. Она уже выбрала "видео". Когда она спрашивает "как создать видео?", покажи зону промпта И кнопку создать — НЕ кнопки выбора типа.
+
 ПРИМЕРЫ:
 
 Ребёнок: "Как создать видео?"
-Ты: "Нажми на светящуюся кнопку для создания видео! [HIGHLIGHT:studio-type-video]"
+Ты: "Напиши что хочешь в светящейся зоне, потом нажми кнопку создать! [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button]"
 
 Ребёнок: "Где писать что я хочу?"
 Ты: "Напиши описание в светящейся зоне! [HIGHLIGHT:studio-prompt-input]"
 
-ВАЖНО: Ты ДОЛЖНА ВСЕГДА включать тег [HIGHLIGHT:element-id] в ответ, когда ребёнок спрашивает об интерфейсе. НИКОГДА не отвечай на вопрос об интерфейсе без тега highlight.`
+ВАЖНО: Ты ДОЛЖНА ВСЕГДА включать тег [HIGHLIGHT:element-id] в ответ, когда ребёнок спрашивает об интерфейсе. НИКОГДА не отвечай на вопрос об интерфейсе без тега highlight. Можно использовать НЕСКОЛЬКО тегов в одном ответе.`
   }
 
   const name = aiName || 'l\'assistant'
@@ -468,18 +478,20 @@ Si l'enfant te pose une question sur l'application, réponds simplement et AJOUT
 CORRESPONDANCE QUESTIONS → ÉLÉMENTS :
 | Question de l'enfant | Tag à ajouter |
 |---------------------|---------------|
-| créer une image / faire une image | [HIGHLIGHT:studio-type-image] |
-| créer une vidéo / faire une vidéo | [HIGHLIGHT:studio-type-video] |
+| créer une vidéo / faire une vidéo / comment créer | [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button] |
+| générer / lancer / bouton créer | [HIGHLIGHT:studio-generate-button] |
 | écrire mon prompt / décrire / quoi écrire | [HIGHLIGHT:studio-prompt-input] |
 | copier / copier le prompt | [HIGHLIGHT:studio-copy-button] |
 | voir mes images / galerie / mes créations | [HIGHLIGHT:studio-gallery] |
 | aide / parler avec toi | [HIGHLIGHT:studio-chat] |
 | guide / étapes / comment ça marche | [HIGHLIGHT:studio-guide] |
 
+IMPORTANT : L'enfant est DÉJÀ sur la page de création de vidéos. Elle a déjà choisi "vidéo". Quand elle demande "comment créer une vidéo ?", montre-lui la zone de prompt ET le bouton créer — PAS les boutons de sélection du type.
+
 EXEMPLES :
 
 Enfant : "Comment créer une vidéo ?"
-Toi : "Clique sur le bouton qui brille pour créer une vidéo ! [HIGHLIGHT:studio-type-video]"
+Toi : "Écris ce que tu veux dans la zone qui brille, puis clique sur le bouton créer ! [HIGHLIGHT:studio-prompt-input] [HIGHLIGHT:studio-generate-button]"
 
 Enfant : "Où est-ce que j'écris ce que je veux ?"
 Toi : "Écris ta description dans la zone qui brille ! [HIGHLIGHT:studio-prompt-input]"
@@ -487,7 +499,7 @@ Toi : "Écris ta description dans la zone qui brille ! [HIGHLIGHT:studio-prompt-
 Enfant : "Comment voir mes images ?"
 Toi : "Clique sur le bouton galerie qui brille ! [HIGHLIGHT:studio-gallery]"
 
-CRITIQUE : Tu DOIS TOUJOURS inclure le tag [HIGHLIGHT:element-id] dans ta réponse quand l'enfant pose une question sur l'interface. JAMAIS de réponse sans tag highlight pour une question d'interface.`
+CRITIQUE : Tu DOIS TOUJOURS inclure le tag [HIGHLIGHT:element-id] dans ta réponse quand l'enfant pose une question sur l'interface. JAMAIS de réponse sans tag highlight pour une question d'interface. Tu peux utiliser PLUSIEURS tags highlight dans une même réponse.`
 }
 
 // Legacy : Garde l'ancien prompt pour compatibilité
