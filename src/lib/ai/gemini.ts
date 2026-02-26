@@ -206,7 +206,6 @@ QUESTION → ELEMENT MAPPING:
 | create a video / make a video | [HIGHLIGHT:studio-type-video] |
 | write my prompt / describe / what to write | [HIGHLIGHT:studio-prompt-input] |
 | copy / copy prompt | [HIGHLIGHT:studio-copy-button] |
-| import / drag my images / drop images | [HIGHLIGHT:studio-import-zone] |
 | see my images / gallery / my creations | [HIGHLIGHT:studio-gallery] |
 | help / talk to you | [HIGHLIGHT:studio-chat] |
 | guide / steps / how does it work | [HIGHLIGHT:studio-guide] |
@@ -220,7 +219,9 @@ Child: "Where do I write what I want?"
 You: "Write your description in the glowing zone! [HIGHLIGHT:studio-prompt-input]"
 
 Child: "How do I see my images?"
-You: "Click on the glowing gallery button! [HIGHLIGHT:studio-gallery]"`
+You: "Click on the glowing gallery button! [HIGHLIGHT:studio-gallery]"
+
+CRITICAL: You MUST ALWAYS include the [HIGHLIGHT:element-id] tag in your response when the child asks about the interface. NEVER answer an interface question without a highlight tag.`
   }
 
   if (locale === 'ru') {
@@ -260,7 +261,6 @@ You: "Click on the glowing gallery button! [HIGHLIGHT:studio-gallery]"`
 | создать видео / сделать видео | [HIGHLIGHT:studio-type-video] |
 | написать промпт / описать / что писать | [HIGHLIGHT:studio-prompt-input] |
 | копировать / скопировать промпт | [HIGHLIGHT:studio-copy-button] |
-| импортировать / перетащить картинки | [HIGHLIGHT:studio-import-zone] |
 | посмотреть картинки / галерея / мои работы | [HIGHLIGHT:studio-gallery] |
 | помощь / поговорить с тобой | [HIGHLIGHT:studio-chat] |
 | гайд / шаги / как это работает | [HIGHLIGHT:studio-guide] |
@@ -271,7 +271,9 @@ You: "Click on the glowing gallery button! [HIGHLIGHT:studio-gallery]"`
 Ты: "Нажми на светящуюся кнопку для создания картинки! [HIGHLIGHT:studio-type-image]"
 
 Ребёнок: "Где писать что я хочу?"
-Ты: "Напиши описание в светящейся зоне! [HIGHLIGHT:studio-prompt-input]"`
+Ты: "Напиши описание в светящейся зоне! [HIGHLIGHT:studio-prompt-input]"
+
+ВАЖНО: Ты ДОЛЖНА ВСЕГДА включать тег [HIGHLIGHT:element-id] в ответ, когда ребёнок спрашивает об интерфейсе. НИКОГДА не отвечай на вопрос об интерфейсе без тега highlight.`
   }
 
   const name = aiName || 'l\'assistant'
@@ -310,7 +312,6 @@ CORRESPONDANCE QUESTIONS → ÉLÉMENTS :
 | créer une vidéo / faire une vidéo | [HIGHLIGHT:studio-type-video] |
 | écrire mon prompt / décrire / quoi écrire | [HIGHLIGHT:studio-prompt-input] |
 | copier / copier le prompt | [HIGHLIGHT:studio-copy-button] |
-| importer / glisser mes images / déposer | [HIGHLIGHT:studio-import-zone] |
 | voir mes images / galerie / mes créations | [HIGHLIGHT:studio-gallery] |
 | aide / parler avec toi | [HIGHLIGHT:studio-chat] |
 | guide / étapes / comment ça marche | [HIGHLIGHT:studio-guide] |
@@ -324,7 +325,9 @@ Enfant : "Où est-ce que j'écris ce que je veux ?"
 Toi : "Écris ta description dans la zone qui brille ! [HIGHLIGHT:studio-prompt-input]"
 
 Enfant : "Comment voir mes images ?"
-Toi : "Clique sur le bouton galerie qui brille ! [HIGHLIGHT:studio-gallery]"`
+Toi : "Clique sur le bouton galerie qui brille ! [HIGHLIGHT:studio-gallery]"
+
+CRITIQUE : Tu DOIS TOUJOURS inclure le tag [HIGHLIGHT:element-id] dans ta réponse quand l'enfant pose une question sur l'interface. JAMAIS de réponse sans tag highlight pour une question d'interface.`
 }
 
 function getStudioVideoPrompt(aiName: string, locale: string = 'fr'): string {
@@ -366,7 +369,6 @@ QUESTION → ELEMENT MAPPING:
 | create a video / make a video | [HIGHLIGHT:studio-type-video] |
 | write my prompt / describe / what to write | [HIGHLIGHT:studio-prompt-input] |
 | copy / copy prompt | [HIGHLIGHT:studio-copy-button] |
-| import / drag my images / drop images | [HIGHLIGHT:studio-import-zone] |
 | see my images / gallery / my creations | [HIGHLIGHT:studio-gallery] |
 | help / talk to you | [HIGHLIGHT:studio-chat] |
 | guide / steps / how does it work | [HIGHLIGHT:studio-guide] |
@@ -377,7 +379,9 @@ Child: "How do I create a video?"
 You: "Click the glowing button to create a video! [HIGHLIGHT:studio-type-video]"
 
 Child: "Where do I write what I want?"
-You: "Write your description in the glowing zone! [HIGHLIGHT:studio-prompt-input]"`
+You: "Write your description in the glowing zone! [HIGHLIGHT:studio-prompt-input]"
+
+CRITICAL: You MUST ALWAYS include the [HIGHLIGHT:element-id] tag in your response when the child asks about the interface. NEVER answer an interface question without a highlight tag.`
   }
 
   if (locale === 'ru') {
@@ -417,7 +421,6 @@ You: "Write your description in the glowing zone! [HIGHLIGHT:studio-prompt-input
 | создать видео / сделать видео | [HIGHLIGHT:studio-type-video] |
 | написать промпт / описать / что писать | [HIGHLIGHT:studio-prompt-input] |
 | копировать / скопировать промпт | [HIGHLIGHT:studio-copy-button] |
-| импортировать / перетащить картинки | [HIGHLIGHT:studio-import-zone] |
 | посмотреть картинки / галерея / мои работы | [HIGHLIGHT:studio-gallery] |
 | помощь / поговорить с тобой | [HIGHLIGHT:studio-chat] |
 | гайд / шаги / как это работает | [HIGHLIGHT:studio-guide] |
@@ -428,7 +431,9 @@ You: "Write your description in the glowing zone! [HIGHLIGHT:studio-prompt-input
 Ты: "Нажми на светящуюся кнопку для создания видео! [HIGHLIGHT:studio-type-video]"
 
 Ребёнок: "Где писать что я хочу?"
-Ты: "Напиши описание в светящейся зоне! [HIGHLIGHT:studio-prompt-input]"`
+Ты: "Напиши описание в светящейся зоне! [HIGHLIGHT:studio-prompt-input]"
+
+ВАЖНО: Ты ДОЛЖНА ВСЕГДА включать тег [HIGHLIGHT:element-id] в ответ, когда ребёнок спрашивает об интерфейсе. НИКОГДА не отвечай на вопрос об интерфейсе без тега highlight.`
   }
 
   const name = aiName || 'l\'assistant'
@@ -467,7 +472,6 @@ CORRESPONDANCE QUESTIONS → ÉLÉMENTS :
 | créer une vidéo / faire une vidéo | [HIGHLIGHT:studio-type-video] |
 | écrire mon prompt / décrire / quoi écrire | [HIGHLIGHT:studio-prompt-input] |
 | copier / copier le prompt | [HIGHLIGHT:studio-copy-button] |
-| importer / glisser mes images / déposer | [HIGHLIGHT:studio-import-zone] |
 | voir mes images / galerie / mes créations | [HIGHLIGHT:studio-gallery] |
 | aide / parler avec toi | [HIGHLIGHT:studio-chat] |
 | guide / étapes / comment ça marche | [HIGHLIGHT:studio-guide] |
@@ -481,7 +485,9 @@ Enfant : "Où est-ce que j'écris ce que je veux ?"
 Toi : "Écris ta description dans la zone qui brille ! [HIGHLIGHT:studio-prompt-input]"
 
 Enfant : "Comment voir mes images ?"
-Toi : "Clique sur le bouton galerie qui brille ! [HIGHLIGHT:studio-gallery]"`
+Toi : "Clique sur le bouton galerie qui brille ! [HIGHLIGHT:studio-gallery]"
+
+CRITIQUE : Tu DOIS TOUJOURS inclure le tag [HIGHLIGHT:element-id] dans ta réponse quand l'enfant pose une question sur l'interface. JAMAIS de réponse sans tag highlight pour une question d'interface.`
 }
 
 // Legacy : Garde l'ancien prompt pour compatibilité
@@ -1190,7 +1196,8 @@ Be their friend who helps them create something amazing! 🌟`,
     }
 
     // Ajouter la connaissance de l'interface pour le guidage visuel
-    if (context.interfaceKnowledge) {
+    // (seulement pour les modes qui n'ont pas déjà le mapping dans leur prompt)
+    if (context.interfaceKnowledge && context.mode !== 'studio') {
       systemPrompt += `\n\n${context.interfaceKnowledge}`
     }
 
