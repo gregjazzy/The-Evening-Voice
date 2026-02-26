@@ -6195,6 +6195,7 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             <div data-pdf-hide="true" className="relative z-10 px-8 py-3 flex items-center justify-between border-t border-amber-300/30 bg-gradient-to-t from-amber-50/80 to-transparent">
               <span className="text-sm text-amber-700/50 font-serif">{getWordCount(zPage.content)} {t('words')}</span>
           <div className="flex items-center gap-2">
+                <Highlightable id="book-mic">
                 <button
               onClick={() => {
                 if (isListening) {
@@ -6208,13 +6209,14 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               className={cn(
                     'p-2 rounded-full transition-all',
                     isListening && dictatingPage === 'zoom'
-                      ? 'text-red-500 bg-red-100 animate-pulse' 
+                      ? 'text-red-500 bg-red-100 animate-pulse'
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
                   title={isListening && dictatingPage === 'zoom' ? mic.stop : mic.start}
                 >
                   {isListening && dictatingPage === 'zoom' ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
+                </Highlightable>
                 <Highlightable id="book-add-image">
                 <button
                   onClick={() => onImageAdd(zPageIndex)}
@@ -6659,7 +6661,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                 </span>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={(e) => { 
+                  <Highlightable id="book-mic">
+                  <button
+                    onClick={(e) => {
                       e.stopPropagation()
                       if (isListening && dictatingPage === 'left') {
                         stopListening()
@@ -6672,13 +6676,14 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                     className={cn(
                       'p-2 rounded-full transition-all',
                       isListening && dictatingPage === 'left'
-                        ? 'text-red-500 bg-red-100 animate-pulse' 
+                        ? 'text-red-500 bg-red-100 animate-pulse'
                         : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                     )}
                     title={isListening && dictatingPage === 'left' ? mic.stop : mic.start}
                   >
                     {isListening && dictatingPage === 'left' ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
+                  </Highlightable>
                   <Highlightable id="book-add-image">
                   <button
                     onClick={(e) => { 
@@ -7117,7 +7122,9 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               <span className="text-xs text-amber-700/50 font-serif">{getWordCount(page?.content)} {t('words')}</span>
               <div className="flex items-center gap-1">
             <button
-              onClick={(e) => { 
+            <Highlightable id="book-mic">
+            <button
+              onClick={(e) => {
                 e.stopPropagation()
                 if (isListening && dictatingPage === 'right') {
                   stopListening()
@@ -7130,13 +7137,14 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
               className={cn(
                     'p-2 rounded-full transition-all',
                     isListening && dictatingPage === 'right'
-                      ? 'text-red-500 bg-red-100 animate-pulse' 
+                      ? 'text-red-500 bg-red-100 animate-pulse'
                       : 'text-amber-600/60 hover:text-amber-700 hover:bg-amber-200/50'
                   )}
                   title={isListening && dictatingPage === 'right' ? mic.stop : mic.start}
                 >
                   {isListening && dictatingPage === 'right' ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
+            </Highlightable>
             <Highlightable id="book-add-image">
             <button
               onClick={(e) => { e.stopPropagation(); onImageAdd(pageIndex); }}

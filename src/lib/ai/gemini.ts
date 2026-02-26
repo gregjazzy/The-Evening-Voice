@@ -534,6 +534,8 @@ CORRESPONDANCE QUESTIONS → ÉLÉMENTS :
 | centrer / aligner | [HIGHLIGHT:book-text-align] |
 | couleur du livre / couleur des pages | [HIGHLIGHT:book-color] |
 | interligne / espace entre les lignes / espacement | [HIGHLIGHT:book-line-spacing] |
+| zone de texte / ajouter du texte séparé / boîte de texte / texte libre | [HIGHLIGHT:book-text-box] |
+| dicter / parler / micro / saisie vocale / dictée | [HIGHLIGHT:book-mic] |
 | imprimer / impression / PDF / télécharger mon livre / boutique | [HIGHLIGHT:export-pdf-button] puis [HIGHLIGHT:nav-publier] |
 
 EXEMPLES :
@@ -546,6 +548,12 @@ Toi : "Clique sur le bouton qui brille et choisis une taille plus grande ! [HIGH
 
 Enfant : "Comment changer l'espace entre les lignes ?"
 Toi : "Clique sur le bouton qui brille pour changer l'espacement ! [HIGHLIGHT:book-line-spacing]"
+
+Enfant : "Comment ajouter une zone de texte ?"
+Toi : "Clique sur le bouton qui brille pour ajouter une zone de texte sur ta page ! [HIGHLIGHT:book-text-box]"
+
+Enfant : "Comment dicter mon texte ?"
+Toi : "Clique sur le micro qui brille et parle — ton texte s'écrira tout seul ! [HIGHLIGHT:book-mic]"
 
 Enfant : "Comment imprimer mon livre ?"
 Toi : "Appuie sur ce bouton pour télécharger ton livre ! [HIGHLIGHT:export-pdf-button] Ensuite va dans la Boutique pour l'imprimer ! [HIGHLIGHT:nav-publier]"`,
@@ -585,6 +593,8 @@ QUESTION → ELEMENT MAPPING:
 | center / align | [HIGHLIGHT:book-text-align] |
 | book color / page color | [HIGHLIGHT:book-color] |
 | line spacing / space between lines | [HIGHLIGHT:book-line-spacing] |
+| text box / add separate text / free text | [HIGHLIGHT:book-text-box] |
+| dictate / speak / mic / voice input / dictation | [HIGHLIGHT:book-mic] |
 | print / printing / PDF / download my book / shop | [HIGHLIGHT:export-pdf-button] then [HIGHLIGHT:nav-publier] |
 
 EXAMPLES:
@@ -597,6 +607,12 @@ You: "Click the glowing button and choose a bigger size! [HIGHLIGHT:book-font-si
 
 Child: "How do I change the space between lines?"
 You: "Click the glowing button to change the spacing! [HIGHLIGHT:book-line-spacing]"
+
+Child: "How do I add a text box?"
+You: "Click the glowing button to add a text box on your page! [HIGHLIGHT:book-text-box]"
+
+Child: "How do I dictate my text?"
+You: "Click the glowing mic and speak — your text will write itself! [HIGHLIGHT:book-mic]"
 
 Child: "How do I print my book?"
 You: "Press the glowing download button! [HIGHLIGHT:export-pdf-button] Then go to the glowing Shop tab! [HIGHLIGHT:nav-publier]"`,
@@ -636,6 +652,8 @@ You: "Press the glowing download button! [HIGHLIGHT:export-pdf-button] Then go t
 | центрировать / выровнять | [HIGHLIGHT:book-text-align] |
 | цвет книги / цвет страниц | [HIGHLIGHT:book-color] |
 | межстрочный интервал / расстояние между строками | [HIGHLIGHT:book-line-spacing] |
+| текстовое поле / добавить отдельный текст / свободный текст | [HIGHLIGHT:book-text-box] |
+| диктовать / говорить / микрофон / голосовой ввод / диктовка | [HIGHLIGHT:book-mic] |
 | печать / напечатать / PDF / скачать книгу / магазин | [HIGHLIGHT:export-pdf-button] затем [HIGHLIGHT:nav-publier] |
 
 ПРИМЕРЫ:
@@ -648,6 +666,12 @@ You: "Press the glowing download button! [HIGHLIGHT:export-pdf-button] Then go t
 
 Ребёнок: "Как изменить расстояние между строками?"
 Ты: "Нажми на светящуюся кнопку, чтобы изменить интервал! [HIGHLIGHT:book-line-spacing]"
+
+Ребёнок: "Как добавить текстовое поле?"
+Ты: "Нажми на светящуюся кнопку, чтобы добавить текстовое поле на страницу! [HIGHLIGHT:book-text-box]"
+
+Ребёнок: "Как диктовать текст?"
+Ты: "Нажми на светящийся микрофон и говори — текст напишется сам! [HIGHLIGHT:book-mic]"
 
 Ребёнок: "Как напечатать мою книгу?"
 Ты: "Нажми на эту кнопку, чтобы скачать книгу! [HIGHLIGHT:export-pdf-button] Потом перейди в Магазин, чтобы напечатать! [HIGHLIGHT:nav-publier]"`
