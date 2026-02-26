@@ -144,7 +144,9 @@ export async function POST(request: NextRequest) {
     )
 
     // Parser les commandes de highlight dans la réponse
+    console.log('🔍 [AI Chat] Raw response:', rawResponse.text)
     const { cleanText, highlights } = parseHighlightCommands(rawResponse.text)
+    console.log('🔍 [AI Chat] Parsed highlights:', highlights)
 
     // Retourner la réponse nettoyée avec les highlights
     const response: ChatResponse = {
