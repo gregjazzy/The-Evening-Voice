@@ -1268,7 +1268,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           </h3>
         </div>
 
-        <Highlightable id="studio-prompt-input">
+        <Highlightable id="studio-prompt-input" subtle>
         <textarea
           value={currentKit.subject}
           onChange={(e) => updateKit({ subject: e.target.value })}
@@ -1414,7 +1414,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           )
         })()}
 
-        <Highlightable id="studio-generate-button">
+        <Highlightable id="studio-generate-button" subtle>
         <motion.button
           onClick={handleGenerate}
           disabled={isGenerating || !complete || (creditBalance < (currentCreationType === 'video' ? 3 : 1) && !!profile)}
