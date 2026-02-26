@@ -6660,7 +6660,6 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
                   {leftPage.content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').split(/\s+/).filter(Boolean).length} {t('words')}
                 </span>
                 <div className="flex items-center gap-1">
-                  <button
                   <Highlightable id="book-mic">
                   <button
                     onClick={(e) => {
@@ -7121,7 +7120,6 @@ function WritingArea({ page, pageIndex, chapters, onContentChange, onTitleChange
             >
               <span className="text-xs text-amber-700/50 font-serif">{getWordCount(page?.content)} {t('words')}</span>
               <div className="flex items-center gap-1">
-            <button
             <Highlightable id="book-mic">
             <button
               onClick={(e) => {
