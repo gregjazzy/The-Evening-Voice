@@ -445,7 +445,7 @@ function SelectStoryStep() {
   const t = useTranslations('publish')
   const locale = useLocale()
   const { stories } = useAppStore()
-  const { selectedStory, setSelectedStory, setCurrentStep, shopFlow } = usePublishStore()
+  const { selectedStory, setSelectedStory, setCurrentStep, shopFlow, selectedDerivativeType } = usePublishStore()
   
   // Permettre les livres avec au moins 1 page (on peut toujours compléter plus tard)
   const completedStories = stories.filter(s => s.pages.length >= 1)
@@ -536,7 +536,8 @@ function SelectStoryStep() {
           <button
             onClick={() => {
               if (shopFlow === 'derivatives') {
-                setCurrentStep('select-derivative')
+                // Skip product re-selection if already chosen from shop home
+                setCurrentStep(selectedDerivativeType ? 'choose-illustration' : 'select-derivative')
               } else {
                 // Appliquer le format de l'histoire si défini
                 if (selectedStory.bookFormat) {
@@ -3538,7 +3539,7 @@ export function PublishMode() {
     } else if (currentStep === 'select-derivative') {
       setCurrentStep('select-story')
     } else if (currentStep === 'choose-illustration') {
-      setCurrentStep('select-derivative')
+      setCurrentStep('select-story')
     } else if (currentStep === 'cart') {
       setCurrentStep('shop-home')
     } else if (currentStep === 'checkout-success') {
