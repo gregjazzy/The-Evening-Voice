@@ -10,6 +10,9 @@ import {
   Sparkles,
   Eye,
   BookOpen,
+  Book,
+  Plus,
+  Check,
 } from 'lucide-react'
 import { useStudioStore } from '@/store/useStudioStore'
 import { useAppStore } from '@/store/useAppStore'
@@ -56,7 +59,7 @@ type ViewType = 'select' | 'create' | 'gallery'
 export function StudioMode() {
   const t = useTranslations('studio')
 
-  const { currentStory } = useAppStore()
+  const { currentStory, stories, setCurrentStory, setCurrentMode } = useAppStore()
 
   const {
     currentKit,
@@ -193,20 +196,59 @@ export function StudioMode() {
               exit={{ opacity: 0 }}
               className="h-full flex flex-col justify-center items-center"
             >
-              {/* Message si aucune histoire sélectionnée */}
+              {/* Sélecteur d'histoire si aucune sélectionnée */}
               {!currentStory && (
                 <motion.div
-                  className="glass rounded-3xl p-8 mb-8 text-center"
+                  className="glass rounded-2xl p-6 mb-8 max-w-md mx-auto"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <BookOpen className="w-12 h-12 text-midnight-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    {t('mode.noStoryTitle')}
-                  </h3>
-                  <p className="text-sm text-midnight-300">
-                    {t('mode.noStoryDescription')}
-                  </p>
+                  <div className="flex items-center gap-3 mb-4">
+                    <BookOpen className="w-5 h-5 text-aurora-400" />
+                    <h3 className="text-base font-semibold text-white">
+                      {t('mode.noStoryTitle')}
+                    </h3>
+                  </div>
+
+                  {stories.filter(s => s.title).length > 0 ? (
+                    <div className="space-y-1.5 mb-4 max-h-48 overflow-y-auto">
+                      {[...stories].filter(s => s.title).sort((a, b) =>
+                        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+                      ).map((story) => (
+                        <motion.button
+                          key={story.id}
+                          onClick={() => setCurrentStory(story)}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-midnight-800/50 hover:bg-midnight-700/50 transition-colors text-left group"
+                          whileHover={{ x: 4 }}
+                        >
+                          <Book className="w-4 h-4 text-midnight-400 group-hover:text-aurora-400 transition-colors flex-shrink-0" />
+                          <span className="text-sm text-midnight-200 group-hover:text-white transition-colors truncate flex-1">
+                            {story.title}
+                          </span>
+                          <span className="text-xs text-midnight-500">
+                            {story.pages.length}p
+                          </span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-midnight-400 mb-4">
+                      {t('mode.noStoryDescription')}
+                    </p>
+                  )}
+
+                  <motion.button
+                    onClick={() => {
+                      setCurrentStory(null)
+                      setCurrentMode('book')
+                    }}
+                    className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-aurora-500/10 border border-aurora-500/30 text-aurora-300 hover:bg-aurora-500/20 transition-colors text-sm"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    {t('mode.newStory') || 'New story'}
+                  </motion.button>
                 </motion.div>
               )}
 

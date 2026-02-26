@@ -854,7 +854,8 @@
       "imageTypeDesc": "Create magical illustrations",
       "videoTypeDesc": "Animate your scenes",
       "noStoryTitle": "Choose a story first",
-      "noStoryDescription": "To create images or videos, open a story in the editor first."
+      "noStoryDescription": "To create images or videos, open a story in the editor first.",
+      "newStory": "New story"
     },
     "guide": {
       "imagesTitle": "🖼️ Images",
