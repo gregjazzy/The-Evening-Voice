@@ -1256,7 +1256,6 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     <div className="space-y-6">
       {/* Section Sujet + Générer */}
       {(
-      <Highlightable id="studio-prompt-input" subtle>
       <motion.section
         className="glass rounded-2xl p-6"
         initial={{ opacity: 0, y: 20 }}
@@ -1269,6 +1268,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           </h3>
         </div>
 
+        <Highlightable id="studio-prompt-input">
         <textarea
           value={currentKit.subject}
           onChange={(e) => updateKit({ subject: e.target.value })}
@@ -1276,6 +1276,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           className="w-full h-28 resize-none rounded-xl p-4 text-white placeholder:text-midnight-400 bg-midnight-900/50 focus:ring-2 focus:ring-aurora-500/50 focus:outline-none transition-all"
           data-mentor-target="studio-subject"
         />
+        </Highlightable>
 
         {/* Image de référence — uniquement pour les vidéos */}
         {currentCreationType === 'video' && (
@@ -1586,7 +1587,6 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           </motion.div>
         )}
       </motion.section>
-      </Highlightable>
       )}
 
       {/* Section Style - VISIBLE SEULEMENT NIVEAU 1-2 (apprentissage) - IMAGES UNIQUEMENT */}
