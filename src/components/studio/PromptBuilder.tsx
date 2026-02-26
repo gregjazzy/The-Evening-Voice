@@ -1256,7 +1256,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     <div className="space-y-6">
       {/* Section Sujet + Générer */}
       {(
-      <Highlightable id="studio-prompt-input">
+      <Highlightable id="studio-prompt-input" subtle>
       <motion.section
         className="glass rounded-2xl p-6"
         initial={{ opacity: 0, y: 20 }}
