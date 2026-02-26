@@ -191,7 +191,7 @@ export function StudioMode() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="h-full overflow-y-auto pb-8"
+              className="h-full flex flex-col justify-center items-center"
             >
               {/* Message si aucune histoire sélectionnée */}
               {!currentStory && (
@@ -211,7 +211,7 @@ export function StudioMode() {
               )}
 
               {/* Progression globale */}
-              <div className={cn('grid grid-cols-2 gap-6 mb-8', !currentStory && 'opacity-40 pointer-events-none')}>
+              <div className={cn('grid grid-cols-2 gap-8 max-w-2xl mx-auto', !currentStory && 'opacity-40 pointer-events-none')}>
                 {creationTypes.map((type) => (
                   <Highlightable key={type.id} id={type.id === 'image' ? 'studio-type-image' : 'studio-type-video'} subtle>
                     <motion.button
