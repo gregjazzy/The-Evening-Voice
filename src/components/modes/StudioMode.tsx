@@ -18,7 +18,6 @@ import {
   type CreationType,
 } from '@/store/useStudioProgressStore'
 import { PromptBuilder } from '@/components/studio/PromptBuilder'
-import { AssetDropzone } from '@/components/studio/AssetDropzone'
 import { StudioAIChat } from '@/components/studio/StudioAIChat'
 import { TutorialGuide } from '@/components/studio/TutorialGuide'
 import { cn, getThumbnailUrl } from '@/lib/utils'
@@ -268,15 +267,6 @@ export function StudioMode() {
                 ))}
               </div>
 
-              {/* Zone d'import rapide */}
-              <motion.div
-                className="glass rounded-3xl p-8"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <AssetDropzone />
-              </motion.div>
 
             </motion.div>
           )}
@@ -308,14 +298,6 @@ export function StudioMode() {
               >
                 <PromptBuilder />
 
-                {/* Zone d'import */}
-                <Highlightable id="studio-import-zone">
-                  <div className="mt-4 glass rounded-2xl p-4 mb-4">
-                    <AssetDropzone
-                      showGallery={true}
-                    />
-                  </div>
-                </Highlightable>
               </div>
             </motion.div>
           )}
