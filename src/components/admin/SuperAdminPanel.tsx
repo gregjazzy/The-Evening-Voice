@@ -406,39 +406,6 @@ export default function SuperAdminPanel({ onClose }: { onClose: () => void }) {
                     Configuration des clés API
                   </h4>
                   
-                  {/* ElevenLabs */}
-                  <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium text-gray-300">ElevenLabs</label>
-                      <div className="flex items-center gap-2">
-                        {keyStatus.elevenlabs === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-blue-400" />}
-                        {keyStatus.elevenlabs === 'valid' && <CheckCircle className="w-4 h-4 text-green-400" />}
-                        {keyStatus.elevenlabs === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
-                        <button
-                          onClick={() => setShowKeys(p => ({ ...p, elevenlabs: !p.elevenlabs }))}
-                          className="p-1 hover:bg-white/10 rounded"
-                        >
-                          {showKeys.elevenlabs ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-gray-400" />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        type={showKeys.elevenlabs ? 'text' : 'password'}
-                        value={editingConfig.elevenlabs_key || ''}
-                        onChange={e => setEditingConfig(p => ({ ...p, elevenlabs_key: e.target.value }))}
-                        placeholder="sk-..."
-                        className="flex-1 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => validateKey('elevenlabs', editingConfig.elevenlabs_key || '')}
-                        className="px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-purple-300 text-sm"
-                      >
-                        Tester
-                      </button>
-                    </div>
-                  </div>
-                  
                   {/* Gemini */}
                   <div className="bg-white/5 rounded-lg p-4 border border-white/10">
                     <div className="flex items-center justify-between mb-2">

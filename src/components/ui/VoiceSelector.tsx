@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Volume2, Star, Check, ChevronDown, Sparkles } from 'lucide-react'
+import { Volume2, Star, Check, ChevronDown, Sparkles, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useTTS, type VoiceOption } from '@/hooks/useTTS'
 import { useLocale, useTranslations } from '@/lib/i18n/context'
@@ -99,7 +99,13 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
                 <p className="text-xs text-midnight-400">{t('voiceOf', { name: friendName })}</p>
               </div>
               <div className="max-h-60 overflow-y-auto">
-                {tts.availableVoices.map((voice) => (
+                {tts.noVoicesForLanguage ? (
+                  <div className="flex flex-col items-center gap-1 py-3 px-3 text-center">
+                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <p className="text-xs text-amber-300">{t('noVoicesForLanguage')}</p>
+                    <p className="text-[10px] text-midnight-400">{t('noVoicesForLanguageTip')}</p>
+                  </div>
+                ) : tts.availableVoices.map((voice) => (
                   <button
                     key={voice.name}
                     onClick={() => handleSelectVoice(voice)}
@@ -148,7 +154,13 @@ export function VoiceSelector({ className, compact = false }: VoiceSelectorProps
 
       {/* Liste des voix */}
       <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-        {tts.availableVoices.length === 0 ? (
+        {tts.noVoicesForLanguage ? (
+          <div className="flex flex-col items-center gap-2 py-4 px-3 text-center">
+            <AlertTriangle className="w-5 h-5 text-amber-400" />
+            <p className="text-sm text-amber-300">{t('noVoicesForLanguage')}</p>
+            <p className="text-xs text-midnight-400">{t('noVoicesForLanguageTip')}</p>
+          </div>
+        ) : tts.availableVoices.length === 0 ? (
           <p className="text-sm text-midnight-400 text-center py-4">
             {t('loading')}
           </p>

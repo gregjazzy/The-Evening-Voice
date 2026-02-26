@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
         await handleBookOrder(session, metadata)
       } else if (metadata.order_type === 'credits') {
         await handleCreditsOrder(session, metadata)
+      } else if (metadata.order_type === 'narration_credits') {
+        await handleNarrationCreditsOrder(session, metadata)
       } else if (metadata.order_type === 'cart') {
         await handleCartOrder(session, metadata)
       }
@@ -193,6 +195,47 @@ async function handleCreditsOrder(
     console.error('Failed to add credits:', error)
   } else {
     console.log(`✅ Credits added. New balance: ${data}`)
+  }
+}
+
+async function handleNarrationCreditsOrder(
+  session: Stripe.Checkout.Session,
+  metadata: Record<string, string>
+) {
+  const profileId = metadata.profile_id
+  const creditsAmount = parseInt(metadata.credits_amount)
+
+  console.log(`🎙️ Narration credits order paid — profile: ${profileId}, chars: ${creditsAmount}`)
+
+  // 1. Create order record
+  const { error: orderError } = await supabase
+    .from('orders')
+    .insert({
+      profile_id: profileId,
+      stripe_session_id: session.id,
+      order_type: 'narration_credits',
+      status: 'fulfilled',
+      credits_amount: creditsAmount,
+      amount_total: session.amount_total || 0,
+      currency: session.currency || 'eur',
+    })
+
+  if (orderError) {
+    console.error('Failed to create narration credits order record:', orderError)
+  }
+
+  // 2. Add narration credits to profile using RPC
+  const { data, error } = await supabase.rpc('add_narration_credits', {
+    p_profile_id: profileId,
+    p_amount: creditsAmount,
+    p_reason: 'purchase',
+    p_reference_id: session.id,
+  })
+
+  if (error) {
+    console.error('Failed to add narration credits:', error)
+  } else {
+    console.log(`✅ Narration credits added. New balance: ${data}`)
   }
 }
 

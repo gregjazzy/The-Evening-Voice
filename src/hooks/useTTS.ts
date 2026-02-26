@@ -28,6 +28,8 @@ interface UseTTSReturn {
   availableVoices: VoiceOption[]
   currentVoice: VoiceOption | null
   setVoice: (voiceName: string) => void
+  /** true si les voix du navigateur ont été chargées mais aucune ne correspond à la langue */
+  noVoicesForLanguage: boolean
 }
 
 // Helpers pour vérifier l'environnement (appelés dynamiquement, pas au chargement du module)
@@ -125,11 +127,8 @@ export function findBestVoice(locale: string, preferredVoiceName?: string): Spee
     selectedVoice = voices.find(v => v.lang.startsWith(langCode))
   }
   
-  // 4. Fallback ultime : première voix disponible
-  if (!selectedVoice && voices.length > 0) {
-    selectedVoice = voices[0]
-  }
-  
+  // 4. Pas de fallback cross-langue : ne pas utiliser une voix française pour parler anglais
+  // Si aucune voix de la langue n'est trouvée, retourner null
   return selectedVoice || null
 }
 
@@ -153,9 +152,8 @@ function getAvailableVoices(locale: string): VoiceOption[] {
       return qualityOrder[a.quality] - qualityOrder[b.quality]
     })
 
-  // Ne retourner que les voix premium, avec fallback sur toutes si aucune premium trouvée
-  const premiumOnly = allVoices.filter(v => v.quality === 'premium')
-  return premiumOnly.length > 0 ? premiumOnly : allVoices
+  // Ne retourner que les voix premium (pas de fallback sur les voix de mauvaise qualité)
+  return allVoices.filter(v => v.quality === 'premium')
 }
 
 export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: string): UseTTSReturn {
@@ -164,6 +162,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
   const [voicesReady, setVoicesReady] = useState(false)
   const [availableVoices, setAvailableVoices] = useState<VoiceOption[]>([])
   const [selectedVoiceName, setSelectedVoiceName] = useState<string | undefined>(preferredVoiceName)
+  const [noVoicesForLanguage, setNoVoicesForLanguage] = useState(false)
 
   // Charger les voix disponibles pour Web Speech
   useEffect(() => {
@@ -173,11 +172,21 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
       // Obtenir toutes les voix disponibles
       const voices = getAvailableVoices(locale)
       setAvailableVoices(voices)
-      
+
+      // Vérifier si le navigateur a des voix chargées mais aucune premium pour cette langue
+      const allBrowserVoices = window.speechSynthesis.getVoices()
+      if (allBrowserVoices.length > 0 && voices.length === 0) {
+        console.warn(`⚠️ Aucune voix premium disponible pour "${locale}" sur ce navigateur (${allBrowserVoices.length} voix au total)`)
+        setNoVoicesForLanguage(true)
+        setVoicesReady(true) // Ne pas bloquer l'app
+        return
+      }
+      setNoVoicesForLanguage(false)
+
       // Sélectionner la meilleure voix (ou la préférée)
       const selectedVoice = findBestVoice(locale, selectedVoiceName)
       setWebVoice(selectedVoice)
-      
+
       if (selectedVoice) {
         setVoicesReady(true)
         const isRecommended = isVoiceRecommended(selectedVoice.name, locale)
@@ -347,6 +356,7 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
     availableVoices,
     currentVoice,
     setVoice,
+    noVoicesForLanguage,
   }
 }
 

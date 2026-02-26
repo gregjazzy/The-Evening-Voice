@@ -23,6 +23,22 @@ export function getCreditPack(packId: string) {
 }
 
 // ============================================================================
+// NARRATION CREDIT PACKS (ElevenLabs, billed per character)
+// ============================================================================
+
+export const NARRATION_CREDIT_PACKS = [
+  { id: 'narration-1', credits: 6720, price: 499, label: '1 histoire narrée', labelEn: '1 narrated story' },
+  { id: 'narration-5', credits: 33600, price: 1999, label: '5 histoires narrées', labelEn: '5 narrated stories' },
+  { id: 'narration-15', credits: 100800, price: 4999, label: '15 histoires narrées', labelEn: '15 narrated stories' },
+] as const
+
+export type NarrationCreditPackId = typeof NARRATION_CREDIT_PACKS[number]['id']
+
+export function getNarrationCreditPack(packId: string) {
+  return NARRATION_CREDIT_PACKS.find(p => p.id === packId)
+}
+
+// ============================================================================
 // BOOK PRICING
 // ============================================================================
 

@@ -8,3 +8,4 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 // Re-export shared config
 export { CREDIT_PACKS, getCreditPack, type CreditPackId } from './stripe-config'
+export { NARRATION_CREDIT_PACKS, getNarrationCreditPack, type NarrationCreditPackId } from './stripe-config'

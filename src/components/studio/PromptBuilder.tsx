@@ -34,6 +34,7 @@ import { useMediaUpload } from '@/hooks/useMediaUpload'
 import { useToast } from '@/components/ui/Toast'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { cn, getThumbnailUrl } from '@/lib/utils'
+import { Highlightable } from '@/components/ui/Highlightable'
 
 // Options de style avec icônes et couleurs
 const styleOptions: { id: StyleType; labelKey: string; emoji: string; color: string }[] = [
@@ -1255,6 +1256,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
     <div className="space-y-6">
       {/* Section Sujet + Générer */}
       {(
+      <Highlightable id="studio-prompt-input">
       <motion.section
         className="glass rounded-2xl p-6"
         initial={{ opacity: 0, y: 20 }}
@@ -1582,6 +1584,7 @@ export function PromptBuilder({ onComplete }: PromptBuilderProps) {
           </motion.div>
         )}
       </motion.section>
+      </Highlightable>
       )}
 
       {/* Section Style - VISIBLE SEULEMENT NIVEAU 1-2 (apprentissage) - IMAGES UNIQUEMENT */}

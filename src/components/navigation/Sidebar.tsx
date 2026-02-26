@@ -3,10 +3,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from '@/lib/i18n/context'
-import { 
-  Feather, 
-  Palette, 
-  LayoutGrid, 
+import {
+  Feather,
+  Palette,
+  LayoutGrid,
   Theater,
   Sparkles,
   Link2,
@@ -23,6 +23,7 @@ import {
   Target,
   Trash2,
   AlertTriangle,
+  Mic,
 } from 'lucide-react'
 import { useAppStore, type AppMode } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -260,10 +261,10 @@ export function Sidebar() {
           </AnimatePresence>
         </div>
 
-        {/* Credit balance badge */}
+        {/* Credit balance badges */}
         {profile && (profile as any).credit_balance !== undefined && (
           <motion.div
-            className="w-full px-2 lg:px-3 mb-2"
+            className="w-full px-2 lg:px-3 mb-2 space-y-1"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
@@ -275,6 +276,21 @@ export function Sidebar() {
             )}>
               <Sparkles className="w-3 h-3" />
               <span className="font-medium">{(profile as any).credit_balance ?? 0}</span>
+            </div>
+            {/* Narration credits badge */}
+            <div className={cn(
+              'w-full px-2 py-1.5 rounded-lg flex items-center justify-center gap-1 text-xs',
+              ((profile as any).narration_credit_balance ?? 0) > 0
+                ? 'bg-aurora-500/15 text-aurora-300 border border-aurora-500/20'
+                : 'bg-midnight-800/50 text-midnight-500 border border-midnight-700/50'
+            )}>
+              <Mic className="w-3 h-3" />
+              <span className="font-medium">
+                {(() => {
+                  const bal = (profile as any).narration_credit_balance ?? 0
+                  return bal >= 1000 ? `${(bal / 1000).toFixed(1)}k` : bal
+                })()}
+              </span>
             </div>
           </motion.div>
         )}

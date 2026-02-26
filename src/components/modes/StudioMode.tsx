@@ -23,6 +23,7 @@ import { StudioAIChat } from '@/components/studio/StudioAIChat'
 import { TutorialGuide } from '@/components/studio/TutorialGuide'
 import { cn, getThumbnailUrl } from '@/lib/utils'
 import { useTranslations } from '@/lib/i18n/context'
+import { Highlightable } from '@/components/ui/Highlightable'
 
 // Types de creation disponibles
 const creationTypes: Array<{
@@ -167,14 +168,16 @@ export function StudioMode() {
         <div className="flex items-center gap-3">
           {/* Galerie */}
           {importedAssets.length > 0 && (
-            <motion.button
-              onClick={() => setView('gallery')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-midnight-800/50 text-white hover:bg-midnight-700/50 transition-colors"
-              whileHover={{ scale: 1.02 }}
-            >
-              <Sparkles className="w-4 h-4 text-aurora-400" />
-              {t('mode.creationCount', { count: String(importedAssets.length) })}
-            </motion.button>
+            <Highlightable id="studio-gallery">
+              <motion.button
+                onClick={() => setView('gallery')}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-midnight-800/50 text-white hover:bg-midnight-700/50 transition-colors"
+                whileHover={{ scale: 1.02 }}
+              >
+                <Sparkles className="w-4 h-4 text-aurora-400" />
+                {t('mode.creationCount', { count: String(importedAssets.length) })}
+              </motion.button>
+            </Highlightable>
           )}
         </div>
       </motion.header>
@@ -211,56 +214,57 @@ export function StudioMode() {
               {/* Progression globale */}
               <div className={cn('grid grid-cols-2 gap-6 mb-8', !currentStory && 'opacity-40 pointer-events-none')}>
                 {creationTypes.map((type) => (
-                  <motion.button
-                    key={type.id}
-                    onClick={() => handleSelectType(type.id)}
-                    className="relative glass rounded-3xl p-8 text-left hover:border-aurora-500/30 transition-all group overflow-hidden"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ scale: 1.02, y: -5 }}
-                  >
-                    {/* Fond gradient au hover */}
-                    <div
-                      className={cn(
-                        'absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity',
-                        type.color
-                      )}
-                    />
+                  <Highlightable key={type.id} id={type.id === 'image' ? 'studio-type-image' : 'studio-type-video'}>
+                    <motion.button
+                      onClick={() => handleSelectType(type.id)}
+                      className="relative glass rounded-3xl p-8 text-left hover:border-aurora-500/30 transition-all group overflow-hidden w-full"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ scale: 1.02, y: -5 }}
+                    >
+                      {/* Fond gradient au hover */}
+                      <div
+                        className={cn(
+                          'absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity',
+                          type.color
+                        )}
+                      />
 
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={cn(
-                        'w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br',
-                        type.color
-                      )}>
-                        <type.icon className="w-8 h-8 text-white" />
+                      <div className="flex items-start justify-between mb-4">
+                        <div className={cn(
+                          'w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br',
+                          type.color
+                        )}>
+                          <type.icon className="w-8 h-8 text-white" />
+                        </div>
                       </div>
-                    </div>
 
-                    <h3 className="text-xl font-semibold text-white mb-1">
-                      {t(type.nameKey)}
-                    </h3>
-                    <p className="text-sm text-midnight-300 mb-4">
-                      {t('mode.withTool', { description: t(type.descriptionKey), tool: type.tool })}
-                    </p>
+                      <h3 className="text-xl font-semibold text-white mb-1">
+                        {t(type.nameKey)}
+                      </h3>
+                      <p className="text-sm text-midnight-300 mb-4">
+                        {t('mode.withTool', { description: t(type.descriptionKey), tool: type.tool })}
+                      </p>
 
-                    {/* CTA et Tutoriel */}
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center gap-2 text-aurora-300 text-sm">
-                        <Sparkles className="w-4 h-4" />
-                        <span>{t('mode.startLearning')}</span>
+                      {/* CTA et Tutoriel */}
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center gap-2 text-aurora-300 text-sm">
+                          <Sparkles className="w-4 h-4" />
+                          <span>{t('mode.startLearning')}</span>
+                        </div>
+                        <span
+                          role="link"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openTutorial('midjourney')
+                          }}
+                          className="text-xs text-midnight-400 hover:text-aurora-300 transition-colors cursor-pointer"
+                        >
+                          {t('mode.howToUse', { tool: type.tool })}
+                        </span>
                       </div>
-                      <span
-                        role="link"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openTutorial('midjourney')
-                        }}
-                        className="text-xs text-midnight-400 hover:text-aurora-300 transition-colors cursor-pointer"
-                      >
-                        {t('mode.howToUse', { tool: type.tool })}
-                      </span>
-                    </div>
-                  </motion.button>
+                    </motion.button>
+                  </Highlightable>
                 ))}
               </div>
 
@@ -287,27 +291,31 @@ export function StudioMode() {
               className="h-full flex-1 min-h-0 flex gap-4 items-start overflow-hidden"
             >
               {/* Panneau gauche : IA Chat */}
-              <div className="w-80 flex-shrink-0 h-full min-h-0 overflow-hidden">
-                <StudioAIChat 
-                  type={selectedType} 
-                  onSuggestion={handleSuggestion}
-                  className="h-full max-h-full"
-                />
-              </div>
+              <Highlightable id="studio-chat">
+                <div className="w-80 flex-shrink-0 h-full min-h-0 overflow-hidden">
+                  <StudioAIChat
+                    type={selectedType}
+                    onSuggestion={handleSuggestion}
+                    className="h-full max-h-full"
+                  />
+                </div>
+              </Highlightable>
 
               {/* Panneau central : Formulaire de prompt - SCROLLABLE */}
-              <div 
+              <div
                 className="flex-1 min-w-0 overflow-y-auto px-2 pb-8"
                 style={{ maxHeight: 'calc(100vh - 120px)' }}
               >
                 <PromptBuilder />
 
                 {/* Zone d'import */}
-                <div className="mt-4 glass rounded-2xl p-4 mb-4">
-                  <AssetDropzone
-                    showGallery={true}
-                  />
-                </div>
+                <Highlightable id="studio-import-zone">
+                  <div className="mt-4 glass rounded-2xl p-4 mb-4">
+                    <AssetDropzone
+                      showGallery={true}
+                    />
+                  </div>
+                </Highlightable>
               </div>
             </motion.div>
           )}

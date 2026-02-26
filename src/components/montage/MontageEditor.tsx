@@ -8,11 +8,15 @@ import { saveMontageProjectToSupabase } from '@/hooks/useSupabaseSync'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useTranslations } from '@/lib/i18n/context'
 import { PageSetupPanel } from './PageSetupPanel'
+import { MontageAIChat } from './MontageAIChat'
+import { Highlightable } from '@/components/ui/Highlightable'
 import { cn, getThumbnailUrl } from '@/lib/utils'
 import {
   Film,
   ChevronLeft,
   ChevronRight,
+  MessageCircle,
+  X,
   BookOpen,
   Trash2,
   Loader2,
@@ -214,6 +218,7 @@ export function MontageEditor() {
   const { projects, loadProject, deleteProject, createProject } = useMontageStore()
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
+  const [showChat, setShowChat] = useState(false)
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
   const { profile } = useAuthStore()
   const scene = getCurrentScene()
@@ -698,6 +703,35 @@ export function MontageEditor() {
             </div>
           </div>
         )}
+
+        {/* Bouton flottant chat IA + panneau */}
+        <Highlightable id="montage-ai-chat">
+          <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+            {showChat && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                className="w-80 h-[450px]"
+              >
+                <MontageAIChat className="h-full" />
+              </motion.div>
+            )}
+            <motion.button
+              onClick={() => setShowChat(!showChat)}
+              className={cn(
+                'w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors',
+                showChat
+                  ? 'bg-midnight-700 text-white'
+                  : 'bg-gradient-to-br from-dream-500 to-aurora-500 text-white'
+              )}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {showChat ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+            </motion.button>
+          </div>
+        </Highlightable>
       </div>
     </div>
   )

@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Send, Heart, Volume2, VolumeX, Star, Check, Play } from 'lucide-react'
+import { Sparkles, Send, Heart, Volume2, VolumeX, Star, Check, Play, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useLocale } from '@/lib/i18n/context'
@@ -290,6 +290,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null)
   const [testingVoice, setTestingVoice] = useState<string | null>(null)
   const [voicesReady, setVoicesReady] = useState(false)
+  const [noVoicesForLanguage, setNoVoicesForLanguage] = useState(false)
   const [aiNameGender, setAiNameGender] = useState<'feminine' | 'masculine' | 'unknown'>('unknown')
   const [hasStarted, setHasStarted] = useState(false) // Nécessite une interaction pour débloquer l'audio
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -381,17 +382,29 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
     const loadVoices = () => {
       if ('speechSynthesis' in window) {
         const voices = window.speechSynthesis.getVoices()
-        
+
         // Les voix ne sont peut-être pas encore chargées
         if (voices.length === 0) {
           console.log('🎤 Attente du chargement des voix...')
           return
         }
-        
+
+        // Vérifier s'il existe des voix pour cette langue
+        const langVoices = voices.filter(v => v.lang.startsWith(langCode))
+        console.log('🎤 Recherche voix parmi', langVoices.length, `voix ${langCode}:`, langVoices.map(v => v.name).join(', '))
+
+        if (langVoices.length === 0) {
+          // Aucune voix pour cette langue sur ce navigateur
+          console.warn(`⚠️ Aucune voix disponible pour "${langCode}" sur ce navigateur (${voices.length} voix au total)`)
+          setNoVoicesForLanguage(true)
+          setAvailableVoices([])
+          setVoicesReady(true) // Ne pas bloquer — continuer sans TTS
+          return
+        }
+        setNoVoicesForLanguage(false)
+
         // Chercher la première voix premium de la langue IMMÉDIATEMENT
         const langPremiumNames = PREMIUM_VOICES_BY_LANG[langCode] || PREMIUM_VOICES_BY_LANG.fr
-        const langVoiceNames = voices.filter(v => v.lang.startsWith(langCode)).map(v => v.name)
-        console.log('🎤 Recherche voix premium parmi', langVoiceNames.length, `voix ${langCode}:`, langVoiceNames.join(', '))
 
         let bestVoiceRaw: SpeechSynthesisVoice | null = null
         for (const pName of langPremiumNames) {
@@ -405,7 +418,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
         } else {
           console.log('🎤 ⚠️ Aucune voix premium trouvée pour', langCode)
         }
-        
+
         // Fonction pour détecter le genre d'une voix
         const getVoiceGender = (voiceName: string): 'feminine' | 'masculine' | 'unknown' => {
           if (ALL_FEMININE_VOICES.some(fv => voiceName.includes(fv))) return 'feminine'
@@ -414,8 +427,7 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
         }
 
         const premiumNames = PREMIUM_VOICES_BY_LANG[langCode] || PREMIUM_VOICES_BY_LANG.fr
-        const frenchVoices = voices
-          .filter(v => v.lang.startsWith(langCode))
+        const premiumVoices = langVoices
           .map(v => ({
             name: v.name,
             lang: v.lang,
@@ -430,12 +442,19 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
             if (a.isRecommended !== b.isRecommended) return a.isRecommended ? -1 : 1
             return 0
           })
-        
-        setAvailableVoices(frenchVoices)
-        
+
+        setAvailableVoices(premiumVoices)
+
+        if (premiumVoices.length === 0) {
+          // Des voix existent pour la langue mais aucune premium
+          // Marquer comme "pas de voix" pour l'utilisateur (on ne montre pas les non-premium)
+          console.log('🎤 ⚠️ Voix pour la langue mais aucune premium — skip sélection voix')
+          setNoVoicesForLanguage(true)
+        }
+
         // Sélectionner la première voix premium par défaut (dans l'ordre de priorité)
-        if (frenchVoices.length > 0) {
-          const voiceToSelect = frenchVoices[0].name // Déjà trié par priorité premium
+        if (premiumVoices.length > 0) {
+          const voiceToSelect = premiumVoices[0].name
           setSelectedVoice(voiceToSelect)
           console.log('🎤 Voix sélectionnée:', voiceToSelect)
 
@@ -447,10 +466,10 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
               console.log('🎤 Voix fallback stockée dans ref:', fallbackVoice.name)
             }
           }
-
-          setVoicesReady(true)
-          console.log('🎤 Voix prête:', voiceToSelect, '| Ref:', selectedVoiceRef.current?.name)
         }
+
+        setVoicesReady(true)
+        console.log('🎤 Voix prête:', premiumVoices[0]?.name || 'aucune premium', '| Ref:', selectedVoiceRef.current?.name)
       }
     }
 
@@ -917,9 +936,25 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
                 </p>
                 
                 <div className="space-y-2 max-h-[200px] overflow-y-auto mb-4">
-                  {filteredVoices.length === 0 ? (
+                  {noVoicesForLanguage ? (
+                    <div className="flex flex-col items-center gap-2 py-4 px-3 text-center">
+                      <AlertTriangle className="w-5 h-5 text-amber-400" />
+                      <p className="text-sm text-amber-300">
+                        {langCode === 'en' ? 'No voices available for this language on your browser'
+                          : langCode === 'ru' ? 'На вашем браузере нет голосов для этого языка'
+                          : 'Aucune voix disponible pour cette langue sur ton navigateur'}
+                      </p>
+                      <p className="text-xs text-midnight-400">
+                        {langCode === 'en' ? 'Try using Chrome or Safari for better voice support'
+                          : langCode === 'ru' ? 'Попробуйте использовать Chrome или Safari'
+                          : 'Essaie avec Chrome ou Safari pour plus de voix'}
+                      </p>
+                    </div>
+                  ) : filteredVoices.length === 0 ? (
                     <p className="text-sm text-midnight-500 text-center py-4">
-                      Chargement des voix...
+                      {langCode === 'en' ? 'Loading voices...'
+                        : langCode === 'ru' ? 'Загрузка голосов...'
+                        : 'Chargement des voix...'}
                     </p>
                   ) : (
                     filteredVoices.map((voice) => (
@@ -986,20 +1021,30 @@ export function AIWelcomeSequence({ isOpen, onComplete, voiceOnlyMode = false }:
                 
                 {/* Bouton valider */}
                 <motion.button
-                  onClick={handleSelectVoice}
-                  disabled={!selectedVoice}
+                  onClick={noVoicesForLanguage ? () => {
+                    // Pas de voix à sélectionner, passer directement
+                    setShowVoiceSelector(false)
+                    setTimeout(() => {
+                      setCurrentStep(prev => prev + 1)
+                      setCurrentMessageIndex(0)
+                    }, 500)
+                  } : handleSelectVoice}
+                  disabled={!selectedVoice && !noVoicesForLanguage}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={cn(
                     'w-full py-3 rounded-xl font-medium transition-all',
-                    selectedVoice
+                    selectedVoice || noVoicesForLanguage
                       ? 'bg-gradient-to-r from-aurora-500 to-stardust-500 text-white shadow-lg shadow-aurora-500/30'
                       : 'bg-midnight-700 text-midnight-500 cursor-not-allowed'
                   )}
                 >
                   <span className="flex items-center justify-center gap-2">
                     <Volume2 className="w-5 h-5" />
-                    C'est cette voix !
+                    {noVoicesForLanguage
+                      ? (langCode === 'en' ? 'Continue without voice' : langCode === 'ru' ? 'Продолжить без голоса' : 'Continuer sans voix')
+                      : (langCode === 'en' ? 'I like this voice!' : langCode === 'ru' ? 'Мне нравится этот голос!' : 'C\'est cette voix !')
+                    }
                   </span>
                 </motion.button>
               </motion.div>

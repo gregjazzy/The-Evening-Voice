@@ -24,6 +24,7 @@ export interface Database {
           ai_name: string | null // Nom personnalisé de l'IA
           emotional_context: Json
           credit_balance: number
+          narration_credit_balance: number
           created_at: string
           updated_at: string
         }
@@ -41,6 +42,7 @@ export interface Database {
           ai_name?: string | null
           emotional_context?: Json
           credit_balance?: number
+          narration_credit_balance?: number
           created_at?: string
           updated_at?: string
         }
@@ -58,6 +60,7 @@ export interface Database {
           ai_name?: string | null
           emotional_context?: Json
           credit_balance?: number
+          narration_credit_balance?: number
           created_at?: string
           updated_at?: string
         }
@@ -352,7 +355,7 @@ export interface Database {
           id: string
           profile_id: string | null
           stripe_session_id: string | null
-          order_type: 'book' | 'credits'
+          order_type: 'book' | 'credits' | 'cart' | 'narration_credits'
           status: 'pending' | 'paid' | 'fulfilled' | 'failed' | 'refunded'
           book_data: Json | null
           gelato_order_id: string | null
@@ -366,7 +369,7 @@ export interface Database {
           id?: string
           profile_id?: string | null
           stripe_session_id?: string | null
-          order_type: 'book' | 'credits'
+          order_type: 'book' | 'credits' | 'cart' | 'narration_credits'
           status?: 'pending' | 'paid' | 'fulfilled' | 'failed' | 'refunded'
           book_data?: Json | null
           gelato_order_id?: string | null
@@ -380,7 +383,7 @@ export interface Database {
           id?: string
           profile_id?: string | null
           stripe_session_id?: string | null
-          order_type?: 'book' | 'credits'
+          order_type?: 'book' | 'credits' | 'cart' | 'narration_credits'
           status?: 'pending' | 'paid' | 'fulfilled' | 'failed' | 'refunded'
           book_data?: Json | null
           gelato_order_id?: string | null
@@ -392,6 +395,35 @@ export interface Database {
         }
       }
       credit_transactions: {
+        Row: {
+          id: string
+          profile_id: string
+          amount: number
+          balance_after: number
+          reason: string
+          reference_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          amount: number
+          balance_after: number
+          reason: string
+          reference_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          amount?: number
+          balance_after?: number
+          reason?: string
+          reference_id?: string | null
+          created_at?: string
+        }
+      }
+      narration_credit_transactions: {
         Row: {
           id: string
           profile_id: string

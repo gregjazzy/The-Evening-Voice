@@ -8,6 +8,8 @@ import { MediaPicker } from '@/components/editor/MediaPicker'
 import { SoundPicker } from './SoundPicker'
 import { getVoicesForLocale, type ElevenLabsVoice } from '@/lib/ai/elevenlabs'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
+import { useAuthStore } from '@/store/useAuthStore'
+import { Highlightable } from '@/components/ui/Highlightable'
 import { cn } from '@/lib/utils'
 import {
   Mic,
@@ -29,6 +31,7 @@ import {
   Sparkles,
   ChevronDown,
   Type,
+  AlertCircle,
 } from 'lucide-react'
 import type { MediaType } from '@/store/useMontageStore'
 import type { Sound } from '@/lib/sounds'
@@ -64,6 +67,7 @@ export function PageSetupPanel() {
   const { upload, isUploading, progress } = useMediaUpload()
   const t = useTranslations('layout')
   const locale = useLocale()
+  const { profile } = useAuthStore()
   const scene = getCurrentScene()
 
   // ═══════════════════════════════════════
@@ -270,11 +274,25 @@ export function PageSetupPanel() {
       const res = await fetch('/api/ai/narration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: scene.text, voiceId: voice.id }),
+        body: JSON.stringify({ text: scene.text, voiceId: voice.id, profileId: profile?.id }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Erreur' }))
+        if (res.status === 402 && err.code === 'INSUFFICIENT_NARRATION_CREDITS') {
+          setGenerateError(
+            `${t('montageEditor.pageSetup.narration.insufficientCredits')} (${err.required} ${t('montageEditor.pageSetup.narration.charsRequired')}, ${err.balance} ${t('montageEditor.pageSetup.narration.charsRemaining')})`
+          )
+          setIsGenerating(false)
+          return
+        }
         throw new Error(err.error || 'Erreur génération')
+      }
+      // Update narration balance from response header
+      const newBalance = res.headers.get('X-Narration-Balance')
+      if (newBalance && profile) {
+        useAuthStore.setState({
+          profile: { ...profile, narration_credit_balance: parseInt(newBalance) } as any,
+        })
       }
       const audioBlob = await res.blob()
       // Upload vers Supabase/R2
@@ -413,6 +431,7 @@ export function PageSetupPanel() {
       </div>
 
       {/* ═══ SECTION MÉDIA ═══ */}
+      <Highlightable id="montage-add-media">
       <div className="glass rounded-xl p-4 space-y-3">
         <h3 className="font-medium text-sm flex items-center gap-2">
           <ImagePlus className="w-4 h-4 text-sky-400" />
@@ -476,6 +495,7 @@ export function PageSetupPanel() {
           </button>
         )}
       </div>
+      </Highlightable>
 
       {/* MediaPicker modal */}
       <MediaPicker
@@ -487,6 +507,7 @@ export function PageSetupPanel() {
       />
 
       {/* ═══ SECTION NARRATION ═══ */}
+      <Highlightable id="montage-record-voice">
       <div className="glass rounded-xl p-4 space-y-3">
         <h3 className="font-medium text-sm flex items-center gap-2">
           <Mic className="w-4 h-4 text-aurora-400" />
@@ -636,6 +657,22 @@ export function PageSetupPanel() {
                           </div>
                         ))}
 
+                        {/* Coût en caractères */}
+                        {scene.text && (
+                          <div className="flex items-center justify-between px-1 py-1.5 text-xs text-midnight-400">
+                            <span>{scene.text.length} {t('montageEditor.pageSetup.narration.charsLabel')}</span>
+                            {profile && (
+                              <span className={cn(
+                                (profile as any).narration_credit_balance < scene.text.length
+                                  ? 'text-rose-400'
+                                  : 'text-violet-400'
+                              )}>
+                                {t('montageEditor.pageSetup.narration.balance')}: {((profile as any).narration_credit_balance ?? 0).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
                         {/* Bouton générer */}
                         <button
                           onClick={() => selectedVoice && generateNarration(selectedVoice)}
@@ -712,6 +749,7 @@ export function PageSetupPanel() {
           </div>
         )}
       </div>
+      </Highlightable>
 
       {/* ═══ DURÉE D'AFFICHAGE (pages sans narration uniquement) ═══ */}
       {!scene.narration?.audioUrl && (
@@ -742,6 +780,7 @@ export function PageSetupPanel() {
       )}
 
       {/* ═══ SECTION MUSIQUE ═══ */}
+      <Highlightable id="montage-add-music">
       <div className="glass rounded-xl p-4 space-y-3">
         <h3 className="font-medium text-sm flex items-center gap-2">
           <Music className="w-4 h-4 text-dream-400" />
@@ -816,8 +855,10 @@ export function PageSetupPanel() {
           )}
         </AnimatePresence>
       </div>
+      </Highlightable>
 
       {/* ═══ SECTION EFFETS SONORES ═══ */}
+      <Highlightable id="montage-add-sound">
       <div className="glass rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-sm flex items-center gap-2">
@@ -909,6 +950,7 @@ export function PageSetupPanel() {
           )}
         </AnimatePresence>
       </div>
+      </Highlightable>
     </div>
   )
 }

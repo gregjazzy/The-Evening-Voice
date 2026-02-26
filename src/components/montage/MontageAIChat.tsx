@@ -13,11 +13,11 @@ import {
   Loader2,
   WifiOff,
   Settings,
+  Film,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
-import { useLocale, useTranslations } from '@/lib/i18n/context'
+import { useLocale } from '@/lib/i18n/context'
 import { VoiceSelector } from '@/components/ui/VoiceSelector'
-import { type CreationType } from '@/store/useStudioProgressStore'
 import { useTTS } from '@/hooks/useTTS'
 import { useHighlightStore } from '@/store/useHighlightStore'
 import { cn } from '@/lib/utils'
@@ -81,7 +81,6 @@ function useSpeechRecognition(locale: string = 'fr') {
   const startListening = async () => {
     if (!recognitionRef.current || isListening) return
 
-    // Electron: demander permission micro
     if ((window as any).electronAPI?.requestMicrophoneAccess) {
       try {
         const granted = await (window as any).electronAPI.requestMicrophoneAccess()
@@ -114,21 +113,17 @@ interface Message {
   timestamp: Date
 }
 
-interface StudioAIChatProps {
-  type: CreationType
-  onSuggestion?: (suggestion: string) => void
+interface MontageAIChatProps {
   className?: string
 }
 
-export function StudioAIChat({ type, className }: StudioAIChatProps) {
+export function MontageAIChat({ className }: MontageAIChatProps) {
   const { aiName } = useAppStore()
   const { aiVoice } = useAppStore()
   const locale = useLocale()
-  const t = useTranslations('studio')
   const tts = useTTS(locale, aiVoice || undefined)
   const { highlightMultiple } = useHighlightStore()
 
-  // Reconnaissance vocale
   const speech = useSpeechRecognition(locale)
 
   const [messages, setMessages] = useState<Message[]>([])
@@ -141,17 +136,16 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Nom de l'IA (ou défaut)
-  const friendName = aiName || t('chat.defaultName')
+  const friendName = aiName || (locale === 'fr' ? 'Luna' : locale === 'en' ? 'Luna' : 'Луна')
   const firstName = (useAppStore.getState().userName || '').split(' ')[0]
 
-  // Message d'intro — technique uniquement
+  // Message d'intro
   useEffect(() => {
     const greeting = locale === 'fr'
-      ? `Salut${firstName ? ` ${firstName}` : ''} ! Si tu as une question sur l'outil, je suis là !`
+      ? `Salut${firstName ? ` ${firstName}` : ''} ! Je suis là pour t'aider avec le montage. Demande-moi comment faire !`
       : locale === 'en'
-      ? `Hey${firstName ? ` ${firstName}` : ''}! If you have a question about the tool, I'm here!`
-      : `Привет${firstName ? ` ${firstName}` : ''}! Если есть вопрос об инструменте, я тут!`
+      ? `Hey${firstName ? ` ${firstName}` : ''}! I'm here to help with the montage. Ask me how to do things!`
+      : `Привет${firstName ? ` ${firstName}` : ''}! Я помогу с монтажом. Спрашивай, как что-то сделать!`
 
     setMessages([{
       id: 'intro',
@@ -159,34 +153,30 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
       content: greeting,
       timestamp: new Date(),
     }])
-  }, [type]) // Reset when switching image/video
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ============================================
-  // DÉTECTION DU MODE HORS-LIGNE
-  // ============================================
+  // Détection hors-ligne
   useEffect(() => {
     setIsOffline(!navigator.onLine)
 
     const handleOnline = () => {
       setIsOffline(false)
-      const onlineMessage: Message = {
+      setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'ai',
-        content: t('chat.backOnline'),
+        content: locale === 'fr' ? 'De retour en ligne !' : locale === 'en' ? 'Back online!' : 'Снова онлайн!',
         timestamp: new Date(),
-      }
-      setMessages(prev => [...prev, onlineMessage])
+      }])
     }
 
     const handleOffline = () => {
       setIsOffline(true)
-      const offlineMessage: Message = {
+      setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'ai',
-        content: t('chat.offlineGreeting'),
+        content: locale === 'fr' ? 'Pas de connexion... Je ne peux pas t\'aider pour le moment.' : locale === 'en' ? 'No connection... I can\'t help right now.' : 'Нет связи... Не могу помочь сейчас.',
         timestamp: new Date(),
-      }
-      setMessages(prev => [...prev, offlineMessage])
+      }])
     }
 
     window.addEventListener('online', handleOnline)
@@ -196,9 +186,9 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Arrêter la voix et le micro quand on quitte
+  // Cleanup
   useEffect(() => {
     return () => {
       tts.stop()
@@ -206,17 +196,15 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Afficher le transcript en temps réel dans l'input
+  // Transcript sync
   useEffect(() => {
     if (speech.transcript) {
       setInputValue(speech.transcript)
     }
   }, [speech.transcript])
 
-  // Ref pour toujours avoir la dernière version de sendMessage
+  // Auto-send on speech end
   const sendMessageRef = useRef<(text: string) => void>(() => {})
-
-  // Quand la reconnaissance vocale s'arrête, envoyer automatiquement
   const prevListeningRef = useRef(false)
   useEffect(() => {
     if (prevListeningRef.current && !speech.isListening && speech.transcript.trim()) {
@@ -225,7 +213,7 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
     prevListeningRef.current = speech.isListening
   }, [speech.isListening, speech.transcript])
 
-  // Scroll vers le bas quand nouveaux messages
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -236,7 +224,6 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
     const userMessage = text
     setInputValue('')
 
-    // Ajouter le message de l'enfant
     const childMessage: Message = {
       id: Date.now().toString(),
       role: 'child',
@@ -244,8 +231,6 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
       timestamp: new Date(),
     }
     setMessages(prev => [...prev, childMessage])
-
-    // Appeler l'API de chat
     setIsLoading(true)
 
     try {
@@ -259,13 +244,12 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage,
-          context: 'studio',
-          currentMode: 'studio',
+          context: 'montage',
+          currentMode: 'montage',
           locale,
           chatHistory,
           aiName: friendName,
           userName: useAppStore.getState().userName,
-          studioContext: { type },
         }),
       })
 
@@ -273,7 +257,7 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
 
       const data = await response.json()
 
-      // Déclencher les highlights si présents dans la réponse
+      // Déclencher les highlights si présents
       if (data.highlights && data.highlights.length > 0) {
         highlightMultiple(data.highlights)
       }
@@ -281,7 +265,7 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'ai',
-        content: data.text || data.response || t('chat.notUnderstood'),
+        content: data.text || data.response || (locale === 'fr' ? "Je n'ai pas compris." : locale === 'en' ? "I didn't understand." : 'Не понял.'),
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, aiResponse])
@@ -313,7 +297,6 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
     }
   }
 
-  // Mettre à jour la ref
   sendMessageRef.current = sendMessage
 
   const handleSend = () => sendMessage(inputValue.trim())
@@ -335,7 +318,7 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
   return (
     <motion.div
       className={cn(
-        'glass rounded-2xl flex flex-col h-full max-h-full overflow-hidden',
+        'glass rounded-2xl flex flex-col overflow-hidden',
         className
       )}
       initial={{ opacity: 0, x: 20 }}
@@ -347,53 +330,50 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
           "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
           isOffline
             ? "bg-gradient-to-br from-amber-500 to-orange-500"
-            : "bg-gradient-to-br from-aurora-500 to-dream-500"
+            : "bg-gradient-to-br from-dream-500 to-aurora-500"
         )}>
           {isOffline ? (
             <WifiOff className="w-4 h-4 text-white" />
           ) : (
-            <Sparkles className="w-4 h-4 text-white" />
+            <Film className="w-4 h-4 text-white" />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-white text-sm truncate">{friendName}</h3>
           <p className={cn(
             "text-xs truncate",
-            isOffline ? "text-amber-300" : "text-aurora-300"
+            isOffline ? "text-amber-300" : "text-dream-300"
           )}>
-            {isOffline ? t('chat.offlineMode') : (locale === 'fr' ? 'Aide technique' : locale === 'en' ? 'Technical help' : 'Техническая помощь')}
+            {isOffline
+              ? (locale === 'fr' ? 'Hors ligne' : locale === 'en' ? 'Offline' : 'Оффлайн')
+              : (locale === 'fr' ? 'Aide montage' : locale === 'en' ? 'Montage help' : 'Помощь с монтажом')}
           </p>
         </div>
-        {/* Bouton paramètres voix */}
         <button
           onClick={() => setShowVoiceSelector(!showVoiceSelector)}
           className={cn(
             'p-1.5 rounded-lg transition-colors',
             showVoiceSelector
-              ? 'bg-aurora-500/20 text-aurora-300'
+              ? 'bg-dream-500/20 text-dream-300'
               : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
           )}
-          title={t('chat.changeVoice')}
         >
           <Settings className="w-3.5 h-3.5" />
         </button>
-
-        {/* Bouton activer/désactiver voix */}
         <button
           onClick={toggleVoice}
           className={cn(
             'p-1.5 rounded-lg transition-colors',
             voiceEnabled
-              ? 'bg-aurora-500/20 text-aurora-300'
+              ? 'bg-dream-500/20 text-dream-300'
               : 'bg-midnight-800/50 text-midnight-400'
           )}
-          title={voiceEnabled ? t('chat.disableVoice') : t('chat.enableVoice')}
         >
           {voiceEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
         </button>
       </div>
 
-      {/* Panel sélecteur de voix */}
+      {/* Voice selector */}
       <AnimatePresence>
         {showVoiceSelector && (
           <motion.div
@@ -407,7 +387,7 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
         )}
       </AnimatePresence>
 
-      {/* Bannière mode hors-ligne */}
+      {/* Offline banner */}
       <AnimatePresence>
         {isOffline && (
           <motion.div
@@ -417,7 +397,7 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
             className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-b border-amber-500/30 px-4 py-2"
           >
             <p className="text-xs text-amber-200 text-center">
-              {t('chat.offlineBanner')}
+              {locale === 'fr' ? 'Mode hors-ligne — connexion nécessaire' : locale === 'en' ? 'Offline mode — connection needed' : 'Оффлайн — нужно подключение'}
             </p>
           </motion.div>
         )}
@@ -437,33 +417,34 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
               )}
             >
               {message.role === 'ai' && (
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-aurora-500/30">
-                  <HelpCircle className="w-4 h-4 text-aurora-400" />
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-dream-500/30">
+                  <HelpCircle className="w-4 h-4 text-dream-400" />
                 </div>
               )}
 
               <div className={cn(
                 'max-w-[80%] rounded-2xl px-4 py-3',
                 message.role === 'ai' && 'bg-midnight-800/70 text-white',
-                message.role === 'child' && 'bg-aurora-500/20 text-white',
+                message.role === 'child' && 'bg-dream-500/20 text-white',
               )}>
                 <p className="text-sm whitespace-pre-line">{message.content}</p>
               </div>
             </motion.div>
           ))}
 
-          {/* Indicateur de chargement */}
           {isLoading && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="flex gap-3"
             >
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-aurora-500/30">
-                <Loader2 className="w-4 h-4 text-aurora-400 animate-spin" />
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-dream-500/30">
+                <Loader2 className="w-4 h-4 text-dream-400 animate-spin" />
               </div>
               <div className="bg-midnight-800/70 rounded-2xl px-4 py-3">
-                <p className="text-sm text-midnight-300">{t('chat.thinking')}</p>
+                <p className="text-sm text-midnight-300">
+                  {locale === 'fr' ? 'Je réfléchis...' : locale === 'en' ? 'Thinking...' : 'Думаю...'}
+                </p>
               </div>
             </motion.div>
           )}
@@ -483,7 +464,6 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
                   ? 'bg-red-500/20 text-red-400 animate-pulse'
                   : 'bg-midnight-800/50 text-midnight-400 hover:text-white'
               )}
-              title={speech.isListening ? t('chat.stop') : t('chat.speak')}
             >
               {speech.isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
@@ -495,8 +475,12 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={speech.isListening ? t('chat.listening') : isOffline ? t('chat.placeholderOffline') : (locale === 'fr' ? 'Une question sur l\'outil ?' : locale === 'en' ? 'Question about the tool?' : 'Вопрос об инструменте?')}
-            className="flex-1 bg-midnight-800/50 rounded-xl px-4 py-3 text-white placeholder:text-midnight-500 text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500/30"
+            placeholder={speech.isListening
+              ? (locale === 'fr' ? 'Je t\'écoute...' : locale === 'en' ? 'Listening...' : 'Слушаю...')
+              : isOffline
+              ? (locale === 'fr' ? 'Pas de connexion...' : locale === 'en' ? 'No connection...' : 'Нет связи...')
+              : (locale === 'fr' ? 'Une question sur le montage ?' : locale === 'en' ? 'Question about the montage?' : 'Вопрос о монтаже?')}
+            className="flex-1 bg-midnight-800/50 rounded-xl px-4 py-3 text-white placeholder:text-midnight-500 text-sm focus:outline-none focus:ring-2 focus:ring-dream-500/30"
           />
 
           <motion.button
@@ -505,7 +489,7 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
             className={cn(
               'p-3 rounded-xl transition-colors',
               inputValue.trim() && !isLoading
-                ? 'bg-aurora-500 text-white hover:bg-aurora-600'
+                ? 'bg-dream-500 text-white hover:bg-dream-600'
                 : 'bg-midnight-800/50 text-midnight-600 cursor-not-allowed'
             )}
             whileHover={inputValue.trim() && !isLoading ? { scale: 1.05 } : {}}
@@ -519,7 +503,6 @@ export function StudioAIChat({ type, className }: StudioAIChatProps) {
           </motion.button>
         </div>
       </div>
-
     </motion.div>
   )
 }

@@ -38,3 +38,4 @@ dist-electron/
 # Local Netlify folder
 .netlify
 .env.netlify
+scripts/create-neon-surge.mjs
