@@ -1196,8 +1196,7 @@ Be their friend who helps them create something amazing! 🌟`,
     }
 
     // Ajouter la connaissance de l'interface pour le guidage visuel
-    // (seulement pour les modes qui n'ont pas déjà le mapping dans leur prompt)
-    if (context.interfaceKnowledge && context.mode !== 'studio') {
+    if (context.interfaceKnowledge) {
       systemPrompt += `\n\n${context.interfaceKnowledge}`
     }
 
