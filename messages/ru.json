@@ -1443,7 +1443,13 @@
           "generateWith": "Сгенерировать голосом {name}",
           "chooseFirst": "Сначала выберите голос",
           "sourceGenerated": "Сгенерированный голос",
-          "sourceRecorded": "Записанный голос"
+          "sourceRecorded": "Записанный голос",
+          "insufficientCredits": "Недостаточно кредитов озвучки",
+          "charsRequired": "символов требуется",
+          "charsRemaining": "осталось",
+          "charsLabel": "символов",
+          "balance": "Баланс",
+          "buyNarrationCredits": "Купить кредиты озвучки"
         },
         "duration": {
           "label": "Длительность показа",
@@ -2249,6 +2255,8 @@
     "basic": "Базовый",
     "listenVoice": "Прослушать этот голос",
     "premiumTip": "Голоса Premium звучат наиболее естественно",
+    "noVoicesForLanguage": "На вашем браузере нет голосов для этого языка",
+    "noVoicesForLanguageTip": "Попробуйте использовать Chrome или Safari",
     "testText": "Привет! Я {name}, и это мой голос \"{voice}\". Тебе нравится?",
     "defaultFriend": "твой друг"
   },
@@ -2625,7 +2633,32 @@
       "title": "Что ты хочешь сделать?",
       "printing": { "title": "Напечатать книгу", "description": "Преврати историю в настоящую книгу" },
       "credits": { "title": "Кредиты ИИ", "description": "Генерируй больше картинок и видео" },
-      "gifts": { "title": "Подарки", "description": "Постер, футболка, кружка... с твоими рисунками", "comingSoon": "Скоро" }
+      "gifts": { "title": "Подарки", "description": "Постер, футболка, кружка... с твоими рисунками", "comingSoon": "Скоро" },
+      "hero": {
+        "title": "Магазин",
+        "subtitle": "Печатная книга, персонализированные подарки и кредиты ИИ"
+      },
+      "bookSection": {
+        "title": "Твоя печатная книга",
+        "description": "Преврати свою историю в настоящую книгу, которую можно подержать, подарить и сохранить навсегда",
+        "cta": "Заказать книгу",
+        "priceFrom": "От 34,99€"
+      },
+      "giftsSection": {
+        "title": "Персонализированные подарки",
+        "subtitle": "С иллюстрациями из твоей истории"
+      },
+      "creditsSection": {
+        "title": "Кредиты ИИ",
+        "studioTitle": "Студия",
+        "studioDesc": "Изображения и видео ИИ",
+        "narrationTitle": "Озвучка",
+        "narrationDesc": "Голос ИИ для твоей истории",
+        "yourBalance": "Твой баланс",
+        "buy": "Купить",
+        "chars": "символов",
+        "stories": "историй"
+      }
     },
     "steps": {
       "story": "История",

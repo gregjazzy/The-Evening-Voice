@@ -1443,7 +1443,13 @@
           "generateWith": "Générer avec {name}",
           "chooseFirst": "Choisir une voix d'abord",
           "sourceGenerated": "Voix générée",
-          "sourceRecorded": "Voix enregistrée"
+          "sourceRecorded": "Voix enregistrée",
+          "insufficientCredits": "Crédits narration insuffisants",
+          "charsRequired": "caractères requis",
+          "charsRemaining": "restants",
+          "charsLabel": "caractères",
+          "balance": "Solde",
+          "buyNarrationCredits": "Acheter des crédits narration"
         },
         "duration": {
           "label": "Durée d'affichage",
@@ -2249,6 +2255,8 @@
     "basic": "Basique",
     "listenVoice": "Écouter cette voix",
     "premiumTip": "Les voix Premium sont les plus naturelles",
+    "noVoicesForLanguage": "Aucune voix disponible pour cette langue sur ton navigateur",
+    "noVoicesForLanguageTip": "Essaie avec Chrome ou Safari pour avoir plus de voix",
     "testText": "Bonjour ! Je suis {name}, et voici ma voix \"{voice}\". Tu aimes ?",
     "defaultFriend": "ton amie"
   },
@@ -2625,7 +2633,32 @@
       "title": "Que veux-tu faire ?",
       "printing": { "title": "Imprimer mon livre", "description": "Transforme ton histoire en vrai livre" },
       "credits": { "title": "Crédits IA", "description": "Pour générer plus d'images et de vidéos" },
-      "gifts": { "title": "Cadeaux", "description": "Poster, t-shirt, mug... avec tes illustrations", "comingSoon": "Bientôt disponible" }
+      "gifts": { "title": "Cadeaux", "description": "Poster, t-shirt, mug... avec tes illustrations", "comingSoon": "Bientôt disponible" },
+      "hero": {
+        "title": "La Boutique",
+        "subtitle": "Livre imprimé, cadeaux personnalisés et crédits IA"
+      },
+      "bookSection": {
+        "title": "Ton livre imprimé",
+        "description": "Transforme ton histoire en un vrai livre que tu peux toucher, offrir et garder pour toujours",
+        "cta": "Commander mon livre",
+        "priceFrom": "À partir de 34,99€"
+      },
+      "giftsSection": {
+        "title": "Cadeaux personnalisés",
+        "subtitle": "Avec les illustrations de ton histoire"
+      },
+      "creditsSection": {
+        "title": "Crédits IA",
+        "studioTitle": "Studio",
+        "studioDesc": "Images et vidéos IA",
+        "narrationTitle": "Narration",
+        "narrationDesc": "Voix IA pour ton histoire",
+        "yourBalance": "Ton solde",
+        "buy": "Acheter",
+        "chars": "caractères",
+        "stories": "histoires"
+      }
     },
     "steps": {
       "story": "Histoire",

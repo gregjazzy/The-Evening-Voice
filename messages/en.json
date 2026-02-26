@@ -1443,7 +1443,13 @@
           "generateWith": "Generate with {name}",
           "chooseFirst": "Choose a voice first",
           "sourceGenerated": "Generated voice",
-          "sourceRecorded": "Recorded voice"
+          "sourceRecorded": "Recorded voice",
+          "insufficientCredits": "Insufficient narration credits",
+          "charsRequired": "characters required",
+          "charsRemaining": "remaining",
+          "charsLabel": "characters",
+          "balance": "Balance",
+          "buyNarrationCredits": "Buy narration credits"
         },
         "duration": {
           "label": "Display duration",
@@ -2249,6 +2255,8 @@
     "basic": "Basic",
     "listenVoice": "Listen to this voice",
     "premiumTip": "Premium voices sound the most natural",
+    "noVoicesForLanguage": "No voices available for this language on your browser",
+    "noVoicesForLanguageTip": "Try using Chrome or Safari for better voice support",
     "testText": "Hello! I'm {name}, and this is my voice \"{voice}\". Do you like it?",
     "defaultFriend": "your friend"
   },
@@ -2625,7 +2633,32 @@
       "title": "What do you want to do?",
       "printing": { "title": "Print my book", "description": "Turn your story into a real book" },
       "credits": { "title": "AI Credits", "description": "Generate more images and videos" },
-      "gifts": { "title": "Gifts", "description": "Poster, t-shirt, mug... with your illustrations", "comingSoon": "Coming soon" }
+      "gifts": { "title": "Gifts", "description": "Poster, t-shirt, mug... with your illustrations", "comingSoon": "Coming soon" },
+      "hero": {
+        "title": "The Shop",
+        "subtitle": "Printed book, custom gifts and AI credits"
+      },
+      "bookSection": {
+        "title": "Your printed book",
+        "description": "Turn your story into a real book you can touch, gift and keep forever",
+        "cta": "Order my book",
+        "priceFrom": "From 34.99€"
+      },
+      "giftsSection": {
+        "title": "Custom gifts",
+        "subtitle": "With your story's illustrations"
+      },
+      "creditsSection": {
+        "title": "AI Credits",
+        "studioTitle": "Studio",
+        "studioDesc": "AI images and videos",
+        "narrationTitle": "Narration",
+        "narrationDesc": "AI voice for your story",
+        "yourBalance": "Your balance",
+        "buy": "Buy",
+        "chars": "characters",
+        "stories": "stories"
+      }
     },
     "steps": {
       "story": "Story",

@@ -36,6 +36,7 @@ import {
   Mail,
   Plus,
   Minus,
+  Mic,
 } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useStudioStore } from '@/store/useStudioStore'
@@ -57,7 +58,7 @@ import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { cn, getThumbnailUrl } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
-import { CREDIT_PACKS, calculateBookPrice, DERIVATIVE_PRICES } from '@/lib/stripe-config'
+import { CREDIT_PACKS, NARRATION_CREDIT_PACKS, calculateBookPrice, DERIVATIVE_PRICES } from '@/lib/stripe-config'
 import { DERIVATIVE_PRODUCTS, getDerivativeProduct, getDerivativeDisplayName, type DerivativeProductType } from '@/lib/gelato'
 import type { CartItem } from '@/store/usePublishStore'
 
@@ -65,101 +66,320 @@ import type { CartItem } from '@/store/usePublishStore'
 // COMPOSANT : Page d'accueil Boutique
 // ============================================================================
 
+// ---- Mockup produit (V1 : gradient + icône + overlay illustration) ----
+
+function ProductMockup({ type, illustrationUrl }: {
+  type: 'book' | 'mug' | 'poster' | 'cards' | 'coloring-book'
+  illustrationUrl?: string
+}) {
+  const gradients: Record<string, string> = {
+    book: 'from-emerald-900/40 to-emerald-800/20',
+    mug: 'from-amber-900/40 to-amber-800/20',
+    poster: 'from-sky-900/40 to-sky-800/20',
+    cards: 'from-pink-900/40 to-pink-800/20',
+    'coloring-book': 'from-violet-900/40 to-violet-800/20',
+  }
+
+  const overlayZones: Record<string, React.CSSProperties> = {
+    book: { top: '10%', left: '15%', width: '70%', height: '80%' },
+    mug: { top: '20%', left: '25%', width: '50%', height: '55%' },
+    poster: { top: '8%', left: '12%', width: '76%', height: '84%' },
+    cards: { top: '15%', left: '10%', width: '35%', height: '70%' },
+    'coloring-book': { top: '10%', left: '15%', width: '70%', height: '80%' },
+  }
+
+  const icons: Record<string, typeof BookOpen> = {
+    book: BookOpen,
+    mug: Coffee,
+    poster: Frame,
+    cards: Mail,
+    'coloring-book': Palette,
+  }
+
+  const Icon = icons[type]
+
+  return (
+    <div className={cn('relative aspect-[4/3] rounded-xl overflow-hidden bg-gradient-to-br', gradients[type])}>
+      <div className="absolute inset-0 flex items-center justify-center opacity-20">
+        <Icon className="w-16 h-16 text-white" />
+      </div>
+      {illustrationUrl && (
+        <img
+          src={getThumbnailUrl(illustrationUrl, 400)}
+          alt=""
+          style={overlayZones[type]}
+          className="absolute object-cover rounded-lg opacity-90 shadow-lg"
+        />
+      )}
+    </div>
+  )
+}
+
+// ---- Page d'accueil Boutique (Apple Store style) ----
+
 function ShopHome() {
   const t = useTranslations('publish')
-  const toast = useToast()
-  const { setCurrentStep, setShopFlow } = usePublishStore()
+  const locale = useLocale()
+  const { setCurrentStep, setShopFlow, setSelectedDerivativeType } = usePublishStore()
+  const { stories } = useAppStore()
+  const { profile } = useAuthStore()
+  const [isRedirecting, setIsRedirecting] = useState<string | null>(null)
 
-  const categories = [
-    {
-      key: 'printing' as const,
-      icon: BookOpen,
-      gradient: 'from-emerald-500 to-teal-600',
-      glowColor: 'shadow-emerald-500/25',
-      bgHover: 'hover:bg-emerald-500/10',
-      ringColor: 'ring-emerald-500/50',
-      iconBg: 'bg-emerald-500/20',
-      iconColor: 'text-emerald-400',
-      onClick: () => {
-        setShopFlow('book')
-        setCurrentStep('select-story')
-      },
-    },
-    {
-      key: 'credits' as const,
-      icon: Sparkles,
-      gradient: 'from-violet-500 to-purple-600',
-      glowColor: 'shadow-violet-500/25',
-      bgHover: 'hover:bg-violet-500/10',
-      ringColor: 'ring-violet-500/50',
-      iconBg: 'bg-violet-500/20',
-      iconColor: 'text-violet-400',
-      onClick: () => setCurrentStep('credits'),
-    },
-    {
-      key: 'gifts' as const,
-      icon: Gift,
-      gradient: 'from-pink-500 to-rose-600',
-      glowColor: 'shadow-pink-500/25',
-      bgHover: 'hover:bg-pink-500/10',
-      ringColor: 'ring-pink-500/50',
-      iconBg: 'bg-pink-500/20',
-      iconColor: 'text-pink-400',
-      onClick: () => {
-        setShopFlow('derivatives')
-        setCurrentStep('select-story')
-      },
-    },
-  ]
+  // Get first illustration from any story for mockup previews
+  const firstIllustrationUrl = (() => {
+    for (const story of stories) {
+      const illustrations = getStoryIllustrations(story)
+      if (illustrations.length > 0) return illustrations[0].url
+    }
+    return undefined
+  })()
+
+  const creditBalance = (profile as any)?.credit_balance ?? 0
+  const narrationBalance = (profile as any)?.narration_credit_balance ?? 0
+
+  const handleBuyStudioCredits = async () => {
+    setIsRedirecting('studio')
+    try {
+      const pack = CREDIT_PACKS[0]
+      const response = await fetch('/api/stripe/checkout/credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId: pack.id }),
+      })
+      const data = await response.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error(data.error || 'Erreur')
+      }
+    } catch (error) {
+      console.error('Erreur Stripe checkout credits:', error)
+      setIsRedirecting(null)
+    }
+  }
+
+  const handleBuyNarrationCredits = async (packId: string) => {
+    setIsRedirecting(packId)
+    try {
+      const response = await fetch('/api/stripe/checkout/narration-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId }),
+      })
+      const data = await response.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error(data.error || 'Erreur')
+      }
+    } catch (error) {
+      console.error('Erreur Stripe checkout narration:', error)
+      setIsRedirecting(null)
+    }
+  }
+
+  const derivativeProducts: { type: DerivativeProductType; icon: typeof Coffee; name: string; description: string; price: number }[] = DERIVATIVE_PRODUCTS.map(p => ({
+    type: p.type,
+    icon: { Coffee, Frame, Mail, Palette }[p.icon as 'Coffee' | 'Frame' | 'Mail' | 'Palette'] || Gift,
+    name: locale === 'en' ? p.nameEn : locale === 'ru' ? p.nameRu : p.nameFr,
+    description: locale === 'en' ? p.descriptionEn : locale === 'ru' ? p.descriptionRu : p.descriptionFr,
+    price: p.sellingPriceCents,
+  }))
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="max-w-4xl mx-auto"
+      className="max-w-5xl mx-auto space-y-10"
     >
-      <div className="text-center mb-10">
-        <h2 className="text-3xl font-display text-white mb-2">
-          {t('shop.title')}
+      {/* ──── A. Hero Banner ──── */}
+      <div className="text-center py-8 rounded-2xl bg-gradient-to-br from-aurora-500/10 via-dream-500/5 to-transparent">
+        <h2 className="text-4xl font-display text-white mb-2">
+          {t('shop.hero.title')}
         </h2>
+        <p className="text-midnight-300 text-lg">
+          {t('shop.hero.subtitle')}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {categories.map((cat) => {
-          const Icon = cat.icon
-          return (
+      {/* ──── B. Section Livre ──── */}
+      <section>
+        <motion.div
+          className="glass-card p-6 md:p-8 relative group overflow-hidden"
+          whileHover={{ y: -3 }}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div className="order-2 md:order-1">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-emerald-400" />
+                </div>
+                <h3 className="text-2xl font-semibold text-white">
+                  {t('shop.bookSection.title')}
+                </h3>
+              </div>
+              <p className="text-midnight-300 mb-4 leading-relaxed">
+                {t('shop.bookSection.description')}
+              </p>
+              <p className="text-sm text-emerald-400 font-medium mb-6">
+                {t('shop.bookSection.priceFrom')}
+              </p>
+              <motion.button
+                onClick={() => {
+                  setShopFlow('book')
+                  setCurrentStep('select-story')
+                }}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold hover:from-emerald-400 hover:to-teal-500 transition-all"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <BookOpen className="w-5 h-5" />
+                {t('shop.bookSection.cta')}
+              </motion.button>
+            </div>
+            <div className="order-1 md:order-2">
+              <ProductMockup type="book" illustrationUrl={firstIllustrationUrl} />
+            </div>
+          </div>
+          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity ring-1 ring-emerald-500/30 pointer-events-none" />
+        </motion.div>
+      </section>
+
+      {/* ──── C. Section Cadeaux ──── */}
+      <section>
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold text-white">
+            {t('shop.giftsSection.title')}
+          </h3>
+          <p className="text-midnight-400 text-sm mt-1">
+            {t('shop.giftsSection.subtitle')}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {derivativeProducts.map((product) => {
+            const Icon = product.icon
+            return (
+              <motion.button
+                key={product.type}
+                onClick={() => {
+                  setShopFlow('derivatives')
+                  setSelectedDerivativeType(product.type)
+                  setCurrentStep('select-story')
+                }}
+                className="glass-card overflow-hidden text-left group relative"
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <ProductMockup type={product.type} illustrationUrl={firstIllustrationUrl} />
+                <div className="p-4">
+                  <h4 className="text-sm font-semibold text-white mb-1">{product.name}</h4>
+                  <p className="text-xs text-midnight-400 mb-2 line-clamp-2">{product.description}</p>
+                  <p className="text-sm font-bold text-aurora-400">{(product.price / 100).toFixed(2)}€</p>
+                </div>
+                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity ring-1 ring-aurora-500/30 pointer-events-none" />
+              </motion.button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* ──── D. Section Crédits IA ──── */}
+      <section>
+        <div className="mb-6">
+          <h3 className="text-2xl font-semibold text-white">
+            {t('shop.creditsSection.title')}
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Studio Credits */}
+          <div className="glass-card p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-violet-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-semibold text-white">{t('shop.creditsSection.studioTitle')}</h4>
+                <p className="text-xs text-midnight-400">{t('shop.creditsSection.studioDesc')}</p>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-2xl font-bold text-white">{CREDIT_PACKS[0].credits} {t('creditsShop.credits')}</span>
+              <span className="text-xl font-bold text-aurora-400">{(CREDIT_PACKS[0].price / 100).toFixed(2)}€</span>
+            </div>
+            {profile && (
+              <p className="text-xs text-midnight-400 mb-4">
+                {t('shop.creditsSection.yourBalance')} : <span className="text-violet-400 font-medium">{creditBalance}</span>
+              </p>
+            )}
             <motion.button
-              key={cat.key}
-              onClick={cat.onClick}
+              onClick={handleBuyStudioCredits}
+              disabled={isRedirecting === 'studio'}
               className={cn(
-                'glass-card p-8 text-center transition-all cursor-pointer relative group',
-                cat.bgHover
+                'w-full py-3 px-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2',
+                'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-400 hover:to-purple-500',
+                isRedirecting === 'studio' && 'opacity-50 cursor-not-allowed'
               )}
-              whileHover={{ scale: 1.04, y: -6 }}
+              whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
             >
-              <div className={cn(
-                'w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center',
-                cat.iconBg
-              )}>
-                <Icon className={cn('w-8 h-8', cat.iconColor)} />
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                {t(`shop.${cat.key}.title`)}
-              </h3>
-              <p className="text-sm text-midnight-400">
-                {t(`shop.${cat.key}.description`)}
-              </p>
-              {/* Gifts coming soon badge removed — now active */}
-              <div className={cn(
-                'absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity ring-1',
-                cat.ringColor
-              )} />
+              {isRedirecting === 'studio' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  {t('shop.creditsSection.buy')}
+                </>
+              )}
             </motion.button>
-          )
-        })}
-      </div>
+          </div>
+
+          {/* Narration Credits */}
+          <div className="glass-card p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-aurora-500/20 flex items-center justify-center">
+                <Mic className="w-5 h-5 text-aurora-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-semibold text-white">{t('shop.creditsSection.narrationTitle')}</h4>
+                <p className="text-xs text-midnight-400">{t('shop.creditsSection.narrationDesc')}</p>
+              </div>
+            </div>
+            {profile && (
+              <p className="text-xs text-midnight-400 mb-3">
+                {t('shop.creditsSection.yourBalance')} : <span className="text-aurora-400 font-medium">{narrationBalance.toLocaleString()} {t('shop.creditsSection.chars')}</span>
+              </p>
+            )}
+            <div className="space-y-2">
+              {NARRATION_CREDIT_PACKS.map((pack) => (
+                <motion.button
+                  key={pack.id}
+                  onClick={() => handleBuyNarrationCredits(pack.id)}
+                  disabled={isRedirecting === pack.id}
+                  className={cn(
+                    'w-full py-2.5 px-4 rounded-xl transition-all flex items-center justify-between',
+                    'bg-white/5 border border-white/10 hover:border-aurora-500/40 hover:bg-aurora-500/5',
+                    isRedirecting === pack.id && 'opacity-50 cursor-not-allowed'
+                  )}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span className="text-sm text-white font-medium">
+                    {locale === 'en' ? pack.labelEn : pack.label}
+                  </span>
+                  <span className="text-sm font-bold text-aurora-400 flex items-center gap-1.5">
+                    {isRedirecting === pack.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      `${(pack.price / 100).toFixed(2)}€`
+                    )}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
     </motion.div>
   )
 }
@@ -3119,22 +3339,22 @@ function CreditsShopStep() {
   const t = useTranslations('publish')
   const locale = useLocale()
   const { setCurrentStep } = usePublishStore()
-  const [isRedirecting, setIsRedirecting] = useState(false)
+  const { profile } = useAuthStore()
+  const [isRedirecting, setIsRedirecting] = useState<string | null>(null)
 
   const pack = CREDIT_PACKS[0]
+  const creditBalance = (profile as any)?.credit_balance ?? 0
+  const narrationBalance = (profile as any)?.narration_credit_balance ?? 0
 
   const handleBuyPack = async () => {
-    setIsRedirecting(true)
-
+    setIsRedirecting('studio')
     try {
       const response = await fetch('/api/stripe/checkout/credits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packId: pack.id }),
       })
-
       const data = await response.json()
-
       if (data.url) {
         window.location.href = data.url
       } else {
@@ -3142,7 +3362,27 @@ function CreditsShopStep() {
       }
     } catch (error) {
       console.error('Erreur Stripe checkout credits:', error)
-      setIsRedirecting(false)
+      setIsRedirecting(null)
+    }
+  }
+
+  const handleBuyNarration = async (packId: string) => {
+    setIsRedirecting(packId)
+    try {
+      const response = await fetch('/api/stripe/checkout/narration-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId }),
+      })
+      const data = await response.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error(data.error || 'Erreur')
+      }
+    } catch (error) {
+      console.error('Erreur Stripe checkout narration:', error)
+      setIsRedirecting(null)
     }
   }
 
@@ -3151,9 +3391,9 @@ function CreditsShopStep() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="max-w-md mx-auto"
+      className="max-w-2xl mx-auto space-y-8"
     >
-      <div className="text-center mb-10">
+      <div className="text-center mb-6">
         <h2 className="text-3xl font-display text-white mb-2">
           {t('creditsShop.title')}
         </h2>
@@ -3162,20 +3402,29 @@ function CreditsShopStep() {
         </p>
       </div>
 
+      {/* Studio Credits */}
       <motion.div
         className="glass-card p-8 text-center relative ring-2 ring-violet-500 bg-violet-500/5"
         whileHover={{ scale: 1.02, y: -4 }}
       >
-        <div className="text-5xl mb-4">
-          {locale === 'fr' ? '🎨' : '🎨'}
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-violet-500/20 flex items-center justify-center">
+            <Sparkles className="w-6 h-6 text-violet-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-white">{t('shop.creditsSection.studioTitle')}</h3>
         </div>
 
         <h3 className="text-3xl font-bold text-white mb-1">
           {pack.credits} {t('creditsShop.credits', { count: pack.credits })}
         </h3>
-        <p className="text-sm text-midnight-400 mb-6">
+        <p className="text-sm text-midnight-400 mb-2">
           {t('creditsShop.perCredit', { price: `${(pack.price / 100 / pack.credits).toFixed(2)}€` })}
         </p>
+        {profile && (
+          <p className="text-xs text-midnight-400 mb-4">
+            {t('shop.creditsSection.yourBalance')} : <span className="text-violet-400 font-medium">{creditBalance}</span>
+          </p>
+        )}
 
         <div className="text-4xl font-bold text-aurora-400 mb-6">
           {(pack.price / 100).toFixed(2)}€
@@ -3183,14 +3432,14 @@ function CreditsShopStep() {
 
         <button
           onClick={handleBuyPack}
-          disabled={isRedirecting}
+          disabled={isRedirecting === 'studio'}
           className={cn(
             'w-full py-4 px-6 rounded-xl font-semibold transition-all flex items-center justify-center gap-2',
             'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-400 hover:to-purple-500 text-lg',
-            isRedirecting && 'opacity-50 cursor-not-allowed'
+            isRedirecting === 'studio' && 'opacity-50 cursor-not-allowed'
           )}
         >
-          {isRedirecting ? (
+          {isRedirecting === 'studio' ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
               {t('order.redirectingToStripe')}
@@ -3204,7 +3453,52 @@ function CreditsShopStep() {
         </button>
       </motion.div>
 
-      <div className="mt-8 flex justify-center">
+      {/* Narration Credits */}
+      <div className="glass-card p-8">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-aurora-500/20 flex items-center justify-center">
+            <Mic className="w-6 h-6 text-aurora-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-white">{t('shop.creditsSection.narrationTitle')}</h3>
+        </div>
+        <p className="text-sm text-midnight-400 text-center mb-2">
+          {t('shop.creditsSection.narrationDesc')}
+        </p>
+        {profile && (
+          <p className="text-xs text-midnight-400 text-center mb-4">
+            {t('shop.creditsSection.yourBalance')} : <span className="text-aurora-400 font-medium">{narrationBalance.toLocaleString()} {t('shop.creditsSection.chars')}</span>
+          </p>
+        )}
+        <div className="space-y-3">
+          {NARRATION_CREDIT_PACKS.map((nPack) => (
+            <motion.button
+              key={nPack.id}
+              onClick={() => handleBuyNarration(nPack.id)}
+              disabled={isRedirecting === nPack.id}
+              className={cn(
+                'w-full py-3 px-5 rounded-xl transition-all flex items-center justify-between',
+                'bg-white/5 border border-white/10 hover:border-aurora-500/40 hover:bg-aurora-500/5',
+                isRedirecting === nPack.id && 'opacity-50 cursor-not-allowed'
+              )}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <span className="text-sm text-white font-medium">
+                {locale === 'en' ? nPack.labelEn : nPack.label}
+              </span>
+              <span className="text-sm font-bold text-aurora-400 flex items-center gap-1.5">
+                {isRedirecting === nPack.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  `${(nPack.price / 100).toFixed(2)}€`
+                )}
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-center">
         <button
           onClick={() => setCurrentStep('shop-home')}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all"
