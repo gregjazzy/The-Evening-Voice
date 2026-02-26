@@ -38,6 +38,8 @@ export type HighlightableElement =
   | 'book-delete-page'
   | 'book-page-list'
   | 'book-chapters'
+  | 'book-text-box'
+  | 'book-mic'
   | 'book-ai-chat'
   | 'export-pdf-button'
   // Studio
@@ -148,6 +150,8 @@ export const ELEMENT_DESCRIPTIONS: Record<HighlightableElement, {
   'book-delete-page': { label: 'Supprimer page', description: 'Le bouton pour supprimer une page', mode: 'ecriture' },
   'book-page-list': { label: 'Liste des pages', description: 'La barre qui montre toutes les pages de ton livre', mode: 'ecriture' },
   'book-chapters': { label: 'Chapitres', description: 'Le bouton pour organiser ton livre en chapitres', mode: 'ecriture' },
+  'book-text-box': { label: 'Zone de texte', description: 'Le bouton pour ajouter une zone de texte libre sur ta page', mode: 'ecriture' },
+  'book-mic': { label: 'Dictée vocale', description: 'Le micro pour dicter ton texte en parlant', mode: 'ecriture' },
   'book-ai-chat': { label: 'Parler avec moi', description: 'L\'endroit où tu peux me poser des questions', mode: 'ecriture' },
   'export-pdf-button': { label: 'Télécharger PDF', description: 'Le bouton pour télécharger ton livre en PDF. Ensuite va dans Publier pour l\'imprimer.', mode: 'ecriture' },
 
