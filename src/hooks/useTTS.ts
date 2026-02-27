@@ -178,12 +178,11 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
       if (allBrowserVoices.length > 0 && voices.length === 0) {
         console.warn(`⚠️ Aucune voix premium disponible pour "${locale}" sur ce navigateur (${allBrowserVoices.length} voix au total)`)
         setNoVoicesForLanguage(true)
-        setVoicesReady(true) // Ne pas bloquer l'app
-        return
+      } else {
+        setNoVoicesForLanguage(false)
       }
-      setNoVoicesForLanguage(false)
 
-      // Sélectionner la meilleure voix (ou la préférée)
+      // Toujours sélectionner la meilleure voix disponible (premium ou standard comme Google)
       const selectedVoice = findBestVoice(locale, selectedVoiceName)
       setWebVoice(selectedVoice)
 
@@ -191,6 +190,8 @@ export function useTTS(locale: 'fr' | 'en' | 'ru' = 'fr', preferredVoiceName?: s
         setVoicesReady(true)
         const isRecommended = isVoiceRecommended(selectedVoice.name, locale)
         console.log(`🎤 Voix TTS: ${selectedVoice.name} ${isRecommended ? '⭐ (recommandée)' : ''}`)
+      } else if (allBrowserVoices.length > 0) {
+        setVoicesReady(true) // Ne pas bloquer l'app même sans voix pour cette langue
       }
     }
 
