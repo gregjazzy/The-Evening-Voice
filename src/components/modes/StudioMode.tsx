@@ -83,6 +83,7 @@ export function StudioMode() {
   useEffect(() => {
     if (currentKit && currentCreationType) {
       setView('create')
+      setSelectedType(currentCreationType)
     } else if (!currentKit && !currentCreationType) {
       setView('select')
       setSelectedType(null)
