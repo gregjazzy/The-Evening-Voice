@@ -2870,8 +2870,15 @@
     },
     "coloring": {
       "converting": "Конвертация иллюстраций в раскраски…",
-      "generatingTitle": "Создание книги-раскраски",
-      "generating": "Генерация…"
+      "generatingTitle": "Создание набора раскрасок",
+      "generating": "Генерация…",
+      "previewTitle": "Набор раскрасок",
+      "previewDesc": "Твои {count} иллюстраций в раскрасках (PDF)",
+      "loadingPreview": "Бесплатный предпросмотр загружается…",
+      "originalLabel": "Оригинал",
+      "coloringLabel": "Раскраска",
+      "allIllustrations": "{count} иллюстраций будут конвертированы",
+      "buyPack": "Купить набор — €{price}"
     },
     "cart": {
       "title": "Моя корзина",
@@ -2885,13 +2892,17 @@
       "shippingCalculating": "Расчёт...",
       "shippingCalculated": "Рассчитывается при оплате",
       "total": "Итого",
-      "pay": "Оплатить"
+      "pay": "Оплатить",
+      "digitalDelivery": "Мгновенная загрузка",
+      "emailForDownload": "Твой email для загрузки"
     },
     "checkoutSuccess": {
       "title": "Заказ подтверждён!",
       "description": "Спасибо за заказ! Оплата получена, и заказ готовится к отправке.",
+      "digitalDescription": "Спасибо за покупку! Твой набор раскрасок готов к загрузке.",
       "productionInfo": "Заказ будет изготовлен и отправлен в течение 5-7 рабочих дней.",
       "emailInfo": "Ты получишь письмо с подтверждением и номером отслеживания.",
+      "downloadColoring": "Скачать набор раскрасок",
       "continueShopping": "Продолжить покупки",
       "backToStories": "Вернуться к историям"
     },

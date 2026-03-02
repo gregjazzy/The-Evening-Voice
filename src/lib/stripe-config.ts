@@ -80,14 +80,13 @@ export function calculateBookPrice(
 }
 
 // ============================================================================
-// DERIVATIVE PRODUCT PRICING (marge ×2.5 sur coût produit, pas de marge sur livraison)
+// DERIVATIVE PRODUCT PRICING (marge ×2 sur coût Gelato, livraison facturée séparément)
 // ============================================================================
 
 export const DERIVATIVE_PRICES = {
-  mug: 1299,              // 12.99€
-  poster: 2699,           // 26.99€
-  cards: 999,             // 9.99€
-  'coloring-book': 3499,  // 34.99€
+  mug: 1499,              // 14.99€ (coût Gelato: 7.11€)
+  poster: 1499,           // 14.99€ (coût Gelato: 7.63€)
+  'coloring-book': 499,   // 4.99€ (digital PDF, coût IA: ~0.10€)
 } as const
 
 export type DerivativeType = keyof typeof DERIVATIVE_PRICES

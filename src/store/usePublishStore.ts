@@ -343,7 +343,11 @@ interface PublishState {
   orderResult: { id: string; referenceId: string; status: string } | null
   orderError: string | null
   placeGelatoOrder: () => Promise<boolean>
-  
+
+  // Digital products (coloring book PDF URL persisted for download after Stripe redirect)
+  lastColoringPdfUrl: string | null
+  setLastColoringPdfUrl: (url: string | null) => void
+
   // Reset
   reset: () => void
 }
@@ -433,6 +437,8 @@ export const usePublishStore = create<PublishState>()(persist((set, get) => ({
   setShopFlow: (flow) => set({ shopFlow: flow }),
   setSelectedDerivativeType: (type) => set({ selectedDerivativeType: type }),
   setSelectedIllustrations: (urls) => set({ selectedIllustrations: urls }),
+  lastColoringPdfUrl: null,
+  setLastColoringPdfUrl: (url) => set({ lastColoringPdfUrl: url }),
 
   setSelectedStory: (story) => set({ 
     selectedStory: story,
@@ -888,12 +894,14 @@ export const usePublishStore = create<PublishState>()(persist((set, get) => ({
     isOrdering: false,
     orderResult: null,
     orderError: null,
+    lastColoringPdfUrl: null,
   }),
 }), {
   name: 'lvds-cart',
-  // Ne persister que le panier et l'adresse — pas l'état transitoire
+  // Ne persister que le panier, l'adresse, et l'URL du PDF coloriage (pour après redirect Stripe)
   partialize: (state) => ({
     cart: state.cart,
     shippingAddress: state.shippingAddress,
+    lastColoringPdfUrl: state.lastColoringPdfUrl,
   }),
 }))

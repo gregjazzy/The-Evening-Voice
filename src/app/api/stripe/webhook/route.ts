@@ -296,45 +296,67 @@ async function handleCartOrder(
     return
   }
 
-  // 3. Place Gelato order with ALL items (multi-items mode)
-  try {
-    const gelatoResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/gelato/order`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-secret': process.env.STRIPE_WEBHOOK_SECRET!,
-      },
-      body: JSON.stringify({
-        items: cartData.items,
-        shippingAddress: cartData.shippingAddress,
-        customerEmail: cartData.shippingAddress.email,
-      }),
-    })
+  // Separate physical items (need Gelato) from digital items (instant delivery)
+  const DIGITAL_TYPES = ['coloring-book']
+  const physicalItems = cartData.items.filter(item => !DIGITAL_TYPES.includes(item.type))
+  const digitalItems = cartData.items.filter(item => DIGITAL_TYPES.includes(item.type))
 
-    const gelatoData = await gelatoResponse.json()
+  if (digitalItems.length > 0) {
+    console.log(`📥 Digital items: ${digitalItems.map(i => i.type).join(', ')} — instant delivery`)
+  }
 
-    if (gelatoData.success && gelatoData.order) {
-      await supabase
-        .from('orders')
-        .update({
-          gelato_order_id: gelatoData.order.id,
-          status: 'fulfilled',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pendingOrderId)
+  // 3. Place Gelato order only for physical items
+  if (physicalItems.length > 0) {
+    try {
+      const gelatoResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/gelato/order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-secret': process.env.STRIPE_WEBHOOK_SECRET!,
+        },
+        body: JSON.stringify({
+          items: physicalItems,
+          shippingAddress: cartData.shippingAddress,
+          customerEmail: cartData.shippingAddress?.email,
+        }),
+      })
 
-      console.log(`✅ Cart Gelato order placed: ${gelatoData.order.id} (${gelatoData.order.itemCount} items)`)
-    } else {
-      console.error('Cart Gelato order failed:', gelatoData.error)
-      await supabase
-        .from('orders')
-        .update({
-          status: 'failed',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pendingOrderId)
+      const gelatoData = await gelatoResponse.json()
+
+      if (gelatoData.success && gelatoData.order) {
+        await supabase
+          .from('orders')
+          .update({
+            gelato_order_id: gelatoData.order.id,
+            status: 'fulfilled',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', pendingOrderId)
+
+        console.log(`✅ Cart Gelato order placed: ${gelatoData.order.id} (${gelatoData.order.itemCount} items)`)
+      } else {
+        console.error('Cart Gelato order failed:', gelatoData.error)
+        await supabase
+          .from('orders')
+          .update({
+            status: 'failed',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', pendingOrderId)
+      }
+    } catch (error) {
+      console.error('Cart Gelato API call failed:', error)
     }
-  } catch (error) {
-    console.error('Cart Gelato API call failed:', error)
+  } else {
+    // All digital — mark as fulfilled immediately
+    await supabase
+      .from('orders')
+      .update({
+        status: 'fulfilled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', pendingOrderId)
+
+    console.log(`✅ Digital-only cart order fulfilled: ${pendingOrderId}`)
   }
 }

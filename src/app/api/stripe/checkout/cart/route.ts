@@ -42,13 +42,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { cartItems, shippingAddress, shippingCostCents } = body
+    const { cartItems, shippingAddress, shippingCostCents, digitalOnly } = body
 
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
       return NextResponse.json({ error: 'Panier vide' }, { status: 400 })
     }
 
-    if (!shippingAddress) {
+    // Digital-only carts only need an email, not a full address
+    if (!digitalOnly && !shippingAddress) {
       return NextResponse.json({ error: 'Adresse de livraison requise' }, { status: 400 })
     }
 

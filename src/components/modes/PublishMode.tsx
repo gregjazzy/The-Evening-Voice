@@ -57,6 +57,7 @@ import { usePdfExport } from '@/hooks/usePdfExport'
 import { ModeIntroModal, useFirstVisit } from '@/components/ui/ModeIntroModal'
 import { useTranslations, useLocale } from '@/lib/i18n/context'
 import { cn, getThumbnailUrl } from '@/lib/utils'
+import { triggerManualSave } from '@/hooks/useSupabaseSync'
 import { useToast } from '@/components/ui/Toast'
 import { CREDIT_PACKS, NARRATION_CREDIT_PACKS, calculateBookPrice, DERIVATIVE_PRICES } from '@/lib/stripe-config'
 import { DERIVATIVE_PRODUCTS, getDerivativeProduct, getDerivativeDisplayName, type DerivativeProductType } from '@/lib/gelato'
@@ -69,7 +70,7 @@ import type { CartItem } from '@/store/usePublishStore'
 // ---- Mockup produit (V1 : gradient + icône + overlay illustration) ----
 
 function ProductMockup({ type, illustrationUrl }: {
-  type: 'book' | 'mug' | 'poster' | 'cards' | 'coloring-book'
+  type: 'book' | 'mug' | 'poster' | 'coloring-book'
   illustrationUrl?: string
 }) {
   const gradients: Record<string, string> = {
@@ -120,10 +121,11 @@ function ProductMockup({ type, illustrationUrl }: {
 function ShopHome() {
   const t = useTranslations('publish')
   const locale = useLocale()
-  const { setCurrentStep, setShopFlow, setSelectedDerivativeType } = usePublishStore()
+  const { setCurrentStep, setShopFlow, setSelectedDerivativeType, selectedStory, setSelectedStory } = usePublishStore()
   const { stories } = useAppStore()
   const { profile } = useAuthStore()
   const [isRedirecting, setIsRedirecting] = useState<string | null>(null)
+  const completedStories = stories.filter(s => s.pages.length >= 1)
 
   // Get first illustration from any story for mockup previews
   const firstIllustrationUrl = (() => {
@@ -203,6 +205,42 @@ function ShopHome() {
         </p>
       </div>
 
+      {/* ──── A2. Sélection de l'histoire ──── */}
+      <section>
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Book className="w-5 h-5 text-aurora-400" />
+            <h3 className="text-lg font-semibold text-white">
+              {t('selectStory.title')}
+            </h3>
+          </div>
+          {completedStories.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {completedStories.map((story) => (
+                <motion.button
+                  key={story.id}
+                  onClick={() => setSelectedStory(story)}
+                  className={cn(
+                    'px-4 py-2 rounded-xl text-sm transition-all border',
+                    selectedStory?.id === story.id
+                      ? 'bg-aurora-500/20 border-aurora-500/50 text-aurora-300'
+                      : 'bg-midnight-800/50 border-midnight-700/30 text-midnight-300 hover:border-midnight-500/50 hover:text-white'
+                  )}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  {selectedStory?.id === story.id && <Check className="w-3.5 h-3.5 inline mr-1.5" />}
+                  {story.title || t('selectStory.untitled')}
+                  <span className="text-xs text-midnight-500 ml-2">{story.pages.length}p</span>
+                </motion.button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-midnight-400">{t('selectStory.emptyDescription')}</p>
+          )}
+        </div>
+      </section>
+
       {/* ──── B. Section Livre ──── */}
       <section>
         <motion.div
@@ -227,12 +265,22 @@ function ShopHome() {
               </p>
               <motion.button
                 onClick={() => {
+                  if (!selectedStory) return
                   setShopFlow('book')
-                  setCurrentStep('select-story')
+                  if (selectedStory.bookFormat) {
+                    usePublishStore.getState().setSelectedFormat(selectedStory.bookFormat as any)
+                  }
+                  setCurrentStep('quality-check')
                 }}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold hover:from-emerald-400 hover:to-teal-500 transition-all"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
+                disabled={!selectedStory}
+                className={cn(
+                  'inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all',
+                  selectedStory
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-400 hover:to-teal-500'
+                    : 'bg-midnight-700/50 text-midnight-500 cursor-not-allowed'
+                )}
+                whileHover={selectedStory ? { scale: 1.03 } : {}}
+                whileTap={selectedStory ? { scale: 0.97 } : {}}
               >
                 <BookOpen className="w-5 h-5" />
                 {t('shop.bookSection.cta')}
@@ -263,13 +311,18 @@ function ShopHome() {
               <motion.button
                 key={product.type}
                 onClick={() => {
+                  if (!selectedStory) return
                   setShopFlow('derivatives')
                   setSelectedDerivativeType(product.type)
-                  setCurrentStep('select-story')
+                  setCurrentStep('choose-illustration')
                 }}
-                className="glass-card overflow-hidden text-left group relative"
-                whileHover={{ y: -3 }}
-                whileTap={{ scale: 0.97 }}
+                disabled={!selectedStory}
+                className={cn(
+                  'glass-card overflow-hidden text-left group relative',
+                  !selectedStory && 'opacity-40 cursor-not-allowed'
+                )}
+                whileHover={selectedStory ? { y: -3 } : {}}
+                whileTap={selectedStory ? { scale: 0.97 } : {}}
               >
                 <ProductMockup type={product.type} illustrationUrl={firstIllustrationUrl} />
                 <div className="p-4">
@@ -390,8 +443,8 @@ function ShopHome() {
 
 const STEP_IDS: { id: PublishStep; labelKey: string; icon: React.ReactNode }[] = [
   { id: 'select-story', labelKey: 'steps.story', icon: <BookOpen className="w-4 h-4" /> },
-  { id: 'choose-format', labelKey: 'steps.options', icon: <Ruler className="w-4 h-4" /> },
   { id: 'quality-check', labelKey: 'steps.quality', icon: <CheckCircle2 className="w-4 h-4" /> },
+  { id: 'choose-format', labelKey: 'steps.options', icon: <Ruler className="w-4 h-4" /> },
   { id: 'order', labelKey: 'steps.order', icon: <ShoppingCart className="w-4 h-4" /> },
 ]
 
@@ -543,7 +596,7 @@ function SelectStoryStep() {
                 if (selectedStory.bookFormat) {
                   usePublishStore.getState().setSelectedFormat(selectedStory.bookFormat as any)
                 }
-                setCurrentStep('choose-format')
+                setCurrentStep('quality-check')
               }
             }}
             className="inline-flex items-center gap-2 text-lg px-8 py-3 rounded-xl bg-gradient-to-r from-aurora-500 to-aurora-700 text-white font-semibold hover:from-aurora-400 hover:to-aurora-600 transition-all shadow-lg shadow-aurora-500/25"
@@ -900,7 +953,7 @@ function SummarySubStep({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          {t('chooseFormat.checkQuality')}
+          {t('quality.orderButton')}
           <ChevronRight className="w-5 h-5" />
         </motion.button>
       </div>
@@ -948,7 +1001,7 @@ function ChooseFormatStep() {
 
   const handleBack = () => {
     if (subStep === 0) {
-      setCurrentStep('select-story')
+      setCurrentStep('quality-check')
     } else {
       setDirection(-1)
       setSubStep(subStep - 1)
@@ -1035,7 +1088,7 @@ function ChooseFormatStep() {
             >
               <SummarySubStep
                 onGoToSubStep={handleGoToSubStepFromSummary}
-                onContinue={() => setCurrentStep('quality-check')}
+                onContinue={() => setCurrentStep('order')}
               />
             </motion.div>
           )}
@@ -1822,50 +1875,103 @@ function QualityCheckStep() {
   const hasWarnings = qualityChecks.some(c => c.type === 'warning')
   const lowDpiImages = imageQualityInfos.filter(img => !img.isOk)
   
-  // Upscale toutes les images en basse résolution
+  // Upscale toutes les images en basse résolution (parallèle par batch de 5)
+  // Sauvegarde après chaque batch pour ne rien perdre si l'utilisateur quitte
   const handleUpscaleAll = async () => {
-    if (lowDpiImages.length === 0) return
-    
+    if (lowDpiImages.length === 0 || !selectedStory) return
+
+    const userId = useAuthStore.getState().profile?.id
+    const profileId = useAuthStore.getState().profile?.id
+    const userName = useAuthStore.getState().profile?.display_name || 'Anonyme'
+    if (!userId || !profileId) return
+
     setIsUpscaling(true)
     const progress: Record<string, 'pending' | 'done' | 'error'> = {}
-    
     for (const img of lowDpiImages) {
       progress[img.imageId] = 'pending'
     }
     setUpscaleProgress(progress)
-    
-    for (const img of lowDpiImages) {
-      try {
-        const response = await fetch('/api/ai/upscale', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageUrl: img.url,
-            scale: 2,
-          }),
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          console.log(`✅ Image ${img.imageId} upscaled:`, data.url)
+
+    let currentStory = selectedStory
+
+    // Traiter par batch de 5 en parallèle, sauvegarder après chaque batch
+    const BATCH_SIZE = 5
+    for (let i = 0; i < lowDpiImages.length; i += BATCH_SIZE) {
+      const batch = lowDpiImages.slice(i, i + BATCH_SIZE)
+      const batchResults: { imageId: string; pageIndex: number; url: string }[] = []
+
+      await Promise.all(batch.map(async (img) => {
+        try {
+          // 1. Upscale via fal.ai
+          const upscaleRes = await fetch('/api/ai/upscale', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageUrl: img.url, scale: 2 }),
+          })
+          if (!upscaleRes.ok) {
+            setUpscaleProgress(prev => ({ ...prev, [img.imageId]: 'error' }))
+            return
+          }
+          const { url: tempUrl } = await upscaleRes.json()
+
+          // 2. Re-upload sur Supabase (URL permanente)
+          const uploadRes = await fetch('/api/upload/from-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: tempUrl,
+              userId,
+              storyId: currentStory.id,
+              source: 'upload',
+              type: 'image',
+            }),
+          })
+          if (!uploadRes.ok) {
+            setUpscaleProgress(prev => ({ ...prev, [img.imageId]: 'error' }))
+            return
+          }
+          const { publicUrl } = await uploadRes.json()
+
+          batchResults.push({ imageId: img.imageId, pageIndex: img.pageIndex, url: publicUrl })
           setUpscaleProgress(prev => ({ ...prev, [img.imageId]: 'done' }))
-          // Note: Ici il faudrait mettre à jour l'URL de l'image dans l'histoire
-          // Pour l'instant on marque juste comme fait
-        } else {
+        } catch (error) {
+          console.error(`Erreur upscale ${img.imageId}:`, error)
           setUpscaleProgress(prev => ({ ...prev, [img.imageId]: 'error' }))
         }
-      } catch (error) {
-        console.error(`Erreur upscale ${img.imageId}:`, error)
-        setUpscaleProgress(prev => ({ ...prev, [img.imageId]: 'error' }))
+      }))
+
+      // Appliquer les résultats du batch et sauvegarder immédiatement
+      if (batchResults.length > 0) {
+        const updatedPages = currentStory.pages.map((page, idx) => {
+          let updated = page
+          for (const info of batchResults) {
+            if (info.pageIndex !== idx) continue
+            if (info.imageId.startsWith('bg-')) {
+              updated = { ...updated, backgroundMedia: updated.backgroundMedia ? { ...updated.backgroundMedia, url: info.url } : updated.backgroundMedia }
+            } else {
+              updated = { ...updated, images: updated.images?.map(im => im.id === info.imageId ? { ...im, url: info.url } : im) }
+            }
+          }
+          return updated
+        })
+
+        currentStory = { ...currentStory, pages: updatedPages, updatedAt: new Date() }
+        useAppStore.getState().updateStoryPages(currentStory.id, updatedPages)
+        usePublishStore.setState({ selectedStory: currentStory })
+
+        // Sauvegarder en base après chaque batch
+        fetch('/api/story/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ story: currentStory, profileId, userName }),
+        }).then(res => {
+          if (res.ok) console.log(`✅ Batch ${Math.ceil((i + 1) / BATCH_SIZE)} sauvegardé`)
+          else console.error('❌ Erreur sauvegarde batch')
+        })
       }
     }
-    
+
     setIsUpscaling(false)
-    
-    // Re-vérifier la qualité après upscale
-    if (selectedStory && format) {
-      runQualityCheck(selectedStory, format)
-    }
   }
   
   return (
@@ -1947,7 +2053,7 @@ function QualityCheckStep() {
               {isUpscaling ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('quality.upscaling')}
+                  {Object.values(upscaleProgress).filter(s => s === 'done').length}/{lowDpiImages.length}
                 </>
               ) : (
                 <>
@@ -2059,16 +2165,16 @@ function QualityCheckStep() {
       {/* Navigation */}
       <div className="flex justify-between">
         <button
-          onClick={() => setCurrentStep('choose-format')}
+          onClick={() => setCurrentStep('shop-home')}
           className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
           {t('nav.back')}
         </button>
         <button
-          onClick={() => setCurrentStep('order')}
+          onClick={() => setCurrentStep('choose-format')}
           disabled={hasErrors}
-          className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-primary inline-flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {hasErrors ? t('quality.fixErrors') : t('quality.orderButton')}
           <ChevronRight className="w-4 h-4 ml-2" />
@@ -2520,7 +2626,7 @@ function OrderStep() {
       {/* Navigation */}
       <div className="flex justify-between">
         <button
-          onClick={() => setCurrentStep('quality-check')}
+          onClick={() => setCurrentStep('choose-format')}
           className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
@@ -2669,6 +2775,7 @@ function ChooseIllustrationStep() {
     setSelectedIllustrations,
     setCurrentStep,
     addToCart,
+    setLastColoringPdfUrl,
   } = usePublishStore()
 
   if (!selectedStory || !selectedDerivativeType) return null
@@ -2681,15 +2788,41 @@ function ChooseIllustrationStep() {
   const maxSelect = product.maxIllustrations === -1 ? illustrations.length : product.maxIllustrations
   const isColoringBook = selectedDerivativeType === 'coloring-book'
 
-  // Auto-select all for coloring book
+  // Coloring book preview state
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  // Auto-select all for coloring book + auto-load preview
   useEffect(() => {
-    if (isColoringBook) {
+    if (isColoringBook && illustrations.length > 0) {
       setSelectedIllustrations(illustrations.map(i => i.url))
+      // Load free preview of 1st illustration
+      setIsLoadingPreview(true)
+      setPreviewError(null)
+      fetch('/api/ai/coloring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrls: [illustrations[0].url],
+          preview: true,
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.previewDataUrl) {
+            setPreviewDataUrl(data.previewDataUrl)
+          } else {
+            setPreviewError(data.error || 'Erreur preview')
+          }
+        })
+        .catch(err => setPreviewError(err.message))
+        .finally(() => setIsLoadingPreview(false))
     }
   }, [isColoringBook]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleIllustration = (url: string) => {
-    if (isColoringBook) return // Can't deselect for coloring book
+    if (isColoringBook) return
 
     if (isMultiSelect) {
       if (selectedIllustrations.includes(url)) {
@@ -2710,7 +2843,7 @@ function ChooseIllustrationStep() {
 
     const name = getDerivativeDisplayName(selectedDerivativeType, locale)
 
-    // Coloring book: generate PDF via AI first
+    // Coloring book: generate full PDF via AI, no credit needed (paid via Stripe)
     if (isColoringBook) {
       setIsGeneratingColoring(true)
       setColoringProgress(t('coloring.converting'))
@@ -2722,6 +2855,7 @@ function ChooseIllustrationStep() {
           body: JSON.stringify({
             imageUrls: selectedIllustrations,
             storyTitle: selectedStory?.title,
+            skipCredit: true,
           }),
         })
 
@@ -2730,6 +2864,9 @@ function ChooseIllustrationStep() {
         if (!data.success) {
           throw new Error(data.error || 'Échec génération coloriage')
         }
+
+        // Store PDF URL for download after payment
+        setLastColoringPdfUrl(data.pdfUrl)
 
         const item: CartItem = {
           id: crypto.randomUUID(),
@@ -2770,6 +2907,129 @@ function ChooseIllustrationStep() {
     setCurrentStep('cart')
   }
 
+  // ---- Coloring book: preview + buy flow ----
+  if (isColoringBook) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="max-w-4xl mx-auto"
+      >
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-display text-white mb-2">
+            {t('coloring.previewTitle')}
+          </h2>
+          <p className="text-midnight-300">
+            {t('coloring.previewDesc', { count: illustrations.length })}
+          </p>
+        </div>
+
+        {/* Preview: before / after */}
+        <div className="glass-card p-6 mb-6">
+          {isLoadingPreview ? (
+            <div className="flex flex-col items-center py-12">
+              <Loader2 className="w-10 h-10 animate-spin text-aurora-400 mb-4" />
+              <p className="text-midnight-300">{t('coloring.loadingPreview')}</p>
+            </div>
+          ) : previewError ? (
+            <div className="flex flex-col items-center py-12">
+              <AlertCircle className="w-10 h-10 text-red-400 mb-4" />
+              <p className="text-red-300">{previewError}</p>
+            </div>
+          ) : previewDataUrl ? (
+            <div className="grid grid-cols-2 gap-6">
+              <div className="text-center">
+                <p className="text-sm text-midnight-400 mb-3">{t('coloring.originalLabel')}</p>
+                <div className="aspect-square rounded-xl overflow-hidden bg-midnight-800">
+                  <img
+                    src={getThumbnailUrl(illustrations[0]?.url, 400)}
+                    alt="Original"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-midnight-400 mb-3">{t('coloring.coloringLabel')}</p>
+                <div className="aspect-square rounded-xl overflow-hidden bg-white">
+                  <img
+                    src={previewDataUrl}
+                    alt="Coloring preview"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* All illustrations thumbnail grid */}
+        {illustrations.length > 1 && (
+          <div className="mb-6">
+            <p className="text-sm text-midnight-400 mb-3 text-center">
+              {t('coloring.allIllustrations', { count: illustrations.length })}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {illustrations.map((illus, idx) => (
+                <div key={illus.url} className="w-16 h-16 rounded-lg overflow-hidden ring-1 ring-midnight-700">
+                  <img
+                    src={getThumbnailUrl(illus.url, 80)}
+                    alt={`Illustration ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Coloring book generation progress */}
+        {isGeneratingColoring && (
+          <div className="glass-card p-6 text-center mb-6">
+            <Loader2 className="w-8 h-8 animate-spin text-aurora-400 mx-auto mb-3" />
+            <p className="text-white font-medium mb-1">{t('coloring.generatingTitle')}</p>
+            <p className="text-sm text-midnight-400">{coloringProgress}</p>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => {
+              setSelectedIllustrations([])
+              setCurrentStep('select-derivative')
+            }}
+            disabled={isGeneratingColoring}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all disabled:opacity-50"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            {t('nav.back')}
+          </button>
+
+          <button
+            onClick={handleAddToCart}
+            disabled={isGeneratingColoring || isLoadingPreview || illustrations.length === 0}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold hover:from-pink-400 hover:to-rose-500 transition-all shadow-lg shadow-pink-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGeneratingColoring ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t('coloring.generating')}
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-4 h-4" />
+                {t('coloring.buyPack', { price: (product.sellingPriceCents / 100).toFixed(2) })}
+              </>
+            )}
+          </button>
+        </div>
+      </motion.div>
+    )
+  }
+
+  // ---- Other derivatives: illustration selection grid ----
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -2782,11 +3042,9 @@ function ChooseIllustrationStep() {
           {t('illustrations.title')}
         </h2>
         <p className="text-midnight-300">
-          {isColoringBook
-            ? t('illustrations.coloringDesc')
-            : isMultiSelect
-              ? t('illustrations.multiSelectDesc', { max: maxSelect })
-              : t('illustrations.singleSelectDesc')
+          {isMultiSelect
+            ? t('illustrations.multiSelectDesc', { max: maxSelect })
+            : t('illustrations.singleSelectDesc')
           }
         </p>
       </div>
@@ -2808,10 +3066,9 @@ function ChooseIllustrationStep() {
                 className={cn(
                   'relative aspect-square rounded-xl overflow-hidden group transition-all',
                   isSelected ? 'ring-2 ring-aurora-500 scale-[0.97]' : 'hover:ring-1 hover:ring-midnight-500',
-                  isColoringBook && 'pointer-events-none'
                 )}
-                whileHover={!isColoringBook ? { scale: 1.02 } : {}}
-                whileTap={!isColoringBook ? { scale: 0.98 } : {}}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <img
                   src={getThumbnailUrl(illus.url, 200)}
@@ -2843,15 +3100,6 @@ function ChooseIllustrationStep() {
         </div>
       )}
 
-      {/* Coloring book generation progress */}
-      {isGeneratingColoring && (
-        <div className="mt-6 glass-card p-6 text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-aurora-400 mx-auto mb-3" />
-          <p className="text-white font-medium mb-1">{t('coloring.generatingTitle')}</p>
-          <p className="text-sm text-midnight-400">{coloringProgress}</p>
-        </div>
-      )}
-
       {/* Footer */}
       <div className="mt-8 flex items-center justify-between">
         <button
@@ -2859,8 +3107,7 @@ function ChooseIllustrationStep() {
             setSelectedIllustrations([])
             setCurrentStep('select-derivative')
           }}
-          disabled={isGeneratingColoring}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-midnight-600 text-midnight-300 hover:text-white hover:border-midnight-400 transition-all"
         >
           <ChevronLeft className="w-4 h-4" />
           {t('nav.back')}
@@ -2872,20 +3119,11 @@ function ChooseIllustrationStep() {
           </span>
           <button
             onClick={handleAddToCart}
-            disabled={selectedIllustrations.length === 0 || isGeneratingColoring}
+            disabled={selectedIllustrations.length === 0}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold hover:from-pink-400 hover:to-rose-500 transition-all shadow-lg shadow-pink-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isGeneratingColoring ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {t('coloring.generating')}
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="w-4 h-4" />
-                {t('order.addToCart')} ({(product.sellingPriceCents / 100).toFixed(2)}€)
-              </>
-            )}
+            <ShoppingCart className="w-4 h-4" />
+            {t('order.addToCart')} ({(product.sellingPriceCents / 100).toFixed(2)}€)
           </button>
         </div>
       </div>
@@ -2918,11 +3156,17 @@ function CartStep() {
   // Sub-total (somme des prix × quantité)
   const subtotalCents = cart.reduce((sum, item) => sum + item.priceCents * (item.quantity || 1), 0)
 
+  // Digital-only cart (no physical products)
+  const isDigitalOnly = cart.every(item => {
+    const product = getDerivativeProduct(item.type as DerivativeProductType)
+    return product?.isDigital === true
+  })
+
   // Le panier contient-il un livre ? Si oui, livraison gratuite
   const hasBook = cart.some(item => item.type === 'book')
 
-  // Coût livraison en cents (0 si un livre est dans le panier)
-  const shippingCents = hasBook ? 0 : (cartShippingCost ? Math.round(cartShippingCost * 100) : null)
+  // Coût livraison en cents (0 si un livre est dans le panier ou si 100% digital)
+  const shippingCents = (hasBook || isDigitalOnly) ? 0 : (cartShippingCost ? Math.round(cartShippingCost * 100) : null)
 
   // Total
   const totalCents = subtotalCents + (shippingCents || 0)
@@ -2931,9 +3175,14 @@ function CartStep() {
     shippingAddress.addressLine1 && shippingAddress.city &&
     shippingAddress.postCode && shippingAddress.email
 
-  // Calculate shipping when country changes and cart has no book
+  // For digital-only, only need an email
+  const canCheckout = isDigitalOnly
+    ? !!shippingAddress.email
+    : !!isAddressComplete
+
+  // Calculate shipping when country changes and cart has physical items
   useEffect(() => {
-    if (hasBook || !shippingAddress.country || cart.length === 0) return
+    if (hasBook || isDigitalOnly || !shippingAddress.country || cart.length === 0) return
 
     const store = usePublishStore.getState()
     store.setIsCalculatingShipping(true)
@@ -2942,7 +3191,10 @@ function CartStep() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: cart,
+        items: cart.filter(item => {
+          const product = getDerivativeProduct(item.type as DerivativeProductType)
+          return !product?.isDigital
+        }),
         shippingAddress: { country: shippingAddress.country },
       }),
     })
@@ -2954,10 +3206,10 @@ function CartStep() {
       })
       .catch(() => {})
       .finally(() => store.setIsCalculatingShipping(false))
-  }, [hasBook, shippingAddress.country, cart.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasBook, isDigitalOnly, shippingAddress.country, cart.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckout = async () => {
-    if (!isAddressComplete || cart.length === 0) return
+    if (!canCheckout || cart.length === 0) return
 
     setIsRedirectingToStripe(true)
     setCheckoutError(null)
@@ -2968,8 +3220,9 @@ function CartStep() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cartItems: cart,
-          shippingAddress,
+          shippingAddress: isDigitalOnly ? { email: shippingAddress.email } : shippingAddress,
           shippingCostCents: shippingCents || 0,
+          digitalOnly: isDigitalOnly,
         }),
       })
 
@@ -3091,19 +3344,27 @@ function CartStep() {
             <span className="text-midnight-400">{t('cart.subtotal')}</span>
             <span className="text-white">{(subtotalCents / 100).toFixed(2)}€</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-midnight-400">{t('cart.shipping')}</span>
-            <span className="text-white">
-              {hasBook
-                ? t('cart.shippingFree')
-                : isCalculatingShipping
-                  ? <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> {t('cart.shippingCalculating')}</span>
-                  : shippingCents !== null
-                    ? `${(shippingCents / 100).toFixed(2)}€`
-                    : t('cart.shippingCalculated')
-              }
-            </span>
-          </div>
+          {!isDigitalOnly && (
+            <div className="flex justify-between">
+              <span className="text-midnight-400">{t('cart.shipping')}</span>
+              <span className="text-white">
+                {hasBook
+                  ? t('cart.shippingFree')
+                  : isCalculatingShipping
+                    ? <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> {t('cart.shippingCalculating')}</span>
+                    : shippingCents !== null
+                      ? `${(shippingCents / 100).toFixed(2)}€`
+                      : t('cart.shippingCalculated')
+                }
+              </span>
+            </div>
+          )}
+          {isDigitalOnly && (
+            <div className="flex justify-between">
+              <span className="text-midnight-400">{t('cart.shipping')}</span>
+              <span className="text-aurora-400">{t('cart.digitalDelivery')}</span>
+            </div>
+          )}
           <div className="border-t border-midnight-700 pt-2 mt-2 flex justify-between text-lg">
             <span className="text-white font-medium">{t('cart.total')}</span>
             <span className="text-aurora-400 font-bold">{(totalCents / 100).toFixed(2)}€</span>
@@ -3111,7 +3372,22 @@ function CartStep() {
         </div>
       </div>
 
-      {/* Adresse de livraison */}
+      {/* Adresse de livraison (hidden for digital-only) */}
+      {isDigitalOnly ? (
+        <div className="glass-card p-5 mb-6">
+          <h3 className="text-lg font-medium text-white mb-4">{t('cart.emailForDownload')}</h3>
+          <div>
+            <label className="block text-xs text-midnight-400 mb-1">{t('order.email')}</label>
+            <input
+              type="email"
+              value={shippingAddress.email}
+              onChange={(e) => updateShippingAddress({ email: e.target.value })}
+              placeholder="email@example.com"
+              className="w-full px-3 py-2 bg-midnight-800/50 border border-midnight-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-aurora-500"
+            />
+          </div>
+        </div>
+      ) : (
       <div className="glass-card p-5 mb-6">
         <h3 className="text-lg font-medium text-white mb-4">{t('order.shippingAddress')}</h3>
         <div className="space-y-3">
@@ -3220,6 +3496,7 @@ function CartStep() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Erreur */}
       {checkoutError && (
@@ -3240,7 +3517,7 @@ function CartStep() {
 
         <button
           onClick={handleCheckout}
-          disabled={!isAddressComplete || isRedirectingToStripe || cart.length === 0}
+          disabled={!canCheckout || isRedirectingToStripe || cart.length === 0}
           className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-dream-500 to-dream-700 text-white font-semibold hover:from-dream-400 hover:to-dream-600 transition-all shadow-lg shadow-dream-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isRedirectingToStripe ? (
@@ -3270,6 +3547,16 @@ function CartStep() {
 
 function CheckoutSuccessStep() {
   const t = useTranslations('publish')
+  const { lastColoringPdfUrl } = usePublishStore()
+
+  const handleDownloadColoring = () => {
+    if (!lastColoringPdfUrl) return
+    const link = document.createElement('a')
+    link.href = lastColoringPdfUrl
+    link.download = 'pack-coloriages.pdf'
+    link.target = '_blank'
+    link.click()
+  }
 
   return (
     <motion.div
@@ -3291,19 +3578,38 @@ function CheckoutSuccessStep() {
         </h2>
 
         <p className="text-midnight-300 mb-8 leading-relaxed">
-          {t('checkoutSuccess.description')}
+          {lastColoringPdfUrl
+            ? t('checkoutSuccess.digitalDescription')
+            : t('checkoutSuccess.description')
+          }
         </p>
 
-        <div className="bg-midnight-800/50 rounded-xl p-5 mb-8 text-left space-y-3">
-          <div className="flex items-start gap-3">
-            <Package className="w-5 h-5 text-aurora-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-midnight-300">{t('checkoutSuccess.productionInfo')}</p>
+        {/* Download button for digital products */}
+        {lastColoringPdfUrl && (
+          <div className="mb-8">
+            <button
+              onClick={handleDownloadColoring}
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-aurora-500 to-aurora-700 text-white font-semibold hover:from-aurora-400 hover:to-aurora-600 transition-all shadow-lg shadow-aurora-500/25 text-lg"
+            >
+              <Download className="w-6 h-6" />
+              {t('checkoutSuccess.downloadColoring')}
+            </button>
           </div>
-          <div className="flex items-start gap-3">
-            <Mail className="w-5 h-5 text-aurora-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-midnight-300">{t('checkoutSuccess.emailInfo')}</p>
+        )}
+
+        {/* Physical order info (only shown if no digital-only) */}
+        {!lastColoringPdfUrl && (
+          <div className="bg-midnight-800/50 rounded-xl p-5 mb-8 text-left space-y-3">
+            <div className="flex items-start gap-3">
+              <Package className="w-5 h-5 text-aurora-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-midnight-300">{t('checkoutSuccess.productionInfo')}</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <Mail className="w-5 h-5 text-aurora-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-midnight-300">{t('checkoutSuccess.emailInfo')}</p>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
@@ -3537,9 +3843,13 @@ export function PublishMode() {
     } else if (currentStep === 'select-story') {
       setCurrentStep('shop-home')
     } else if (currentStep === 'select-derivative') {
-      setCurrentStep('select-story')
+      setCurrentStep('shop-home')
     } else if (currentStep === 'choose-illustration') {
-      setCurrentStep('select-story')
+      setCurrentStep('shop-home')
+    } else if (currentStep === 'quality-check') {
+      setCurrentStep('shop-home')
+    } else if (currentStep === 'choose-format') {
+      setCurrentStep('quality-check')
     } else if (currentStep === 'cart') {
       setCurrentStep('shop-home')
     } else if (currentStep === 'checkout-success') {

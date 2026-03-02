@@ -478,7 +478,7 @@ export async function upscaleImageForPrint(params: UpscaleParams): Promise<Upsca
   ensureFalConfigured()
   const { imageUrl, scale = 2 } = params
 
-  const result = await fal.subscribe('fal-ai/real-esrgan', {
+  const result = await fal.subscribe('fal-ai/esrgan', {
     input: {
       image_url: imageUrl,
       scale: scale,
@@ -488,6 +488,7 @@ export async function upscaleImageForPrint(params: UpscaleParams): Promise<Upsca
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = result.data as any
+  console.log('🔍 fal.ai esrgan response:', JSON.stringify(data, null, 2))
 
   return {
     imageUrl: data.image?.url || data.url,

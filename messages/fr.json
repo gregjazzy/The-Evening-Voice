@@ -2870,8 +2870,15 @@
     },
     "coloring": {
       "converting": "Conversion des illustrations en coloriage…",
-      "generatingTitle": "Création du livre de coloriage",
-      "generating": "Génération en cours…"
+      "generatingTitle": "Création de ton pack coloriages",
+      "generating": "Génération en cours…",
+      "previewTitle": "Pack coloriages",
+      "previewDesc": "Tes {count} illustrations converties en pages de coloriage (PDF)",
+      "loadingPreview": "Aperçu gratuit en cours de création…",
+      "originalLabel": "Illustration originale",
+      "coloringLabel": "Version coloriage",
+      "allIllustrations": "{count} illustrations seront converties",
+      "buyPack": "Acheter le pack — {price}€"
     },
     "cart": {
       "title": "Mon panier",
@@ -2885,13 +2892,17 @@
       "shippingCalculating": "Calcul en cours...",
       "shippingCalculated": "Calculée au paiement",
       "total": "Total",
-      "pay": "Payer"
+      "pay": "Payer",
+      "digitalDelivery": "Téléchargement instantané",
+      "emailForDownload": "Ton email pour le téléchargement"
     },
     "checkoutSuccess": {
       "title": "Commande confirmée !",
       "description": "Merci pour ta commande ! Ton paiement a bien été reçu et ta commande est en cours de préparation.",
+      "digitalDescription": "Merci pour ton achat ! Ton pack coloriages est prêt à être téléchargé.",
       "productionInfo": "Ta commande sera produite et expédiée sous 5 à 7 jours ouvrés.",
       "emailInfo": "Tu recevras un email de confirmation avec le suivi de livraison.",
+      "downloadColoring": "Télécharger mon pack coloriages",
       "continueShopping": "Continuer mes achats",
       "backToStories": "Retour à mes histoires"
     },

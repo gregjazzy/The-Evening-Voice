@@ -121,33 +121,58 @@ async function handleMultiItemOrder(body: {
         pageCount: item.bookData.pageCount,
       })
     } else if (item.productUid && item.productUid !== 'DYNAMIC') {
-      // Derivative item (mug, poster, cards) — use productUid directly
-      // Each derivative needs a file with the illustration
+      // Derivative item (mug, poster) — upscale image then send to Gelato
       if (!item.imageUrls?.length) {
         console.warn(`Skipping derivative ${item.type}: no image URL`)
         continue
       }
 
+      let imageUrl = item.imageUrls[0]
+
+      // Upscale automatique pour impression haute qualité
+      try {
+        console.log(`🔍 Upscaling derivative image for ${item.type}...`)
+        const { upscaleImageForPrint } = await import('@/lib/ai/fal')
+        const upscaled = await upscaleImageForPrint({ imageUrl, scale: 2 })
+
+        if (upscaled.imageUrl) {
+          // Re-upload sur Supabase pour URL permanente
+          const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/images/upscale-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              'Content-Type': 'image/png',
+            },
+            body: Buffer.from(await (await fetch(upscaled.imageUrl)).arrayBuffer()),
+          })
+
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json()
+            const filePath = uploadData.Key || uploadData.path
+            if (filePath) {
+              imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${filePath}`
+              console.log(`✅ Derivative image upscaled & uploaded: ${upscaled.width}x${upscaled.height}px`)
+            }
+          } else {
+            // Fallback: utiliser l'URL fal.ai temporaire (mieux que rien)
+            imageUrl = upscaled.imageUrl
+            console.log(`⚠️ Upload failed, using temp fal.ai URL for ${item.type}`)
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Upscale failed for ${item.type}, using original image:`, error)
+      }
+
       gelatoItems.push({
         itemReferenceId: itemRef,
         productUid: item.productUid,
-        files: [{ type: 'default', url: item.imageUrls[0] }],
+        files: [{ type: 'default', url: imageUrl }],
         quantity: item.quantity || 1,
       })
-    } else if (item.type === 'coloring-book' && item.coloringBookPdfUrl) {
-      // Coloring book — use softcover book with the generated PDF
-      const coloringProductUid = buildGelatoProductUid(
-        'square-21', 'softcover',
-        '170-gsm-coated-silk' as GelatoPaperType,
-        'matt-lamination' as GelatoLamination,
-      )
-      gelatoItems.push({
-        itemReferenceId: itemRef,
-        productUid: coloringProductUid,
-        files: [{ type: 'default', url: item.coloringBookPdfUrl }],
-        quantity: item.quantity || 1,
-        pageCount: (item.imageUrls?.length || 10) * 2, // 2 pages per illustration (coloring + blank back)
-      })
+    } else if (item.type === 'coloring-book') {
+      // Coloring book is now a digital product — skip Gelato
+      console.log(`📥 Skipping coloring-book item (digital product)`)
+      continue
     } else {
       // Unknown type — skip
       console.warn(`Skipping item type ${item.type}: not supported for Gelato`)

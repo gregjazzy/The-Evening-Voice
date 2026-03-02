@@ -426,18 +426,12 @@ export function MontageEditor() {
                 {t('montageEditor.newProject')}
               </h3>
 
-              {stories.length > 0 ? (
+              {stories.filter(s => !projects.find(p => p.storyId === s.id)).length > 0 ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {stories.map((story) => {
-                    const existing = projects.find(p => p.storyId === story.id)
-
-                    return (
+                  {stories.filter(s => !projects.find(p => p.storyId === s.id)).map((story) => (
                       <motion.button
                         key={story.id}
                         onClick={() => {
-                          if (existing) {
-                            loadProject(existing.id)
-                          } else {
                             // Récupérer pages depuis localStorage
                             let pagesWithContent: Array<{id: string, title?: string, content?: string, order?: number, pageType?: string, images?: { url: string; type?: 'image' | 'video' }[], backgroundMedia?: { url: string; type?: 'image' | 'video' }, textBoxes?: any[]}> = []
                             try {
@@ -467,14 +461,8 @@ export function MontageEditor() {
                               return
                             }
                             createProject(story.id, story.title, pages)
-                          }
                         }}
-                        className={cn(
-                          'w-full p-4 rounded-xl text-left border',
-                          existing
-                            ? 'bg-dream-500/10 hover:bg-dream-500/20 border-dream-500/20'
-                            : 'bg-midnight-800/50 hover:bg-midnight-700/50 border-midnight-700/30'
-                        )}
+                        className="w-full p-4 rounded-xl text-left border bg-midnight-800/50 hover:bg-midnight-700/50 border-midnight-700/30"
                         whileHover={{ scale: 1.02 }}
                       >
                         <div className="flex items-start justify-between">
@@ -482,16 +470,13 @@ export function MontageEditor() {
                             <p className="font-medium">{story.title}</p>
                             <p className="text-xs text-midnight-400">{t('montageEditor.pagesCount', { count: story.pages.length })}</p>
                           </div>
-                          <span className={cn(
-                            'px-2 py-0.5 rounded-full text-xs',
-                            existing ? 'bg-dream-500/20 text-dream-300' : 'bg-emerald-500/20 text-emerald-300'
-                          )}>
-                            {existing ? t('montageEditor.existing') : t('montageEditor.create')}
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-300">
+                            {t('montageEditor.create')}
                           </span>
                         </div>
                       </motion.button>
                     )
-                  })}
+                  )}
                 </div>
               ) : (
                 <div className="p-6 rounded-xl bg-midnight-800/30 text-center">

@@ -44,36 +44,63 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { imageUrls, storyTitle } = body as {
+    const { imageUrls, storyTitle, preview, skipCredit } = body as {
       imageUrls: string[]
       storyTitle?: string
+      preview?: boolean    // true = convert only 1st image, return base64, no PDF
+      skipCredit?: boolean // true = payment via Stripe, skip credit deduction
     }
 
     if (!imageUrls?.length) {
       return NextResponse.json({ error: 'Aucune illustration fournie' }, { status: 400 })
     }
 
-    // Check credits (costs 1)
-    if ((profile.credit_balance || 0) < 1) {
-      return NextResponse.json({ error: 'Crédits insuffisants' }, { status: 402 })
+    let newBalance = profile.credit_balance || 0
+
+    // Preview mode: free, no credit needed
+    // skipCredit mode: paid via Stripe, no credit needed
+    if (!preview && !skipCredit) {
+      // Check credits (costs 1)
+      if ((profile.credit_balance || 0) < 1) {
+        return NextResponse.json({ error: 'Crédits insuffisants' }, { status: 402 })
+      }
+
+      // Deduct 1 credit
+      const { data: creditResult } = await supabaseAdmin.rpc('deduct_credits', {
+        p_profile_id: profile.id,
+        p_amount: 1,
+      })
+
+      const deductionSuccess = Array.isArray(creditResult) ? creditResult[0]?.success : creditResult?.success
+      if (!deductionSuccess) {
+        return NextResponse.json({ error: 'Échec déduction crédit' }, { status: 402 })
+      }
+
+      newBalance = Array.isArray(creditResult) ? creditResult[0]?.new_balance : creditResult?.new_balance
     }
 
-    // Deduct 1 credit
-    const { data: creditResult } = await supabaseAdmin.rpc('deduct_credits', {
-      p_profile_id: profile.id,
-      p_amount: 1,
-    })
+    console.log(`🎨 Coloring ${preview ? 'preview' : 'full'}: ${preview ? 1 : imageUrls.length} illustrations, profile ${profile.id}`)
 
-    const deductionSuccess = Array.isArray(creditResult) ? creditResult[0]?.success : creditResult?.success
-    if (!deductionSuccess) {
-      return NextResponse.json({ error: 'Échec déduction crédit' }, { status: 402 })
+    // Preview mode: convert only 1st image and return as base64
+    if (preview) {
+      try {
+        const lineArt = await convertToLineArt(imageUrls[0])
+        if (!lineArt) {
+          return NextResponse.json({ error: 'Échec conversion preview' }, { status: 500 })
+        }
+        const base64 = lineArt.toString('base64')
+        return NextResponse.json({
+          success: true,
+          preview: true,
+          previewDataUrl: `data:image/png;base64,${base64}`,
+        })
+      } catch (err) {
+        console.error('Preview conversion failed:', err)
+        return NextResponse.json({ error: 'Échec conversion preview' }, { status: 500 })
+      }
     }
 
-    const newBalance = Array.isArray(creditResult) ? creditResult[0]?.new_balance : creditResult?.new_balance
-
-    console.log(`🎨 Coloring book: ${imageUrls.length} illustrations, profile ${profile.id}`)
-
-    // Convert each illustration to line art
+    // Full mode: convert all illustrations to line art
     const coloringPages: Buffer[] = []
 
     for (let i = 0; i < imageUrls.length; i++) {
@@ -91,13 +118,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (coloringPages.length === 0) {
-      // Refund credit if all conversions failed
-      await supabaseAdmin.rpc('add_credits', {
-        p_profile_id: profile.id,
-        p_amount: 1,
-        p_reason: 'refund',
-        p_reference_id: 'coloring-failed',
-      })
+      // Refund credit if it was deducted
+      if (!skipCredit) {
+        await supabaseAdmin.rpc('add_credits', {
+          p_profile_id: profile.id,
+          p_amount: 1,
+          p_reason: 'refund',
+          p_reference_id: 'coloring-failed',
+        })
+      }
       return NextResponse.json({ error: 'Aucune page de coloriage générée' }, { status: 500 })
     }
 

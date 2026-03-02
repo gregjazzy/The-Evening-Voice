@@ -2870,8 +2870,15 @@
     },
     "coloring": {
       "converting": "Converting illustrations to coloring pages…",
-      "generatingTitle": "Creating coloring book",
-      "generating": "Generating…"
+      "generatingTitle": "Creating your coloring pack",
+      "generating": "Generating…",
+      "previewTitle": "Coloring pack",
+      "previewDesc": "Your {count} illustrations converted to coloring pages (PDF)",
+      "loadingPreview": "Free preview loading…",
+      "originalLabel": "Original illustration",
+      "coloringLabel": "Coloring version",
+      "allIllustrations": "{count} illustrations will be converted",
+      "buyPack": "Buy pack — €{price}"
     },
     "cart": {
       "title": "My cart",
@@ -2885,13 +2892,17 @@
       "shippingCalculating": "Calculating...",
       "shippingCalculated": "Calculated at checkout",
       "total": "Total",
-      "pay": "Pay"
+      "pay": "Pay",
+      "digitalDelivery": "Instant download",
+      "emailForDownload": "Your email for the download"
     },
     "checkoutSuccess": {
       "title": "Order confirmed!",
       "description": "Thank you for your order! Your payment has been received and your order is being prepared.",
+      "digitalDescription": "Thank you for your purchase! Your coloring pack is ready to download.",
       "productionInfo": "Your order will be produced and shipped within 5 to 7 business days.",
       "emailInfo": "You will receive a confirmation email with tracking information.",
+      "downloadColoring": "Download my coloring pack",
       "continueShopping": "Continue shopping",
       "backToStories": "Back to my stories"
     },
