@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { safeLocalStorage } from '@/lib/storage/safeLocalStorage'
 
 // Types pour le Studio
 export type CreationType = 'image' | 'voice' | 'video'
@@ -474,6 +475,7 @@ export const useStudioStore = create<StudioState>()(
     }),
     {
       name: 'lavoixdusoir-studio',
+      storage: safeLocalStorage(),
       partialize: (state) => ({
         savedKits: state.savedKits,
         importedAssets: state.importedAssets,

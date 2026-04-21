@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { useAuthStore } from './useAuthStore'
+import { safeLocalStorage } from '@/lib/storage/safeLocalStorage'
 
 // NOTE: La sauvegarde Supabase est désormais gérée UNIQUEMENT par useSupabaseSync.ts
 // pour éviter les race conditions et conflits de contraintes.
@@ -827,6 +828,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'lavoixdusoir-storage',
+      storage: safeLocalStorage(),
       // NOTE: Les données principales (stories, diary, chat) sont gérées par Supabase
       // On ne persiste ici que les préférences locales et la progression
       partialize: (state) => ({
