@@ -60,7 +60,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: storyError.message }, { status: 500 })
     }
 
-    // Sauvegarder les pages
+    // Sauvegarder les pages — stratégie delete-then-insert.
+    // Le navigateur est la source de vérité : on supprime tout en DB pour cette
+    // story puis on réinsère le payload propre. Évite les conflits liés aux
+    // doublons hérités (lignes fantômes avec page_number en double).
     if (story.pages && story.pages.length > 0) {
       const pagesData = story.pages.map((page: any, i: number) => ({
         id: page.id,
@@ -80,28 +83,23 @@ export async function POST(request: NextRequest) {
         background_video_url: page.backgroundMedia?.type === 'video' ? page.backgroundMedia.url : null,
       }))
 
-      // Upsert toutes les pages
-      const { error: upsertError } = await supabaseAdmin
+      const { error: deleteError } = await supabaseAdmin
         .from('story_pages')
-        .upsert(pagesData, { onConflict: 'id' })
+        .delete()
+        .eq('story_id', story.id)
 
-      if (upsertError) {
-        console.error('❌ Erreur upsert pages:', upsertError)
-        return NextResponse.json({ error: upsertError.message }, { status: 500 })
+      if (deleteError) {
+        console.error('❌ Erreur suppression pages existantes:', deleteError)
+        return NextResponse.json({ error: deleteError.message }, { status: 500 })
       }
 
-      // Supprimer les pages qui ne sont plus dans l'histoire
-      const currentPageIds = story.pages.map((p: any) => p.id).filter(Boolean)
-      if (currentPageIds.length > 0) {
-        const { error: deleteError } = await supabaseAdmin
-          .from('story_pages')
-          .delete()
-          .eq('story_id', story.id)
-          .not('id', 'in', `(${currentPageIds.join(',')})`)
+      const { error: insertError } = await supabaseAdmin
+        .from('story_pages')
+        .insert(pagesData)
 
-        if (deleteError) {
-          console.warn('⚠️ Suppression pages orphelines échouée:', deleteError.message)
-        }
+      if (insertError) {
+        console.error('❌ Erreur insertion pages:', insertError)
+        return NextResponse.json({ error: insertError.message }, { status: 500 })
       }
     }
 
