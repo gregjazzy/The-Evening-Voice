@@ -143,19 +143,28 @@ function ShopHome() {
     setIsRedirecting('studio')
     try {
       const pack = CREDIT_PACKS[0]
-      const response = await fetch('/api/stripe/checkout/credits', {
+      const response = await fetch('/api/order/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packId: pack.id }),
+        body: JSON.stringify({
+          cartItems: [{
+            type: 'studio-credits',
+            label: pack.label,
+            creditsData: { packId: pack.id, credits: pack.credits, priceCents: pack.price },
+          }],
+          shippingAddress: {},
+          shippingCostCents: 0,
+        }),
       })
       const data = await response.json()
-      if (data.url) {
-        window.location.href = data.url
+      if (data.success) {
+        alert('Demande envoyée ! Greg te recontactera par email pour finaliser.')
       } else {
         throw new Error(data.error || 'Erreur')
       }
     } catch (error) {
-      console.error('Erreur Stripe checkout credits:', error)
+      console.error('Erreur envoi commande crédits:', error)
+    } finally {
       setIsRedirecting(null)
     }
   }
@@ -163,30 +172,33 @@ function ShopHome() {
   const handleBuyNarrationCredits = async (packId: string) => {
     setIsRedirecting(packId)
     try {
-      const response = await fetch('/api/stripe/checkout/narration-credits', {
+      const pack = NARRATION_CREDIT_PACKS.find(p => p.id === packId)
+      if (!pack) throw new Error('Pack introuvable')
+      const response = await fetch('/api/order/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packId }),
+        body: JSON.stringify({
+          cartItems: [{
+            type: 'narration-credits',
+            label: pack.label,
+            creditsData: { packId: pack.id, credits: pack.credits, priceCents: pack.price },
+          }],
+          shippingAddress: {},
+          shippingCostCents: 0,
+        }),
       })
       const data = await response.json()
-      if (data.url) {
-        window.location.href = data.url
+      if (data.success) {
+        alert('Demande envoyée ! Greg te recontactera par email pour finaliser.')
       } else {
         throw new Error(data.error || 'Erreur')
       }
     } catch (error) {
-      console.error('Erreur Stripe checkout narration:', error)
+      console.error('Erreur envoi commande narration:', error)
+    } finally {
       setIsRedirecting(null)
     }
   }
-
-  const derivativeProducts: { type: DerivativeProductType; icon: typeof Coffee; name: string; description: string; price: number }[] = DERIVATIVE_PRODUCTS.map(p => ({
-    type: p.type,
-    icon: { Coffee, Frame, Mail, Palette }[p.icon as 'Coffee' | 'Frame' | 'Mail' | 'Palette'] || Gift,
-    name: locale === 'en' ? p.nameEn : locale === 'ru' ? p.nameRu : p.nameFr,
-    description: locale === 'en' ? p.descriptionEn : locale === 'ru' ? p.descriptionRu : p.descriptionFr,
-    price: p.sellingPriceCents,
-  }))
 
   return (
     <motion.div
@@ -294,50 +306,7 @@ function ShopHome() {
         </motion.div>
       </section>
 
-      {/* ──── C. Section Cadeaux ──── */}
-      <section>
-        <div className="mb-6">
-          <h3 className="text-2xl font-semibold text-white">
-            {t('shop.giftsSection.title')}
-          </h3>
-          <p className="text-midnight-400 text-sm mt-1">
-            {t('shop.giftsSection.subtitle')}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {derivativeProducts.map((product) => {
-            const Icon = product.icon
-            return (
-              <motion.button
-                key={product.type}
-                onClick={() => {
-                  if (!selectedStory) return
-                  setShopFlow('derivatives')
-                  setSelectedDerivativeType(product.type)
-                  setCurrentStep('choose-illustration')
-                }}
-                disabled={!selectedStory}
-                className={cn(
-                  'glass-card overflow-hidden text-left group relative',
-                  !selectedStory && 'opacity-40 cursor-not-allowed'
-                )}
-                whileHover={selectedStory ? { y: -3 } : {}}
-                whileTap={selectedStory ? { scale: 0.97 } : {}}
-              >
-                <ProductMockup type={product.type} illustrationUrl={firstIllustrationUrl} />
-                <div className="p-4">
-                  <h4 className="text-sm font-semibold text-white mb-1">{product.name}</h4>
-                  <p className="text-xs text-midnight-400 mb-2 line-clamp-2">{product.description}</p>
-                  <p className="text-sm font-bold text-aurora-400">{(product.price / 100).toFixed(2)}€</p>
-                </div>
-                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity ring-1 ring-aurora-500/30 pointer-events-none" />
-              </motion.button>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* ──── D. Section Crédits IA ──── */}
+      {/* ──── C. Section Crédits IA ──── */}
       <section>
         <div className="mb-6">
           <h3 className="text-2xl font-semibold text-white">
@@ -2467,14 +2436,26 @@ function OrderStep() {
               </div>
             ) : gelatoQuote ? (
               <>
-                <div className="flex justify-between text-lg">
-                  <span className="text-white font-medium">{t('order.bookPrice')}</span>
-                  <span className="text-aurora-400 font-bold">
+                <div className="flex justify-between text-base">
+                  <span className="text-white">{t('order.bookPrice')}</span>
+                  <span className="text-white font-medium">
                     {sellingPriceFormatted}€
                   </span>
                 </div>
+                <div className="flex justify-between text-base">
+                  <span className="text-white">🚚 Frais de port</span>
+                  <span className="text-white font-medium">
+                    {gelatoQuote.shippingPrice.toFixed(2)}€
+                  </span>
+                </div>
+                <div className="flex justify-between text-lg pt-2 mt-2 border-t border-midnight-700">
+                  <span className="text-white font-semibold">Total</span>
+                  <span className="text-aurora-400 font-bold">
+                    {(parseFloat(sellingPriceFormatted!) + gelatoQuote.shippingPrice).toFixed(2)}€
+                  </span>
+                </div>
                 <p className="text-xs text-midnight-500 mt-1">
-                  🚚 {t('order.shippingIncluded')} — {t('order.estimatedDelivery', { min: gelatoQuote.estimatedDelivery.min, max: gelatoQuote.estimatedDelivery.max })}
+                  {t('order.estimatedDelivery', { min: gelatoQuote.estimatedDelivery.min, max: gelatoQuote.estimatedDelivery.max })}
                 </p>
               </>
             ) : quoteError ? (
@@ -3215,28 +3196,28 @@ function CartStep() {
     setCheckoutError(null)
 
     try {
-      const response = await fetch('/api/stripe/checkout/cart', {
+      const response = await fetch('/api/order/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cartItems: cart,
           shippingAddress: isDigitalOnly ? { email: shippingAddress.email } : shippingAddress,
           shippingCostCents: shippingCents || 0,
-          digitalOnly: isDigitalOnly,
         }),
       })
 
       const data = await response.json()
 
-      if (data.url) {
-        window.location.href = data.url
+      if (data.success) {
+        clearCart()
+        setCurrentStep('checkout-success')
       } else {
-        throw new Error(data.error || 'Erreur création session paiement')
+        throw new Error(data.error || 'Erreur envoi commande')
       }
     } catch (error) {
-      console.error('Erreur Stripe checkout:', error)
+      console.error('Erreur envoi commande:', error)
       setIsRedirectingToStripe(false)
-      setCheckoutError(error instanceof Error ? error.message : 'Erreur de paiement')
+      setCheckoutError(error instanceof Error ? error.message : 'Erreur lors de l\'envoi')
     }
   }
 
@@ -3656,19 +3637,28 @@ function CreditsShopStep() {
   const handleBuyPack = async () => {
     setIsRedirecting('studio')
     try {
-      const response = await fetch('/api/stripe/checkout/credits', {
+      const response = await fetch('/api/order/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packId: pack.id }),
+        body: JSON.stringify({
+          cartItems: [{
+            type: 'studio-credits',
+            label: pack.label,
+            creditsData: { packId: pack.id, credits: pack.credits, priceCents: pack.price },
+          }],
+          shippingAddress: {},
+          shippingCostCents: 0,
+        }),
       })
       const data = await response.json()
-      if (data.url) {
-        window.location.href = data.url
+      if (data.success) {
+        alert('Demande envoyée ! Greg te recontactera par email pour finaliser.')
       } else {
         throw new Error(data.error || 'Erreur')
       }
     } catch (error) {
-      console.error('Erreur Stripe checkout credits:', error)
+      console.error('Erreur envoi commande crédits:', error)
+    } finally {
       setIsRedirecting(null)
     }
   }
@@ -3676,19 +3666,30 @@ function CreditsShopStep() {
   const handleBuyNarration = async (packId: string) => {
     setIsRedirecting(packId)
     try {
-      const response = await fetch('/api/stripe/checkout/narration-credits', {
+      const pack = NARRATION_CREDIT_PACKS.find(p => p.id === packId)
+      if (!pack) throw new Error('Pack introuvable')
+      const response = await fetch('/api/order/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packId }),
+        body: JSON.stringify({
+          cartItems: [{
+            type: 'narration-credits',
+            label: pack.label,
+            creditsData: { packId: pack.id, credits: pack.credits, priceCents: pack.price },
+          }],
+          shippingAddress: {},
+          shippingCostCents: 0,
+        }),
       })
       const data = await response.json()
-      if (data.url) {
-        window.location.href = data.url
+      if (data.success) {
+        alert('Demande envoyée ! Greg te recontactera par email pour finaliser.')
       } else {
         throw new Error(data.error || 'Erreur')
       }
     } catch (error) {
-      console.error('Erreur Stripe checkout narration:', error)
+      console.error('Erreur envoi commande narration:', error)
+    } finally {
       setIsRedirecting(null)
     }
   }

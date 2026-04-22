@@ -51,12 +51,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
     }
 
-    // Prix calculé côté serveur : basé sur le coût Gelato réel + formule de marge
+    // Prix produit fixe (49,99€) + frais de port Gelato facturés à part
     const gelatoCost = gelatoQuote.productPrice + gelatoQuote.shippingPrice
     const type = coverType === 'hardcover' ? 'hardcover' : 'softcover'
     const amountInCents = calculateBookPrice(type, gelatoCost)
+    const shippingCents = Math.round(gelatoQuote.shippingPrice * 100)
+    const totalCents = amountInCents + shippingCents
 
-    console.log(`📖 Book pricing: Gelato=${gelatoCost.toFixed(2)}€ → Selling=${(amountInCents/100).toFixed(2)}€ (${type})`)
+    console.log(`📖 Book pricing: Produit=${(amountInCents/100).toFixed(2)}€ + Port=${(shippingCents/100).toFixed(2)}€ = ${(totalCents/100).toFixed(2)}€ (Gelato cost: ${gelatoCost.toFixed(2)}€)`)
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -71,6 +73,17 @@ export async function POST(request: NextRequest) {
               description: `${format} • ${coverType} • ${pageCount} pages`,
             },
             unit_amount: amountInCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: 'Frais de port',
+              description: 'Livraison Gelato',
+            },
+            unit_amount: shippingCents,
           },
           quantity: 1,
         },
@@ -90,12 +103,13 @@ export async function POST(request: NextRequest) {
         gelato_quote: JSON.stringify(gelatoQuote),
         gelato_cost: String(gelatoCost),
         selling_price: String(amountInCents),
+        shipping_price: String(shippingCents),
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}?checkout=cancelled`,
     })
 
-    return NextResponse.json({ url: session.url, price: amountInCents })
+    return NextResponse.json({ url: session.url, price: totalCents })
   } catch (error) {
     console.error('Erreur Stripe checkout book:', error)
     return NextResponse.json(

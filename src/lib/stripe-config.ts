@@ -42,41 +42,22 @@ export function getNarrationCreditPack(packId: string) {
 // BOOK PRICING
 // ============================================================================
 
-// Prix fixes de base (en cents)
-export const BOOK_BASE_PRICES = {
-  softcover: 3499, // 34,99€
-  hardcover: 4999, // 49,99€
-} as const
-
-// Coûts de référence Gelato (produit + livraison) au 24/02/2026
-// Utilisés pour ajuster le prix si Gelato augmente
-export const GELATO_REFERENCE_COSTS = {
-  softcover: 16.65, // max des softcovers (21×28: €11.96 + €4.69)
-  hardcover: 24.97, // max des hardcovers (28×28: €20.17 + €4.80)
-} as const
+// Prix unique pour tous les livres (en cents)
+// Les frais de port Gelato sont facturés séparément via une ligne dédiée.
+export const BOOK_FLAT_PRICE_CENTS = 4999 // 49,99€
 
 /**
- * Calcule le prix de vente d'un livre en fonction du coût Gelato actuel.
- * Si Gelato augmente de X%, notre prix augmente de X%.
- * Si Gelato baisse, on garde le prix fixe.
+ * Prix de vente d'un livre : 49,99€ flat, peu importe format/cover.
+ * Les frais de port sont facturés séparément.
  *
- * @param coverType - 'softcover' ou 'hardcover'
- * @param currentGelatoCost - coût actuel Gelato (produit + livraison) en euros
- * @returns prix de vente en cents, arrondi au .99€
+ * Signature inchangée pour compatibilité avec les appelants existants.
+ * Les arguments sont ignorés.
  */
 export function calculateBookPrice(
-  coverType: 'softcover' | 'hardcover',
-  currentGelatoCost: number
+  _coverType: 'softcover' | 'hardcover',
+  _currentGelatoCost: number
 ): number {
-  const basePrice = BOOK_BASE_PRICES[coverType]
-  const referenceCost = GELATO_REFERENCE_COSTS[coverType]
-
-  const ratio = Math.max(1, currentGelatoCost / referenceCost)
-  const adjustedPrice = basePrice * ratio
-
-  // Arrondir au .99€ supérieur (en cents)
-  const euros = Math.ceil(adjustedPrice / 100)
-  return euros * 100 - 1 // ex: 35€ → 3499 (34.99€), 51€ → 5099 (50.99€)
+  return BOOK_FLAT_PRICE_CENTS
 }
 
 // ============================================================================
